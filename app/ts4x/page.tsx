@@ -5,128 +5,92 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export default function TryTS4XPage() {
-  const [formData, setFormData] = useState({ deviceId: "", systemOS: "android", licenseType: "personal" });
-  const [isDeployed, setIsDeployed] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const betaLicenseKey = "TS4X-BETA-LIVE-2026-X99";
 
-  const handleDeploy = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setIsDeployed(true);
-    }, 1500);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(betaLicenseKey);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="bg-[#030305] text-[#E4E4E9] min-h-screen flex flex-col justify-between relative font-mono selection:bg-orange-500/30 selection:text-white">
-      
-      {/* BACKGROUND MATRIX GRID */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#111116_1px,transparent_1px),linear-gradient(to_bottom,#111116_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_30%,#000_80%,transparent_100%)] pointer-events-none opacity-20" />
-      
+    <div className="bg-white text-[#171717] min-h-screen flex flex-col justify-between antialiased selection:bg-[#0070F3]/10 selection:text-[#0070F3]">
+      <style>{`
+        @import url('https://googleapis.com');
+        .geist-sans { font-family: 'Inter', sans-serif; }
+        .geist-mono { font-family: 'JetBrains Mono', monospace; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+      `}</style>
+
       <Navbar />
 
-      {/* CONTINUT CENTRAL */}
-      <main className="flex-1 w-full max-w-5xl mx-auto flex items-center justify-center px-4 pt-28 pb-16 z-10">
-        <div className="w-full border border-white/[0.05] bg-[#060608]/70 backdrop-blur-2xl rounded-2xl shadow-[0_40px_80px_-30px_rgba(0,0,0,0.9)] overflow-hidden flex flex-col min-h-[480px]">
+      <main className="geist-sans flex-1 w-full max-w-5xl mx-auto px-6 pt-32 pb-20 space-y-10 animate-fade-in">
+        {/* HEADER SECTION */}
+        <div className="border-b border-[#EEEEEE] pb-6 space-y-2">
           
-          {/* HEADER CONSOLĂ */}
-          <div className="p-4 sm:p-6 border-b border-white/[0.05] flex justify-between items-center bg-white/[0.01]">
-            <div className="text-left">
-              <span className="text-[9px] text-orange-500/60 tracking-[0.25em] block font-bold">// DEPLOY_STATION</span>
-              <h1 className="text-xl font-light text-white uppercase tracking-wider">
-                TS4X <span className="text-orange-500 font-sans font-black">Terminal</span>
-              </h1>
+          <h1 className="text-3xl font-bold tracking-tight text-black">TS4X Pro Engine</h1>
+          <p className="text-sm text-[#666666] max-w-3xl leading-relaxed">
+            Real-time audio processing system built for live stage and studio setups. Guarantees under <span className="font-semibold text-black underline underline-offset-4 decoration-[#0070f3]">1.8ms latency for .apk and desktop version</span>, intelligent velocity mapping, and absolute digital stability.
+          </p>
+        </div>
+
+        {/* MIDDLE GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-start">
+          {/* SANDBOX TESTING */}
+          <div className="md:col-span-3 border border-[#EAEAEA] rounded-xl bg-white p-6 shadow-[0_2px_4px_rgba(0,0,0,0.01)] space-y-5 transition-all hover:border-[#CCCCCC] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+            <div>
+              <h2 className="text-base font-semibold text-black">Web Sandbox Testing TS4X synth</h2>
+              <p className="text-xs text-[#666666]">Follow these simple steps to initialize your virtual environment handshake.</p>
             </div>
-            <div className="flex items-center gap-2 text-[9px] border border-white/[0.06] bg-black/50 h-7 px-3 rounded-full text-zinc-400">
-              <span className={`w-1.5 h-1.5 rounded-full relative ${isDeployed ? "bg-orange-500" : "bg-zinc-600 animate-pulse"}`}>
-                {isDeployed && <span className="absolute inset-0 bg-orange-500 rounded-full animate-ping opacity-60" />}
-              </span>
-              <span className="tracking-widest font-bold">{isDeployed ? "TUNNEL_READY" : "AWAITING_IO"}</span>
+            <div className="space-y-3.5 border-t border-[#F1F1F1] pt-4">
+              {[
+                { step: "01", title: "Connect MIDI", desc: "Plug your USB-MIDI cable or wireless transmitter directly into your device." },
+                { step: "02", title: "Map Channels", desc: "The sandbox terminal automatically detects registers and filters velocity data instantly." },
+                { step: "03", title: "Execute Live Mode", desc: "Launch the environment window to trigger preloaded stage-ready soundbanks." }
+              ].map((s) => (
+                <div key={s.step} className="flex gap-4 group">
+                  <span className="geist-mono text-xs font-semibold bg-[#FAFAFA] border border-[#EAEAEA] text-[#666666] w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-colors group-hover:bg-black group-hover:text-white duration-200">{s.step}</span>
+                  <div>
+                    <h3 className="text-xs font-semibold text-black group-hover:text-[#0070f3] transition-colors">{s.title}</h3>
+                    <p className="text-xs text-[#666666] mt-0.5">{s.desc}</p>
+                  </div>
+                </div>
+              ))}
             </div>
+            <a href="https://vi.imidi.ro/app_xyz2025magfshgXX/" target="_blank" rel="noopener noreferrer" className="block text-center w-full py-2.5 rounded-lg bg-black text-white hover:bg-white hover:text-black border border-black text-xs font-medium transition-all active:scale-[0.99] shadow-sm">Launch Browser TS4X ↗</a>
           </div>
 
-          {/* INSTANȚĂ FORMULAR / REZULTAT */}
-          <div className="flex-1 flex flex-col justify-center">
-            {!isDeployed ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 h-full">
-                
-                {/* Inputs */}
-                <form onSubmit={handleDeploy} className="md:col-span-2 p-5 sm:p-6 space-y-5 text-left border-b md:border-b-0 md:border-r border-white/[0.05] flex flex-col justify-center">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-zinc-400 uppercase tracking-widest">// Device ID</label>
-                    <input 
-                      type="text" required value={formData.deviceId}
-                      onChange={(e) => setFormData({...formData, deviceId: e.target.value})}
-                      placeholder="e.g. CORE-ACCORDION-01"
-                      className="w-full h-10 bg-white/[0.02] border border-white/[0.06] focus:border-orange-500/40 focus:bg-orange-500/[0.01] text-white px-3 text-xs rounded-xl outline-none transition-all"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] text-zinc-400 uppercase tracking-widest">// System OS</label>
-                      <select value={formData.systemOS} onChange={(e) => setFormData({...formData, systemOS: e.target.value})} className="w-full h-10 bg-[#07070a] border border-white/[0.06] focus:border-orange-500/40 text-zinc-300 px-3 text-xs rounded-xl outline-none cursor-pointer">
-                        <option value="android">Android Framework</option>
-                        <option value="windows">Windows Desktop</option>
-                        <option value="macos">macOS Architecture</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] text-zinc-400 uppercase tracking-widest">// License</label>
-                      <select value={formData.licenseType} onChange={(e) => setFormData({...formData, licenseType: e.target.value})} className="w-full h-10 bg-[#07070a] border border-white/[0.06] focus:border-orange-500/40 text-zinc-300 px-3 text-xs rounded-xl outline-none cursor-pointer">
-                        <option value="personal">Evaluation (Free)</option>
-                        <option value="pro">Pro Stage License</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-white/[0.04] flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <p className="text-[10px] font-sans font-light text-zinc-500 max-w-xs leading-normal">
-                      Compiling initializes an exclusive secure handshake token network.
-                    </p>
-                    <button type="submit" disabled={loading} className="w-full sm:w-auto h-10 px-6 bg-white text-black font-sans font-bold text-[11px] tracking-widest uppercase rounded-xl hover:bg-orange-500 hover:text-white hover:shadow-[0_0_20px_rgba(249,115,22,0.4)] transition-all active:scale-[0.97] disabled:opacity-40">
-                      {loading ? "[ COMPILING... ]" : "[ LAUNCH_ENVIRONMENT ]"}
-                    </button>
-                  </div>
-                </form>
-
-                {/* Specs Pane */}
-                <div className="p-5 sm:p-6 bg-white/[0.005] flex flex-col justify-between text-left space-y-6">
-                  <div className="space-y-2">
-                    <span className="text-[9px] text-orange-500/50 tracking-[0.2em] block font-bold">// CORE_SPECS</span>
-                    <p className="text-xs text-zinc-400 font-sans font-light leading-normal">
-                      Instantiates an isolated standalone sandbox memory environment running latency-optimized audio drivers.
-                    </p>
-                  </div>
-                  <div className="space-y-1.5 font-mono text-[10px] text-zinc-500 border-t border-white/[0.04] pt-3">
-                    <div className="flex justify-between"><span>IO Buffer:</span> <span className="text-zinc-300">64 samples</span></div>
-                    <div className="flex justify-between"><span>Audio LLA:</span> <span className="text-zinc-300">24-bit True</span></div>
-                    <div className="flex justify-between"><span>Location:</span> <span className="text-orange-400/80">EU Central</span></div>
-                  </div>
-                </div>
-
-              </div>
-            ) : (
-              /* DEPLOY SUCCESS */
-              <div className="p-8 flex flex-col items-center justify-center space-y-5 text-center relative overflow-hidden">
-                <div className="w-12 h-12 rounded-full border border-orange-500/30 bg-orange-500/5 flex items-center justify-center relative">
-                  <span className="w-4 h-4 bg-orange-500 rounded-full animate-ping absolute opacity-60" />
-                  <span className="w-1.5 h-1.5 bg-orange-500 rounded-full relative shadow-[0_0_12px_4px_rgba(249,115,22,0.8)]" />
-                </div>
-                <div className="space-y-2 max-w-sm">
-                  <h3 className="text-lg font-light text-white uppercase tracking-wider">Handshake Vector Completed</h3>
-                  <p className="text-xs font-sans text-zinc-400 leading-normal">
-                    Node sandbox for <span className="text-white font-mono bg-white/[0.06] px-1.5 py-0.5 rounded border border-white/[0.05]">{formData.deviceId || "UNKNOWN"}</span> initialized on <span className="text-orange-400 font-bold uppercase">{formData.systemOS}</span> architecture.
-                  </p>
-                </div>
-                <button onClick={() => setIsDeployed(false)} className="h-9 px-4 border border-white/[0.08] bg-white/[0.02] text-zinc-400 text-[9px] tracking-widest uppercase rounded-lg hover:text-white hover:border-orange-500/30 transition-all active:scale-95">
-                  // DISCONNECT_NODE
-                </button>
-              </div>
-            )}
+          {/* CHECKOUT CARD */}
+          <div className="md:col-span-2 border border-[#EAEAEA] rounded-xl bg-[#FAFAFA] p-6 space-y-5 flex flex-col justify-between min-h-[305px] transition-all hover:border-[#CCCCCC] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+            <div className="space-y-3">
+              <span className="text-[10px] font-bold text-[#666666] uppercase tracking-widest geist-mono">PRO STAGE</span>
+              <h2 className="text-lg font-semibold text-black">Perpetual License</h2>
+              <div className="flex items-baseline gap-1.5"><span className="text-3xl font-bold text-black">$249</span><span className="text-xs text-[#666666] font-medium">EUR/ single payment</span></div>
+              <ul className="text-xs text-[#444444] space-y-1.5 border-t border-[#EAEAEA] pt-3 leading-relaxed">
+                <li>✓ Lifetime priority firmware hotfixes</li>
+                <li>✓ Fully optimized for live stage setups</li>
+                <li>✓ 14-day hassle-free money-back</li>
+              </ul>
+            </div>
+            <button onClick={() => alert("Redirecting to Stripe...")} className="w-full py-2.5 rounded-lg bg-[#0070F3] text-white hover:bg-[#0062d6] text-xs font-medium transition-all active:scale-[0.99] shadow-sm">Buy TS4X Pro License</button>
           </div>
+        </div>
 
+        {/* BETA SERIAL NODE */}
+        <div className="border border-[#EAEAEA] rounded-xl p-5 bg-gradient-to-r from-[#FAFAFA] to-[#FFFFFF] flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:border-[#0070F3]/30">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0070F3] opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-[#0070F3]"></span></span>
+              <h4 className="text-xs font-semibold text-black uppercase tracking-wider geist-mono">BETA Serial License Activation</h4>
+            </div>
+            <p className="text-xs text-[#666666] max-w-xl leading-normal">Use this developer node key inside the sandbox console window to uncap high-tier audio driver parameters.</p>
+          </div>
+          <div className="w-full sm:w-auto flex items-center border border-[#EAEAEA] rounded-lg bg-white overflow-hidden shadow-sm">
+            <code className="geist-mono text-[11px] px-3 py-2 text-black font-medium select-all">{betaLicenseKey}</code>
+            <button onClick={handleCopy} className="border-l border-[#EAEAEA] bg-[#FAFAFA] hover:bg-[#EEEEEE] text-xs font-medium px-4 py-2 text-black transition-colors min-w-[75px]">{copied ? "Copied!" : "Copy"}</button>
+          </div>
         </div>
       </main>
 
