@@ -55,7 +55,7 @@ export default function MyCloudPage() {
       <main className="geist-sans flex-1 w-full max-w-5xl mx-auto px-6 pt-32 pb-20 space-y-10 animate-fade-in">
         {/* HERO SECTION */}
         <div className="border-b border-[#EEEEEE] pb-6 space-y-2">
-          <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-[#0070f3]/10 text-[#0070f3] geist-mono">Infrastructure Node</span>
+          
           <h1 className="text-3xl font-bold tracking-tight text-black">iMIDI MyCloud Storage</h1>
           <p className="text-sm text-[#666666] max-w-3xl leading-relaxed">Automated repository synchronization for live setup parameters, custom soundbanks, and responsive layout scripts. Test our developer edge upload pipeline below.</p>
         </div>
