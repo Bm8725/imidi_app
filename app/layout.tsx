@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "iMIDI App — Shape the Digital Music Future",
     description: "The next generation of synthesizer technology. Experience real-time cloud synergy.",
-    url: "https://imidi.app", // Înlocuiește cu domeniul tău real
+    url: "https://imidi.co.uk", // 
     siteName: "iMIDI",
     locale: "en_US",
     type: "website",
