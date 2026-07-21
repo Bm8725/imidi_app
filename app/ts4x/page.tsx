@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import WhatsAppWidget from "@/components/WhatsAppWidget";
 
 export default function TryTS4XPage() {
   const [copied, setCopied] = useState(false);
@@ -93,7 +94,7 @@ export default function TryTS4XPage() {
           </div>
         </div>
       </main>
-
+   <WhatsAppWidget />
       <Footer />
     </div>
   );

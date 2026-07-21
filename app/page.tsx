@@ -6,7 +6,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import MediaHero from "@/components/MediaHero";
 import Footer from "@/components/Footer";
-
+import WhatsAppWidget from "@/components/WhatsAppWidget";
 
 const FAQS = [
   {
@@ -282,6 +282,7 @@ export default function HomePage() {
             </div>
           ))}
         </div>
+    
         <Footer />
       </div>
     </div>
