@@ -96,12 +96,14 @@ export default function AndroidDownloadPage() {
   const [downloadCount, setDownloadCount] = useState<number | null>(null);
   const [assetSize, setAssetSize] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [qrExpanded, setQrExpanded] = useState(false);
 
   // Regenerăm QR-ul de fiecare dată când avem un downloadUrl nou (fallback -> link real de la GitHub)
   useEffect(() => {
     QRCode.toDataURL(downloadUrl, {
-      width: 320,
-      margin: 1,
+      width: 480,
+      margin: 3,
+      errorCorrectionLevel: "M",
       color: { dark: "#0B1220", light: "#FFFFFFFF" },
     })
       .then(setQrDataUrl)
@@ -150,6 +152,13 @@ export default function AndroidDownloadPage() {
   useEffect(() => {
     fetchGitHubData();
   }, []);
+
+  useEffect(() => {
+    if (!qrExpanded) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setQrExpanded(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [qrExpanded]);
 
   const handleButtonClick = () => {
     if (isDownloading) return;
@@ -206,6 +215,12 @@ export default function AndroidDownloadPage() {
         /* ---- waveform: bare care "respiră" ---- */
         @keyframes phone-wave { 0%, 100% { transform: scaleY(0.55); } 50% { transform: scaleY(1); } }
         .phone-wave-bar { animation: phone-wave 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: bottom; }
+
+        /* ---- lightbox QR ---- */
+        @keyframes qr-modal-backdrop { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes qr-modal-pop { from { opacity: 0; transform: scale(0.9) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .qr-modal-backdrop { animation: qr-modal-backdrop 0.2s ease-out forwards; }
+        .qr-modal-card { animation: qr-modal-pop 0.25s cubic-bezier(0.16,1,0.3,1) forwards; }
       `}</style>
 
       <Navbar />
@@ -270,25 +285,30 @@ export default function AndroidDownloadPage() {
 
               {/* Actions — rând propriu, full-width, respiră separat de info */}
               <div className="flex flex-col sm:flex-row items-center gap-4 pt-5 border-t border-[#EFEFEF] justify-between">
-                <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
-                  <div className="w-[92px] h-[92px] shrink-0 rounded-xl border border-[#EAEAEA] bg-white p-2 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+                <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto text-center sm:text-left">
+                  <button
+                    type="button"
+                    onClick={() => qrDataUrl && setQrExpanded(true)}
+                    aria-label="Enlarge QR code"
+                    className="w-[168px] h-[168px] shrink-0 rounded-xl border border-[#EAEAEA] bg-white p-3 shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition-transform duration-200 hover:scale-[1.04] hover:shadow-[0_6px_20px_rgba(0,112,243,0.15)] active:scale-[0.98] cursor-zoom-in"
+                  >
                     {qrDataUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={qrDataUrl}
-                        alt="QR code către download-ul APK"
-                        width={76}
-                        height={76}
-                        className="w-full h-full object-contain"
+                        alt="QR code către download-ul APK — click pentru mărire"
+                        width={144}
+                        height={144}
+                        className="w-full h-full object-contain pointer-events-none"
                       />
                     ) : (
                       <div className="w-full h-full rounded-lg bg-[#FAFAFA] animate-pulse" />
                     )}
-                  </div>
+                  </button>
                   <div className="space-y-0.5">
-                    <div className="text-[11px] font-semibold text-black">Scan with your phone</div>
-                    <div className="text-[10px] text-gray-400 leading-snug max-w-[160px]">
-                      Opens the download directly on your Android device
+                    <div className="text-[13px] font-semibold text-black">Scan with your phone</div>
+                    <div className="text-[11px] text-gray-400 leading-snug max-w-[180px] mx-auto sm:mx-0">
+                      Opens the download directly on your Android device — tap the code to enlarge
                     </div>
                   </div>
                 </div>
@@ -337,6 +357,37 @@ export default function AndroidDownloadPage() {
           </div>
         </div>
       </main>
+
+      {/* ============================= LIGHTBOX QR ============================= */}
+      {qrExpanded && qrDataUrl && (
+        <div
+          className="qr-modal-backdrop fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center px-6"
+          onClick={() => setQrExpanded(false)}
+        >
+          <div
+            className="qr-modal-card relative bg-white rounded-2xl p-6 flex flex-col items-center gap-4 shadow-[0_30px_70px_-20px_rgba(0,0,0,0.5)] max-w-[90vw]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setQrExpanded(false)}
+              aria-label="Close"
+              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-[#0B1220] text-white flex items-center justify-center text-sm hover:bg-black transition-colors shadow-lg"
+            >
+              ✕
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={qrDataUrl}
+              alt="QR code către download-ul APK — mărit"
+              className="w-[280px] h-[280px] sm:w-[340px] sm:h-[340px] object-contain"
+            />
+            <div className="text-center">
+              <div className="text-sm font-semibold text-black">Scan to download TS4X APK</div>
+              <div className="corp-mono text-[10px] text-gray-400 mt-1">{GITHUB_TAG}-stable</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
