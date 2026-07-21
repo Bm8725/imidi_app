@@ -27,7 +27,7 @@ const DEPARTMENTS = [
   // { id: "sales", label: "Sales", sublabel: "Pricing & licenses", number: "40700000000", message: "Hi! I'd like info about pricing." },
 ];
 
-const BOTTOM_OFFSET = "bottom-21 sm:bottom-14";
+const BOTTOM_OFFSET = "bottom-23 sm:bottom-14";
 
 // ============================================================================
 
