@@ -162,14 +162,20 @@ export default function Navbar() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. LOGO FLOATING TOP MOBILE                                               */}
+      {/* 2. NAVBAR TOP MOBILE (FULL WIDTH BAR)                                     */}
       {/* ========================================================================= */}
-      <div className="md:hidden fixed top-4 left-0 right-0 z-50 w-full flex justify-center px-6 pointer-events-none select-none">
-        <div className="h-10 px-5 bg-[#18181C]/70 border border-white/[0.08] backdrop-blur-md rounded-full flex items-center justify-center gap-2 pointer-events-auto shadow-[0_6px_20px_-10px_rgba(0,0,0,0.6)]">
-          <span className="w-2.5 h-2.5 bg-gradient-to-tr from-[#FF5CA1] via-[#FF8A3D] to-[#B47CFF] rotate-45 rounded-[1px] block shadow-[0_0_10px_rgba(255,92,161,0.6)]" />
-          <span className="aw-nav-display font-bold tracking-wider text-[#F2F2F4] text-xs uppercase">iMIDI</span>
-        </div>
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 w-full h-14 border-b border-white/[0.08] bg-[#18181C]/90 backdrop-blur-xl flex items-center justify-between px-6 select-none">
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="relative w-3.5 h-3.5 flex items-center justify-center">
+            <span className="absolute inset-0 bg-[#FF5CA1] rotate-45 rounded-[2px] blur-[3px] opacity-60" />
+            <span className="w-full h-full bg-gradient-to-tr from-[#FF5CA1] via-[#FF8A3D] to-[#B47CFF] rotate-45 block rounded-[2px] shadow-[0_0_10px_rgba(255,92,161,0.5)]" />
+          </div>
+          <span className="aw-nav-display font-bold tracking-[-0.02em] text-white text-sm uppercase">
+            iMIDI.
+          </span>
+        </Link>
       </div>
+
 
       {/* ========================================================================= */}
       {/* 3. MENU JOS MOBILE                                                        */}

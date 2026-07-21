@@ -9,12 +9,12 @@ const CONTACT_EMAILS = [
   {
     label: "General Support",
     email: "contact@imidi.ro",
-    note: "TS4X, i-volution, MyCloud — orice întrebare",
+    note: "TS4X, i-volution, MyCloud — any questions or issues",
   },
   {
     label: "Sales / Licensing",
     email: "licensing@imidi.ro",
-    note: "Prețuri, licențe, facturare",
+    note: "Price, licences, and bulk orders for TS4X or i-volution hardware",
   },
 ];
 
