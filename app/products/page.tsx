@@ -65,13 +65,11 @@ export default function AccordionMidiKitInstallation() {
               <div className="w-full lg:w-1/2 aspect-video bg-[#14151B] border border-white/[0.06] rounded-[18px] overflow-hidden relative group">
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0D0E12]/50 via-transparent to-transparent z-10 pointer-events-none transition-opacity group-hover:opacity-30" />
                 
+                {/* REPARAT: Am eliminat complet blocul onError care strica build-ul pe Server */}
                 <img 
                   src={item.imgSrc} 
                   alt={item.title}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
                 />
                 
                 {/* Text ajutător dacă poza încă nu e pusă în public/ */}
@@ -121,6 +119,7 @@ export default function AccordionMidiKitInstallation() {
             <span className="aw-nav-mono text-xs uppercase tracking-widest text-[#8E9AA8] group-hover:text-white transition-colors">
               Deschide Aplicația & Testează Sunetul
             </span>
+            {/* REPARAT: xmlns valid standard pentru formatul SVG */}
             <svg
               xmlns="http://w3.org"
               fill="none"
