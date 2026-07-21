@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import WhatsAppWidget from "@/components/WhatsAppWidget";
+
+// Extras din JSX pentru a elimina eroarea de parsare Turbopack
+const BLACK_KEYS = [2, 5, 7, 10, 12, 15, 17, 20, 22, 25, 27, 30, 32, 35];
 
 export default function TryTS4XPage() {
   const [copied, setCopied] = useState(false);
+  const [activeStep, setActiveStep] = useState(0);
   const betaLicenseKey = "TS4X-BETA-LIVE-2026-X99";
 
   const handleCopy = () => {
@@ -15,86 +18,113 @@ export default function TryTS4XPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  useEffect(() => {
+    const interval = setInterval(() => setActiveStep((prev) => (prev + 1) % 3), 2500);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="bg-white text-[#171717] min-h-screen flex flex-col justify-between antialiased selection:bg-[#0070F3]/10 selection:text-[#0070F3]">
+    <div className="bg-[#F5F5F7] text-[#1D1D1F] min-h-screen flex flex-col antialiased selection:bg-[#FF4500]/10 selection:text-[#FF4500] relative overflow-x-hidden">
       <style>{`
         @import url('https://googleapis.com');
-        .geist-sans { font-family: 'Inter', sans-serif; }
-        .geist-mono { font-family: 'JetBrains Mono', monospace; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        .corp-sans { font-family: 'Inter', sans-serif; } .corp-mono { font-family: 'JetBrains Mono', monospace; }
+        .scene-3d { perspective: 1000px; perspective-origin: 50% 0%; }
+        .keyboard-3d { transform-style: preserve-3d; transform: rotateX(55deg) rotateY(0deg) rotateZ(-25deg); animation: float3D 8s ease-in-out infinite alternate; }
+        @keyframes float3D { 0% { transform: rotateX(50deg) rotateY(-2deg) rotateZ(-20deg) translateY(0px); } 100% { transform: rotateX(58deg) rotateY(2deg) rotateZ(-28deg) translateY(-15px); } }
       `}</style>
+      
+      {/* BACKGROUND AREA: 3D MATRIX ENGINE */}
+      <div className="absolute top-20 right-[-100px] md:right-10 w-full max-w-[650px] h-[500px] pointer-events-none select-none z-0 scene-3d opacity-40 md:opacity-70 border-t border-l border-black/5">
+        <div className="keyboard-3d absolute inset-0 flex items-center justify-center pt-20">
+          <div className="flex bg-[#EAEAEA] p-4 rounded-xl border border-black/5 shadow-[0_10px_30px_rgba(0,0,0,0.05)] gap-[2px]">
+            {[...Array(14)].map((_, i) => (
+              <div key={i} className="relative w-7 h-40 bg-gradient-to-b from-[#EAEAEA] via-[#FFF] to-[#D5D5D5] rounded-b border-b-[6px] border-[#B5B5B5] shadow-sm flex-shrink-0">
+                {BLACK_KEYS.includes(i) && (
+                  <div className="absolute top-0 right-[-8px] w-4 h-24 bg-gradient-to-b from-[#444] via-[#111] to-[#222] rounded-b border-b-[4px] border-[#000] z-20 shadow-md border-x border-zinc-700" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       <Navbar />
 
-      <main className="geist-sans flex-1 w-full max-w-5xl mx-auto px-6 pt-32 pb-20 space-y-10 animate-fade-in">
-        {/* HEADER SECTION */}
-        <div className="border-b border-[#EEEEEE] pb-6 space-y-2">
-          
-          <h1 className="text-3xl font-bold tracking-tight text-black">TS4X Pro Engine</h1>
-          <p className="text-sm text-[#666666] max-w-3xl leading-relaxed">
-            Real-time audio processing system built for live stage and studio setups. Guarantees under <span className="font-semibold text-black underline underline-offset-4 decoration-[#0070f3]">1.8ms latency for .apk and desktop version</span>, intelligent velocity mapping, and absolute digital stability.
+      <main className="corp-sans flex-1 w-full max-w-5xl mx-auto px-6 pt-32 pb-20 space-y-6 relative z-10">
+        {/* HERO TITLE BLOCK */}
+        <div className="relative border-b border-[#E5E5E7] bg-white/80 backdrop-blur-xl -mx-6 px-6 pt-6 pb-8 border-t rounded-xl sm:rounded-none shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+          <h1 className="text-2xl font-bold tracking-tight text-[#1D1D1F] flex items-center gap-2">
+            <span className="bg-gradient-to-r from-[#FF3333] via-[#FF6A00] to-[#FFAA00] bg-clip-text text-transparent">TS4X Pro Engine</span>
+            
+          </h1>
+          <p className="text-sm text-[#515154] max-w-2xl leading-relaxed mt-1.5">
+            Real-time audio processing system built for live stage setups. Guarantees under <span className="font-semibold text-[#1D1D1F] underline underline-offset-4 decoration-[#FF4500]">1.8ms latency for .apk and desktop version</span>, intelligent velocity mapping, and absolute digital stability.
           </p>
         </div>
 
-        {/* MIDDLE GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-start">
-          {/* SANDBOX TESTING */}
-          <div className="md:col-span-3 border border-[#EAEAEA] rounded-xl bg-white p-6 shadow-[0_2px_4px_rgba(0,0,0,0.01)] space-y-5 transition-all hover:border-[#CCCCCC] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+        {/* WORKSPACE ARCHITECTURE GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-start">
+          {/* SANDBOX TESTING WITH LIVE ANIMATED STEPS */}
+          <section className="md:col-span-3 border border-[#E5E5E7] rounded-xl bg-white/90 backdrop-blur-md p-5 space-y-5 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-[#FF4500]/30 transition-all duration-300">
             <div>
-              <h2 className="text-base font-semibold text-black">Web Sandbox Testing TS4X synth</h2>
-              <p className="text-xs text-[#666666]">Follow these simple steps to initialize your virtual environment handshake.</p>
+              <h2 className="text-sm font-semibold text-[#1D1D1F]">Web Sandbox Testing TS4X synth</h2>
+              <p className="text-xs text-[#515154]">Follow these simple steps to initialize your virtual environment handshake.</p>
             </div>
-            <div className="space-y-3.5 border-t border-[#F1F1F1] pt-4">
+            
+            <div className="space-y-3.5 border-t border-[#E5E5E7] pt-4">
               {[
-                { step: "01", title: "Connect MIDI", desc: "Plug your USB-MIDI cable or wireless transmitter directly into your device." },
-                { step: "02", title: "Map Channels", desc: "The sandbox terminal automatically detects registers and filters velocity data instantly." },
-                { step: "03", title: "Execute Live Mode", desc: "Launch the environment window to trigger preloaded stage-ready soundbanks." }
-              ].map((s) => (
-                <div key={s.step} className="flex gap-4 group">
-                  <span className="geist-mono text-xs font-semibold bg-[#FAFAFA] border border-[#EAEAEA] text-[#666666] w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-colors group-hover:bg-black group-hover:text-white duration-200">{s.step}</span>
-                  <div>
-                    <h3 className="text-xs font-semibold text-black group-hover:text-[#0070f3] transition-colors">{s.title}</h3>
-                    <p className="text-xs text-[#666666] mt-0.5">{s.desc}</p>
+                { idx: 0, step: "01", title: "Connect MIDI", desc: "Plug your USB-MIDI cable or wireless transmitter directly into your device." },
+                { idx: 1, step: "02", title: "Map Channels", desc: "The sandbox terminal automatically detects registers and filters velocity data instantly." },
+                { idx: 2, step: "03", title: "Load Set & Live Mode", desc: "Launch the environment window to trigger preloaded stage-ready soundbanks." }
+              ].map((s) => {
+                const isCurrent = activeStep === s.idx;
+                return (
+                  <div key={s.step} className={`flex gap-4 p-2 rounded-xl transition-all duration-500 ${isCurrent ? "bg-[#FF4500]/5 border border-[#FF4500]/10 translate-x-1" : "border border-transparent"}`}>
+                    <span className={`corp-mono text-xs font-semibold w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-all duration-500 ${isCurrent ? "bg-gradient-to-r from-[#FF4500] to-[#E60000] text-white shadow-[0_2px_10px_rgba(255,69,0,0.2)] scale-110" : "bg-[#F5F5F7] border border-[#E5E5E7] text-[#515154]"}`}>{s.step}</span>
+                    <div>
+                      <h3 className={`text-xs font-semibold transition-colors duration-500 ${isCurrent ? "text-[#FF4500]" : "text-[#1D1D1F]"}`}>{s.title}</h3>
+                      <p className="text-xs text-[#86868B] mt-0.5">{s.desc}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-            <a href="https://vi.imidi.ro/app_xyz2025magfshgXX/" target="_blank" rel="noopener noreferrer" className="block text-center w-full py-2.5 rounded-lg bg-black text-white hover:bg-white hover:text-black border border-black text-xs font-medium transition-all active:scale-[0.99] shadow-sm">Launch Browser TS4X ↗</a>
-          </div>
+            <a href="https://vi.imidi.ro/app_xyz2025magfshgXX/" target="_blank" rel="noopener noreferrer" className="block text-center w-full py-2.5 rounded-lg bg-gradient-to-r from-[#FF4500] to-[#E60000] text-white hover:opacity-95 text-xs font-semibold transition-all shadow-[0_4px_15px_rgba(255,69,0,0.15)]">Launch Browser TS4X ↗</a>
+          </section>
 
           {/* CHECKOUT CARD */}
-          <div className="md:col-span-2 border border-[#EAEAEA] rounded-xl bg-[#FAFAFA] p-6 space-y-5 flex flex-col justify-between min-h-[305px] transition-all hover:border-[#CCCCCC] hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
-            <div className="space-y-3">
-              <span className="text-[10px] font-bold text-[#666666] uppercase tracking-widest geist-mono">PRO STAGE</span>
-              <h2 className="text-lg font-semibold text-black">Perpetual License</h2>
-              <div className="flex items-baseline gap-1.5"><span className="text-3xl font-bold text-black">$249</span><span className="text-xs text-[#666666] font-medium">EUR/ single payment</span></div>
-              <ul className="text-xs text-[#444444] space-y-1.5 border-t border-[#EAEAEA] pt-3 leading-relaxed">
-                <li>✓ Lifetime priority firmware hotfixes</li>
-                <li>✓ Fully optimized for live stage setups</li>
-                <li>✓ 14-day hassle-free money-back</li>
+          <section className="md:col-span-2 border border-[#E5E5E7] rounded-xl bg-white/90 backdrop-blur-md p-5 space-y-5 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden group hover:border-[#FF8800]/30 transition-all duration-300">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#E60000] via-[#FF4500] to-[#FF8800]" />
+            <div className="space-y-4">
+             
+              <h2 className="text-base font-semibold text-[#1D1D1F]">TS4x License</h2>
+              <div className="flex items-baseline gap-1"><span className="text-3xl font-bold tracking-tight text-[#1D1D1F]">$249</span><span className="text-xs text-[#515154] font-medium uppercase corp-mono">EUR / single payment</span></div>
+              <ul className="text-xs text-[#515154] space-y-2.5 border-t border-[#E5E5E7] pt-4 leading-normal">
+                <li className="flex items-center gap-2"><span className="text-[#FF4500] font-semibold">✓</span> Lifetime priority firmware hotfixes</li>
+                <li className="flex items-center gap-2"><span className="text-[#FF4500] font-semibold">✓</span> Fully optimized for live stage setups</li>
+                <li className="flex items-center gap-2"><span className="text-[#FF4500] font-semibold">✓</span> 14-day hassle-free money-back</li>
               </ul>
             </div>
-            <button onClick={() => alert("Redirecting to Stripe...")} className="w-full py-2.5 rounded-lg bg-[#0070F3] text-white hover:bg-[#0062d6] text-xs font-medium transition-all active:scale-[0.99] shadow-sm">Buy TS4X Pro License</button>
-          </div>
+            <a href="/api/checkout/ts4x" className="w-full bg-[#1D1D1F] text-white hover:bg-black border border-transparent text-xs font-semibold py-2.5 px-4 rounded-lg transition-all shadow-sm text-center block">Buy TS4X Pro License</a>
+          </section>
         </div>
 
         {/* BETA SERIAL NODE */}
-        <div className="border border-[#EAEAEA] rounded-xl p-5 bg-gradient-to-r from-[#FAFAFA] to-[#FFFFFF] flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:border-[#0070F3]/30">
+        <div className="border border-[#E5E5E7] rounded-xl p-5 bg-white/90 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-[#FF4500]/20 transition-all">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0070F3] opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-[#0070F3]"></span></span>
-              <h4 className="text-xs font-semibold text-black uppercase tracking-wider geist-mono">BETA Serial License Activation</h4>
+              <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF4500] opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF4500]"></span></span>
+              <h4 className="text-xs font-semibold text-[#1D1D1F] uppercase tracking-wider corp-mono">BETA Serial License Activation</h4>
             </div>
-            <p className="text-xs text-[#666666] max-w-xl leading-normal">Use this developer node key inside the sandbox console window to uncap high-tier audio driver parameters.</p>
+            <p className="text-xs text-[#515154] max-w-xl leading-normal">Use this developer node key inside the sandbox console window to uncap high-tier audio driver parameters.</p>
           </div>
-          <div className="w-full sm:w-auto flex items-center border border-[#EAEAEA] rounded-lg bg-white overflow-hidden shadow-sm">
-            <code className="geist-mono text-[11px] px-3 py-2 text-black font-medium select-all">{betaLicenseKey}</code>
-            <button onClick={handleCopy} className="border-l border-[#EAEAEA] bg-[#FAFAFA] hover:bg-[#EEEEEE] text-xs font-medium px-4 py-2 text-black transition-colors min-w-[75px]">{copied ? "Copied!" : "Copy"}</button>
+          <div className="w-full sm:w-auto flex items-center border border-[#E5E5E7] rounded-lg bg-[#F5F5F7] overflow-hidden shadow-inner">
+            <code className="corp-mono text-[11px] px-3 py-2 text-[#1D1D1F] font-medium select-all">{betaLicenseKey}</code>
+            <button onClick={handleCopy} className="border-l border-[#E5E5E7] bg-white hover:bg-[#F5F5F7] text-xs font-semibold px-4 py-2 text-[#1D1D1F] transition-colors min-w-[85px] corp-mono">{copied ? "Copied!" : "Copy"}</button>
           </div>
         </div>
       </main>
-   <WhatsAppWidget />
+
       <Footer />
     </div>
   );
