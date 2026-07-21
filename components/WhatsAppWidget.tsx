@@ -84,7 +84,7 @@ export default function WhatsAppWidget({ position = "right" }: Props) {
 
   return (
     <>
-      <style>{`
+      <style href="wa-widget-styles" precedence="default">{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         .wa-font { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
 
@@ -206,15 +206,17 @@ export default function WhatsAppWidget({ position = "right" }: Props) {
         </div>
       )}
 
-      {/* ============================= FLOATING BUTTON — icon normal ============================= */}
+      {/* ============================= FLOATING BUTTON — pad MIDI, dar clar WhatsApp ============================= */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
           aria-label="Chat on WhatsApp"
-          className={`fixed z-[59] ${BOTTOM_OFFSET} ${sideClass} w-14 h-14 rounded-full bg-[#25D366] flex items-center justify-center text-white shadow-[0_8px_24px_-6px_rgba(37,211,102,0.55)] transition-transform duration-300 hover:scale-105 active:scale-95`}
+          className={`fixed z-[59] ${BOTTOM_OFFSET} ${sideClass} w-14 h-14 rounded-xl bg-gradient-to-br from-[#2CE07C] to-[#1DA851] border border-white/20 flex items-center justify-center text-white shadow-[0_8px_24px_-6px_rgba(37,211,102,0.55),inset_0_1px_1px_rgba(255,255,255,0.35)] transition-transform duration-200 hover:scale-105 active:scale-90`}
         >
-          <span className="wa-pingring absolute inset-0 rounded-full border-2 border-[#25D366]/50" />
-          <svg viewBox="0 0 24 24" className="w-7 h-7 fill-white relative z-10">
+          <span className="wa-pingring absolute inset-0 rounded-xl border-2 border-[#25D366]/50" />
+          {/* mic "LED" în colț, ca la pad-urile MIDI din hero */}
+          <span className="absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full bg-white/70" />
+          <svg viewBox="0 0 24 24" className="w-7 h-7 fill-white relative z-10 drop-shadow-[0_1px_1px_rgba(0,0,0,0.15)]">
             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.29.173-1.414-.074-.124-.272-.198-.57-.347z" />
             <path d="M12.001 2c-5.514 0-9.988 4.474-9.988 9.988 0 1.76.462 3.482 1.34 4.998L2 22l5.146-1.34a9.96 9.96 0 0 0 4.855 1.238h.004c5.514 0 9.987-4.474 9.987-9.988C21.992 6.474 17.518 2 12.001 2zm0 18.16h-.003a8.155 8.155 0 0 1-4.163-1.14l-.299-.177-3.056.796.816-2.98-.194-.306a8.15 8.15 0 0 1-1.253-4.365c0-4.505 3.667-8.171 8.176-8.171 2.184 0 4.238.851 5.782 2.396a8.12 8.12 0 0 1 2.393 5.787c-.002 4.505-3.668 8.16-8.199 8.16z" />
           </svg>
