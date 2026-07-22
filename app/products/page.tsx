@@ -170,7 +170,7 @@ const SPECS = [
 ];
 
 const GALLERY_SLOTS = [
-  { label: "PCB i-volution mount", src: "/pcb.jpg" },
+  { label: "PCB i-volution mount", src: "/PCB.jpg" },
   { label: "OLED display close-up", src: "/oled.jpg" },
   { label: "Mounted on accordion", src: "/ds1.jpg" },
   { label: "Full bass", src: "/bass.jpg" },
