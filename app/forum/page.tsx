@@ -42,9 +42,18 @@ export default function ForumPage() {
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPost.title || !newPost.content) return;
-    const { data } = await supabase.from("forum_posts").insert([{ ...newPost, user_id: user.id, user_email: user.email }]).select();
-    if (data) { 
-      setPosts([{ ...data, replies: [] }, ...posts]); 
+    
+    // Am adăugat .single() pentru a returna obiectul direct, nu un array generic
+    const { data, error } = await supabase
+      .from("forum_posts")
+      .insert([{ ...newPost, user_id: user.id, user_email: user.email }])
+      .select()
+      .single();
+
+    if (data && !error) { 
+      // Acum asiguri TypeScript că obiectul are forma corectă adăugându-i manual replies gol
+      const createdPost: Post = { ...data, replies: [] };
+      setPosts([createdPost, ...posts]); 
       setNewPost({ title: "", content: "" });
       setCurrentPage(1); // Resetăm la prima pagină pentru a vedea postarea nouă
     }
@@ -53,10 +62,18 @@ export default function ForumPage() {
   const handleCreateReply = async (e: React.FormEvent, postId: string) => {
     e.preventDefault();
     if (!replyContent.trim()) return;
-    const { data } = await supabase.from("forum_replies").insert([{ post_id: postId, content: replyContent, user_id: user.id, user_email: user.email }]).select();
-    if (data) {
-      setPosts(posts.map((p) => p.id === postId ? { ...p, replies: [...p.replies, data] } : p));
-      setReplyContent(""); setActiveReplyId(null);
+
+    // Am adăugat .single() și aici pentru a preveni erori la adăugarea replicii în array
+    const { data, error } = await supabase
+      .from("forum_replies")
+      .insert([{ post_id: postId, content: replyContent, user_id: user.id, user_email: user.email }])
+      .select()
+      .single();
+
+    if (data && !error) {
+      setPosts(posts.map((p) => p.id === postId ? { ...p, replies: [...p.replies, data as Reply] } : p));
+      setReplyContent(""); 
+      setActiveReplyId(null);
     }
   };
 
@@ -141,19 +158,19 @@ export default function ForumPage() {
 
           {/* Sistemul Vizual de Paginare */}
           {!loading && totalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 font-mono text-xs text-[#5B5F66]">
+            <div className="flex items-center justify-between pt-4 border-t border-[#E7E5DB]">
               <button 
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                className="bg-white border border-[#E7E5DB] px-3 py-1.5 rounded-lg disabled:opacity-30 hover:text-black transition-colors"
+                disabled={currentPage === 1} 
+                onClick={() => setCurrentPage(currentPage - 1)}
+                className="text-xs font-mono bg-white border border-[#E7E5DB] px-3 py-1.5 rounded-lg disabled:opacity-50"
               >
                 ← Previous
               </button>
-              <span>Page {currentPage} of {totalPages}</span>
+              <span className="text-xs font-mono text-[#5B5F66]">Page {currentPage} of {totalPages}</span>
               <button 
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                className="bg-white border border-[#E7E5DB] px-3 py-1.5 rounded-lg disabled:opacity-30 hover:text-black transition-colors"
+                disabled={currentPage === totalPages} 
+                onClick={() => setCurrentPage(currentPage + 1)}
+                className="text-xs font-mono bg-white border border-[#E7E5DB] px-3 py-1.5 rounded-lg disabled:opacity-50"
               >
                 Next →
               </button>
