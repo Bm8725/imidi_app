@@ -12,36 +12,35 @@ export async function POST(req: Request) {
 
     const hf = new HfInference(token.trim());
 
-    const response = await hf.chatCompletion({
-      model: "meta-llama/Llama-3.2-3B-Instruct",
-      messages: [
-        { 
-          role: "system", 
-          content: "You are iMIDI AI, a professional and helpful assistant. Respond concisely in English." 
-        },
-        { 
-          role: "user", 
-          content: context 
-        }
-      ],
-      max_tokens: 300,
-      temperature: 0.7
+    // Folosim o metodă directă și un model ultra-stabil pe infrastructura lor de bază
+    const response = await hf.textGeneration({
+      model: "microsoft/Phi-3-mini-4k-instruct",
+      inputs: `<|user|>\n${context}<|end|>\n<|assistant|>\n`,
+      parameters: {
+        max_new_tokens: 250,
+        temperature: 0.7,
+        return_full_text: false
+      },
     });
 
-    console.log("Response via Chat Completion:", JSON.stringify(response));
+    console.log("Răspuns primit direct prin textGeneration:", response);
 
-    // REPARAT CRITIC: Adăugat [0] pentru a citi corect din array-ul choices și a repara TypeScript
-    const textGenerat = response.choices?.[0]?.message?.content || "";
+    let textGenerat = response.generated_text || "";
+
+    // Curățăm tag-urile suplimentare dacă apar în răspuns
+    if (textGenerat) {
+      textGenerat = textGenerat.replace("<|assistant|>", "").trim();
+    }
 
     return NextResponse.json({ 
-      generated_text: textGenerat.trim() || "AI responded with an empty body." 
+      generated_text: textGenerat || "AI responded with an empty body." 
     });
 
   } catch (error: any) {
-    console.error("Error via Hugging Face SDK:", error);
+    console.error("Eroare prin SDK-ul Hugging Face direct:", error);
     
     return NextResponse.json({ 
-      generated_text: "The AI endpoint is initializing. Please click send again in a few seconds." 
+      generated_text: "The AI is currently processing. Please try pressing send again." 
     });
   }
 }
