@@ -28,8 +28,8 @@ export default function Footer() {
 
         {/* STRUCTURA DREAPTA: PAGINI ȘI DOCUMENTE COMPLIANCE */}
         <div className="flex items-center gap-6 text-[10px] uppercase tracking-wider flex-wrap justify-center">
-          <Link href="/ts4x" className="hover:text-white transition-colors">
-            try_ts4x
+          <Link href="/forum" className="hover:text-white transition-colors">
+            forum
           </Link>
           <Link href="/support" className="hover:text-white transition-colors">
             contact
