@@ -95,7 +95,7 @@ export default function CloudWorkspacePage() {
                   className="w-8 h-8 rounded-lg bg-zinc-100 object-cover" 
                   onError={(e) => { e.currentTarget.src = "/user.webp"; }}
                 />
-                <span className="text-xs font-bold">{user?.name || "Se încarcă..."}</span>
+                <span className="text-xs font-bold">{user?.name || "Uploading..."}</span>
               </div>
               <div className="w-full sm:w-64">
                 <div className="text-[11px] text-zinc-500 flex justify-between font-medium"><span>Stocare</span><span>{(totalUsedMb / 1024).toFixed(1)} / 20 GB</span></div>
@@ -124,8 +124,8 @@ export default function CloudWorkspacePage() {
                     <div className="shrink-0 z-20">
                       {delId === b.id ? (
                         <div className="flex gap-1 bg-zinc-50 p-1 border rounded-md">
-                          <button onClick={async () => { await supabase.from("cloud_banks").delete().eq("id", b.id); setDelId(null); window.location.reload(); }} className="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded">Da</button>
-                          <button onClick={() => setDelId(null)} className="px-2 py-0.5 text-zinc-500 text-[10px]">Nu</button>
+                          <button onClick={async () => { await supabase.from("cloud_banks").delete().eq("id", b.id); setDelId(null); window.location.reload(); }} className="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded">yes</button>
+                          <button onClick={() => setDelId(null)} className="px-2 py-0.5 text-zinc-500 text-[10px]">No</button>
                         </div>
                       ) : (
                         <button onClick={() => setDelId(b.id)} className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-red-500 hover:bg-red-50 sm:opacity-0 group-hover:opacity-100 transition-all">
