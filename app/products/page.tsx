@@ -477,6 +477,46 @@ export default function IVolutionProductPage() {
           </div>
         </div>
 
+
+{/* ============================================================================ */}
+{/* SECTION: YOUTUBE MEDIA VIDEO SHOWCASE */}
+{/* ============================================================================ */}
+<div className="border border-[#E5E5E7] rounded-xl p-6 bg-white/90 space-y-6">
+  <div>
+    <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-400 font-mono">Live Showcases & Demos</h2>
+    <p className="text-xs text-[#515154] mt-1">Watch i-VOLUTION in action during live system trials, stage performances.</p>
+  </div>
+  
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {/* PRIMUL VIDEO */}
+    <div className="space-y-3 bg-[#F5F5F7] p-3 rounded-2xl border border-[#E5E5E7] group hover:shadow-md transition-all">
+      {/* Containerul responsive mentine proportia 16:9 */}
+      <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-sm bg-black border border-black/5">
+<iframe width="520" height="400" src="https://www.youtube.com/embed/6XRfRP2zky4?list=RD6XRfRP2zky4" title="Paul Stanga Hora Tiganeasca veche" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope;
+ picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      </div>
+      <h3 className="text-xs font-bold text-neutral-800 px-1 truncate group-hover:text-black transition-colors">
+        i-VOLUTION Accordion Demo - Paul Stângă Live Performance
+      </h3>
+    </div>
+
+    {/* AL DOILEA VIDEO */}
+    <div className="space-y-3 bg-[#F5F5F7] p-3 rounded-2xl border border-[#E5E5E7] group hover:shadow-md transition-all">
+      {/* Containerul responsive mentine proportia 16:9 */}
+      <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-sm bg-black border border-black/5">
+<iframe width="520" height="484" src="https://www.youtube.com/embed/QWuXi7nS-TA?list=RDQWuXi7nS-TA" title="COSTI🇷🇴BogdanDLP❌Georgiana Lobont❌Baboiash❌Maria Dragomiroiu❌Vali Vijelie❌Paul Stânga▶️TOATĂ ROMÂNIA" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media;
+ gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+      </div>
+      <h3 className="text-xs font-bold text-neutral-800 px-1 truncate group-hover:text-black transition-colors">
+        i-VOLUTION international performance
+      </h3>
+    </div>
+  </div>
+</div>
+
+
+
+
         {/* ================= FAQ ================= */}
         <div className="space-y-8 pt-4 border-t border-[#DEDCD3]">
           <div className="space-y-2">
