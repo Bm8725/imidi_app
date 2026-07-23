@@ -42,29 +42,25 @@ export default function AIChatWidget() {
       });
 
       const data = await res.json();
-      let aiText = "";
+      
+      // REPARAT CRITIC PENTRU TYPESCRIPT VERCEL:
+      // Citim direct proprietatea din obiectul simplu trimis de server
+      let aiText = data?.generated_text || "";
 
-      if (Array.isArray(data) && data?.generated_text) {
-        aiText = data.generated_text;
-      } else if (data?.generated_text) {
-        aiText = data.generated_text;
-      } else if (data?.error) {
+      if (data?.error) {
         aiText = "AI Model is loading on servers. Please retry in 10 seconds.";
-      } else {
+      } else if (!aiText) {
         aiText = "An error occurred while processing the response.";
       }
 
-      if (aiText && aiText.includes(context)) {
-        aiText = aiText.replace(context, "");
-      }
-
-      setMessages((prev) => [...prev, { role: "assistant", content: aiText.trim() || "Empty response from server." }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: aiText.trim() }]);
     } catch (err) {
       setMessages((prev) => [...prev, { role: "assistant", content: "Connection error with the internal server." }]);
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <>
