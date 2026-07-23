@@ -274,13 +274,10 @@ export default function AndroidDownloadPage() {
                 </div>
 
                 <div>
-                  <h2 className="text-sm font-semibold text-black tracking-tight truncate">iMIDI Stage Mobile Terminal Bundle</h2>
+                  <h2 className="text-sm font-semibold text-black tracking-tight truncate">TS4x synth android bundle app</h2>
                   <p className="text-xs text-[#666666] mt-0.5">APK Binary Component (ARM64 Architecture) for low-latency wired setups. Requires Android 12 minimum.</p>
                 </div>
 
-                <div className="corp-mono text-[10px] text-gray-400 truncate bg-[#FAFAFA] border border-[#EAEAEA] rounded px-2 py-1 inline-block max-w-full">
-                 sha256:a9e24eb9059402a83ae84583e91e09eee51a554c75df3b055b684cb2c5d8fbd4
-                </div>
               </div>
 
               {/* Actions — rând propriu, full-width, respiră separat de info */}
