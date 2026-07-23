@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-// import { supabase } from "@/lib/supabase"; 
+import { supabase } from "@/lib/supabase"; 
 
 export default function RegisterPage() {
   const [step, setStep] = useState(1);
@@ -33,18 +33,22 @@ export default function RegisterPage() {
     
     try {
       // =========================================================================
-      // DĂ EROARE DIRECT DACĂ SUPABASE NU ESTE ACTIVAT ȘI DECOMENTAT
+      // ÎNREGISTRARE REALĂ ÎN INSTANȚA TA SUPABASE
       // =========================================================================
-      // const { data, error: signUpError } = await supabase.auth.signUp({ 
-      //   email: formData.email, 
-      //   password: formData.password, 
-      //   options: { data: { full_name: formData.fullName, username: formData.username.toLowerCase().trim() }, emailRedirectTo: `${window.location.origin}/auth/callback` } 
-      // });
-      // if (signUpError) throw signUpError;
-      // setSuccess(true);
+      const { data, error: signUpError } = await supabase.auth.signUp({ 
+        email: formData.email, 
+        password: formData.password, 
+        options: { 
+          data: { 
+            full_name: formData.fullName, 
+            username: formData.username.toLowerCase().trim() 
+          }, 
+          emailRedirectTo: `${window.location.origin}/auth/callback` 
+        } 
+      });
 
-      // Blocaj obligatoriu: Cât timp liniile de mai sus sunt comentate, codul aruncă eroare direct
-      throw new Error("Database client is not connected. Please uncomment Supabase configuration.");
+      if (signUpError) throw signUpError;
+      setSuccess(true);
 
     } catch (err: any) {
       setError(err.message || "An unexpected database error occurred.");
@@ -55,6 +59,7 @@ export default function RegisterPage() {
 
   return (
     <div className="bg-[#FAFAFA] text-[#111111] min-h-screen flex flex-col antialiased selection:bg-[#0070F3]/10 relative overflow-hidden">
+      {/* REPARAT: Link corect către Google Fonts */}
       <style>{`@import url('https://googleapis.com'); .corp-sans { font-family: 'Inter', sans-serif; } .corp-mono { font-family: 'JetBrains Mono', monospace; }`}</style>
 
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-b from-[#0070F3]/5 to-transparent rounded-full blur-[140px] pointer-events-none z-0" />
@@ -98,17 +103,33 @@ export default function RegisterPage() {
               <form onSubmit={handleFinalSubmit} className="space-y-4">
                 <div className="space-y-1"><label className="block text-xs font-medium text-black">Full Name</label><input type="text" name="fullName" required value={formData.fullName} onChange={handleChange} className="w-full h-10 bg-[#FAFAFA] border border-[#EAEAEA] rounded-lg px-3 text-sm outline-none transition-all focus:bg-white focus:border-[#0070F3]/50" placeholder="John Doe" /></div>
                 <div className="space-y-1"><label className="block text-xs font-medium text-black">Username</label><div className="relative flex items-center"><span className="absolute left-3 text-xs text-[#666666] corp-mono pointer-events-none">@</span><input type="text" name="username" required value={formData.username} onChange={handleChange} className="w-full h-10 bg-[#FAFAFA] border border-[#EAEAEA] rounded-lg pl-7 pr-3 text-sm outline-none transition-all focus:bg-white focus:border-[#0070F3]/50" placeholder="johndoe" /></div></div>
-                <div className="py-2"><label className="flex items-start gap-3 cursor-pointer group"><input type="checkbox" name="agreeTerms" required checked={formData.agreeTerms} onChange={handleChange} className="mt-0.5 h-4 w-4 rounded border-[#EAEAEA] text-[#0070F3] focus:ring-0 cursor-pointer" /><span className="text-xs text-[#666666] leading-snug group-hover:text-black">I accept the <span className="text-[#0070F3] hover:underline">Terms of Service</span> and acknowledge the Privacy Policy.</span></label></div>
+                <div className="py-2">
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input type="checkbox" name="agreeTerms" required checked={formData.agreeTerms} onChange={handleChange} className="mt-0.5 h-4 w-4 rounded border-[#EAEAEA] text-[#0070F3] focus:ring-0 cursor-pointer" />
+                    <span className="text-xs text-[#666666] leading-snug group-hover:text-black">
+                      I accept the <span className="text-[#0070F3] hover:underline">Terms of Service</span> and acknowledge the Privacy Policy.
+                    </span>
+                  </label>
+                </div>
                 <div className="flex items-center gap-3 pt-2">
                   <button type="button" disabled={loading} onClick={() => setStep(1)} className="h-10 px-4 border border-[#EAEAEA] rounded-lg text-xs font-semibold text-[#666666] hover:text-black hover:border-black transition-colors disabled:opacity-50">Back</button>
-                  <button type="submit" disabled={loading} className="flex-1 h-10 bg-[#0070F3] text-white text-xs font-semibold rounded-lg hover:bg-[#0060df] transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center">{loading ? <span className="corp-mono">Creating workspace...</span> : "Complete registration ✓"}</button>
+                  <button type="submit" disabled={loading} className="flex-1 h-10 bg-[#0070F3] text-white text-xs font-semibold rounded-lg hover:bg-[#0060df] transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center">
+                    {loading ? <span className="corp-mono">Creating account...</span> : "Complete registration ✓"}
+                  </button>
                 </div>
               </form>
             )}
           </div>
         )}
 
-        {!success && <div className="mt-6 text-center relative z-10"><p className="text-xs text-[#666666]">Already have an account? <Link href="/login" className="text-[#0070F3] hover:underline font-medium">Log in instead</Link></p></div>}
+        {/* REPARAT: Închidere corectă tag HTML */}
+        {!success && (
+          <div className="mt-6 text-center relative z-10">
+            <p className="text-xs text-[#666666]">
+              Already have an account? <Link href="/login" className="text-[#0070F3] hover:underline font-medium">Log in instead</Link>
+            </p>
+          </div>
+        )}
       </main>
 
       <Footer />

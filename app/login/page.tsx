@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // Importat pentru redirecționare SPA rapidă
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-// import { supabase } from "@/lib/supabase"; 
+import { supabase } from "@/lib/supabase"; // DECOMENTAT: Clientul tău Supabase
 
 export default function LoginPage() {
+  const router = useRouter(); // Inițializare router Next.js
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -25,22 +27,26 @@ export default function LoginPage() {
 
     try {
       // =========================================================================
-      // CONECTARE REALĂ SUPABASE AUTH (FĂRĂ SIMULĂRI FALSE)
+      // CONECTARE REALĂ SUPABASE AUTH
       // =========================================================================
-      // const { data, error: loginError } = await supabase.auth.signInWithPassword({
-      //   email: formData.email,
-      //   password: formData.password,
-      // });
-      // if (loginError) throw loginError;
-      // window.location.href = "/dashboard";
+      const { data, error: loginError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
 
-      throw new Error("Database client is not connected. Please uncomment Supabase configuration.");
+      if (loginError) throw loginError;
+
+      // Redirecționare directă către pagina cloud-db din dashboard
+      router.push("/dashboard/cloud-db");
+      router.refresh(); 
+
     } catch (err: any) {
       setError(err.message || "Invalid credentials or database connection failure.");
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="bg-[#FAFAFA] text-[#111111] min-h-screen flex flex-col antialiased selection:bg-[#0070F3]/10 relative overflow-x-hidden">
@@ -115,7 +121,7 @@ export default function LoginPage() {
                 required 
                 value={formData.password} 
                 onChange={handleChange} 
-                className="w-full h-11 bg-white/50 border border-black/[0.08] rounded-xl px-4 text-sm outline-none transition-all duration-200 focus:bg-white focus:border-[#0070F3] focus:ring-4 focus:ring-[#0070F3]/5 placeholder:text-••••••••" 
+                className="w-full h-11 bg-white/50 border border-black/[0.08] rounded-xl px-4 text-sm outline-none transition-all duration-200 focus:bg-white focus:border-[#0070F3] focus:ring-4 focus:ring-[#0070F3]/5 placeholder:text-neutral-400" 
                 placeholder="••••••••" 
               />
             </div>
