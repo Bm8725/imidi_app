@@ -6,7 +6,7 @@ import Link from "next/link";
 export default function Footer() {
   // Setează anul curent în mod dinamic pentru a evita erorile de tip Hydration în Next.js
   const [year, setYear] = useState(2026);
-
+  const version = "v0.1.13"; // Poți actualiza manual versiunea aplicației aici
   useEffect(() => {
     setYear(new Date().getFullYear());
   }, []);
@@ -22,8 +22,8 @@ export default function Footer() {
         
         {/* STRUCTURA STÂNGA: BRAND & COPYRIGHT */}
         <div className="flex items-center gap-4 text-zinc-400">
-          <span className="text-white font-sans font-bold tracking-tight">iMIDI.co.uk</span>
-          <span>© {year} all rights reserved</span>
+          <span className="text-pink-300 font-sans font-bold tracking-tight">iMIDI.co.uk</span>
+          <span>© {year} Copyright. Platform developed by BM {version}</span>
         </div>
 
         {/* STRUCTURA DREAPTA: PAGINI ȘI DOCUMENTE COMPLIANCE */}

@@ -2,10 +2,13 @@
  * @project     iMIDI Web Application
  * @package     @imidi/core-app
  * @summary     The next generation of synthesizer technology.
- * @version     0.1.0
+ * @version     0.1.13 : 13.07.2026
+ * @date        2026-07-13
+ * @file        app/layout.tsx
+ * @description Root layout component for the iMIDI web application, providing global styles, fonts, and metadata.
  * @author      B. Marius <marius_service@yahoo.com>
  * 
- * @copyright   Copyright (c) 2026 iMIDI. All rights reserved.
+ * @copyright   Copyright (c) 2026 iMIDI/BM. All rights reserved.
  * @license     Proprietary / Confidential. Unauthorized copying is strictly prohibited.
  */
 
