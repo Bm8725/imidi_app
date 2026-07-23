@@ -83,7 +83,7 @@ export default function CloudWorkspacePage() {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => fileRef.current?.click()} className="h-8 px-3 border rounded-lg text-xs font-medium bg-white shadow-sm">Import</button>
-                <button disabled={totalUsedMb >= maxMb || uploading} onClick={() => fileRef.current?.click()} className="h-8 px-3 bg-zinc-900 text-white text-xs font-medium rounded-lg disabled:opacity-40 shadow-sm">{uploading ? "Se încarcă..." : "+ Upload"}</button>
+                <button disabled={totalUsedMb >= maxMb || uploading} onClick={() => fileRef.current?.click()} className="h-8 px-3 bg-zinc-900 text-white text-xs font-medium rounded-lg disabled:opacity-40 shadow-sm">{uploading ? "Loading..." : "+ Upload"}</button>
               </div>
             </div>
 
@@ -110,7 +110,7 @@ export default function CloudWorkspacePage() {
               ))}
             </div>
 
-            {loading ? <div className="h-16 bg-white border rounded-xl animate-pulse" /> : banks.length === 0 ? <div className="text-center py-10 border border-dashed rounded-xl bg-white text-xs text-zinc-400">Niciun fișier găsit.</div> : (
+            {loading ? <div className="h-16 bg-white border rounded-xl animate-pulse" /> : banks.length === 0 ? <div className="text-center py-10 border border-dashed rounded-xl bg-white text-xs text-zinc-400">Not  packs or file found!</div> : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {banks.map(b => (
                   <div key={b.id} className="bg-white border p-3 rounded-xl flex items-center justify-between hover:border-zinc-400 group transition-all shadow-sm">
