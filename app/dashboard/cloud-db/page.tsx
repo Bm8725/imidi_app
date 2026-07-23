@@ -116,7 +116,7 @@ export default function CloudWorkspacePage() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err: any) {
-      alert(err.message || "Descărcarea a eșuat.");
+      alert(err.message || "Download failed.");
     } finally {
       setDownloadingId(null);
     }
@@ -128,7 +128,7 @@ export default function CloudWorkspacePage() {
       await supabase.auth.signOut();
       router.push("/login");
     } catch (err: any) {
-      alert(err.message || "Delogarea a eșuat.");
+      alert(err.message || "failed.");
       setLoggingOut(false);
     }
   };
@@ -160,6 +160,10 @@ export default function CloudWorkspacePage() {
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                   {loggingOut ? "..." : "Log out"}
                 </button>
+                <Link href="/update-password" className="h-8 px-3 border rounded-lg text-xs font-medium bg-white shadow-sm text-zinc-900 hover:bg-zinc-100 disabled:opacity-40 flex items-center gap-1">
+                  Reset password
+                </Link>
+            
               </div>
             </div>
 

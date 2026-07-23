@@ -134,13 +134,13 @@ export default function Navbar() {
             href="/login"
             className="w-full text-center py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-white bg-neutral-900 border border-neutral-800 active:bg-neutral-800"
           >
-            Sign In
+            Auth
           </Link>
           <Link
             href="/register"
             className="w-full text-center py-3 rounded-xl font-bold text-xs uppercase tracking-wider bg-[#FF5CA1] text-white active:bg-[#e04b8b] shadow-lg"
           >
-            Create Free Account
+            Create  Account
           </Link>
         </div>
       </div>
