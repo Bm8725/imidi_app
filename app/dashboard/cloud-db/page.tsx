@@ -18,7 +18,7 @@ export default function CloudWorkspacePage() {
   const [user, setUser] = useState<any>(null);
   const [delId, setDelId] = useState<string | null>(null);
 
-  const lim = 6, maxMb = 20 * 1024;
+  const lim = 6, maxMb = 30 * 1024;
 
   useEffect(() => {
     (async () => {
@@ -98,7 +98,7 @@ export default function CloudWorkspacePage() {
                 <span className="text-xs font-bold">{user?.name || "Uploading..."}</span>
               </div>
               <div className="w-full sm:w-64">
-                <div className="text-[11px] text-zinc-500 flex justify-between font-medium"><span>Stocare</span><span>{(totalUsedMb / 1024).toFixed(1)} / 20 GB</span></div>
+                <div className="text-[11px] text-zinc-500 flex justify-between font-medium"><span>Stocare</span><span>{(totalUsedMb / 1024).toFixed(1)} / 30 GB</span></div>
                 <div className="w-full h-1.5 bg-zinc-100 rounded-full mt-1 border overflow-hidden"><div className={`h-full transition-all ${pct > 85 ? "bg-red-500" : pct > 60 ? "bg-amber-500" : "bg-zinc-900"}`} style={{ width: `${pct}%` }} /></div>
               </div>
             </div>
