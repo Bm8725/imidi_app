@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -55,7 +56,6 @@ export default function TryTS4XPage() {
         <div className="relative border-b border-[#E5E5E7] bg-white/80 backdrop-blur-xl -mx-6 px-6 pt-6 pb-8 border-t rounded-xl sm:rounded-none shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
           <h1 className="text-2xl font-bold tracking-tight text-[#1D1D1F] flex items-center gap-2">
             <span className="bg-gradient-to-r from-[#FF3333] via-[#FF6A00] to-[#FFAA00] bg-clip-text text-transparent">TS4X Pro Engine</span>
-            
           </h1>
           <p className="text-sm text-[#515154] max-w-2xl leading-relaxed mt-1.5">
             Real-time audio processing system built for live stage setups. Guarantees under <span className="font-semibold text-[#1D1D1F] underline underline-offset-4 decoration-[#FF4500]">1.8ms latency for .apk and desktop version</span>, intelligent velocity mapping, and absolute digital stability.
@@ -96,7 +96,6 @@ export default function TryTS4XPage() {
           <section className="md:col-span-2 border border-[#E5E5E7] rounded-xl bg-white/90 backdrop-blur-md p-5 space-y-5 flex flex-col justify-between shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden group hover:border-[#FF8800]/30 transition-all duration-300">
             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#E60000] via-[#FF4500] to-[#FF8800]" />
             <div className="space-y-4">
-             
               <h2 className="text-base font-semibold text-[#1D1D1F]">TS4x License</h2>
               <div className="flex items-baseline gap-1"><span className="text-3xl font-bold tracking-tight text-[#1D1D1F]">$249</span><span className="text-xs text-[#515154] font-medium uppercase corp-mono">EUR / single payment</span></div>
               <ul className="text-xs text-[#515154] space-y-2.5 border-t border-[#E5E5E7] pt-4 leading-normal">
@@ -109,18 +108,28 @@ export default function TryTS4XPage() {
           </section>
         </div>
 
-        {/* BETA SERIAL NODE */}
-        <div className="border border-[#E5E5E7] rounded-xl p-5 bg-white/90 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-[#FF4500]/20 transition-all">
+        {/* BETA SERIAL NODE (AICI TE DUCE LA GET LICENCE ACCESIBIL ȘI CORECT POZITIONAT) */}
+        <div className="border border-[#E5E5E7] rounded-xl p-5 bg-white/90 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_4px_20px_rgba(0,0,0,0.01)] hover:border-[#FF4500]/20 transition-all duration-300">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF4500] opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF4500]"></span></span>
-              <h4 className="text-xs font-semibold text-[#1D1D1F] uppercase tracking-wider corp-mono">BETA Serial License Activation</h4>
+              <h3 className="text-sm font-semibold text-[#1D1D1F]">Get Free Beta License</h3>
+              <span className="bg-[#FF4500]/10 text-[#FF4500] text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md corp-mono animate-pulse">Live testing</span>
             </div>
-            <p className="text-xs text-[#515154] max-w-xl leading-normal">Use this developer node key inside the sandbox console window to uncap high-tier audio driver parameters.</p>
+            <p className="text-xs text-[#515154]">Initialize your environment block with our temporary community handshake node.</p>
           </div>
-          <div className="w-full sm:w-auto flex items-center border border-[#E5E5E7] rounded-lg bg-[#F5F5F7] overflow-hidden shadow-inner">
-            <code className="corp-mono text-[11px] px-3 py-2 text-[#1D1D1F] font-medium select-all">{betaLicenseKey}</code>
-            <button onClick={handleCopy} className="border-l border-[#E5E5E7] bg-white hover:bg-[#F5F5F7] text-xs font-semibold px-4 py-2 text-[#1D1D1F] transition-colors min-w-[85px] corp-mono">{copied ? "Copied!" : "Copy"}</button>
+          
+          <div className="flex items-center gap-2 bg-[#F5F5F7] border border-[#E5E5E7] p-1.5 rounded-xl max-w-full overflow-hidden sm:max-w-xs shrink-0">
+            <span className="text-xs font-bold text-[#1D1D1F] corp-mono px-3 truncate select-all">{betaLicenseKey}</span>
+            <button 
+              onClick={handleCopy}
+              className={`h-8 px-4 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all ${
+                copied 
+                  ? "bg-green-600 text-white shadow-sm" 
+                  : "bg-black text-white hover:bg-zinc-800"
+              }`}
+            >
+              {copied ? "Copied!" : "Copy Node"}
+            </button>
           </div>
         </div>
       </main>
