@@ -113,7 +113,7 @@ export default function ForumPage() {
 
         <div className="space-y-4">
           {loading ? (
-            <p className="text-center py-6 text-xs text-[#5B5F66] font-mono animate-pulse">Syncing cache database...</p>
+            <p className="text-center py-6 text-xs text-[#5B5F66] font-mono animate-pulse">Loading...</p>
           ) : currentPosts.map((post) => (
             <div key={post.id} className="bg-white border border-[#E7E5DB] rounded-2xl p-5 space-y-3">
               <div className="flex justify-between text-[10px] text-[#9A9EA4] font-mono">

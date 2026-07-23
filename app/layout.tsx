@@ -1,3 +1,14 @@
+/**
+ * @project     iMIDI Web Application
+ * @package     @imidi/core-app
+ * @summary     The next generation of synthesizer technology.
+ * @version     0.1.0
+ * @author      B. Marius <marius_service@yahoo.com>
+ * 
+ * @copyright   Copyright (c) 2026 iMIDI. All rights reserved.
+ * @license     Proprietary / Confidential. Unauthorized copying is strictly prohibited.
+ */
+
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";

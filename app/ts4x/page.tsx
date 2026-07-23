@@ -97,7 +97,7 @@ export default function TryTS4XPage() {
             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#E60000] via-[#FF4500] to-[#FF8800]" />
             <div className="space-y-4">
               <h2 className="text-base font-semibold text-[#1D1D1F]">TS4x License</h2>
-              <div className="flex items-baseline gap-1"><span className="text-3xl font-bold tracking-tight text-[#1D1D1F]">$249</span><span className="text-xs text-[#515154] font-medium uppercase corp-mono">EUR / single payment</span></div>
+              <div className="flex items-baseline gap-1"><span className="text-3xl font-bold tracking-tight text-[#1D1D1F]">$199</span><span className="text-xs text-[#515154] font-medium uppercase corp-mono"> / year</span></div>
               <ul className="text-xs text-[#515154] space-y-2.5 border-t border-[#E5E5E7] pt-4 leading-normal">
                 <li className="flex items-center gap-2"><span className="text-[#FF4500] font-semibold">✓</span> Lifetime priority firmware hotfixes</li>
                 <li className="flex items-center gap-2"><span className="text-[#FF4500] font-semibold">✓</span> Fully optimized for live stage setups</li>

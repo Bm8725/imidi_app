@@ -17,10 +17,7 @@ const FAQS = [
     q: "Do I need special hardware to use TS4X?",
     a: "No. TS4X runs standalone on desktop and mobile. The i-volution controller is optional — it adds velocity-sensitive SOLO/BASS integration for accordion players, but any MIDI controller works.",
   },
-  {
-    q: "Is the Pro License a one-time purchase or a subscription?",
-    a: "The $249 Pro License is a one-time, perpetual purchase. It includes the full DSP core engine and priority firmware hotfixes for life — no recurring fee.",
-  },
+
   {
     q: "How does MyCloud sync work across devices?",
     a: "MyCloud automatically backs up your sound banks, presets and custom maps (including KORG/Genos formats) to 30GB of secure storage, synced instantly across every device you're signed into.",
@@ -29,10 +26,7 @@ const FAQS = [
     q: "Which accordion controllers are compatible with i-volution?",
     a: "i-volution is a universal MIDI controller system — it works with any accordion fitted with standard MIDI channels, with full velocity mapping across both SOLO and BASS sections.",
   },
-  {
-    q: "Do you offer refunds?",
-    a: "Yes — TS4X Pro License purchases are covered by a 14-day money-back guarantee if the engine doesn't fit your setup, no questions asked.",
-  },
+
 ];
 
 export default function HomePage() {
@@ -112,7 +106,7 @@ export default function HomePage() {
                 <div className="space-y-2 w-full">
                   <div className="flex justify-between items-center w-full flex-wrap gap-2">
                     <span className="aw-mono text-[9px] text-[#7C7C86] tracking-wider uppercase">PERPETUAL_CORE</span>
-                    <span className="aw-mono text-lg font-medium text-[#F2F2F4]">$249.00</span>
+                    <span className="aw-mono text-lg font-medium text-[#F2F2F4]">$199.9<span className="text-xs text-[#5F5F68] font-light">/year</span></span>
                   </div>
                   <h3 className="aw-display text-lg font-medium text-[#F2F2F4] group-hover:text-[#FF5CA1] transition-colors">TS4X Synth Pro License</h3>
                   <p className="text-xs text-[#9A9AA3] font-light leading-relaxed">
