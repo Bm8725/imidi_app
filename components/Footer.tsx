@@ -27,11 +27,15 @@ export default function Footer() {
         </div>
 
         {/* STRUCTURA DREAPTA: PAGINI ȘI DOCUMENTE COMPLIANCE */}
-        <div className="flex items-center gap-6 text-[10px] uppercase tracking-wider flex-wrap justify-center">
-          <Link href="/forum" className="hover:text-white transition-colors">
+        <div className="flex items-center gap-6 text-[13px] uppercase tracking-wider flex-wrap justify-center">
+          <Link href="/forum" className="hover:text-orange-400 transition-colors flex items-center gap-2 group">
             forum
+            {/* BADGE NEON DISCRET "NEW" */}
+            <span className="relative inline-flex items-center justify-center px-1.5 py-0.5 text-[8px] font-bold lowercase tracking-normal text-pink-600 bg-emerald-500/10 border">
+              new
+            </span>
           </Link>
-          <Link href="/support" className="hover:text-white transition-colors">
+          <Link href="/support" className="hover:text-orange-400 transition-colors">
             contact
           </Link>
           <Link href="/privacy" className="hover:text-orange-400 transition-colors">
