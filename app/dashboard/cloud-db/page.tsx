@@ -1,113 +1,152 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { supabase } from "@/lib/supabase"; 
-
-interface CloudBank { id: string | number; name: string; type: string; items_count: number; size_mb: number; status: string; color_hex?: string; }
+import { supabase } from "@/lib/supabase";
 
 export default function CloudWorkspacePage() {
+  const fileRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState("all");
-  const [banks, setBanks] = useState<CloudBank[]>([]);
+  const [banks, setBanks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [totalUsedMb, setTotalUsedMb] = useState(0);
-  const [userEmail, setUserEmail] = useState("");
-  const itemsPerPage = 4;
-  const maxStorageMb = 20 * 1024;
+  const [user, setUser] = useState<any>(null);
+  const [delId, setDelId] = useState<string | null>(null);
+
+  const lim = 6, maxMb = 20 * 1024;
 
   useEffect(() => {
-    async function fetchCloudData() {
-      setLoading(true); setError("");
+    (async () => {
+      setLoading(true);
       try {
-        const { data: { session }, error: authError } = await supabase.auth.getSession();
-        if (authError || !session) throw new Error("Unauthorized. Please log in with your user and password.");
-        setUserEmail(session.user.email || "");
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error("Neautorizat. Loghează-te.");
+        setUser({ id: session.user.id, email: session.user.email, name: session.user.user_metadata?.full_name || "Operator", avatar: `https://dicebear.com{session.user.id}` });
         
-        const { data: allUserBanks, error: sumError } = await supabase.from("cloud_banks").select("size_mb").eq("user_id", session.user.id);
-        if (sumError) throw sumError;
-        if (allUserBanks) setTotalUsedMb(allUserBanks.reduce((acc, curr) => acc + Number(curr.size_mb), 0));
+        const { data: all } = await supabase.from("cloud_banks").select("size_mb").eq("user_id", session.user.id);
+        if (all) setTotalUsedMb(all.reduce((acc, c) => acc + Number(c.size_mb), 0));
 
-        const from = (page - 1) * itemsPerPage;
-        let query = supabase.from("cloud_banks").select("*").eq("user_id", session.user.id);
-        if (activeTab !== "all") query = query.eq("type", { "audio banks": "Audio Bank", "midi packs": "MIDI Pack", "presets": "Presets" }[activeTab]);
+        let q = supabase.from("cloud_banks").select("*").eq("user_id", session.user.id);
+        if (activeTab !== "all") q = q.eq("type", { "audio banks": "Audio Bank", "midi packs": "MIDI Pack", "presets": "Presets" }[activeTab]);
         
-        const { data, error: dbError } = await query.order("created_at", { ascending: false }).range(from, from + itemsPerPage - 1);
-        if (dbError) throw dbError; if (data) setBanks(data);
-      } catch (err: any) { setError(err.message || "An error occurred."); } finally { setLoading(false); }
-    }
-    fetchCloudData();
+        const { data } = await q.order("created_at", { ascending: false }).range((page - 1) * lim, page * lim - 1);
+        if (data) setBanks(data);
+      } catch (err: any) { setError(err.message); } finally { setLoading(false); }
+    })();
   }, [page, activeTab]);
 
-  const usedGb = (totalUsedMb / 1024).toFixed(2);
-  const storagePercentage = Math.min(100, (totalUsedMb / maxStorageMb) * 100);
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+      const path = `${user.id}/${Math.random().toString(36).substring(2)}.${ext}`;
+      await supabase.storage.from("cloud-db-bucket").upload(path, file);
+
+      let type = "Audio Bank", color = "#3b82f6";
+      if (["fxp", "fxb", "vital", "fst", "adg", "adv", "pst", "json", "ts4", "bin", "jsf", "jbb", "sf2", "hex", "jbs", "prf", "bup"].includes(ext)) {
+        type = "Presets"; color = "#ec4899";
+      } else if (["mid", "midi"].includes(ext)) {
+        type = "MIDI Pack"; color = "#10b981";
+      }
+
+      await supabase.from("cloud_banks").insert({ user_id: user.id, name: file.name, type, items_count: 1, size_mb: parseFloat((file.size / (1024 * 1024)).toFixed(2)), status: "active", color_hex: color });
+      window.location.reload();
+    } catch (err: any) { alert(err.message); } finally { setUploading(false); }
+  };
+
+  const pct = Math.min(100, (totalUsedMb / maxMb) * 100);
 
   return (
-    <div className="bg-[#FAFAFA] text-[#111111] min-h-screen flex flex-col antialiased relative overflow-x-hidden">
-      <style>{`@import url('https://googleapis.com'); .corp-sans { font-family: 'Inter', sans-serif; } .corp-mono { font-family: 'JetBrains Mono', monospace; }`}</style>
-      <div className="absolute top-0 right-0 w-[600px] h-[500px] bg-gradient-to-b from-[#0070F3]/4 to-transparent rounded-full blur-[140px] pointer-events-none z-0" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808006_1px,transparent_1px),linear-gradient(to_bottom,#80808006_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
+    <div className="bg-[#FAF9F6] text-zinc-900 min-h-screen flex flex-col antialiased">
       <Navbar />
-      <main className="corp-sans flex-1 w-full max-w-6xl mx-auto px-4 sm:px-8 pt-32 pb-16 relative z-10">
+      <main className="flex-1 w-full max-w-4xl mx-auto px-4 pt-24 pb-12">
         {error ? (
-          <div className="w-full max-w-md mx-auto bg-white border border-neutral-200 rounded-3xl p-8 text-center space-y-4 shadow-sm mt-12">
-            <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto text-lg font-bold">!</div>
-            <h3 className="text-sm font-bold text-black tracking-tight">Access Denied</h3>
-            <p className="text-xs text-[#666666]">{error}</p>
-            {error.includes("Unauthorized") && <div className="pt-2"><Link href="/login" className="inline-flex items-center justify-center h-10 px-4 rounded-xl text-xs font-semibold bg-black text-white hover:bg-neutral-900">Go to Sign In →</Link></div>}
+          <div className="text-center p-6 bg-white border rounded-xl max-w-sm mx-auto shadow-sm mt-12">
+            <p className="text-xs text-zinc-500 mb-4">{error}</p>
+            <Link href="/login" className="px-4 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg block">Autentication </Link>
           </div>
-        ) : loading ? (
-          <div className="space-y-4"><div className="h-20 w-full bg-white border border-[#EAEAEA] rounded-2xl animate-pulse" /><div className="h-20 w-full bg-white border border-[#EAEAEA] rounded-2xl animate-pulse" /></div>
         ) : (
           <>
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[#EAEAEA] pb-6 mb-6">
+            <input type="file" ref={fileRef} onChange={handleUpload} className="hidden" accept="audio/*,.mid,.midi,.fxp,.fxb,.vital,.fst,.adg,.adv,.pst,.json,.ts4,.bin,.jsf,.jbb,.sf2,.hex,.jbs,.prf,.bup" />
+            
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 mb-6 gap-4">
               <div>
-                <div className="inline-flex items-center space-x-1.5 bg-black/[0.03] border border-black/[0.06] px-3 py-1 rounded-full mb-2"><span className="w-1.5 h-1.5 rounded-full bg-[#00DF89]" /><span className="text-[10px] font-bold uppercase tracking-widest text-[#666666] corp-mono">{userEmail}</span></div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-black">MySpace Cloud</h1>
+                <h1 className="text-xl font-bold tracking-tight">iMIDI Cloud Workspace</h1>
+                <p className="text-[11px] text-zinc-400">{user?.email}</p>
               </div>
-              <div className="flex items-center space-x-3">
-                <button className="h-10 px-4 border border-[#EAEAEA] rounded-xl text-xs font-semibold bg-white hover:border-black">Import MIDI</button>
-                <button disabled={totalUsedMb >= maxStorageMb} className="h-10 px-4 rounded-xl text-xs font-bold bg-[#0070F3] text-white hover:bg-[#0060df] shadow-sm disabled:opacity-50">{totalUsedMb >= maxStorageMb ? "Storage Full" : "+ Upload Audio Bank"}</button>
+              <div className="flex gap-2">
+                <button onClick={() => fileRef.current?.click()} className="h-8 px-3 border rounded-lg text-xs font-medium bg-white shadow-sm">Import</button>
+                <button disabled={totalUsedMb >= maxMb || uploading} onClick={() => fileRef.current?.click()} className="h-8 px-3 bg-zinc-900 text-white text-xs font-medium rounded-lg disabled:opacity-40 shadow-sm">{uploading ? "Se încarcă..." : "+ Upload"}</button>
               </div>
             </div>
-            <div className="bg-white border border-[#EAEAEA] p-5 rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.01)] mb-8 max-w-md">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-[#666666]">Ecosystem Storage Capacity</span>
-              <div className="text-lg font-extrabold mt-1 text-black">{usedGb} GB <span className="text-xs font-medium text-[#999999]">used of 20.00 GB</span></div>
-              <div className="w-full h-2 bg-[#FAFAFA] border border-[#EAEAEA] rounded-full mt-3 overflow-hidden"><div className={`h-full rounded-full transition-all duration-500 ${storagePercentage > 90 ? "bg-red-500" : "bg-black"}`} style={{ width: `${storagePercentage}%` }} /></div>
+
+            <div className="bg-white border p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 shadow-sm">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <img 
+                  src={user?.avatar || "/user.webp"} 
+                  alt="User Avatar"
+                  className="w-8 h-8 rounded-lg bg-zinc-100 object-cover" 
+                  onError={(e) => { e.currentTarget.src = "/user.webp"; }}
+                />
+                <span className="text-xs font-bold">{user?.name || "Se încarcă..."}</span>
+              </div>
+              <div className="w-full sm:w-64">
+                <div className="text-[11px] text-zinc-500 flex justify-between font-medium"><span>Stocare</span><span>{(totalUsedMb / 1024).toFixed(1)} / 20 GB</span></div>
+                <div className="w-full h-1.5 bg-zinc-100 rounded-full mt-1 border overflow-hidden"><div className={`h-full transition-all ${pct > 85 ? "bg-red-500" : pct > 60 ? "bg-amber-500" : "bg-zinc-900"}`} style={{ width: `${pct}%` }} /></div>
+              </div>
             </div>
-            <div className="flex items-center space-x-1 border-b border-[#EAEAEA] mb-6 overflow-x-auto scrollbar-none">
-              {["all", "audio banks", "midi packs", "presets"].map((t) => (
-                <button key={t} onClick={() => { setActiveTab(t); setPage(1); }} className={`h-10 px-4 text-xs font-semibold uppercase tracking-wider transition-all border-b-2 -mb-[2px] whitespace-nowrap ${activeTab === t ? "border-black text-black font-bold" : "border-transparent text-[#666666]"}`}>{t}</button>
+
+
+            <div className="flex gap-1 bg-zinc-200/50 p-1 rounded-lg w-fit mb-4">
+              {["all", "audio banks", "midi packs", "presets"].map(t => (
+                <button key={t} onClick={() => { setActiveTab(t); setPage(1); }} className={`h-7 px-3 text-xs capitalize rounded-md transition-all ${activeTab === t ? "bg-white text-zinc-900 shadow-sm font-semibold" : "text-zinc-500 hover:text-zinc-900"}`}>{t}</button>
               ))}
             </div>
-            {banks.length === 0 ? (
-              <div className="text-center py-12 border border-dashed border-[#EAEAEA] rounded-2xl bg-white"><p className="text-xs text-[#666666]">No storage blocks active in this node.</p></div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {banks.map((bank) => (
-                  <div key={bank.id} className="group bg-white border border-[#EAEAEA] rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:border-[#0070F3]/30 transition-all flex items-center justify-between">
-                    <div className="flex items-center space-x-4 min-w-0">
-                      <div className="w-11 h-11 rounded-xl flex flex-col justify-between p-2.5 shrink-0" style={{ backgroundColor: `${bank.color_hex || "#0070F3"}12`, border: `1px solid ${bank.color_hex || "#0070F3"}30` }}>
-                        <div className="flex justify-between items-end h-full w-full space-x-[2px]"><span className="w-[3px] bg-current rounded-xs animate-pulse" style={{ color: bank.color_hex || "#0070F3", height: "60%" }} /><span className="w-[3px] bg-current rounded-xs" style={{ color: bank.color_hex || "#0070F3", height: "90%" }} /></div>
-                      </div>
-                      <div className="min-w-0 space-y-0.5">
-                        <h3 className="text-sm font-bold text-black tracking-tight truncate">{bank.name}</h3>
-                        <div className="flex items-center space-x-2 text-xs text-[#666666]"><span className="corp-mono text-[10px] bg-black/[0.03] border border-black/[0.05] px-1.5 py-0.5 rounded-md font-medium">{bank.type}</span><span>•</span><span>{bank.items_count} items</span><span>•</span><span>{bank.size_mb} MB</span></div>
+
+            {loading ? <div className="h-16 bg-white border rounded-xl animate-pulse" /> : banks.length === 0 ? <div className="text-center py-10 border border-dashed rounded-xl bg-white text-xs text-zinc-400">Niciun fișier găsit.</div> : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {banks.map(b => (
+                  <div key={b.id} className="bg-white border p-3 rounded-xl flex items-center justify-between hover:border-zinc-400 group transition-all shadow-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-md flex items-center justify-center text-xs" style={{ backgroundColor: `${b.color_hex}10`, color: b.color_hex }}>{b.type === "Presets" ? "🎛️" : b.type === "MIDI Pack" ? "🎹" : "🎵"}</div>
+                      <div className="min-w-0">
+                        <h3 className="text-xs font-semibold truncate pr-2" title={b.name}>{b.name}</h3>
+                        <p className="text-[10px] text-zinc-400">{b.type} • {b.size_mb < 0.1 ? `${(b.size_mb * 1024).toFixed(0)} KB` : `${b.size_mb} MB`}</p>
                       </div>
                     </div>
-                    <button className="w-8 h-8 rounded-lg border border-[#EAEAEA] bg-[#FAFAFA] flex items-center justify-center text-xs text-black hover:bg-black hover:text-white">→</button>
+                    <div className="shrink-0 z-20">
+                      {delId === b.id ? (
+                        <div className="flex gap-1 bg-zinc-50 p-1 border rounded-md">
+                          <button onClick={async () => { await supabase.from("cloud_banks").delete().eq("id", b.id); setDelId(null); window.location.reload(); }} className="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded">Da</button>
+                          <button onClick={() => setDelId(null)} className="px-2 py-0.5 text-zinc-500 text-[10px]">Nu</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setDelId(b.id)} className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-red-500 hover:bg-red-50 sm:opacity-0 group-hover:opacity-100 transition-all">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
-            <div className="flex items-center justify-end space-x-2 mt-8 pt-4 border-t border-[#EAEAEA]">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="h-9 px-4 border border-[#EAEAEA] rounded-xl text-xs font-semibold bg-white hover:border-black transition-colors disabled:opacity-40">Previous</button>
-              <span className="text-xs font-medium text-[#666666] px-2">Page {page}</span>
-              <button onClick={() => setPage((p) => p + 1)} disabled={banks.length < itemsPerPage} className="h-9 px-4 border border-[#EAEAEA] rounded-xl text-xs font-semibold bg-white hover:border-black transition-colors disabled:opacity-40">Next</button>
-            </div>
+
+            {banks.length > 0 && (
+              <div className="flex justify-between items-center mt-6 text-xs border-t pt-4">
+                <span className="text-zinc-400 font-medium">Page {page}</span>
+                <div className="flex gap-1">
+                  <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="h-7 px-3 border rounded-md bg-white disabled:opacity-40">←</button>
+                  <button disabled={banks.length < lim} onClick={() => setPage(p => p + 1)} className="h-7 px-3 border rounded-md bg-white disabled:opacity-40">→</button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </main>
