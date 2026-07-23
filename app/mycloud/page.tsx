@@ -100,7 +100,7 @@ export default function MyCloudPage() {
               href="/dashboard/cloud-db" 
               className="inline-flex items-center justify-center bg-gradient-to-r from-[#FF4500] to-[#E60000] text-white text-xs font-semibold py-2.5 px-5 rounded-lg hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_4px_25px_rgba(255,69,0,0.25)] shrink-0"
             >
-              Open Cloud DB Console →
+              Open myCloud space →
             </a>
           </div>
         </div>
