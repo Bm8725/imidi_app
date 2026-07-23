@@ -9,11 +9,17 @@ export default function Navbar() {
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [scrolled, setScrolled] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       setScrolled(currentScrollY > 8);
+      
+      if (currentScrollY > lastScrollY && currentScrollY > 50) {
+        setIsMenuOpen(false);
+      }
+
       if (currentScrollY < 10) {
         setIsVisible(true);
         setLastScrollY(currentScrollY);
@@ -27,197 +33,144 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
-  const desktopLinks = [
-    { href: "/ts4x", label: "try_ts4x", type: "bolt" },
-    { href: "/download", label: "download", type: "arrow-down" },
-    { href: "/mycloud", label: "mySpace", type: "cloud" },
+  useEffect(() => setIsMenuOpen(false), [pathname]);
+
+  const links = [
+    { href: "/", label: "home", icon: "m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21.75h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21.75h2.25" },
+    { href: "/ts4x", label: "try_ts4x", icon: "m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" },
+    { href: "/download", label: "download", icon: "M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" },
+    { href: "/mycloud", label: "mySpace", icon: "M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" },
   ];
 
-  const mobileLinks = [
-    { href: "/", label: "home", type: "home" },
-    { href: "/ts4x", label: "try_ts4x", type: "bolt" },
-    { href: "/download", label: "download", type: "arrow-down" },
-    { href: "/mycloud", label: "mySpace", type: "cloud" },
-  ];
-
-  const Icon = ({ type, isActive }: { type: string; isActive: boolean }) => {
-    const strokeColor = isActive ? "#FF5CA1" : "#8A8A93";
-    const className = `w-5 h-5 transition-all duration-300 ${isActive ? "drop-shadow-[0_0_8px_rgba(255,92,161,0.6)]" : ""}`;
-
-    if (type === "home") {
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke={strokeColor} className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-        </svg>
-      );
-    }
-    if (type === "bolt") {
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke={strokeColor} className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
-        </svg>
-      );
-    }
-    if (type === "arrow-down") {
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke={strokeColor} className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-        </svg>
-      );
-    }
-    if (type === "cloud") {
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke={strokeColor} className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
-        </svg>
-      );
-    }
-    return null;
-  };
+  const Icon = ({ path, active }: { path: string; active: boolean }) => (
+    <svg fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke={active ? "#FF5CA1" : "#8A8A93"} className={`w-5 h-5 transition-all duration-300 ${active ? "drop-shadow-[0_0_8px_rgba(255,92,161,0.6)]" : ""}`}>
+      <path strokeLinecap="round" strokeLinejoin="round" d={path} />
+    </svg>
+  );
 
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-        .aw-nav-display { font-family: 'Sora', ui-sans-serif, system-ui, sans-serif; }
-        .aw-nav-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-
-        @keyframes aw-nav-border-spin {
-          0% { --aw-angle: 0deg; }
-          100% { --aw-angle: 360deg; }
-        }
-        @property --aw-angle {
-          syntax: '<angle>';
-          initial-value: 0deg;
-          inherits: false;
-        }
-        .aw-nav-glow-ring {
-          position: absolute;
-          inset: -1px;
-          border-radius: 9999px;
-          padding: 1px;
-          background: conic-gradient(from var(--aw-angle), #FF5CA1, #FF8A3D, #B47CFF, #FF5CA1);
-          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          -webkit-mask-composite: xor;
-          mask-composite: exclude;
-          opacity: 0;
-          transition: opacity 0.4s ease;
-          animation: aw-nav-border-spin 4s linear infinite;
-          pointer-events: none;
-        }
-        .group:hover .aw-nav-glow-ring { opacity: 1; }
-      `}</style>
-
       {/* ========================================================================= */}
-      {/* 1. NAVBAR DESKTOP                                                         */}
+      {/* BARĂ SUS: VALABILĂ PE DESKTOP ȘI PE MOBILE (iMIDI + HAMBURGER PE MOB)      */}
       {/* ========================================================================= */}
-      <div
-        className={`hidden md:flex fixed top-5 left-0 right-0 z-50 w-full justify-center px-4 select-none pointer-events-none transition-transform duration-300 ease-in-out ${
-          isVisible ? "translate-y-0" : "-translate-y-28"
+      <nav
+        className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
+          isVisible ? "translate-y-0" : "-translate-y-full"
+        } ${
+          scrolled 
+            ? "bg-black/90 backdrop-blur-2xl border-b border-neutral-800/80 shadow-[0_4px_30px_rgba(0,0,0,0.5)]" 
+            : "bg-black/40 backdrop-blur-xl border-b border-transparent"
         }`}
       >
-        <nav
-          className={`group w-full max-w-6xl h-20 border backdrop-blur-xl rounded-full flex items-center justify-between px-10 pointer-events-auto transition-all duration-500 relative overflow-visible ${
-            scrolled
-              ? "bg-[#18181C]/90 border-white/[0.08] shadow-[0_10px_40px_-14px_rgba(0,0,0,0.6)]"
-              : "bg-[#18181C]/60 border-white/[0.06] shadow-[0_6px_24px_-14px_rgba(0,0,0,0.5)]"
-          }`}
-        >
-          <span className="aw-nav-glow-ring" />
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          
+          {/* BRANDING */}
+          <Link href="/" className="text-xl font-black tracking-wider text-white">
+            iMIDI<span className="text-[#FF5CA1]">.</span>
+          </Link>
 
-          <div className="flex items-center gap-8 z-10">
-            <Link href="/" className="aw-nav-display font-bold tracking-tight text-[#F2F2F4] text-xl uppercase flex items-center gap-3.5 group/logo">
-              <div className="relative w-4 h-4 flex items-center justify-center">
-                <span className="absolute inset-0 bg-[#FF5CA1] rotate-45 rounded-[2px] blur-[4px] opacity-60 group-hover/logo:opacity-100 transition-opacity" />
-                <span className="w-full h-full bg-gradient-to-tr from-[#FF5CA1] via-[#FF8A3D] to-[#B47CFF] rotate-45 block rounded-[2px] shadow-[0_0_14px_rgba(255,92,161,0.7)] transition-transform duration-1000 group-hover/logo:rotate-[225deg]" />
-              </div>
-              <span className="tracking-[-0.03em] bg-clip-text text-transparent bg-gradient-to-b from-white to-[#B4B4BC] group-hover/logo:to-[#FF9FC7] transition-colors">
-                iMIDI
-              </span>
+          {/* DESKTOP ONLY: LINK-URI DE NAVIGARE */}
+          <div className="hidden md:flex items-center space-x-1 bg-neutral-900/60 p-1.5 rounded-full border border-neutral-800/60 backdrop-blur-md">
+            {links.slice(1).map((link) => (
+              <Link 
+                key={link.href} 
+                href={link.href} 
+                className={`flex items-center space-x-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-wider transition-all ${
+                  pathname === link.href ? "bg-white text-black" : "text-neutral-400 hover:text-white"
+                }`}
+              >
+                <Icon path={link.icon} active={pathname === link.href} />
+                <span>{link.label}</span>
+              </Link>
+            ))}
+          </div>
+
+          {/* DESKTOP ONLY: AUTENTIFICARE */}
+          <div className="hidden md:flex items-center space-x-4">
+            <Link href="/login" className="text-xs font-bold uppercase tracking-wider text-neutral-400 hover:text-white">
+              Sign In
+            </Link>
+            <Link href="/register" className="text-xs font-bold uppercase tracking-wider bg-white text-black px-5 py-2.5 rounded-full hover:bg-[#FF5CA1] hover:text-white transition-all shadow-md">
+              Get Started
             </Link>
           </div>
 
-          <div className="flex items-center gap-2 z-10">
-            {desktopLinks.map((link) => {
-              const isActive = pathname === link.href;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`relative h-12 px-6 flex items-center justify-center text-[13px] aw-nav-mono tracking-widest uppercase transition-all duration-300 rounded-full active:scale-95 ${
-                    isActive
-                      ? "text-[#FF8FBE] font-medium bg-gradient-to-r from-[#FF5CA1]/10 to-[#FF8A3D]/10 border border-[#FF5CA1]/25"
-                      : "text-[#A1A1AA] hover:text-white hover:bg-white/[0.04]"
-                  }`}
-                >
-                  <span className="mr-2.5 flex items-center justify-center scale-90">
-                    <Icon type={link.type} isActive={isActive} />
-                  </span>
-                  <span>{link.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-      </div>
+          {/* MOBILE ONLY: BUTON HAMBURGER CU 3 LINII PENTRU LOGIN */}
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)} 
+            className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl bg-neutral-900/80 border border-neutral-800/80 focus:outline-none shadow-inner"
+            aria-label="Toggle login menu"
+          >
+            <div className="w-5 h-5 flex flex-col justify-center items-center relative">
+              <span className={`w-5 h-0.5 bg-neutral-200 rounded transition-all duration-300 absolute ${isMenuOpen ? "rotate-45 bg-[#FF5CA1]" : "-translate-y-1.5"}`} />
+              <span className={`w-5 h-0.5 bg-neutral-200 rounded transition-all duration-300 absolute ${isMenuOpen ? "opacity-0" : ""}`} />
+              <span className={`w-5 h-0.5 bg-neutral-200 rounded transition-all duration-300 absolute ${isMenuOpen ? "-rotate-45 bg-[#FF5CA1]" : "translate-y-1.5"}`} />
+            </div>
+          </button>
+
+        </div>
+      </nav>
 
       {/* ========================================================================= */}
-      {/* 2. NAVBAR TOP MOBILE (FULL WIDTH BAR)                                     */}
+      {/* MOBILE ONLY: SERTAR PENTRU LOGIN (APARE SUB BARA DE SUS)                 */}
       {/* ========================================================================= */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 w-full h-14 border-b border-white/[0.08] bg-[#18181C]/90 backdrop-blur-xl flex items-center justify-between px-6 select-none">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="relative w-3.5 h-3.5 flex items-center justify-center">
-            <span className="absolute inset-0 bg-[#FF5CA1] rotate-45 rounded-[2px] blur-[3px] opacity-60" />
-            <span className="w-full h-full bg-gradient-to-tr from-[#FF5CA1] via-[#FF8A3D] to-[#B47CFF] rotate-45 block rounded-[2px] shadow-[0_0_10px_rgba(255,92,161,0.5)]" />
-          </div>
-          <span className="aw-nav-display font-bold tracking-[-0.02em] text-white text-sm uppercase">
-            iMIDI.
-          </span>
-        </Link>
-      </div>
-
-
-      {/* ========================================================================= */}
-      {/* 3. MENU JOS MOBILE                                                        */}
-      {/* ========================================================================= */}
+      <div 
+        className={`md:hidden fixed inset-0 bg-black/70 backdrop-blur-xs z-40 transition-opacity duration-300 ${
+          isMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`} 
+        onClick={() => setIsMenuOpen(false)} 
+      />
+      
       <div
-        className={`md:hidden fixed bottom-5 left-0 right-0 z-50 w-full flex justify-center px-5 select-none pointer-events-none transition-transform duration-300 ease-in-out ${
-          isVisible ? "translate-y-0" : "translate-y-28"
+        className={`md:hidden fixed top-24 inset-x-4 bg-neutral-950/95 border border-neutral-800/90 p-5 rounded-2xl z-40 shadow-2xl transition-all duration-300 ease-out transform ${
+          isMenuOpen ? "translate-y-0 opacity-100 scale-100" : "-translate-y-4 opacity-0 scale-95 pointer-events-none"
         }`}
       >
-        <nav className="w-full max-w-sm h-16 bg-[#18181C]/95 border border-white/[0.08] backdrop-blur-2xl rounded-xl flex items-center justify-between px-2 pointer-events-auto shadow-[0_10px_30px_rgba(0,0,0,0.7)] relative overflow-hidden">
-          {mobileLinks.map((link) => {
+        <div className="text-center mb-4">
+          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">iMIDI Account</p>
+        </div>
+        <div className="flex flex-col space-y-2.5">
+          <Link
+            href="/login"
+            className="w-full text-center py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-white bg-neutral-900 border border-neutral-800 active:bg-neutral-800"
+          >
+            Sign In
+          </Link>
+          <Link
+            href="/register"
+            className="w-full text-center py-3 rounded-xl font-bold text-xs uppercase tracking-wider bg-[#FF5CA1] text-white active:bg-[#e04b8b] shadow-lg"
+          >
+            Create Free Account
+          </Link>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* MOBILE ONLY: BARA DE JOS (NAVIGARE CLASICĂ PRIN SITE)                     */}
+      {/* ========================================================================= */}
+      <nav
+        className={`md:hidden fixed bottom-4 inset-x-4 z-40 transition-all duration-300 ${
+          isVisible ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0"
+        }`}
+      >
+        <div className="bg-neutral-950/90 backdrop-blur-xl border border-neutral-800/80 rounded-2xl px-2 py-2.5 flex items-center justify-between shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
+          {links.map((link) => {
             const isActive = pathname === link.href;
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex flex-col items-center justify-center gap-0.5 w-[20vw] max-w-[75px] h-13 rounded-lg transition-all duration-300 active:scale-90 relative overflow-hidden ${
-                  isActive ? "text-[#FF8FBE] font-medium" : "text-[#8A8A93]"
-                }`}
+                className="flex flex-col items-center justify-center flex-1 py-1"
               >
-                {isActive && (
-                  <span className="absolute inset-0 bg-gradient-to-t from-[#FF5CA1]/12 via-[#FF8A3D]/[0.04] to-transparent pointer-events-none rounded-lg animate-[pulse_2s_infinite]" />
-                )}
-
-                <span
-                  className={`absolute bottom-0 h-[2px] rounded-full bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] shadow-[0_0_8px_rgba(255,92,161,0.7)] transition-all duration-300 ease-out ${
-                    isActive ? "w-4 opacity-100" : "w-0 opacity-0"
-                  }`}
-                />
-
-                <div className={`transition-all duration-300 ${isActive ? "-translate-y-1 scale-110" : "scale-95 opacity-70"}`}>
-                  <Icon type={link.type} isActive={isActive} />
-                </div>
-
-                <span className={`text-[9px] aw-nav-mono tracking-wide uppercase transition-colors duration-300 ${isActive ? "text-[#FF8FBE]" : "text-[#6A6A73]"}`}>
-                  {link.label.replace('try_', '')}
+                <Icon path={link.icon} active={isActive} />
+                <span className={`text-[9px] mt-1 font-bold uppercase tracking-wider transition-colors ${isActive ? "text-[#FF5CA1]" : "text-neutral-500"}`}>
+                  {link.label}
                 </span>
               </Link>
             );
           })}
-        </nav>
-      </div>
+        </div>
+      </nav>
     </>
   );
 }
