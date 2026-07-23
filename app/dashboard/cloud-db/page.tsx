@@ -25,7 +25,7 @@ export default function CloudWorkspacePage() {
       setLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error("Neautorizat. Loghează-te.");
+        if (!session) throw new Error("Unauthorized. Please log in.");
         setUser({ id: session.user.id, email: session.user.email, name: session.user.user_metadata?.full_name || "Operator", avatar: `https://dicebear.com{session.user.id}` });
         
         const { data: all } = await supabase.from("cloud_banks").select("size_mb").eq("user_id", session.user.id);
