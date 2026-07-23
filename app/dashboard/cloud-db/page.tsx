@@ -78,7 +78,7 @@ export default function CloudWorkspacePage() {
             
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 mb-6 gap-4">
               <div>
-                <h1 className="text-xl font-bold tracking-tight">iMIDI Cloud Workspace</h1>
+                <h1 className="text-xl font-bold tracking-tight">iMIDI MyCloud</h1>
                 <p className="text-[11px] text-zinc-400">{user?.email}</p>
               </div>
               <div className="flex gap-2">
