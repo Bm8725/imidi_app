@@ -10,7 +10,7 @@ import Footer from "@/components/Footer";
 import WhatsAppWidget from "@/components/WhatsAppWidget";
 
 // Contact real pentru comenzi — schimbă aici dacă vrei alt email/număr
-const ORDER_EMAIL = "sales@imidi.ro";
+const ORDER_EMAIL = "contact@imidi.ro";
 const ORDER_WHATSAPP_NUMBER = "40765354998"; // același număr ca în WhatsAppWidget
 
 // ============================================================================
