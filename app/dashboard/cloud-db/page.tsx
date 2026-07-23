@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -8,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 
 export default function CloudWorkspacePage() {
   const fileRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("all");
   const [banks, setBanks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,8 +19,10 @@ export default function CloudWorkspacePage() {
   const [totalUsedMb, setTotalUsedMb] = useState(0);
   const [user, setUser] = useState<any>(null);
   const [delId, setDelId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  const lim = 6, maxMb = 30 * 1024;
+  const lim = 6, maxMb = 50;
 
   useEffect(() => {
     (async () => {
@@ -41,24 +45,92 @@ export default function CloudWorkspacePage() {
   }, [page, activeTab]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "";
-      const path = `${user.id}/${Math.random().toString(36).substring(2)}.${ext}`;
-      await supabase.storage.from("cloud-db-bucket").upload(path, file);
+      let runningTotal = totalUsedMb;
+      const errors: string[] = [];
+      let blocked = false;
 
-      let type = "Audio Bank", color = "#3b82f6";
-      if (["fxp", "fxb", "vital", "fst", "adg", "adv", "pst", "json", "ts4", "bin", "jsf", "jbb", "sf2", "hex", "jbs", "prf", "bup"].includes(ext)) {
-        type = "Presets"; color = "#ec4899";
-      } else if (["mid", "midi"].includes(ext)) {
-        type = "MIDI Pack"; color = "#10b981";
+      for (const file of Array.from(files)) {
+        const fileSizeMb = file.size / (1024 * 1024);
+
+        if (runningTotal >= maxMb) {
+          blocked = true;
+          errors.push(`${file.name}: neîncărcat — ai atins limita de ${maxMb} MB.`);
+          continue;
+        }
+        if (runningTotal + fileSizeMb > maxMb) {
+          blocked = true;
+          errors.push(`${file.name}: neîncărcat — ar depăși limita de ${maxMb} MB.`);
+          continue;
+        }
+
+        try {
+          const ext = file.name.split(".").pop()?.toLowerCase() || "";
+          const path = `${user.id}/${Math.random().toString(36).substring(2)}.${ext}`;
+          const { error: upErr } = await supabase.storage.from("cloud-db-bucket").upload(path, file);
+          if (upErr) throw upErr;
+
+          let type = "Audio Bank", color = "#3b82f6";
+          if (["fxp", "fxb", "vital", "fst", "adg", "adv", "pst", "json", "ts4", "bin", "jsf", "jbb", "sf2", "hex", "jbs", "prf", "bup"].includes(ext)) {
+            type = "Presets"; color = "#ec4899";
+          } else if (["mid", "midi"].includes(ext)) {
+            type = "MIDI Pack"; color = "#10b981";
+          }
+
+          const { error: insErr } = await supabase.from("cloud_banks").insert({ user_id: user.id, name: file.name, type, items_count: 1, size_mb: parseFloat(fileSizeMb.toFixed(2)), status: "active", color_hex: color, storage_path: path });
+          if (insErr) throw insErr;
+
+          runningTotal += fileSizeMb;
+        } catch (fileErr: any) {
+          errors.push(`${file.name}: ${fileErr.message}`);
+        }
       }
 
-      await supabase.from("cloud_banks").insert({ user_id: user.id, name: file.name, type, items_count: 1, size_mb: parseFloat((file.size / (1024 * 1024)).toFixed(2)), status: "active", color_hex: color });
+      if (blocked) {
+        alert(`Ai depășit spațiul gratuit de ${maxMb} MB.\n\nUnele fișiere nu s-au încărcat:\n${errors.join("\n")}\n\nCumpără spațiu suplimentar din pagina de pricing ca să continui.`);
+      } else if (errors.length) {
+        alert(`Unele fișiere nu s-au încărcat:\n${errors.join("\n")}`);
+      }
       window.location.reload();
     } catch (err: any) { alert(err.message); } finally { setUploading(false); }
+  };
+
+  const handleDownload = async (bank: any) => {
+    if (!bank.storage_path) {
+      alert("Fișierul acesta nu are un path de storage salvat, nu poate fi descărcat.");
+      return;
+    }
+    setDownloadingId(bank.id);
+    try {
+      const { data, error } = await supabase.storage.from("cloud-db-bucket").download(bank.storage_path);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = bank.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err.message || "Descărcarea a eșuat.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
+      router.push("/login");
+    } catch (err: any) {
+      alert(err.message || "Delogarea a eșuat.");
+      setLoggingOut(false);
+    }
   };
 
   const pct = Math.min(100, (totalUsedMb / maxMb) * 100);
@@ -74,7 +146,7 @@ export default function CloudWorkspacePage() {
           </div>
         ) : (
           <>
-            <input type="file" ref={fileRef} onChange={handleUpload} className="hidden" accept="audio/*,.mid,.midi,.fxp,.fxb,.vital,.fst,.adg,.adv,.pst,.json,.ts4,.bin,.jsf,.jbb,.sf2,.hex,.jbs,.prf,.bup" />
+            <input type="file" multiple ref={fileRef} onChange={handleUpload} className="hidden" accept="audio/*,.mid,.midi,.fxp,.fxb,.vital,.fst,.adg,.adv,.pst,.json,.ts4,.bin,.jsf,.jbb,.sf2,.hex,.jbs,.prf,.bup" />
             
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 mb-6 gap-4">
               <div>
@@ -82,8 +154,12 @@ export default function CloudWorkspacePage() {
                 <p className="text-[11px] text-zinc-400">{user?.email}</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => fileRef.current?.click()} className="h-8 px-3 border rounded-lg text-xs font-medium bg-white shadow-sm">Import</button>
+                <button disabled={totalUsedMb >= maxMb || uploading} onClick={() => fileRef.current?.click()} className="h-8 px-3 border rounded-lg text-xs font-medium bg-white shadow-sm disabled:opacity-40">Import</button>
                 <button disabled={totalUsedMb >= maxMb || uploading} onClick={() => fileRef.current?.click()} className="h-8 px-3 bg-zinc-900 text-white text-xs font-medium rounded-lg disabled:opacity-40 shadow-sm">{uploading ? "Loading..." : "+ Upload"}</button>
+                <button onClick={handleLogout} disabled={loggingOut} className="h-8 px-3 border rounded-lg text-xs font-medium bg-white shadow-sm text-red-500 hover:bg-red-50 disabled:opacity-40 flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                  {loggingOut ? "..." : "Log out"}
+                </button>
               </div>
             </div>
 
@@ -98,10 +174,17 @@ export default function CloudWorkspacePage() {
                 <span className="text-xs font-bold">{user?.name || "Uploading..."}</span>
               </div>
               <div className="w-full sm:w-64">
-                <div className="text-[11px] text-zinc-500 flex justify-between font-medium"><span>Stocare</span><span>{(totalUsedMb / 1024).toFixed(1)} / 30 GB</span></div>
+                <div className="text-[11px] text-zinc-500 flex justify-between font-medium"><span>Stocare</span><span>{totalUsedMb.toFixed(1)} / {maxMb} MB</span></div>
                 <div className="w-full h-1.5 bg-zinc-100 rounded-full mt-1 border overflow-hidden"><div className={`h-full transition-all ${pct > 85 ? "bg-red-500" : pct > 60 ? "bg-amber-500" : "bg-zinc-900"}`} style={{ width: `${pct}%` }} /></div>
               </div>
             </div>
+
+            {totalUsedMb >= maxMb && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <p className="text-xs text-amber-800">Ai atins limita gratuită de {maxMb} MB. Nu mai poți urca fișiere noi până nu eliberezi spațiu sau extinzi stocarea.</p>
+                <Link href="/pricing" className="shrink-0 h-7 px-3 flex items-center bg-amber-900 text-white text-[11px] font-semibold rounded-lg whitespace-nowrap">Vezi opțiuni de stocare</Link>
+              </div>
+            )}
 
 
             <div className="flex gap-1 bg-zinc-200/50 p-1 rounded-lg w-fit mb-4">
@@ -121,16 +204,25 @@ export default function CloudWorkspacePage() {
                         <p className="text-[10px] text-zinc-400">{b.type} • {b.size_mb < 0.1 ? `${(b.size_mb * 1024).toFixed(0)} KB` : `${b.size_mb} MB`}</p>
                       </div>
                     </div>
-                    <div className="shrink-0 z-20">
+                    <div className="shrink-0 z-20 flex items-center gap-1">
                       {delId === b.id ? (
                         <div className="flex gap-1 bg-zinc-50 p-1 border rounded-md">
                           <button onClick={async () => { await supabase.from("cloud_banks").delete().eq("id", b.id); setDelId(null); window.location.reload(); }} className="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded">yes</button>
                           <button onClick={() => setDelId(null)} className="px-2 py-0.5 text-zinc-500 text-[10px]">No</button>
                         </div>
                       ) : (
-                        <button onClick={() => setDelId(b.id)} className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-red-500 hover:bg-red-50 sm:opacity-0 group-hover:opacity-100 transition-all">
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
+                        <>
+                          <button onClick={() => handleDownload(b)} disabled={downloadingId === b.id} className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 sm:opacity-0 group-hover:opacity-100 transition-all disabled:opacity-100">
+                            {downloadingId === b.id ? (
+                              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                            ) : (
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
+                            )}
+                          </button>
+                          <button onClick={() => setDelId(b.id)} className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-red-500 hover:bg-red-50 sm:opacity-0 group-hover:opacity-100 transition-all">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
