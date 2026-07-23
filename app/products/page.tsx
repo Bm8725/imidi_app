@@ -493,7 +493,7 @@ export default function IVolutionProductPage() {
       {/* Containerul responsive mentine proportia 16:9 */}
       <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-sm bg-black border border-black/5">
 <iframe width="520" height="400" src="https://www.youtube.com/embed/6XRfRP2zky4?list=RD6XRfRP2zky4" title="Paul Stanga Hora Tiganeasca veche" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope;
- picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowFullScreen></iframe>
+ picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen></iframe>
       </div>
       <h3 className="text-xs font-bold text-neutral-800 px-1 truncate group-hover:text-black transition-colors">
         i-VOLUTION Accordion Demo - Paul Stângă Live Performance
@@ -505,7 +505,7 @@ export default function IVolutionProductPage() {
       {/* Containerul responsive mentine proportia 16:9 */}
       <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-sm bg-black border border-black/5">
 <iframe width="520" height="484" src="https://www.youtube.com/embed/QWuXi7nS-TA?list=RDQWuXi7nS-TA" title="COSTI🇷🇴BogdanDLP❌Georgiana Lobont❌Baboiash❌Maria Dragomiroiu❌Vali Vijelie❌Paul Stânga▶️TOATĂ ROMÂNIA" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media;
- gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowFullScreen></iframe>
+ gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen></iframe>
       </div>
       <h3 className="text-xs font-bold text-neutral-800 px-1 truncate group-hover:text-black transition-colors">
         i-VOLUTION international performance
