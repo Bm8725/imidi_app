@@ -83,6 +83,27 @@ export default function EMarketPage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [shareFeedbackId, setShareFeedbackId] = useState<string | null>(null);
 
+useEffect(() => {
+  // Citim ID-ul din URL dacă utilizatorul a venit de pe un link de share
+  const queryParams = new URLSearchParams(window.location.search);
+  const sharedListingId = queryParams.get("id");
+
+  if (sharedListingId) {
+    // Interogăm Supabase pentru a încărca anunțul în modalul de detalii
+    supabase
+      .from("listings")
+      .select("*")
+      .eq("id", sharedListingId)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setSelectedListing(data);
+          setActiveImage(0);
+        }
+      });
+  }
+}, []);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) setUser(data.user);
