@@ -453,9 +453,19 @@ useEffect(() => {
           {user ? (
 <button
   onClick={() => setShowForm(!showForm)}
-  className="h-10 px-6 bg-[#FF5CA1] hover:bg-[#ff4392] text-white text-xs font-bold rounded-full cursor-pointer hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 self-start shadow-[0_0_20px_rgba(255,92,161,0.35)] tracking-wide uppercase font-mono"
+  className="group h-10 px-6 bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white text-xs font-bold rounded-xl性能 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 self-start shadow-[0_4px_20px_rgba(255,92,161,0.35)] border border-white/10 tracking-wide uppercase font-mono flex items-center gap-2"
 >
-  {showForm ? "Close" : "Publish+"}
+  {showForm ? (
+    <>
+      <span className="transition-transform duration-300 group-hover:rotate-90">✕</span>
+      Close
+    </>
+  ) : (
+    <>
+      <span className="animate-pulse transition-transform duration-500 group-hover:rotate-180">✦</span>
+      Publish+
+    </>
+  )}
 </button>
           ) : (
             <p className="text-x text-[#7A7365] font-mono">
