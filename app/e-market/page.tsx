@@ -988,8 +988,7 @@ useEffect(() => {
               <p className="text-xs text-[#4A463D] leading-relaxed whitespace-pre-wrap">
                 {selectedListing.description}
               </p>
-
-                         {/* contact */}
+              {/* contact */}
               <div className="bg-gray-50 border border-black/5 rounded-2xl p-5 flex flex-col gap-3.5 w-full">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">
                   Contactează Vânzătorul
@@ -1004,7 +1003,7 @@ useEffect(() => {
                         className="flex-1 min-w-[160px] text-center text-sm font-bold text-white bg-[#B4592F] hover:bg-[#964723] px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 hover:scale-[1.02]"
                       >
                         <span className="text-base">{"\u260E"}</span>
-                        Suna Vanzatorul
+                        {selectedListing.phone}
                       </a>
                       
                      
@@ -1048,6 +1047,7 @@ useEffect(() => {
                   </span>
                 )}
               </div>
+
 
 
               {/* link digital preset */}
