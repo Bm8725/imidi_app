@@ -18,6 +18,7 @@ interface Listing {
   email: string | null;
   country: string | null;
   region: string | null;
+  views_count: number;
 }
 
 interface Review {
@@ -97,8 +98,7 @@ useEffect(() => {
       .single()
       .then(({ data }) => {
         if (data) {
-          setSelectedListing(data);
-          setActiveImage(0);
+          openListing(data as Listing);
         }
       });
   }
@@ -294,13 +294,24 @@ useEffect(() => {
     }
   };
 
-  // ---- modal + reviews ----
+  // ---- modal + reviews + views counter ----
   const openListing = async (item: Listing) => {
     setSelectedListing(item);
     setActiveImage(0);
     setMyRating(0);
     setMyComment("");
     setReviewsLoading(true);
+
+    // incrementam contorul de vizualizari (fire-and-forget, nu blocam UI-ul)
+    supabase.rpc("increment_listing_views", { listing_id_param: item.id }).then(() => {
+      setSelectedListing((prev) =>
+        prev && prev.id === item.id ? { ...prev, views_count: (prev.views_count || 0) + 1 } : prev
+      );
+      setListings((prev) =>
+        prev.map((l) => (l.id === item.id ? { ...l, views_count: (l.views_count || 0) + 1 } : l))
+      );
+    });
+
     const result = await supabase
       .from("listing_reviews")
       .select("*")
@@ -372,7 +383,9 @@ useEffect(() => {
           { onConflict: "listing_id,user_id" }
         );
       if (upsertResult.error) throw upsertResult.error;
-      await openListing(selectedListing);
+      const idToReload = selectedListing.id;
+      const current = listings.find((l) => l.id === idToReload) || selectedListing;
+      await openListing(current);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -405,6 +418,19 @@ useEffect(() => {
         </span>
       ))}
     </div>
+  );
+
+  const EyeIcon = ({ size = 12 }: { size?: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M2 12C2 12 5.5 5 12 5C18.5 5 22 12 22 12C22 12 18.5 19 12 19C5.5 19 2 12 2 12Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
   );
 
   return (
@@ -453,7 +479,7 @@ useEffect(() => {
           {user ? (
 <button
   onClick={() => setShowForm(!showForm)}
-  className="group h-10 px-6 bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white text-xs font-bold rounded-xl性能 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 self-start shadow-[0_4px_20px_rgba(255,92,161,0.35)] border border-white/10 tracking-wide uppercase font-mono flex items-center gap-2"
+  className="group h-10 px-6 bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white text-xs font-bold rounded-xl cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 self-start shadow-[0_4px_20px_rgba(255,92,161,0.35)] border border-white/10 tracking-wide uppercase font-mono flex items-center gap-2"
 >
   {showForm ? (
     <>
@@ -811,6 +837,10 @@ useEffect(() => {
                       </svg>
                     )}
                   </button>
+                  <span className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded-full text-[9px] bg-black/60 text-white font-mono flex items-center gap-1">
+                    <EyeIcon size={10} />
+                    {item.views_count || 0}
+                  </span>
                   <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg text-xs font-mono font-bold bg-[#FF0000] text-[#FFFFFF]">
                     {"\u20AC"}{item.price}
                   </span>
@@ -890,6 +920,10 @@ useEffect(() => {
                   <span className="text-xs text-[#9A907C] font-mono">Fara imagine</span>
                 )}
               </div>
+              <span className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full text-[10px] bg-black/60 text-white font-mono flex items-center gap-1.5">
+                <EyeIcon size={12} />
+                {selectedListing.views_count || 0} vizualizari
+              </span>
               <button
                 type="button"
                 onClick={(e) => shareListing(selectedListing, e)}
