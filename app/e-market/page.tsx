@@ -335,7 +335,7 @@ useEffect(() => {
 
   const shareListing = async (item: Listing, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    const url = window.location.origin + window.location.pathname + "?listing=" + item.id;
+    const url = window.location.origin + "/e-market/listing/" + item.id;
 
     if (typeof navigator !== "undefined" && (navigator as any).share) {
       try {

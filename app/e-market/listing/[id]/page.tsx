@@ -1,16 +1,18 @@
 import { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
-import { redirect } from "next/navigation";
+import RedirectToListing from "./RedirectToListing";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
+const SITE_URL = "https://imidi.co.uk";
+const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`; // pune aici o imagine reala 1200x630, nu link catre homepage
+
 // 1. GENERATORUL DINAMIC DE METADATE PENTRU RETELELE SOCIALE
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
 
-  // Interogăm Supabase direct de pe server
   const { data: listing } = await supabase
     .from("listings")
     .select("title, description, images, price")
@@ -18,19 +20,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .single();
 
   if (!listing) {
-    return { title: "Listing Not Found — iMIDI Market" };
+    return { title: "Anunt indisponibil — iMIDI Market" };
   }
 
-  // Luăm prima poză din cele maxim 4 salvate în array, sau fallback dacă nu are
-  const mainImage = listing.images?.[0] || "https://imidi.co.uk";
+  const mainImage = listing.images?.[0] || DEFAULT_OG_IMAGE;
+  const pageUrl = `${SITE_URL}/e-market/listing/${id}`;
 
   return {
-    title: `${listing.title} — €${listing.price} on iMIDI Market`,
+    title: `${listing.title} — \u20AC${listing.price} pe iMIDI Market`,
     description: listing.description,
     openGraph: {
       title: listing.title,
       description: listing.description,
-      url: `https://imidi.co.uk{id}`,
+      url: pageUrl,
       siteName: "iMIDI Marketplace",
       type: "article",
       images: [
@@ -51,13 +53,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-// 2. LOGICA PAGINII DE REDIRECTIONARE SAU VIZUALIZARE DIRECTA
+// 2. RANDAM HTML REAL (nu redirect() pe server!) ca sa apuce crawler-ele
+// sa citeasca meta tag-urile OG, apoi redirectionam omul real prin JS.
 export default async function ListingPage({ params }: Props) {
   const { id } = await params;
-
-  // Opțiunea A: Redirecționăm automat utilizatorul uman înapoi în pagina ta principală 
-  // deschizându-i automat modalul de detalii prin query params
-  redirect(`/e-market?id=${id}`);
-  
-  return null;
+  return <RedirectToListing id={id} />;
 }
