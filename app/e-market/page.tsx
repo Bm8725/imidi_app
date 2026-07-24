@@ -421,9 +421,10 @@ export default function EMarketPage() {
               <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A7A5C] mb-1">
                 Catalog
               </p>
-              <h1 className="text-3xl font-serif tracking-tight text-[#1C1A16]">iMIDI Market</h1>
+              <h1 className="text-3xl font-serif tracking-tight text-[#1C1A16]">iMIDI e-Market</h1>
               <p className="text-xs text-[#7A7365] mt-1">
-                Instrumente si preset-uri. Anunturile expira dupa 15 zile.
+                Platforma dedicata vanzarilor after-market de instrumente muzicale si 
+                preseturi pentru DAW-uri. Publica anunturi gratuite, cumpara sau vinde in siguranta. Anuntul este gratuit 15 zile.
               </p>
             </div>
           </div>
