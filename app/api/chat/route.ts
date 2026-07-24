@@ -107,7 +107,7 @@ export async function POST(req: Request) {
         ...messages
       ],
       max_tokens: 750, // Am mărit numărul de tokeni pentru a permite extrase lungi și link-uri complete
-      temperature: 0.2, // Păstrăm temperatura jos pentru acuratețea citatelor brute
+      temperature: 0.5, // Păstrăm temperatura jos pentru acuratețea citatelor brute
     });
 
     const aiText = response.choices?.[0]?.message?.content || "";
