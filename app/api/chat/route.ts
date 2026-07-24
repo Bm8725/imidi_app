@@ -3,44 +3,31 @@ import { HfInference } from "@huggingface/inference";
 
 export async function POST(req: Request) {
   try {
-    const { context } = await req.json();
+    const { messages } = await req.json();
+    
+    // Păstrăm variabila ta din .env.local
     const token = process.env.NEXT_PUBLIC_HF_TOKEN;
 
     if (!token) {
-      return NextResponse.json({ error: "Missing token in .env.local" }, { status: 500 });
+      return NextResponse.json({ error: "Missing token in environment variables" }, { status: 500 });
     }
 
     const hf = new HfInference(token.trim());
 
-    // Folosim o metodă directă și un model ultra-stabil pe infrastructura lor de bază
-    const response = await hf.textGeneration({
-      model: "microsoft/Phi-3-mini-4k-instruct",
-      inputs: `<|user|>\n${context}<|end|>\n<|assistant|>\n`,
-      parameters: {
-        max_new_tokens: 250,
-        temperature: 0.7,
-        return_full_text: false
-      },
+    // REPARAT: Am trecut la Llama 3 8B, care este stabil și suportă nativ endpoint-ul de chat
+    const response = await hf.chatCompletion({
+      model: "Qwen/Qwen2.5-7B-Instruct",
+      messages: messages,
+      max_tokens: 250,
+      temperature: 0.7,
     });
 
-    console.log("Răspuns primit direct prin textGeneration:", response);
+    // Extragere curată a răspunsului primit de la API
+    const aiText = response.choices?.[0]?.message?.content || "";
 
-    let textGenerat = response.generated_text || "";
-
-    // Curățăm tag-urile suplimentare dacă apar în răspuns
-    if (textGenerat) {
-      textGenerat = textGenerat.replace("<|assistant|>", "").trim();
-    }
-
-    return NextResponse.json({ 
-      generated_text: textGenerat || "AI responded with an empty body." 
-    });
-
+    return NextResponse.json({ generated_text: aiText });
   } catch (error: any) {
-    console.error("Eroare prin SDK-ul Hugging Face direct:", error);
-    
-    return NextResponse.json({ 
-      generated_text: "The AI is currently processing. Please try pressing send again." 
-    });
+    console.error("HF Error:", error);
+    return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 });
   }
 }

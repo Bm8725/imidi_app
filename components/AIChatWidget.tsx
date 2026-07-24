@@ -15,9 +15,7 @@ export default function AIChatWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
+    if (isOpen) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isOpen]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -25,26 +23,21 @@ export default function AIChatWidget() {
     if (!input.trim() || loading) return;
 
     const userMessage: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage]; // Istoricul complet + noul mesaj
+    
+    setMessages(updatedMessages);
     setInput("");
     setLoading(true);
 
     try {
-      const context = messages
-        .concat(userMessage)
-        .map((m) => (m.role === "user" ? `<|user|>\n${m.content}<|end|>` : `<|assistant|>\n${m.content}<|end|>`))
-        .join("\n") + "\n<|assistant|>";
-
+      // Pasăm istoricul ca structură nativă direct către API-ul nostru local
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ context }),
+        body: JSON.stringify({ messages: updatedMessages }), 
       });
 
       const data = await res.json();
-      
-      // REPARAT CRITIC PENTRU TYPESCRIPT VERCEL:
-      // Citim direct proprietatea din obiectul simplu trimis de server
       let aiText = data?.generated_text || "";
 
       if (data?.error) {
@@ -60,7 +53,6 @@ export default function AIChatWidget() {
       setLoading(false);
     }
   };
-
 
   return (
     <>
@@ -80,33 +72,18 @@ export default function AIChatWidget() {
 
       {/* 2. DARK GLASS CHAT WINDOW CONTAINER */}
       {isOpen && (
-        <div 
-          className={`
-            fixed z-50 font-sans antialiased text-white bg-black/90 backdrop-blur-xl flex flex-col overflow-hidden transition-all duration-300
-            top-0 left-0 w-full h-[100dvh] 
-            sm:top-auto sm:left-auto sm:bottom-[33px] sm:right-6 sm:w-[380px] sm:h-[540px] sm:max-h-[85vh] sm:border sm:border-white/10 sm:rounded-2xl sm:shadow-[0_20px_50px_rgba(0,0,0,0.5)]
-          `}
-        >
-          {/* Ambient Glow behind content */}
+        <div className={`fixed z-50 font-sans antialiased text-white bg-black/90 backdrop-blur-xl flex flex-col overflow-hidden transition-all duration-300 top-0 left-0 w-full h-[100dvh] sm:top-auto sm:left-auto sm:bottom-[33px] sm:right-6 sm:w-[380px] sm:h-[540px] sm:max-h-[85vh] sm:border sm:border-white/10 sm:rounded-2xl sm:shadow-[0_20px_50px_rgba(0,0,0,0.5)]`}>
           <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-[#FF5CA1]/10 to-transparent pointer-events-none z-0" />
           
-          {/* Header Area */}
           <div className="p-4 border-b border-white/5 flex items-center justify-between bg-black/40 backdrop-blur-md pt-16 sm:pt-4 relative z-10">
-            <div className="flex items-center gap-2">
-  
-              <h3 className="text-xs font-semibold text-white/90 tracking-widest uppercase font-mono">AI chat support </h3>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-neutral-400 hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
-            >
+            <h3 className="text-xs font-semibold text-white/90 tracking-widest uppercase font-mono">AI chat support</h3>
+            <button onClick={() => setIsOpen(false)} className="text-neutral-400 hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
 
-          {/* Messages Area */}
           <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gradient-to-b from-neutral-900/20 to-neutral-950/40 relative z-10">
             {messages.length === 0 && (
               <div className="text-center py-20 px-6 space-y-3">
@@ -120,13 +97,7 @@ export default function AIChatWidget() {
 
             {messages.map((msg, index) => (
               <div key={index} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[82%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed break-words shadow-md transition-all ${
-                    msg.role === "user"
-                      ? "bg-white text-black font-medium rounded-br-none"
-                      : "bg-[#1A1A1A] border border-white/5 text-neutral-200 rounded-bl-none"
-                  }`}
-                >
+                <div className={`max-w-[82%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed break-words shadow-md transition-all ${msg.role === "user" ? "bg-white text-black font-medium rounded-br-none" : "bg-[#1A1A1A] border border-white/5 text-neutral-200 rounded-bl-none"}`}>
                   {msg.content}
                 </div>
               </div>
@@ -144,7 +115,6 @@ export default function AIChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
           <form onSubmit={handleSendMessage} className="p-3 bg-black/60 border-t border-white/5 flex items-center gap-2 pb-12 sm:pb-3 relative z-10">
             <input
               type="text"
@@ -161,7 +131,6 @@ export default function AIChatWidget() {
               Send
             </button>
           </form>
-
         </div>
       )}
     </>
