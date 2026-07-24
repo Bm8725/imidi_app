@@ -18,7 +18,7 @@ import "./globals.css";
 import WhatsAppWidget from "@/components/WhatsAppWidget";
 import Script from "next/script";
 import AIChatWidget from "@/components/AIChatWidget";
-
+import CookieBanner from "@/components/CookieBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -83,7 +83,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-[#0D0E12] text-white">
         {children}
         <WhatsAppWidget />
-
+        <CookieBanner/>
         {/* Script nativ Next.js pentru înregistrarea silențioasă a sw.js în Production */}
         <Script id="register-pwa-sw" strategy="afterInteractive">
           {`
