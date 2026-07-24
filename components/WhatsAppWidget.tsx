@@ -20,11 +20,11 @@ const DEPARTMENTS = [
   {
     id: "general",
     label: "General Support",
-    sublabel: "TS4X, i-volution, MyCloud",
+    sublabel: "TS4X, i-volution",
     number: "40765354998", // fără '+' sau spații
     message: "Hi! I have a question about iMIDI / TS4X.",
   },
-  // { id: "sales", label: "Sales", sublabel: "Pricing & licenses", number: "40700000000", message: "Hi! I'd like info about pricing." },
+   { id: "Cloud support", label: "Cloud support", sublabel: "Technical support", number: "40729411747", message: "Hi! i need help with my cloud account and platform." },
 ];
 
 const BOTTOM_OFFSET = "bottom-23 sm:bottom-14";
