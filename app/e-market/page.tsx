@@ -455,7 +455,7 @@ useEffect(() => {
   onClick={() => setShowForm(!showForm)}
   className="h-10 px-6 bg-[#FF5CA1] hover:bg-[#ff4392] text-white text-xs font-bold rounded-full cursor-pointer hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 self-start shadow-[0_0_20px_rgba(255,92,161,0.35)] tracking-wide uppercase font-mono"
 >
-  {showForm ? "Close" : "+ Publish "}
+  {showForm ? "Close" : "Publish+"}
 </button>
           ) : (
             <p className="text-x text-[#7A7365] font-mono">
