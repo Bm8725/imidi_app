@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
+
 interface Listing {
   id: string;
   user_id: string;
