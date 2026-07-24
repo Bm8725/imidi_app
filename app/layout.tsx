@@ -83,7 +83,6 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-[#0D0E12] text-white">
         {children}
         <WhatsAppWidget />
-       
 
         {/* Script nativ Next.js pentru înregistrarea silențioasă a sw.js în Production */}
         <Script id="register-pwa-sw" strategy="afterInteractive">
@@ -101,3 +100,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+//************************************* end of story *************************************** */

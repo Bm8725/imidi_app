@@ -811,7 +811,7 @@ useEffect(() => {
                       </svg>
                     )}
                   </button>
-                  <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg text-xs font-mono font-bold bg-[#1C1A16] text-[#FFFFFF]">
+                  <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg text-xs font-mono font-bold bg-[#FF0000] text-[#FFFFFF]">
                     {"\u20AC"}{item.price}
                   </span>
                 </div>
@@ -946,7 +946,7 @@ useEffect(() => {
                       </p>
                     )}
                 </div>
-                <span className="px-3 py-1 rounded-lg text-sm font-mono font-bold bg-[#1C1A16] text-[#FFFFFF] whitespace-nowrap">
+                <span className="px-3 py-1 rounded-lg text-x font-mono font-bold bg-[#DC2626] text-[#FFFFFF] whitespace-nowrap">
                   {"\u20AC"}{selectedListing.price}
                 </span>
               </div>
