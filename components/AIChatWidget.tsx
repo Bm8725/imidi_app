@@ -76,7 +76,7 @@ export default function AIChatWidget() {
           <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-[#FF5CA1]/5 to-transparent pointer-events-none z-0" />
           
           <div className="p-4 border-b border-amber-900/10 flex items-center justify-between bg-[#F7F4EB] pt-16 sm:pt-4 relative z-10">
-            <h3 className="text-xs font-semibold text-amber-950 tracking-widest uppercase font-mono">Smith, your AI assistant 🫡</h3>
+            <h3 className="text-xs font-semibold text-amber-950 tracking-widest uppercase font-mono">iMIDI support </h3>
             <button onClick={() => setIsOpen(false)} className="text-amber-900/60 hover:text-amber-950 p-1.5 rounded-lg hover:bg-amber-900/5 transition-colors cursor-pointer">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -89,7 +89,7 @@ export default function AIChatWidget() {
               <div className="text-center py-20 px-6 space-y-3">
                 <div className="w-11 h-11 bg-white border border-amber-900/10 text-[#FF5CA1] rounded-full flex items-center justify-center mx-auto text-sm font-bold shadow-sm animate-pulse">✦</div>
                 <div className="space-y-1">
-                  <p className="text-sm font-semibold text-amber-950">iMIDI Assistant Pro</p>
+                  <p className="text-sm font-semibold text-amber-950">Smith, your AI assistant 🫡</p>
                   <p className="text-xs text-amber-900/60 max-w-[240px] mx-auto leading-relaxed">Ask anything about technical audio, midi workspace configs or platform support.</p>
                 </div>
               </div>
