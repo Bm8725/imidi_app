@@ -964,7 +964,7 @@ useEffect(() => {
                 <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full">
                   {selectedListing.phone && (
                     <>
-                      {/* Buton Apel - Mare și Vizibil */}
+                      {/* Buton Apel */}
                       <a
                         href={"tel:" + selectedListing.phone}
                         className="flex-1 min-w-[160px] text-center text-sm font-bold text-white bg-[#B4592F] hover:bg-[#964723] px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 hover:scale-[1.02]"
@@ -973,9 +973,16 @@ useEffect(() => {
                         Suna Vanzatorul
                       </a>
                       
-                      {/* Buton WhatsApp - CORECTAT COMPLET */}
+                      {/* Buton WhatsApp - REPARAT INTEGRAL CU PREFIX DE ROMÂNIA SI SLASH */}
                       <a
-                        href={"https://wa.me" + selectedListing.phone.replace(/[^0-9]/g, "") + "?text=" + encodeURIComponent("Salut, sunt interesat de anuntul tau de pe iMIDI.co.uk!")}
+                        href={
+                          "https://wa.me" + 
+                          (selectedListing.phone.replace(/[^0-9]/g, "").startsWith("0") 
+                            ? "40" + selectedListing.phone.replace(/[^0-9]/g, "").substring(1) 
+                            : selectedListing.phone.replace(/[^0-9]/g, "")) + 
+                          "?text=" + 
+                          encodeURIComponent("Salut, sunt interesat de anuntul tau de pe iMIDI.co.uk!")
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex-1 min-w-[160px] text-center text-sm font-bold text-white bg-[#25D366] hover:bg-[#1ebd57] px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 hover:scale-[1.02]"
@@ -1001,7 +1008,7 @@ useEffect(() => {
 
                 {!selectedListing.phone && !selectedListing.email && (
                   <span className="text-sm text-[#9A907C] font-semibold text-center py-2 bg-gray-100 rounded-xl">
-                    Vânzătorul nu a lăsat date având contact.
+                    Vânzătorul nu a lăsat date de contact.
                   </span>
                 )}
               </div>
