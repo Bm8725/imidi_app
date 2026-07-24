@@ -58,7 +58,7 @@ export default function AIChatWidget() {
     <>
       {/* 1. PINK FLOATING BUBBLE BUTTON */}
       {!isOpen && (
-        <div className="fixed bottom-[170px] right-0 sm:right-5 z-50 font-sans antialiased">
+        <div className="fixed bottom-[170px] right-0 sm:right-5 z-50 font-serif antialiased">
           <button
             onClick={() => setIsOpen(true)}
             className="flex items-center justify-center w-14 h-14 bg-[#FF5CA1] text-white rounded-full shadow-[0_8px_24px_rgba(255,92,161,0.4)] hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer mr-6 sm:mr-0"
@@ -70,34 +70,34 @@ export default function AIChatWidget() {
         </div>
       )}
 
-      {/* 2. DARK GLASS CHAT WINDOW CONTAINER */}
+      {/* 2. WARM CREAM CHAT WINDOW CONTAINER */}
       {isOpen && (
-        <div className={`fixed z-50 font-sans antialiased text-white bg-black/90 backdrop-blur-xl flex flex-col overflow-hidden transition-all duration-300 top-0 left-0 w-full h-[100dvh] sm:top-auto sm:left-auto sm:bottom-[33px] sm:right-6 sm:w-[380px] sm:h-[540px] sm:max-h-[85vh] sm:border sm:border-white/10 sm:rounded-2xl sm:shadow-[0_20px_50px_rgba(0,0,0,0.5)]`}>
-          <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-[#FF5CA1]/10 to-transparent pointer-events-none z-0" />
+        <div className={`fixed z-50 font-serif antialiased text-neutral-800 bg-[#FDFBF7] flex flex-col overflow-hidden transition-all duration-300 top-0 left-0 w-full h-[100dvh] sm:top-auto sm:left-auto sm:bottom-[33px] sm:right-6 sm:w-[380px] sm:h-[540px] sm:max-h-[85vh] sm:border sm:border-amber-900/10 sm:rounded-2xl sm:shadow-[0_20px_50px_rgba(0,0,0,0.15)]`}>
+          <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-[#FF5CA1]/5 to-transparent pointer-events-none z-0" />
           
-          <div className="p-4 border-b border-white/5 flex items-center justify-between bg-black/40 backdrop-blur-md pt-16 sm:pt-4 relative z-10">
-            <h3 className="text-xs font-semibold text-white/90 tracking-widest uppercase font-mono">AI chat support</h3>
-            <button onClick={() => setIsOpen(false)} className="text-neutral-400 hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
+          <div className="p-4 border-b border-amber-900/10 flex items-center justify-between bg-[#F7F4EB] pt-16 sm:pt-4 relative z-10">
+            <h3 className="text-xs font-semibold text-amber-950 tracking-widest uppercase font-mono">Smith, your AI assistant 🫡</h3>
+            <button onClick={() => setIsOpen(false)} className="text-amber-900/60 hover:text-amber-950 p-1.5 rounded-lg hover:bg-amber-900/5 transition-colors cursor-pointer">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
 
-          <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gradient-to-b from-neutral-900/20 to-neutral-950/40 relative z-10">
+          <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#FDFBF7] relative z-10">
             {messages.length === 0 && (
               <div className="text-center py-20 px-6 space-y-3">
-                <div className="w-11 h-11 bg-white/5 border border-white/10 text-[#FF5CA1] rounded-full flex items-center justify-center mx-auto text-sm font-bold shadow-inner animate-pulse">✦</div>
+                <div className="w-11 h-11 bg-white border border-amber-900/10 text-[#FF5CA1] rounded-full flex items-center justify-center mx-auto text-sm font-bold shadow-sm animate-pulse">✦</div>
                 <div className="space-y-1">
-                  <p className="text-xs font-semibold text-white">iMIDI Assistant Pro</p>
-                  <p className="text-[11px] text-neutral-400 max-w-[240px] mx-auto leading-relaxed">Ask anything about technical audio, midi workspace configs or platform support.</p>
+                  <p className="text-sm font-semibold text-amber-950">iMIDI Assistant Pro</p>
+                  <p className="text-xs text-amber-900/60 max-w-[240px] mx-auto leading-relaxed">Ask anything about technical audio, midi workspace configs or platform support.</p>
                 </div>
               </div>
             )}
 
             {messages.map((msg, index) => (
               <div key={index} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[82%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed break-words shadow-md transition-all ${msg.role === "user" ? "bg-white text-black font-medium rounded-br-none" : "bg-[#1A1A1A] border border-white/5 text-neutral-200 rounded-bl-none"}`}>
+                <div className={`max-w-[82%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed break-words shadow-sm transition-all ${msg.role === "user" ? "bg-[#FF5CA1] text-white font-medium rounded-br-none" : "bg-white border border-amber-900/10 text-neutral-800 rounded-bl-none"}`}>
                   {msg.content}
                 </div>
               </div>
@@ -105,7 +105,7 @@ export default function AIChatWidget() {
 
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-[#1A1A1A] border border-white/5 text-neutral-400 text-[11px] rounded-2xl rounded-bl-none px-3.5 py-2 shadow-md flex items-center gap-1.5">
+                <div className="bg-white border border-amber-900/10 text-neutral-400 text-sm rounded-2xl rounded-bl-none px-3.5 py-2 shadow-sm flex items-center gap-1.5">
                   <span className="w-1 h-1 bg-[#FF5CA1] rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                   <span className="w-1 h-1 bg-[#FF5CA1] rounded-full animate-bounce [animation-delay:-0.15s]"></span>
                   <span className="w-1 h-1 bg-[#FF5CA1] rounded-full animate-bounce"></span>
@@ -115,18 +115,18 @@ export default function AIChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={handleSendMessage} className="p-3 bg-black/60 border-t border-white/5 flex items-center gap-2 pb-12 sm:pb-3 relative z-10">
+          <form onSubmit={handleSendMessage} className="p-3 bg-[#F7F4EB] border-t border-amber-900/10 flex items-center gap-2 pb-12 sm:pb-3 relative z-10">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask iMIDI AI..."
-              className="flex-1 h-10 px-3 text-xs bg-neutral-900 border border-white/10 rounded-xl outline-none focus:bg-neutral-800/80 focus:border-white/20 transition-all text-white placeholder-neutral-500"
+              className="flex-1 h-10 px-3 text-sm bg-white border border-amber-900/10 rounded-xl outline-none text-neutral-900 placeholder-amber-900/40"
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="h-10 px-4 bg-[#FF5CA1] text-white text-xs font-semibold rounded-xl hover:bg-[#ff4392] active:scale-98 disabled:opacity-20 transition-all cursor-pointer shadow-[0_2px_8px_rgba(255,92,161,0.2)]"
+              className="h-10 px-4 bg-[#FF5CA1] text-white text-sm font-semibold rounded-xl hover:bg-[#ff4392] active:scale-98 disabled:opacity-20 transition-all cursor-pointer shadow-[0_2px_8px_rgba(255,92,161,0.2)]"
             >
               Send
             </button>
