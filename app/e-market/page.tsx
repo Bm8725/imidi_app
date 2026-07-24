@@ -714,7 +714,7 @@ useEffect(() => {
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="Telefon (optional)"
+                placeholder="Telefon "
                 className="w-full h-10 bg-[#F7F6F3] border border-black/10 rounded-xl px-3 text-xs outline-none focus:border-[#B4592F]/50 text-[#1C1A16]"
               />
               <input
@@ -973,26 +973,26 @@ useEffect(() => {
                         Suna Vanzatorul
                       </a>
                       
-                      {/* Buton WhatsApp - REPARAT INTEGRAL CU PREFIX DE ROMÂNIA SI SLASH */}
-{/* Buton WhatsApp - REPARAT COMPLET CU SLASH ȘI PREFIX */}
-<a
-  href={
-    "https://wa.me/" + // 
-    (selectedListing.phone.replace(/[^0-9]/g, "").startsWith("0") 
-      ? "40" + selectedListing.phone.replace(/[^0-9]/g, "").substring(1) 
-      : selectedListing.phone.replace(/[^0-9]/g, "")) + 
-    "?text=" + 
-    encodeURIComponent("Salut, sunt interesat de anuntul tau de pe iMIDI.co.uk!")
-  }
-  target="_blank"
-  rel="noopener noreferrer"
-  className="flex-1 min-w-[160px] text-center text-sm font-bold text-white bg-[#25D366] hover:bg-[#1ebd57] px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 hover:scale-[1.02]"
->
-  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.713-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.474 4.803 1.475 5.394 0 9.779-4.384 9.782-9.78.001-2.614-1.017-5.074-2.871-6.928C16.447 2.067 14 1.05 11.4 1.05c-5.4 0-9.785 4.387-9.788 9.783-.001 1.704.469 3.371 1.359 4.881l-.972 3.548 3.648-.957zm11.124-4.525c-.3-.15-1.77-.874-2.043-.973-.274-.1-.473-.15-.673.15-.199.299-.772.972-.946 1.172-.174.2-.349.224-.649.075-.3-.15-1.267-.467-2.414-1.492-.893-.796-1.496-1.78-1.671-2.079-.174-.3-.019-.462.13-.611.135-.133.3-.349.45-.523.149-.174.199-.299.299-.498.1-.2.05-.374-.025-.523-.075-.15-.673-1.62-.922-2.218-.242-.585-.488-.507-.673-.517-.174-.007-.373-.008-.573-.008-.2 0-.523.075-.797.373-.274.299-1.045 1.021-1.045 2.49 0 1.47 1.07 2.89 1.219 3.09.149.2 2.107 3.216 5.106 4.512.714.308 1.272.492 1.707.63.717.227 1.37.195 1.887.118.577-.087 1.77-.723 2.019-1.42.249-.696.249-1.295.174-1.42-.075-.125-.275-.199-.575-.349z" />
-  </svg>
-  Trimite Mesaj
-</a>
+                     
+                                    {/* Buton WhatsApp - REPARAT COMPLET CU SLASH ȘI PREFIX */}
+                                    <a
+                                    href={
+                                        "https://wa.me/" + // 
+                                        (selectedListing.phone.replace(/[^0-9]/g, "").startsWith("0") 
+                                        ? "40" + selectedListing.phone.replace(/[^0-9]/g, "").substring(1) 
+                                        : selectedListing.phone.replace(/[^0-9]/g, "")) + 
+                                        "?text=" + 
+                                        encodeURIComponent("Salut, sunt interesat de anuntul tau de pe iMIDI.co.uk!")
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-1 min-w-[160px] text-center text-sm font-bold text-white bg-[#25D366] hover:bg-[#1ebd57] px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 hover:scale-[1.02]"
+                                    >
+                                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.713-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.474 4.803 1.475 5.394 0 9.779-4.384 9.782-9.78.001-2.614-1.017-5.074-2.871-6.928C16.447 2.067 14 1.05 11.4 1.05c-5.4 0-9.785 4.387-9.788 9.783-.001 1.704.469 3.371 1.359 4.881l-.972 3.548 3.648-.957zm11.124-4.525c-.3-.15-1.77-.874-2.043-.973-.274-.1-.473-.15-.673.15-.199.299-.772.972-.946 1.172-.174.2-.349.224-.649.075-.3-.15-1.267-.467-2.414-1.492-.893-.796-1.496-1.78-1.671-2.079-.174-.3-.019-.462.13-.611.135-.133.3-.349.45-.523.149-.174.199-.299.299-.498.1-.2.05-.374-.025-.523-.075-.15-.673-1.62-.922-2.218-.242-.585-.488-.507-.673-.517-.174-.007-.373-.008-.573-.008-.2 0-.523.075-.797.373-.274.299-1.045 1.021-1.045 2.49 0 1.47 1.07 2.89 1.219 3.09.149.2 2.107 3.216 5.106 4.512.714.308 1.272.492 1.707.63.717.227 1.37.195 1.887.118.577-.087 1.77-.723 2.019-1.42.249-.696.249-1.295.174-1.42-.075-.125-.275-.199-.575-.349z" />
+                                    </svg>
+                                    Trimite Mesaj
+                                    </a>
 
                     </>
                   )}
