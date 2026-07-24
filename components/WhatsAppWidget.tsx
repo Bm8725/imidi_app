@@ -20,11 +20,11 @@ const DEPARTMENTS = [
   {
     id: "general",
     label: "General Support",
-    sublabel: "TS4X, i-volution",
+    sublabel: "MIDI systems, i-volution, mounting system, firmware updates",
     number: "40765354998", // fără '+' sau spații
     message: "Hi! I have a question about iMIDI / TS4X.",
   },
-   { id: "Cloud support", label: "Cloud support", sublabel: "Technical support", number: "40729411747", message: "Hi! i need help with my cloud account and platform." },
+   { id: "Cloud support", label: "Cloud support", sublabel: "Technical support, app support TS4X, firmware updates", number: "40729411747", message: "Hi! i need help with my cloud account and platform." },
 ];
 
 const BOTTOM_OFFSET = "bottom-23 sm:bottom-14";
