@@ -451,14 +451,14 @@ useEffect(() => {
             </div>
           </div>
           {user ? (
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="h-10 px-5 bg-[#1C1A16] text-[#FFFFFF] text-xs font-semibold rounded-full cursor-pointer hover:bg-[#33302A] transition-colors self-start"
-            >
-              {showForm ? "Inchide" : "Publica anunt"}
-            </button>
+<button
+  onClick={() => setShowForm(!showForm)}
+  className="h-10 px-6 bg-[#FF5CA1] hover:bg-[#ff4392] text-white text-xs font-bold rounded-full cursor-pointer hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 self-start shadow-[0_0_20px_rgba(255,92,161,0.35)] tracking-wide uppercase font-mono"
+>
+  {showForm ? "Inchide" : "Publica anunt"}
+</button>
           ) : (
-            <p className="text-xs text-[#7A7365] font-mono">
+            <p className="text-x text-[#7A7365] font-mono">
               <a href="/login" className="text-[#B4592F] underline underline-offset-2">
                 Autentifica-te
               </a>{" "}
