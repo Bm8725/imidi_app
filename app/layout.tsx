@@ -84,7 +84,7 @@ export default function RootLayout({
         {children}
         <WhatsAppWidget />
         <CookieBanner/>
-        <AIChatWidget />
+      
         {/* Script nativ Next.js pentru înregistrarea silențioasă a sw.js în Production */}
         <Script id="register-pwa-sw" strategy="afterInteractive">
           {`
