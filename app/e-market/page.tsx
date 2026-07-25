@@ -833,8 +833,9 @@ useEffect(() => {
                     type="button"
                     onClick={generateWithAI}
                     disabled={aiLoading}
-                    className="h-8 px-3 bg-[#f713ab] text-white text-[11px] font-semibold rounded-lg disabled:opacity-40 cursor-pointer"
+                    className="h-8 px-3 bg-[#13f7d9] text-white text-[11px] font-semibold rounded-lg disabled:opacity-40 cursor-pointer"
                   >
+                    <span className="animate-pulse">{"\u2726"}</span>
                     {aiLoading ? "Generating now..." : "Generate"}
                   </button>
                 </div>
