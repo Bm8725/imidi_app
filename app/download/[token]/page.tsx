@@ -26,7 +26,7 @@ export default function DownloadLinkPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Cod incorect sau link expirat.");
+        setError(data.error || "Diened acces code .");
         return;
       }
 

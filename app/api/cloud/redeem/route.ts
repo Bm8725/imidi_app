@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// Definim o funcție helper pentru a obține clientul de admin doar când avem nevoie de el
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceKey) {
-    throw new Error("Supabase URL sau SERVICE_ROLE_KEY lipsesc din variabilele de mediu.");
+    throw new Error("CONFIG_ERROR: Supabase URL sau SERVICE_ROLE_KEY lipsesc din setarile Vercel.");
   }
 
   return createClient(url, serviceKey, {
@@ -25,7 +24,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Date lipsa." }, { status: 400 });
     }
 
-    // Inițializăm clientul în interiorul rutei ca să nu blocheze build-ul static
     const supabaseAdmin = getSupabaseAdmin();
 
     const { data, error } = await supabaseAdmin.rpc("redeem_share_link", {
@@ -33,14 +31,24 @@ export async function POST(req: NextRequest) {
       p_code: code,
     });
 
-    if (error || !data || data.length === 0) {
+    if (error || !data) {
+      return NextResponse.json(
+        { error: error?.message || "Cod incorect sau link expirat/folosit deja." },
+        { status: 400 }
+      );
+    }
+
+    // Extragere sigură: verificăm dacă `data` este o listă (folosește data[0]) sau un obiect direct
+    const resultData = Array.isArray(data) ? data[0] : data;
+
+    if (!resultData || !resultData.storage_path || !resultData.filename) {
       return NextResponse.json(
         { error: "Cod incorect sau link expirat/folosit deja." },
         { status: 400 }
       );
     }
 
-    const { storage_path, filename } = data[0];
+    const { storage_path, filename } = resultData;
 
     const { data: signed, error: signError } = await supabaseAdmin.storage
       .from("cloud-db-bucket")
@@ -48,14 +56,19 @@ export async function POST(req: NextRequest) {
 
     if (signError || !signed) {
       return NextResponse.json(
-        { error: "Fisierul nu a putut fi accesat. Contacteaza vanzatorul." },
+        { error: signError?.message || "Fisierul nu a putut fi accesat. Contacteaza vanzatorul." },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ url: signed.signedUrl, filename });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Eroare pe ruta de redeem:", err);
-    return NextResponse.json({ error: "Eroare interna." }, { status: 500 });
+    
+    // Trimitem mesajul real de eroare în response pentru a vedea exact problema pe ecran fără să mai cauți în loguri
+    return NextResponse.json(
+      { error: err?.message || "Eroare interna server." }, 
+      { status: 500 }
+    );
   }
 }
