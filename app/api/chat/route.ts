@@ -1,70 +1,65 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 
-// Baza de cunoștințe locală extinsă (Plasa de siguranță cu date structurate)
+// Baza de cunostinte locala (plasa de siguranta daca scraping-ul esueaza)
 const BACKUP_KNOWLEDGE = `
-INFORMAȚII VERIFICATE IMIDI (iMIDI.co.uk) - ANUL 2026:
+INFORMATII VERIFICATE IMIDI (iMIDI.co.uk) - ANUL 2026:
 
-STRUCTURĂ PLATFORMĂ & CONCEPT:
-- Standard pentru performanțe de sinteză LIVE, bazat pe eșantioane audio (.wav) de înaltă calitate și latență ultra-scăzută.
-- Conceptul MIDI 3.0: leagă controllerul fizic cu procesarea locală TS4X Core DSP și partajarea în cloud.
+STRUCTURA PLATFORMA & CONCEPT:
+- Standard pentru performante de sinteza LIVE, bazat pe esantioane audio (.wav) de inalta calitate si latenta ultra-scazuta.
+- Conceptul MIDI 3.0: leaga controllerul fizic cu procesarea locala TS4X Core DSP si partajarea in cloud.
 
-PRODUSE ȘI LICENȚE DE BAZĂ:
-1. PERPETUAL_CORE ($199.9/an): Licența TS4X Synth Pro. Deblochează complet motorul DSP pe viață, latență garantată sub 1.8ms. Include opțiunea de retur de 14 zile.
-2. CLOUD_EXPANSION ($49.9/an): Extinde spațiul MyCloud Preset Storage la 30 GB pentru sound bank-uri, preseturi și mapări (KORG și Genos).
-3. TS4X-BETA-LIVE-2026-X99: Cod licență temporară gratuită (Beta) oferită comunității pentru testare live.
+PRODUSE SI LICENTE DE BAZA:
+1. PERPETUAL_CORE ($199.9/an): Licenta TS4X Synth Pro. Debloheaza complet motorul DSP pe viata, latenta garantata sub 1.8ms. Include optiunea de retur de 14 zile.
+2. CLOUD_EXPANSION ($49.9/an): Extinde spatiul MyCloud Preset Storage la 30 GB pentru sound bank-uri, preseturi si mapari (KORG si Genos).
+3. TS4X-BETA-LIVE-2026-X99: Cod licenta temporara gratuita (Beta) oferita comunitatii pentru testare live.
 
 COMPONENTE TEHNICE:
-- TS4X Synth Engine: Motor audio cu latență de 1.8ms (.apk și desktop). Dispune de un Web Sandbox pentru testare direct în browser (conectare USB-MIDI, mapare automată).
-- i-volution MIDI System: Controller universal hardware conceput special pentru acordeoane (velocity-sensitive pentru SOLO și BASS).
+- TS4X Synth Engine: Motor audio cu latenta de 1.8ms (.apk si desktop). Dispune de un Web Sandbox pentru testare direct in browser (conectare USB-MIDI, mapare automata).
+- i-volution MIDI System: Controller universal hardware conceput special pentru acordeoane (velocity-sensitive pentru SOLO si BASS).
 
-SECȚIUNEA iMIDI e-Market (PAGINA MARKET):
-- Platformă dedicată vânzărilor after-market de instrumente muzicale și preset-uri pentru DAW-uri/synth direct din cloud, fără carduri de memorie sau SSD.
-- Anunțurile sunt gratuite timp de 15 zile. Singura platformă de acest tip în România și Europa, cu asistență AI pentru myCloud.
-- Stare curentă catalog conform codului sursă: "Niciun anunt gasit pentru criteriile alese". Dacă utilizatorul întreabă de anunțuri, citează direct această stare extrasă, dar oferă și structura pieței (Toate, Instrumente, Preset-uri).
+SECTIUNEA iMIDI e-Market:
+- Platforma dedicata vanzarilor after-market de instrumente muzicale si preset-uri pentru DAW-uri/synth direct din cloud, fara carduri de memorie sau SSD.
+- Anunturile sunt gratuite timp de 15 zile. Filtre disponibile: Toate, Instrumente, Preset-uri.
 
-SECȚIUNEA COMUNITATE: Forum iMIDI:
-- Spațiu de discuții pentru utilizatori axat pe MIDI routing, hardware patches și analiză de log-uri de sistem.
+SECTIUNEA COMUNITATE: Forum iMIDI:
+- Spatiu de discutii pentru utilizatori axat pe MIDI routing, hardware patches si analiza de log-uri de sistem.
 `;
 
-// Array-ul de URL-uri setat exact conform cerințelor tale
 const SITE_URLS = [
   "https://imidi.co.uk",
   "https://imidi.co.uk/e-market",
-  "https://imidi.co.uk",
-  "https://imidi.co.uk/forum"
+  "https://imidi.co.uk/pricing",
+  "https://imidi.co.uk/forum",
 ];
 
 async function fetchSiteKnowledge(): Promise<string> {
-  try {
-    let combinedText = "";
-
-    for (const url of SITE_URLS) {
-      // Solicităm Jina Reader să extragă pagina păstrând formatul Markdown curat (inclusiv imagini și link-uri brute)
-      const response = await fetch(`https://jina.ai{url}`, {
-        headers: { 
-          "Accept": "application/json",
-          "X-With-Images-Summary": "true", // Îi cerem explicit să proceseze și să păstreze referințele vizuale / pozele
-          "X-Return-Format": "markdown"
+  const results = await Promise.allSettled(
+    SITE_URLS.map(async (url) => {
+      // Jina Reader: subdomeniul dedicat r.jina.ai, cu URL-ul tinta adaugat in path
+      const response = await fetch(`https://r.jina.ai/${url}`, {
+        headers: {
+          Accept: "application/json",
+          "X-With-Images-Summary": "true",
+          "X-Return-Format": "markdown",
         },
-        signal: AbortSignal.timeout(4000)
+        signal: AbortSignal.timeout(8000),
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const content = data.data?.content || data.content || "";
-        if (content.trim()) {
-          combinedText += `\n\n--- EXTRASE ȘI DATE BRUTE DE PE URL-UL: ${url} ---\n`;
-          combinedText += content;
-        }
-      }
-    }
 
-    return combinedText;
-  } catch (error) {
-    console.error("Eroare la scraping automat:", error);
-    return "";
-  }
+      if (!response.ok) return "";
+
+      const data = await response.json();
+      const content = data.data?.content || data.content || "";
+      if (!content.trim()) return "";
+
+      return `\n\n--- EXTRAS DE PE: ${url} ---\n${content}`;
+    })
+  );
+
+  return results
+    .filter((r): r is PromiseFulfilledResult<string> => r.status === "fulfilled")
+    .map((r) => r.value)
+    .join("");
 }
 
 export async function POST(req: Request) {
@@ -73,7 +68,7 @@ export async function POST(req: Request) {
     const apiKey = process.env.GROQ_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json({ error: "Lipsește GROQ_API_KEY" }, { status: 500 });
+      return NextResponse.json({ error: "Lipseste GROQ_API_KEY" }, { status: 500 });
     }
 
     const groq = new Groq({ apiKey });
@@ -81,9 +76,9 @@ export async function POST(req: Request) {
 
     const COMPREHENSIVE_KNOWLEDGE_BASE = `
     ${BACKUP_KNOWLEDGE}
-    
-    === DATE AUTOMATE ȘI EXTRASE HTML/MARKDOWN ÎN TIMP REAL (INCLUSIV IMAGINI/ANUNȚURI DETECTATE) ===
-    ${liveScrapedContent || "Nu s-au putut prelua date noi prin proxy direct. Bazează-te pe structura de backup."}
+
+    === DATE LIVE EXTRASE DE PE SITE (daca sunt goale, foloseste doar baza de mai sus) ===
+    ${liveScrapedContent || "Nu s-au putut prelua date live in acest moment."}
     `;
 
     const response = await groq.chat.completions.create({
@@ -91,28 +86,26 @@ export async function POST(req: Request) {
       messages: [
         {
           role: "system",
-          content: `Ești asistentul AI Smith oficial al platformei iMIDI (imidi.co.uk).
-          Misiunea ta este să oferi extrase precise, brute și detalii clare despre produse, prețuri, anunțuri și imagini de pe site.
-          
-          REGULI STRICTE DE REZOLVARE ȘI AFREȘARE:
-          1. Răspunde direct, detaliat și folosește limba română.
-          2. NU folosi niciodată scuze de tipul "nu am acces direct la baza de date" sau "nu dețin informații în timp real". Ai toate extrasele brute în textul de mai jos!
-          3. Când utilizatorul întreabă de anunțuri sau dorește extrase, analizează textul de la e-market. Menționează textual că în extras scrie explicit: "Niciun anunt gasit pentru criteriile alese", dar explică cum funcționează (anunț gratuit 15 zile, fără carduri, filtre pentru Instrumente și Preset-uri).
-          4. EXTRAGERE IMAGINI: Dacă în datele de mai jos găsești link-uri sau sintaxe de imagini (de tipul ![imagine](url) sau link-uri directe de imagini/logo-uri), extrage-le și afișează-le exact sub formă de link sau imagine Markdown în răspuns, pentru ca utilizatorul să le vadă direct.
-          5. Fii transparent: arată-i utilizatorului fragmente clare din textul extras (prețuri licențe, latență 1.8ms, conceptul MIDI 3.0).
+          content: `Esti asistentul AI oficial al platformei iMIDI (imidi.co.uk), Smith.
+          Raspunde direct, detaliat, in limba romana, pe baza informatiilor de mai jos.
 
-          BAZA DE CUNOȘTINȚE ACCESIBILĂ COMPILATĂ PENTRU EXTRAS:
-          ${COMPREHENSIVE_KNOWLEDGE_BASE}`
+          REGULI:
+          1. Nu spune niciodata ca nu ai acces la date in timp real - foloseste extrasele de mai jos.
+          2. Daca extrasele live nu contin anunturi sau sunt goale, spune ca informatia despre anunturi active nu e disponibila momentan si recomanda userului sa verifice direct pagina e-market - NU inventa si NU repeta o stare fixa daca datele live arata altceva.
+          3. Daca gasesti link-uri de imagini in extrase, afiseaza-le ca link Markdown.
+          4. Fii transparent si citeaza clar preturile si specificatiile tehnice gasite.
+
+          BAZA DE CUNOSTINTE:
+          ${COMPREHENSIVE_KNOWLEDGE_BASE}`,
         },
-        ...messages
+        ...messages,
       ],
-      max_tokens: 750, // Am mărit numărul de tokeni pentru a permite extrase lungi și link-uri complete
-      temperature: 0.5, // Păstrăm temperatura jos pentru acuratețea citatelor brute
+      max_tokens: 750,
+      temperature: 0.5,
     });
 
     const aiText = response.choices?.[0]?.message?.content || "";
     return NextResponse.json({ generated_text: aiText });
-
   } catch (error: any) {
     console.error("Groq API Error:", error);
     return NextResponse.json({ error: error?.message || "Internal server error" }, { status: 500 });
