@@ -805,55 +805,60 @@ useEffect(() => {
               </div>
             )}
 
-                {/* Genereaza titlu + descriere cu AI */}
-            <div className="bg-[#F7F6F3] border border-dashed border-[#B4592F]/30 rounded-xl p-3 space-y-2">
-              <button
-                type="button"
-                onClick={() => setShowAiPanel(!showAiPanel)}
-                className="flex items-center gap-2 h-8 px-3 rounded-full bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white text-[11px] font-semibold cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_2px_10px_rgba(255,92,161,0.35)]"
-              >
-                <span className="animate-pulse">{"\u2726"}</span>
-                Generate title and description
-                <span className="px-1.5 py-0.5 rounded-full bg-white/25 text-[9px] font-bold tracking-wide">
-                  Smith Ai {smith_version}
-                </span>
-              </button>
+                {/* Genereaza titlu + descriere cu AI Smith */}
+           <div className="bg-[#F7F6F3] border border-dashed border-[#B4592F]/30 rounded-xl p-3 space-y-2">
+  <button
+    type="button"
+    onClick={() => setShowAiPanel(!showAiPanel)}
+    className="flex items-center gap-2 h-8 px-3 rounded-full bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white text-[11px] font-semibold cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_2px_10px_rgba(255,92,161,0.35)]"
+  >
+    <span className="animate-pulse">{"\u2726"}</span>
+    Generate title and description
+    <span className="px-1.5 py-0.5 rounded-full bg-white/25 text-[9px] font-bold tracking-wide">
+      Smith Ai {smith_version}
+    </span>
+  </button>
 
-              {showAiPanel && (
-                <div className="space-y-2">
-                  <textarea
-                    rows={2}
-                    value={aiKeywords}
-                    onChange={(e) => setAiKeywords(e.target.value)}
-                    placeholder="Scrie pe scurt ce vinzi: model, stare, ce include... (ex: Roland Fantom 8, putin folosit, cutie originala)"
-                    className="w-full bg-white border border-black/10 rounded-lg p-2 text-xs outline-none focus:border-[#B4592F]/50 resize-none"
-                  />
-                  {aiError && <p className="text-[10px] text-red-500">{aiError}</p>}
-                    <button
-                      type="button"
-                      onClick={generateWithAI}
-                      disabled={aiLoading}
-                      className="relative h-8 px-3 text-white text-[11px] font-bold rounded-md disabled:opacity-40 cursor-pointer overflow-hidden transition-all duration-300 group
-                        bg-gradient-to-r from-[#6366f1] via-[#d946ef] to-[#2563eb] bg-[length:200%_auto] animate-textGradient
-                        hover:shadow-[0_0_15px_rgba(217,70,239,0.5)] hover:scale-[1.02] active:scale-[0.98]
-                        flex items-center justify-center gap-1.5"
-                    >
-                      {/* Efect de reflexie lucioasă care trece peste buton la hover */}
-                      <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shine" />
+  {showAiPanel && (
+    <div className="space-y-2">
+      <textarea
+        rows={2}
+        value={aiKeywords}
+        onChange={(e) => setAiKeywords(e.target.value)}
+        placeholder="Scrie pe scurt ce vinzi: model, stare, ce include... (ex: Roland Fantom 8, putin folosit, cutie originala)"
+        className="w-full bg-white border border-black/10 rounded-lg p-2 text-xs outline-none focus:border-[#B4592F]/50 resize-none"
+      />
+      {aiError && <p className="text-[10px] text-red-500">{aiError}</p>}
+      
+      {/* Butonul cu efect WOW, acum complet RESPONSIVE (w-full sm:w-auto) */}
+      <button
+        type="button"
+        onClick={generateWithAI}
+        disabled={aiLoading}
+        className="relative h-8 px-4 text-white text-[11px] font-extrabold rounded-md disabled:opacity-40 cursor-pointer overflow-hidden transition-all duration-300 group
+          bg-gradient-to-r from-[#6366f1] via-[#d946ef] to-[#2563eb] bg-[length:200%_auto] animate-textGradient
+          hover:shadow-[0_0_20px_rgba(217,70,239,0.5)] hover:scale-[1.03] active:scale-[0.97]
+          flex items-center justify-center gap-1.5 border border-white/10 w-full sm:w-auto"
+      >
+        {/* Efectul de reflexie lucioasă (Shine) care trece peste buton la hover */}
+        <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shine transition-transform duration-1000" />
 
-                      {/* Iconița AI stilizată */}
-                      <span className={`text-[12px] text-purple-200 ${aiLoading ? 'animate-spin' : 'animate-pulse group-hover:rotate-12 transition-transform duration-300'}`}>
-                        {"\u2726"}
-                      </span>
+        {/* Efect de iluminare de fundal (Glow overlay) la hover */}
+        <span className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                      <span className="relative z-10 tracking-wide font-medium">
-                        {aiLoading ? "Generating..." : "Generate "}
-                      </span>
-                    </button>
+        {/* Iconița AI stilizată care se rotește când încarcă sau la hover */}
+        <span className={`text-[12px] text-purple-100 shrink-0 ${aiLoading ? 'animate-spin' : 'animate-pulse group-hover:rotate-45 transition-transform duration-300'}`}>
+          {"\u2726"}
+        </span>
 
-                </div>
-              )}
-            </div>
+        <span className="relative z-10 tracking-widest font-black uppercase text-shadow-sm truncate">
+          {aiLoading ? "Generating..." : "Generate Now"}
+        </span>
+      </button>
+
+    </div>
+  )}
+</div>
 
             {category === "preset" && (
               <div>
