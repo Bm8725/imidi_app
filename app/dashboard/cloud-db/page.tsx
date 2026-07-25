@@ -398,87 +398,101 @@ const runMarketAnalysis = async () => {
       {/* modal AI analiza piata */}
 {showMarketAnalysis && (
   <div
-    className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300 animate-fadeIn"
     onClick={() => setShowMarketAnalysis(false)}
   >
     <div
-      className="bg-white rounded-2xl max-w-2xl w-full max-h-[88vh] overflow-y-auto shadow-xl"
+      className="bg-[#FDFBF7] font-serif border border-amber-900/10 rounded-2xl max-w-2xl w-full max-h-[88vh] overflow-y-auto shadow-[0_20px_50px_rgba(40,30,20,0.15)] relative"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
+      {/* Decorative top ambient glow */}
+      <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-[#FF5CA1]/10 to-transparent pointer-events-none z-0" />
+
+      {/* Sticky Header pe Crem Curat */}
+      <div className="sticky top-0 bg-[#F7F4EB]/90 backdrop-blur-md border-b border-amber-900/10 px-6 py-4 flex items-center justify-between z-10">
         <div>
-          <p className="text-[10px] font-mono uppercase tracking-wide text-zinc-400">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-[#FF5CA1] font-bold">
             iMIDI e-Market
           </p>
-          <h3 className="text-sm font-bold text-zinc-900">Analiza pietei</h3>
+          <h3 className="text-sm font-bold text-amber-950">Analiza pieței by AI Smith</h3>
         </div>
         <button
           onClick={() => setShowMarketAnalysis(false)}
-          className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-xs cursor-pointer hover:bg-zinc-200"
+          className="w-8 h-8 rounded-xl bg-amber-900/5 flex items-center justify-center text-xs text-amber-900/70 cursor-pointer hover:bg-[#FF5CA1] hover:text-white transition-all duration-200"
         >
-          {"\u2715"}
+          ✕
         </button>
       </div>
 
-      <div className="p-6 space-y-6">
+      {/* Rezultate și statistici animate / colorate */}
+      <div className="p-6 space-y-6 relative z-10">
         {marketAnalysisLoading ? (
-          <div className="flex items-center gap-2 text-xs text-zinc-400 py-10 justify-center">
-            <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-zinc-200 border-t-zinc-900" />
-            Se genereaza analiza...
+          <div className="flex flex-col items-center gap-3 text-sm text-amber-900/60 py-16 justify-center">
+            <span className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-amber-900/20 border-t-[#FF5CA1]" />
+            <p className="font-mono animate-pulse">Se generează analiza...</p>
           </div>
         ) : marketAnalysisError ? (
-          <p className="text-xs text-red-500 py-4">{marketAnalysisError}</p>
+          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-4 font-sans">{marketAnalysisError}</p>
         ) : marketStats ? (
           <>
-            {/* carduri statistici */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-gradient-to-br from-[#0070F3]/10 to-[#8B5CF6]/10 border border-[#0070F3]/20 rounded-xl p-3">
-                <p className="text-[9px] font-mono uppercase text-zinc-500">Anunturi active</p>
-                <p className="text-xl font-bold text-zinc-900 mt-1">{marketStats.totalListings}</p>
+            {/* Carduri Statistici Ultra-Colorate cu Gradienți Neon iMIDI */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+              <div className="bg-gradient-to-br from-[#FF5CA1]/10 to-[#8B5CF6]/10 border border-[#FF5CA1]/20 rounded-xl p-3.5 shadow-sm transform hover:scale-[1.02] transition-transform">
+                <p className="text-[9px] font-mono font-bold uppercase tracking-wider text-amber-950/60">Anunțuri active</p>
+                <p className="text-2xl font-black text-amber-950 mt-1">{marketStats.totalListings}</p>
               </div>
-              <div className="bg-gradient-to-br from-[#0070F3]/10 to-[#8B5CF6]/10 border border-[#0070F3]/20 rounded-xl p-3">
-                <p className="text-[9px] font-mono uppercase text-zinc-500">Vizualizari totale</p>
-                <p className="text-xl font-bold text-zinc-900 mt-1">{marketStats.totalViews}</p>
+              <div className="bg-gradient-to-br from-[#8B5CF6]/10 to-[#0070F3]/10 border border-[#8B5CF6]/20 rounded-xl p-3.5 shadow-sm transform hover:scale-[1.02] transition-transform">
+                <p className="text-[9px] font-mono font-bold uppercase tracking-wider text-amber-950/60">Vizualizări totale</p>
+                <p className="text-2xl font-black text-amber-950 mt-1">{marketStats.totalViews}</p>
               </div>
-              <div className="bg-gradient-to-br from-[#0070F3]/10 to-[#8B5CF6]/10 border border-[#0070F3]/20 rounded-xl p-3">
-                <p className="text-[9px] font-mono uppercase text-zinc-500">Pret mediu</p>
-                <p className="text-xl font-bold text-zinc-900 mt-1">{marketStats.avgPriceOverall} {"\u20AC"}</p>
+              <div className="bg-gradient-to-br from-[#FF5CA1]/15 to-transparent border border-[#FF5CA1]/30 rounded-xl p-3.5 shadow-sm transform hover:scale-[1.02] transition-transform">
+                <p className="text-[9px] font-mono font-bold uppercase tracking-wider text-amber-950/60">Preț mediu</p>
+                <p className="text-2xl font-black text-[#FF5CA1] mt-1">{marketStats.avgPriceOverall} €</p>
               </div>
-              <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-xl p-3">
-                <p className="text-[9px] font-mono uppercase text-zinc-500">Noi (7 zile)</p>
-                <p className="text-xl font-bold text-emerald-600 mt-1">+{marketStats.newThisWeek}</p>
+              <div className="bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border border-emerald-500/30 rounded-xl p-3.5 shadow-sm transform hover:scale-[1.02] transition-transform">
+                <p className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-700">Noi (7 zile)</p>
+                <p className="text-2xl font-black text-emerald-600 mt-1">+{marketStats.newThisWeek}</p>
               </div>
             </div>
 
+            {/* Alert bară expirare */}
             {marketStats.expiringSoon > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-[11px] text-amber-800">
-                {marketStats.expiringSoon} anunturi expira in urmatoarele 3 zile
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 font-sans flex items-center gap-2">
+                <span className="animate-bounce">🔔</span> {marketStats.expiringSoon} anunțuri expira în următoarele 3 zile
               </div>
             )}
 
-            {/* breakdown pe categorii - bar chart simplu */}
+            {/* Breakdown pe categorii - Bare colorate cu umbre și tranziții */}
             {marketStats.categoryBreakdown && marketStats.categoryBreakdown.length > 0 && (
-              <div>
-                <p className="text-[10px] font-mono uppercase text-zinc-500 mb-2">
-                  Distributie pe categorii
+              <div className="bg-[#F7F4EB] border border-amber-900/5 rounded-xl p-4 space-y-4">
+                <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-950/60">
+                  Distribuție pe categorii
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-3.5">
                   {marketStats.categoryBreakdown.map((c: any, i: number) => {
                     const maxCount = Math.max(...marketStats.categoryBreakdown.map((x: any) => x.total_listings));
                     const widthPct = (c.total_listings / maxCount) * 100;
-                    const colors = ["#0070F3", "#8B5CF6", "#ec4899", "#10b981"];
+                    
+                    // Paletă vibrantă de culori premium pentru categorii (Pink, Violet, Blue, Emerald)
+                    const colors = ["#FF5CA1", "#8B5CF6", "#0070F3", "#10b981"];
+                    const currentColor = colors[i % colors.length];
+
                     return (
-                      <div key={c.category}>
-                        <div className="flex justify-between text-[11px] mb-1">
-                          <span className="font-semibold text-zinc-700 capitalize">{c.category}</span>
-                          <span className="text-zinc-400">
-                            {c.total_listings} anunturi {"\u00b7"} {c.avg_price}{"\u20AC"} medie {"\u00b7"} {c.avg_views} views medie
+                      <div key={c.category} className="group">
+                        <div className="flex justify-between text-xs mb-1.5 font-sans">
+                          <span className="font-bold text-amber-950 capitalize">{c.category}</span>
+                          <span className="text-neutral-500 text-[11px]">
+                            <span className="font-semibold text-neutral-800">{c.total_listings}</span> anunțuri · <span className="font-semibold text-neutral-800">{c.avg_price}€</span> medie · {c.avg_views} views
                           </span>
                         </div>
-                        <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden">
+                        <div className="w-full h-2.5 bg-white border border-amber-900/5 rounded-full overflow-hidden p-[1px]">
                           <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${widthPct}%`, backgroundColor: colors[i % colors.length] }}
+                            className="h-full rounded-full transition-all duration-700 ease-out"
+                            style={{ 
+                              width: `${widthPct}%`, 
+                              backgroundColor: currentColor,
+                              boxShadow: `0 0 8px ${currentColor}50` 
+                            }}
                           />
                         </div>
                       </div>
@@ -488,29 +502,31 @@ const runMarketAnalysis = async () => {
               </div>
             )}
 
-            {/* top tari */}
+            {/* Top țări sub formă de Capsule Colorate */}
             {marketStats.topCountries && marketStats.topCountries.length > 0 && (
-              <div>
-                <p className="text-[10px] font-mono uppercase text-zinc-500 mb-2">Top tari</p>
+              <div className="space-y-2">
+                <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-950/60">Top țări active</p>
                 <div className="flex flex-wrap gap-2">
                   {marketStats.topCountries.map((c: any) => (
                     <span
                       key={c.country}
-                      className="px-2.5 py-1 rounded-full bg-zinc-100 text-[11px] font-medium text-zinc-700"
+                      className="px-3 py-1.5 rounded-xl bg-white border border-amber-900/10 font-sans text-xs font-semibold text-amber-950 flex items-center gap-1.5 shadow-sm hover:border-[#8B5CF6]/40 transition-colors"
                     >
-                      {c.country} <span className="text-zinc-400">({c.count})</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6]" />
+                      {c.country} <span className="text-neutral-400 text-[11px]">({c.count})</span>
                     </span>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* rezumat AI */}
-            <div className="bg-gradient-to-br from-[#0070F3]/5 to-[#8B5CF6]/5 border border-[#0070F3]/10 rounded-xl p-4">
-              <p className="text-[9px] font-mono uppercase text-zinc-500 mb-2 flex items-center gap-1.5">
-                <span>{"\u2726"}</span> Rezumat AI
+            {/* Rezumat AI - Card Stilizat cu Glow Lateral */}
+            <div className="relative overflow-hidden rounded-xl border border-[#FF5CA1]/20 bg-white p-4 shadow-sm">
+              <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#FF5CA1] to-[#8B5CF6]" />
+              <p className="text-[9px] font-mono font-bold uppercase tracking-widest text-[#FF5CA1] mb-2 flex items-center gap-1">
+                <span>✦</span> Rezumat generate by AI
               </p>
-              <p className="text-xs text-zinc-700 leading-relaxed">{marketAnalysisText}</p>
+              <p className="text-sm text-neutral-800 leading-relaxed font-sans">{marketAnalysisText}</p>
             </div>
           </>
         ) : null}
@@ -518,6 +534,7 @@ const runMarketAnalysis = async () => {
     </div>
   </div>
 )}
+
 
       <Footer />
     </div>
