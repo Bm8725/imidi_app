@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+
 import { supabase } from "@/lib/supabase";
 
 export default function CloudWorkspacePage() {
@@ -395,7 +396,7 @@ const runMarketAnalysis = async () => {
         </div>
       )}
 
-      {/* modal AI analiza piata */}
+      {/* modal AI analiza piata Smith */}
 {showMarketAnalysis && (
   <div
     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300 animate-fadeIn"

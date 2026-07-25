@@ -68,15 +68,12 @@ export default function LoginPage() {
         
         {/* HEADER INTRODUCTIV DINAMIC */}
         <div className="text-center space-y-2 mb-8 w-full px-2">
-          <div className="inline-flex items-center space-x-1.5 bg-black/[0.03] border border-black/[0.06] px-3 py-1 rounded-full backdrop-blur-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#0070F3] animate-pulse" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[#666666]">iMIDI Gate</span>
-          </div>
+
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-black sm:leading-none">
             Welcome back
           </h1>
           <p className="text-xs sm:text-sm text-[#666666] max-w-xs mx-auto">
-            Enter your ecosystem keys to initialize your active workspace.
+            Enter your ecosystem keys to initialize your access your workspace.
           </p>
         </div>
 

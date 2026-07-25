@@ -112,7 +112,7 @@ export default function MyCloudPage() {
           <section className="md:col-span-3 border border-[#222226] rounded-xl bg-[#121216]/90 backdrop-blur-md p-5 space-y-4 shadow-[0_4px_35px_rgba(0,0,0,0.4)] hover:border-[#FF4500]/30 transition-all duration-300">
             <div className="flex justify-between items-center pb-2 border-b border-[#222226]">
               <span className="text-[10px] font-bold bg-gradient-to-r from-[#FF4500] to-[#FFAA00] bg-clip-text text-transparent uppercase tracking-wider corp-mono">
-                // SYSTEM_STORAGE_CLOUD
+                // STORAGE_CLOUD
               </span>
               <span className="text-[10px] text-[#737373] corp-mono">{CLOUD_FILES.length} active nodes</span>
             </div>
@@ -165,10 +165,12 @@ export default function MyCloudPage() {
             </div>
             
             <a 
-              href="/api/checkout/pro" // Sau link-ul tău direct de Stripe Payment / API Route
+              href="https://revolut.me/mariusvalentin_b"
+              target="_blank"
+              rel="noopener noreferrer"
               className="w-full bg-[#1E1E26] text-white hover:text-white border border-[#2D2D37] hover:border-[#FF4500]/50 text-xs font-semibold py-2.5 px-4 rounded-lg hover:bg-[#252530] transition-all shadow-sm text-center block"
             >
-            BUY cloud space
+              BUY cloud space · $49.90
             </a>
 
           </section>
