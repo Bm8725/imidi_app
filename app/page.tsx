@@ -6,8 +6,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import MediaHero from "@/components/MediaHero";
 import Footer from "@/components/Footer";
-import WhatsAppWidget from "@/components/WhatsAppWidget";
-
+import AIChatWidget from "@/components/AIChatWidget";
 const FAQS = [
   {
     q: "What is TS4X and how is it different from a standard VST synth?",
@@ -276,7 +275,7 @@ export default function HomePage() {
             </div>
           ))}
         </div>
-    
+         <AIChatWidget />
         <Footer />
       </div>
     </div>
