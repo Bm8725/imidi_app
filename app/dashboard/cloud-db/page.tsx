@@ -240,8 +240,8 @@ const runMarketAnalysis = async () => {
                 <p className="text-[11px] text-zinc-400">{user?.email}</p>
               </div>
               <div className="flex gap-2">
-                <button disabled={totalUsedMb >= maxMb || uploading} onClick={() => fileRef.current?.click()} className="h-8 px-3 border rounded-lg text-xs font-medium bg-white shadow-sm disabled:opacity-40">Import</button>
-                <button disabled={totalUsedMb >= maxMb || uploading} onClick={() => fileRef.current?.click()} className="h-8 px-3 bg-zinc-900 text-white text-xs font-medium rounded-lg disabled:opacity-40 shadow-sm">{uploading ? "Loading..." : "+ Upload"}</button>
+               
+                <button disabled={totalUsedMb >= maxMb || uploading} onClick={() => fileRef.current?.click()} className="h-8 px-3 bg-blue-500 text-white text-xs font-medium rounded-lg disabled:opacity-40 shadow-sm">{uploading ? "Loading..." : "+ Upload"}</button>
                 <button onClick={handleLogout} disabled={loggingOut} className="h-8 px-3 border rounded-lg text-xs font-medium bg-white shadow-sm text-red-500 hover:bg-red-50 disabled:opacity-40 flex items-center gap-1">
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                   {loggingOut ? "..." : "Log out"}
