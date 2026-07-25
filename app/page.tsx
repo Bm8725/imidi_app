@@ -275,7 +275,7 @@ export default function HomePage() {
             </div>
           ))}
         </div>
-         <AIChatWidget />
+
         <Footer />
       </div>
     </div>

@@ -22,6 +22,15 @@ export default function CloudWorkspacePage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
 
+  // ---- share link (cod de acces pt cumparator) ----
+  const [shareBank, setShareBank] = useState<any | null>(null);
+  const [shareCode, setShareCode] = useState("");
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareError, setShareError] = useState("");
+  const [shareResultUrl, setShareResultUrl] = useState("");
+  const [shareResultExpires, setShareResultExpires] = useState("");
+  const [shareCopied, setShareCopied] = useState(false);
+
   const lim = 6, maxMb = 50;
 
   useEffect(() => {
@@ -133,6 +142,55 @@ export default function CloudWorkspacePage() {
     }
   };
 
+  // ---- share link: deschide modalul pt un bank anume ----
+  const openShareModal = (bank: any) => {
+    setShareBank(bank);
+    setShareCode("");
+    setShareError("");
+    setShareResultUrl("");
+    setShareResultExpires("");
+    setShareCopied(false);
+  };
+
+  const closeShareModal = () => {
+    setShareBank(null);
+  };
+
+const generateShareLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shareBank) return;
+    if (shareCode.trim().length < 4) {
+      setShareError("Codul trebuie sa aiba minim 4 caractere.");
+      return;
+    }
+    setShareLoading(true);
+    setShareError("");
+    try {
+      const { data, error } = await supabase.rpc("create_share_link", {
+        p_bank_id: shareBank.id,
+        p_code: shareCode.trim(),
+      });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      const url = `${window.location.origin}/download/${row.token}`;
+      setShareResultUrl(url);
+      setShareResultExpires(new Date(row.expires_at).toLocaleDateString("ro-RO"));
+    } catch (err: any) {
+      setShareError(err.message || "Nu am putut genera linkul.");
+    } finally {
+      setShareLoading(false);
+    }
+  };
+  const copyShareUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(shareResultUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      setShareError("Nu am putut copia linkul.");
+    }
+  };
+
   const pct = Math.min(100, (totalUsedMb / maxMb) * 100);
 
   return (
@@ -216,6 +274,9 @@ export default function CloudWorkspacePage() {
                         </div>
                       ) : (
                         <>
+                          <button onClick={() => openShareModal(b)} className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 sm:opacity-0 group-hover:opacity-100 transition-all" title="Genereaza link de vanzare">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path strokeLinecap="round" d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4" /></svg>
+                          </button>
                           <button onClick={() => handleDownload(b)} disabled={downloadingId === b.id} className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 sm:opacity-0 group-hover:opacity-100 transition-all disabled:opacity-100">
                             {downloadingId === b.id ? (
                               <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
@@ -246,6 +307,60 @@ export default function CloudWorkspacePage() {
           </>
         )}
       </main>
+
+      {/* modal generare link de vanzare (cod ales de vanzator) */}
+      {shareBank && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={closeShareModal}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-mono uppercase tracking-wide text-zinc-400">Link de vanzare</p>
+                <h3 className="text-sm font-bold text-zinc-900 truncate max-w-[220px]" title={shareBank.name}>{shareBank.name}</h3>
+              </div>
+              <button onClick={closeShareModal} className="w-7 h-7 rounded-full bg-zinc-100 flex items-center justify-center text-xs">✕</button>
+            </div>
+
+            {!shareResultUrl ? (
+              <form onSubmit={generateShareLink} className="space-y-3">
+                <p className="text-[11px] text-zinc-500">
+                  Alege un cod pe care il trimiti separat cumparatorului (WhatsApp, chat etc.). Linkul functioneaza o singura data si expira in 15 zile.
+                </p>
+                <input
+                  type="text"
+                  value={shareCode}
+                  onChange={(e) => setShareCode(e.target.value)}
+                  placeholder="Codul tau (minim 4 caractere)"
+                  autoFocus
+                  className="w-full h-10 border rounded-lg px-3 text-xs outline-none focus:border-zinc-400"
+                />
+                {shareError && <p className="text-[11px] text-red-500">{shareError}</p>}
+                <button type="submit" disabled={shareLoading} className="w-full h-10 bg-zinc-900 text-white text-xs font-semibold rounded-lg disabled:opacity-40">
+                  {shareLoading ? "Se genereaza..." : "Genereaza link"}
+                </button>
+              </form>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-[10px] font-mono uppercase text-zinc-400 mb-1">Link (trimite-l cumparatorului)</p>
+                  <div className="flex gap-2">
+                    <input readOnly value={shareResultUrl} className="flex-1 h-9 border rounded-lg px-2 text-[11px] font-mono bg-zinc-50" />
+                    <button onClick={copyShareUrl} className="h-9 px-3 bg-zinc-900 text-white text-[11px] rounded-lg shrink-0">
+                      {shareCopied ? "Copiat" : "Copiaza"}
+                    </button>
+                  </div>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                  <p className="text-[11px] text-amber-800">
+                    Codul <strong>{shareCode}</strong> nu se mai afiseaza dupa ce inchizi fereastra — trimite-l acum cumparatorului, separat de link.
+                  </p>
+                </div>
+                <p className="text-[10px] text-zinc-400">Expira pe {shareResultExpires} sau dupa prima descarcare.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );
