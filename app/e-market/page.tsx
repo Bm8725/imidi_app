@@ -90,7 +90,7 @@ export default function EMarketPage() {
 const [aiLoading, setAiLoading] = useState(false);
 const [aiError, setAiError] = useState("");
 const [showAiPanel, setShowAiPanel] = useState(false);
-
+const smith_version = "v0.2.2613"; // versiunea curenta a asistentului AI Smith
 const generateWithAI = async () => {
   if (aiKeywords.trim().length < 3) {
     setAiError("Scrie cateva cuvinte despre ce vinzi.");
@@ -815,7 +815,7 @@ useEffect(() => {
                 <span className="animate-pulse">{"\u2726"}</span>
                 Generate title and description
                 <span className="px-1.5 py-0.5 rounded-full bg-white/25 text-[9px] font-bold tracking-wide">
-                  Smith Ai
+                  Smith Ai {smith_version}
                 </span>
               </button>
 

@@ -1,3 +1,9 @@
+/*
+Smith AI 
+model: "llama-3.3-70b-versatile", groq based.
+author : BM26
+*/
+
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 
@@ -27,7 +33,7 @@ REGULI STRICTE:
 - Raspunde DOAR cu un obiect JSON valid, fara text in plus, fara backtick-uri, fara markdown.
 - Format exact: {"title": "...", "description": "..."}
 - "title": maxim 60 de caractere, clar, fara emoji, fara majuscule excesive.
-- "description": 2-4 propozitii scurte, in limba romana, ton natural de vanzator privat (nu corporate). Mentioneaza DOAR detalii pe care vanzatorul chiar le-a dat in cuvintele cheie. Nu inventa specificatii tehnice, stare, accesorii sau garantii care nu au fost mentionate explicit.
+- "description": 3-6 propozitii scurte, in limba romana, ton natural de vanzator privat (nu corporate). Mentioneaza DOAR detalii pe care vanzatorul chiar le-a dat in cuvintele cheie. Nu inventa specificatii tehnice, stare, accesorii sau garantii care nu au fost mentionate explicit.
 - Categoria anuntului: ${category === "preset" ? "preset sau pachet digital pentru DAW/synth" : "instrument muzical fizic"}.
 ${price ? `- Pretul este ${price} EUR, poti sa il mentionezi natural in descriere daca se potriveste, nu e obligatoriu.` : ""}`,
         },

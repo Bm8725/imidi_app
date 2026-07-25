@@ -164,12 +164,12 @@ export default function MyCloudPage() {
               </ul>
             </div>
             
-<a 
-  href="/api/checkout/pro" // Sau link-ul tău direct de Stripe Payment / API Route
-  className="w-full bg-[#1E1E26] text-white hover:text-white border border-[#2D2D37] hover:border-[#FF4500]/50 text-xs font-semibold py-2.5 px-4 rounded-lg hover:bg-[#252530] transition-all shadow-sm text-center block"
->
- BUY cloud space
-</a>
+            <a 
+              href="/api/checkout/pro" // Sau link-ul tău direct de Stripe Payment / API Route
+              className="w-full bg-[#1E1E26] text-white hover:text-white border border-[#2D2D37] hover:border-[#FF4500]/50 text-xs font-semibold py-2.5 px-4 rounded-lg hover:bg-[#252530] transition-all shadow-sm text-center block"
+            >
+            BUY cloud space
+            </a>
 
           </section>
           
