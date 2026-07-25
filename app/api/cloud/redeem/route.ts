@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// service role — bypass total la RLS si la policy-urile de storage.
-// NU folosi acest client in cod care ruleaza in browser.
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.SUPABASE_SERVICE_ROLE_KEY as string
-);
+// Definim o funcție helper pentru a obține clientul de admin doar când avem nevoie de el
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceKey) {
+    throw new Error("Supabase URL sau SERVICE_ROLE_KEY lipsesc din variabilele de mediu.");
+  }
+
+  return createClient(url, serviceKey, {
+    auth: {
+      persistSession: false,
+    },
+  });
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,6 +24,9 @@ export async function POST(req: NextRequest) {
     if (!token || !code || typeof code !== "string") {
       return NextResponse.json({ error: "Date lipsa." }, { status: 400 });
     }
+
+    // Inițializăm clientul în interiorul rutei ca să nu blocheze build-ul static
+    const supabaseAdmin = getSupabaseAdmin();
 
     const { data, error } = await supabaseAdmin.rpc("redeem_share_link", {
       p_token: token,
@@ -42,7 +54,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ url: signed.signedUrl, filename });
-  } catch {
+  } catch (err) {
+    console.error("Eroare pe ruta de redeem:", err);
     return NextResponse.json({ error: "Eroare interna." }, { status: 500 });
   }
 }
