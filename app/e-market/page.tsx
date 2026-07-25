@@ -806,15 +806,16 @@ useEffect(() => {
             )}
 
                 {/* Genereaza titlu + descriere cu AI Smith */}
-           <div className="bg-[#F7F6F3] border border-dashed border-[#B4592F]/30 rounded-xl p-3 space-y-2">
+<div className="bg-[#F7F6F3] border border-dashed border-[#B4592F]/30 rounded-xl p-3 space-y-2">
+  {/* PRIMUL BUTON (Deschidere panou): Acum complet RESPONSIVE (w-full sm:w-auto) */}
   <button
     type="button"
     onClick={() => setShowAiPanel(!showAiPanel)}
-    className="flex items-center gap-2 h-8 px-3 rounded-full bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white text-[11px] font-semibold cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_2px_10px_rgba(255,92,161,0.35)]"
+    className="flex items-center justify-center sm:justify-start gap-2 h-8 px-3 rounded-full bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white text-[11px] font-semibold cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_2px_10px_rgba(255,92,161,0.35)] w-full sm:w-auto"
   >
-    <span className="animate-pulse">{"\u2726"}</span>
-    Generate title and description
-    <span className="px-1.5 py-0.5 rounded-full bg-white/25 text-[9px] font-bold tracking-wide">
+    <span className="animate-pulse shrink-0">{"\u2726"}</span>
+    <span className="truncate">Generate title and description</span>
+    <span className="px-1.5 py-0.5 rounded-full bg-white/25 text-[9px] font-bold tracking-wide shrink-0">
       Smith Ai {smith_version}
     </span>
   </button>
@@ -830,7 +831,7 @@ useEffect(() => {
       />
       {aiError && <p className="text-[10px] text-red-500">{aiError}</p>}
       
-      {/* Butonul cu efect WOW, acum complet RESPONSIVE (w-full sm:w-auto) */}
+      {/* AL DOILEA BUTON (Generare finală): Efect WOW și complet RESPONSIVE (w-full sm:w-auto) */}
       <button
         type="button"
         onClick={generateWithAI}
@@ -840,13 +841,13 @@ useEffect(() => {
           hover:shadow-[0_0_20px_rgba(217,70,239,0.5)] hover:scale-[1.03] active:scale-[0.97]
           flex items-center justify-center gap-1.5 border border-white/10 w-full sm:w-auto"
       >
-        {/* Efectul de reflexie lucioasă (Shine) care trece peste buton la hover */}
+        {/* Efectul de reflexie lucioasă (Shine) la hover */}
         <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shine transition-transform duration-1000" />
 
         {/* Efect de iluminare de fundal (Glow overlay) la hover */}
         <span className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        {/* Iconița AI stilizată care se rotește când încarcă sau la hover */}
+        {/* Iconița AI stilizată */}
         <span className={`text-[12px] text-purple-100 shrink-0 ${aiLoading ? 'animate-spin' : 'animate-pulse group-hover:rotate-45 transition-transform duration-300'}`}>
           {"\u2726"}
         </span>
