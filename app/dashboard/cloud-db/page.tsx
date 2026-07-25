@@ -31,6 +31,12 @@ export default function CloudWorkspacePage() {
   const [shareResultExpires, setShareResultExpires] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
 
+  // ---- AI analiza piata ----
+  const [showMarketAnalysis, setShowMarketAnalysis] = useState(false);
+  const [marketAnalysisLoading, setMarketAnalysisLoading] = useState(false);
+  const [marketAnalysisText, setMarketAnalysisText] = useState("");
+  const [marketAnalysisError, setMarketAnalysisError] = useState("");
+
   const lim = 6, maxMb = 50;
 
   useEffect(() => {
@@ -156,7 +162,7 @@ export default function CloudWorkspacePage() {
     setShareBank(null);
   };
 
-const generateShareLink = async (e: React.FormEvent) => {
+  const generateShareLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!shareBank) return;
     if (shareCode.trim().length < 4) {
@@ -181,6 +187,28 @@ const generateShareLink = async (e: React.FormEvent) => {
       setShareLoading(false);
     }
   };
+
+const [marketStats, setMarketStats] = useState<any>(null);
+
+const runMarketAnalysis = async () => {
+  setShowMarketAnalysis(true);
+  setMarketAnalysisLoading(true);
+  setMarketAnalysisError("");
+  setMarketAnalysisText("");
+  setMarketStats(null);
+  try {
+    const res = await fetch("/api/ai/analyse-market");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Eroare la generarea analizei.");
+    setMarketAnalysisText(data.analysis);
+    setMarketStats(data);
+  } catch (err: any) {
+    setMarketAnalysisError(err.message);
+  } finally {
+    setMarketAnalysisLoading(false);
+  }
+};
+
   const copyShareUrl = async () => {
     try {
       await navigator.clipboard.writeText(shareResultUrl);
@@ -221,7 +249,13 @@ const generateShareLink = async (e: React.FormEvent) => {
                 <Link href="/update-password" className="h-8 px-3 border rounded-lg text-xs font-medium bg-white shadow-sm text-zinc-900 hover:bg-zinc-100 disabled:opacity-40 flex items-center gap-1">
                   Reset password
                 </Link>
-            
+                <button
+                  onClick={runMarketAnalysis}
+                  className="h-8 px-3 rounded-lg text-xs font-semibold bg-gradient-to-r from-[#8B5CF6] to-[#0070F3] text-white shadow-sm flex items-center gap-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
+                >
+                  <span className="animate-pulse">{"\u2726"}</span>
+                  AI Analiza
+                </button>
               </div>
             </div>
 
@@ -360,6 +394,130 @@ const generateShareLink = async (e: React.FormEvent) => {
           </div>
         </div>
       )}
+
+      {/* modal AI analiza piata */}
+{showMarketAnalysis && (
+  <div
+    className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+    onClick={() => setShowMarketAnalysis(false)}
+  >
+    <div
+      className="bg-white rounded-2xl max-w-2xl w-full max-h-[88vh] overflow-y-auto shadow-xl"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
+        <div>
+          <p className="text-[10px] font-mono uppercase tracking-wide text-zinc-400">
+            iMIDI e-Market
+          </p>
+          <h3 className="text-sm font-bold text-zinc-900">Analiza pietei</h3>
+        </div>
+        <button
+          onClick={() => setShowMarketAnalysis(false)}
+          className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-xs cursor-pointer hover:bg-zinc-200"
+        >
+          {"\u2715"}
+        </button>
+      </div>
+
+      <div className="p-6 space-y-6">
+        {marketAnalysisLoading ? (
+          <div className="flex items-center gap-2 text-xs text-zinc-400 py-10 justify-center">
+            <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-zinc-200 border-t-zinc-900" />
+            Se genereaza analiza...
+          </div>
+        ) : marketAnalysisError ? (
+          <p className="text-xs text-red-500 py-4">{marketAnalysisError}</p>
+        ) : marketStats ? (
+          <>
+            {/* carduri statistici */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-gradient-to-br from-[#0070F3]/10 to-[#8B5CF6]/10 border border-[#0070F3]/20 rounded-xl p-3">
+                <p className="text-[9px] font-mono uppercase text-zinc-500">Anunturi active</p>
+                <p className="text-xl font-bold text-zinc-900 mt-1">{marketStats.totalListings}</p>
+              </div>
+              <div className="bg-gradient-to-br from-[#0070F3]/10 to-[#8B5CF6]/10 border border-[#0070F3]/20 rounded-xl p-3">
+                <p className="text-[9px] font-mono uppercase text-zinc-500">Vizualizari totale</p>
+                <p className="text-xl font-bold text-zinc-900 mt-1">{marketStats.totalViews}</p>
+              </div>
+              <div className="bg-gradient-to-br from-[#0070F3]/10 to-[#8B5CF6]/10 border border-[#0070F3]/20 rounded-xl p-3">
+                <p className="text-[9px] font-mono uppercase text-zinc-500">Pret mediu</p>
+                <p className="text-xl font-bold text-zinc-900 mt-1">{marketStats.avgPriceOverall} {"\u20AC"}</p>
+              </div>
+              <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-xl p-3">
+                <p className="text-[9px] font-mono uppercase text-zinc-500">Noi (7 zile)</p>
+                <p className="text-xl font-bold text-emerald-600 mt-1">+{marketStats.newThisWeek}</p>
+              </div>
+            </div>
+
+            {marketStats.expiringSoon > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-[11px] text-amber-800">
+                {marketStats.expiringSoon} anunturi expira in urmatoarele 3 zile
+              </div>
+            )}
+
+            {/* breakdown pe categorii - bar chart simplu */}
+            {marketStats.categoryBreakdown && marketStats.categoryBreakdown.length > 0 && (
+              <div>
+                <p className="text-[10px] font-mono uppercase text-zinc-500 mb-2">
+                  Distributie pe categorii
+                </p>
+                <div className="space-y-2">
+                  {marketStats.categoryBreakdown.map((c: any, i: number) => {
+                    const maxCount = Math.max(...marketStats.categoryBreakdown.map((x: any) => x.total_listings));
+                    const widthPct = (c.total_listings / maxCount) * 100;
+                    const colors = ["#0070F3", "#8B5CF6", "#ec4899", "#10b981"];
+                    return (
+                      <div key={c.category}>
+                        <div className="flex justify-between text-[11px] mb-1">
+                          <span className="font-semibold text-zinc-700 capitalize">{c.category}</span>
+                          <span className="text-zinc-400">
+                            {c.total_listings} anunturi {"\u00b7"} {c.avg_price}{"\u20AC"} medie {"\u00b7"} {c.avg_views} views medie
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${widthPct}%`, backgroundColor: colors[i % colors.length] }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* top tari */}
+            {marketStats.topCountries && marketStats.topCountries.length > 0 && (
+              <div>
+                <p className="text-[10px] font-mono uppercase text-zinc-500 mb-2">Top tari</p>
+                <div className="flex flex-wrap gap-2">
+                  {marketStats.topCountries.map((c: any) => (
+                    <span
+                      key={c.country}
+                      className="px-2.5 py-1 rounded-full bg-zinc-100 text-[11px] font-medium text-zinc-700"
+                    >
+                      {c.country} <span className="text-zinc-400">({c.count})</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* rezumat AI */}
+            <div className="bg-gradient-to-br from-[#0070F3]/5 to-[#8B5CF6]/5 border border-[#0070F3]/10 rounded-xl p-4">
+              <p className="text-[9px] font-mono uppercase text-zinc-500 mb-2 flex items-center gap-1.5">
+                <span>{"\u2726"}</span> Rezumat AI
+              </p>
+              <p className="text-xs text-zinc-700 leading-relaxed">{marketAnalysisText}</p>
+            </div>
+          </>
+        ) : null}
+      </div>
+    </div>
+  </div>
+)}
 
       <Footer />
     </div>
