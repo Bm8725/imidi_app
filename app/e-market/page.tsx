@@ -813,7 +813,7 @@ useEffect(() => {
                 className="flex items-center gap-2 h-8 px-3 rounded-full bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white text-[11px] font-semibold cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_2px_10px_rgba(255,92,161,0.35)]"
               >
                 <span className="animate-pulse">{"\u2726"}</span>
-                Genereaza titlu si descriere
+                Generate title and description
                 <span className="px-1.5 py-0.5 rounded-full bg-white/25 text-[9px] font-bold tracking-wide">
                   Smith Ai
                 </span>
@@ -833,9 +833,9 @@ useEffect(() => {
                     type="button"
                     onClick={generateWithAI}
                     disabled={aiLoading}
-                    className="h-8 px-3 bg-[#B4592F] text-white text-[11px] font-semibold rounded-lg disabled:opacity-40 cursor-pointer"
+                    className="h-8 px-3 bg-[#f713ab] text-white text-[11px] font-semibold rounded-lg disabled:opacity-40 cursor-pointer"
                   >
-                    {aiLoading ? "Se genereaza..." : "Genereaza"}
+                    {aiLoading ? "Generating now..." : "Generate"}
                   </button>
                 </div>
               )}
