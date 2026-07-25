@@ -816,7 +816,7 @@ useEffect(() => {
     <span className="animate-pulse shrink-0">{"\u2726"}</span>
     <span className="truncate">Generate title and description</span>
     <span className="px-1.5 py-0.5 rounded-full bg-white/25 text-[9px] font-bold tracking-wide shrink-0">
-      Smith Ai {smith_version}
+      Smith AI
     </span>
   </button>
 
