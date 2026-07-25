@@ -40,16 +40,16 @@ export default function DownloadLinkPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#e2dbc7] flex items-center justify-center px-4">
       <div className="bg-white border rounded-2xl p-8 max-w-sm w-full shadow-sm text-center space-y-4">
-        <h1 className="text-lg font-bold text-zinc-900">Descarca fisierul</h1>
+        <h1 className="text-lg font-bold text-zinc-900">Download the files</h1>
         <p className="text-xs text-zinc-500">
-          Introdu codul de acces primit de la vanzator. Linkul functioneaza o singura data.
+          Put the access code provided by the seller to start the download. This is the smart link for download powered by imidi.co.uk
         </p>
 
         {done ? (
           <p className="text-xs text-emerald-600 font-medium">
-            Descarcarea a inceput. Poti inchide aceasta pagina.
+            The download has started. You can close this page.
           </p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3">
@@ -58,7 +58,7 @@ export default function DownloadLinkPage() {
               required
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="Cod de acces"
+              placeholder="Access Code"
               autoFocus
               className="w-full h-11 text-center tracking-widest font-mono border rounded-xl px-3 text-sm outline-none focus:border-zinc-400"
             />
@@ -68,7 +68,7 @@ export default function DownloadLinkPage() {
               disabled={loading}
               className="w-full h-11 bg-zinc-900 text-white text-sm font-semibold rounded-xl disabled:opacity-40"
             >
-              {loading ? "Se verifica..." : "Descarca"}
+              {loading ? "Verifying..." : "Download"}
             </button>
           </form>
         )}
