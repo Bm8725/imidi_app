@@ -504,7 +504,7 @@ useEffect(() => {
               </p>
               <h1 className="text-3xl font-serif tracking-tight text-[#1C1A16]">iMIDI e-Market</h1>
               <p className="text-xs text-[#7A7365] mt-1">
-                Platforma dedicata vanzarilor after-market de instrumente muzicale si 
+                Platforma dedicata vanzarilor after-market de instrumente muzicale,  facilitati si 
                 preseturi pentru DAW-uri/synth direct din cloud, fara carduri de memorie sau SSD. Publica anunturi gratuite, cumpara sau vinde in siguranta. Anuntul este gratuit 15 zile.
                 Singura platforma de acest tip in Romania si Europa, cu suport tehnic si asistenta AI pentru configurarea spatiului tau de lucru in myCloud.
               </p>
@@ -710,7 +710,7 @@ useEffect(() => {
                     : "h-9 text-xs rounded-xl border bg-[#F7F6F3] text-[#1C1A16] border-black/10 transition-colors"
                 }
               >
-                Instrument
+                Instrument/serviciu
               </button>
               <button
                 type="button"
