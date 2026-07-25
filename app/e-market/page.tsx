@@ -85,6 +85,39 @@ export default function EMarketPage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [shareFeedbackId, setShareFeedbackId] = useState<string | null>(null);
 
+  ///// ai mod 
+  const [aiKeywords, setAiKeywords] = useState("");
+const [aiLoading, setAiLoading] = useState(false);
+const [aiError, setAiError] = useState("");
+const [showAiPanel, setShowAiPanel] = useState(false);
+
+const generateWithAI = async () => {
+  if (aiKeywords.trim().length < 3) {
+    setAiError("Scrie cateva cuvinte despre ce vinzi.");
+    return;
+  }
+  setAiLoading(true);
+  setAiError("");
+  try {
+    const res = await fetch("/api/ai/generate-listing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keywords: aiKeywords, category, price }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Eroare la generare.");
+    setTitle(data.title);
+    setDescription(data.description);
+    setShowAiPanel(false);
+    setAiKeywords("");
+  } catch (err: any) {
+    setAiError(err.message);
+  } finally {
+    setAiLoading(false);
+  }
+};
+
+
 useEffect(() => {
   // Citim ID-ul din URL dacă utilizatorul a venit de pe un link de share
   const queryParams = new URLSearchParams(window.location.search);
@@ -771,6 +804,42 @@ useEffect(() => {
                 />
               </div>
             )}
+
+                {/* Genereaza titlu + descriere cu AI */}
+            <div className="bg-[#F7F6F3] border border-dashed border-[#B4592F]/30 rounded-xl p-3 space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowAiPanel(!showAiPanel)}
+                className="flex items-center gap-2 h-8 px-3 rounded-full bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white text-[11px] font-semibold cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_2px_10px_rgba(255,92,161,0.35)]"
+              >
+                <span className="animate-pulse">{"\u2726"}</span>
+                Genereaza titlu si descriere
+                <span className="px-1.5 py-0.5 rounded-full bg-white/25 text-[9px] font-bold tracking-wide">
+                  Smith Ai
+                </span>
+              </button>
+
+              {showAiPanel && (
+                <div className="space-y-2">
+                  <textarea
+                    rows={2}
+                    value={aiKeywords}
+                    onChange={(e) => setAiKeywords(e.target.value)}
+                    placeholder="Scrie pe scurt ce vinzi: model, stare, ce include... (ex: Roland Fantom 8, putin folosit, cutie originala)"
+                    className="w-full bg-white border border-black/10 rounded-lg p-2 text-xs outline-none focus:border-[#B4592F]/50 resize-none"
+                  />
+                  {aiError && <p className="text-[10px] text-red-500">{aiError}</p>}
+                  <button
+                    type="button"
+                    onClick={generateWithAI}
+                    disabled={aiLoading}
+                    className="h-8 px-3 bg-[#B4592F] text-white text-[11px] font-semibold rounded-lg disabled:opacity-40 cursor-pointer"
+                  >
+                    {aiLoading ? "Se genereaza..." : "Genereaza"}
+                  </button>
+                </div>
+              )}
+            </div>
 
             {category === "preset" && (
               <div>
