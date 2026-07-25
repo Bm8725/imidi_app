@@ -829,15 +829,28 @@ useEffect(() => {
                     className="w-full bg-white border border-black/10 rounded-lg p-2 text-xs outline-none focus:border-[#B4592F]/50 resize-none"
                   />
                   {aiError && <p className="text-[10px] text-red-500">{aiError}</p>}
-                  <button
-                    type="button"
-                    onClick={generateWithAI}
-                    disabled={aiLoading}
-                    className="h-8 px-3 bg-[#140a14] text-white text-[11px] font-semibold rounded-lg disabled:opacity-40 cursor-pointer"
-                  >
-                    <span className="animate-pulse">{"\u2726"}</span>
-                    {aiLoading ? "Generating now..." : "Generate"}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={generateWithAI}
+                      disabled={aiLoading}
+                      className="relative h-8 px-3 text-white text-[11px] font-bold rounded-md disabled:opacity-40 cursor-pointer overflow-hidden transition-all duration-300 group
+                        bg-gradient-to-r from-[#6366f1] via-[#d946ef] to-[#2563eb] bg-[length:200%_auto] animate-textGradient
+                        hover:shadow-[0_0_15px_rgba(217,70,239,0.5)] hover:scale-[1.02] active:scale-[0.98]
+                        flex items-center justify-center gap-1.5"
+                    >
+                      {/* Efect de reflexie lucioasă care trece peste buton la hover */}
+                      <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shine" />
+
+                      {/* Iconița AI stilizată */}
+                      <span className={`text-[12px] text-purple-200 ${aiLoading ? 'animate-spin' : 'animate-pulse group-hover:rotate-12 transition-transform duration-300'}`}>
+                        {"\u2726"}
+                      </span>
+
+                      <span className="relative z-10 tracking-wide font-medium">
+                        {aiLoading ? "Generating..." : "Generate "}
+                      </span>
+                    </button>
+
                 </div>
               )}
             </div>
