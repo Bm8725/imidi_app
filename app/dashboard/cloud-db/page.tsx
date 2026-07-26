@@ -249,6 +249,30 @@ export default function CloudWorkspacePage() {
     }
   };
 
+  // ---- NOU: istoric descarcari (cloud_download_log) ----
+  const [showDownloadHistory, setShowDownloadHistory] = useState(false);
+  const [downloadHistory, setDownloadHistory] = useState<any[]>([]);
+  const [downloadHistoryLoading, setDownloadHistoryLoading] = useState(false);
+  const [downloadHistoryError, setDownloadHistoryError] = useState("");
+
+  const openDownloadHistory = async () => {
+    setShowDownloadHistory(true);
+    setDownloadHistoryLoading(true);
+    setDownloadHistoryError("");
+    try {
+      const { data, error } = await supabase
+        .from("cloud_download_log")
+        .select("*")
+        .order("downloaded_at", { ascending: false });
+      if (error) throw error;
+      setDownloadHistory(data ?? []);
+    } catch (err: any) {
+      setDownloadHistoryError(err.message || "Nu am putut incarca istoricul.");
+    } finally {
+      setDownloadHistoryLoading(false);
+    }
+  };
+
 const [marketStats, setMarketStats] = useState<any>(null);
 
 const runMarketAnalysis = async () => {
@@ -311,6 +335,13 @@ const runMarketAnalysis = async () => {
                   Reset password
                 </Link>
                 <button
+                  onClick={openDownloadHistory}
+                  className="h-8 px-3 border rounded-lg text-xs font-medium bg-white shadow-sm text-zinc-900 hover:bg-zinc-100 flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  Istoric descărcări
+                </button>
+                <button
                   onClick={runMarketAnalysis}
                   className="h-8 px-3 rounded-lg text-xs font-semibold bg-gradient-to-r from-[#8B5CF6] to-[#0070F3] text-white shadow-sm flex items-center gap-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
                 >
@@ -335,10 +366,10 @@ const runMarketAnalysis = async () => {
                   <span className="flex items-center gap-1.5">
                     Stocare
                     {plan === "pro" && (
-                      <span className="text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded">PRO</span>
+                      <span className="text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded">ENTERPRISE</span>
                     )}
                     {plan === "enterprise" && (
-                      <span className="text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded">ENTERPRISE</span>
+                      <span className="text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded">FULL</span>
                     )}
                   </span>
                   <span>
@@ -364,7 +395,7 @@ const runMarketAnalysis = async () => {
               {plan === "pro" && (
                 <div className="shrink-0 flex items-center gap-2">
                   <span className="h-9 px-4 flex items-center gap-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg whitespace-nowrap">
-                    ✓ 30GB Activ
+                    ✓ Enterprise Activ
                   </span>
                   <button
                     onClick={handleBuyEnterprise}
@@ -376,10 +407,10 @@ const runMarketAnalysis = async () => {
                 </div>
               )}
 
-              {/* Dupa Pas 2: Enterprise activ, fara alte optiuni de extindere */}
+              {/* Pas 3: Enterprise activ (250GB) — stare finala, full */}
               {plan === "enterprise" && (
                 <span className="shrink-0 h-9 px-4 flex items-center gap-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg whitespace-nowrap">
-                  ✓ 250GB Activ
+                  ✓ FULL 250GB
                 </span>
               )}
             </div>
@@ -462,6 +493,56 @@ const runMarketAnalysis = async () => {
           </>
         )}
       </main>
+
+      {/* modal istoric descarcari */}
+      {showDownloadHistory && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowDownloadHistory(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl space-y-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-mono uppercase tracking-wide text-zinc-400">Istoric</p>
+                <h3 className="text-sm font-bold text-zinc-900">Descărcări pachete</h3>
+              </div>
+              <button onClick={() => setShowDownloadHistory(false)} className="w-7 h-7 rounded-full bg-zinc-100 flex items-center justify-center text-xs">✕</button>
+            </div>
+
+            {downloadHistoryLoading ? (
+              <div className="h-24 bg-zinc-50 border rounded-xl animate-pulse" />
+            ) : downloadHistoryError ? (
+              <p className="text-xs text-red-500">{downloadHistoryError}</p>
+            ) : downloadHistory.length === 0 ? (
+              <div className="text-center py-8 border border-dashed rounded-xl text-xs text-zinc-400">
+                Nicio descărcare inregistrata inca.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-[11px] text-zinc-500 font-medium">
+                  {downloadHistory.length} descărcări in total
+                </p>
+                <div className="border rounded-lg divide-y overflow-hidden">
+                  {downloadHistory.map((row) => {
+                    const dt = new Date(row.downloaded_at);
+                    const data = dt.toLocaleDateString("ro-RO");
+                    const ora = dt.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" });
+                    return (
+                      <div key={row.id} className="flex items-center justify-between px-3 py-2.5 text-xs bg-white">
+                        <div className="min-w-0 pr-2">
+                          <p className="font-semibold text-zinc-900 truncate" title={row.bank_name}>{row.bank_name}</p>
+                          <p className="text-[10px] text-zinc-400">{row.bank_type || "—"}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-zinc-700 font-medium">{data}</p>
+                          <p className="text-[10px] text-zinc-400">{ora}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* modal generare link de vanzare (cod ales de vanzator) */}
       {shareBank && (
