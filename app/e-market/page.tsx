@@ -478,43 +478,92 @@ useEffect(() => {
 
       <div className="border-b border-black/5 pt-36 pb-10 bg-[#F7F6F3]">
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row justify-between sm:items-end gap-4">
-          <div className="flex items-center gap-4">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 48 48"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="shrink-0"
-            >
-              <path
-                d="M6 6H25L42 23L23 42L6 25V6Z"
-                stroke="#B4592F"
-                strokeWidth="2"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-              <circle cx="15.5" cy="15.5" r="3" stroke="#B4592F" strokeWidth="2" />
-              <path
-                d="M17 31L20.5 24L24 33L27.5 21L31 28"
-                stroke="#1C1A16"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <div>
-              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A7A5C] mb-1">
-                www.imidi.co.uk
-              </p>
-              <h1 className="text-3xl font-serif tracking-tight text-[#1C1A16]">E-Market</h1>
-              <p className="text-x text-[#7A7365] mt-1">
-               The platform dedicated to selling and buying music instruments, presets, soundbanks, 
-               and scripts for artists and producers adapted to modern life. Asistat by AI Smith can sell digital products or physical instruments, and you can also buy from other artists.
-               Single platform that inovated the way artists and producers can sell and buy music instruments, presets, soundbanks, and scripts supported by Cloud. 
-              </p>
-            </div>
-          </div>
+         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-[#EADCC6] pb-8 mb-8">
+  <div className="flex items-center gap-4">
+    <svg
+      width="48"
+      height="48"
+      viewBox="0 0 48 48"
+      fill="none"
+      xmlns="http://w3.org"
+      className="shrink-0"
+    >
+      <path
+        d="M6 6H25L42 23L23 42L6 25V6Z"
+        stroke="#B4592F"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      <circle cx="15.5" cy="15.5" r="3" stroke="#B4592F" strokeWidth="2" />
+      <path
+        d="M17 31L20.5 24L24 33L27.5 21L31 28"
+        stroke="#1C1A16"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+    <div>
+      <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A7A5C] mb-1">
+        www.imidi.co.uk
+      </p>
+      <h1 className="text-3xl font-serif tracking-tight text-[#1C1A16]">E-Market</h1>
+      <p className="text-sm text-[#7A7365] mt-1">
+        The platform dedicated to selling and buying music instruments, presets, soundbanks, 
+        and scripts for artists and producers adapted to modern life. Asistat by AI Smith can sell digital products or physical instruments, and you can also buy from other artists.
+        Single platform that inovated the way artists and producers can sell and buy music instruments, presets, soundbanks, and scripts supported by Cloud. The publish is free for 14 days
+        and after that you can choose to promote your listing for a small fee. 
+      </p>
+    </div>
+  </div>
+
+  {/* BUTONUL REVOLUT DE PROMOVARE */}
+<div className="shrink-0 w-full sm:w-auto relative group">
+  {/* Efectul de fundal animat (Glow) pe galben-perlă */}
+  <div className="absolute -inset-0.5 bg-gradient-to-r from-[#F2C94C] to-[#3A7BD5] rounded-md blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200 animate-pulse" />
+  
+  <a
+    href="https://revolut.me/mariusvalentin_b"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="relative flex sm:inline-flex items-center justify-between sm:justify-center gap-3 bg-[#0B1528] hover:bg-[#11203D] text-[#F2C94C] font-sans text-xs font-medium tracking-wide px-5 py-3 rounded-md border border-[#F2C94C]/30 transition-all duration-300 w-full sm:w-auto overflow-hidden"
+  >
+    {/* Linie strălucitoare care trece peste buton la hover */}
+    <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white/10 opacity-40 group-hover:animate-shine" />
+
+    <div className="flex flex-col text-left sm:text-center">
+      <span className="font-bold uppercase tracking-widest text-[11px] flex items-center gap-1.5">
+        {/* Sparkle Icon animat */}
+        <svg className="w-3.5 h-3.5 animate-spin [animation-duration:6s] text-[#F2C94C]" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2l2.4 7.2L22 11.6l-7.6 2.4L12 22l-2.4-7.2L2 11.6l7.6-2.4z"/>
+        </svg>
+        Promovează Anunțul
+      </span>
+      <span className="text-[10px] text-[#7E8FAD] group-hover:text-[#F2C94C]/80 transition-colors mt-0.5">
+        6 EUR / 45 zile via Revolut
+      </span>
+    </div>
+    
+    {/* Săgeată discretă care se mișcă la hover */}
+    <svg 
+      width="14" 
+      height="14" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+      className="transform transition-transform duration-300 group-hover:translate-x-1"
+    >
+      <path d="M5 12h14M12 5l7 7-7 7"/>
+    </svg>
+  </a>
+</div>
+
+</div>
+
           {user ? (
 <button
   onClick={() => setShowForm(!showForm)}
