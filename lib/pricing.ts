@@ -65,7 +65,7 @@ export const CLOUD_PLANS: CloudPlan[] = [
 // (presets, soundbank-uri, script-uri etc.)
 // -----------------------------------------------------------------------------
 
-export const PLATFORM_COMMISSION_RATE = 0.2; // 20%
+export const PLATFORM_COMMISSION_RATE = 0.29; // 29%
 
 /** Calculeaza cat primeste vanzatorul si cat retine platforma dintr-un pret brut. */
 export function calculateSellerPayout(grossPrice: number) {

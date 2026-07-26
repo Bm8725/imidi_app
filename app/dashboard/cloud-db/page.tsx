@@ -319,37 +319,111 @@ const runMarketAnalysis = async () => {
           <>
             <input type="file" multiple ref={fileRef} onChange={handleUpload} className="hidden" accept="audio/*,.mid,.midi,.fxp,.fxb,.vital,.fst,.adg,.adv,.pst,.json,.ts4,.bin,.jsf,.jbb,.sf2,.hex,.jbs,.prf,.bup" />
             
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 mb-6 gap-4">
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">iMIDI MyCloud</h1>
-                <p className="text-[11px] text-zinc-400">{user?.email}</p>
-              </div>
-              <div className="flex gap-2">
-               
-                <button disabled={totalUsedMb >= maxMb || uploading} onClick={() => fileRef.current?.click()} className="h-8 px-3 bg-blue-500 text-white text-xs font-medium rounded-lg disabled:opacity-40 shadow-sm">{uploading ? "Loading..." : "+ Upload"}</button>
-                <button onClick={handleLogout} disabled={loggingOut} className="h-8 px-3 border rounded-lg text-xs font-medium bg-white shadow-sm text-red-500 hover:bg-red-50 disabled:opacity-40 flex items-center gap-1">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                  {loggingOut ? "..." : "Log out"}
-                </button>
-                <Link href="/update-password" className="h-8 px-3 border rounded-lg text-xs font-medium bg-white shadow-sm text-zinc-900 hover:bg-zinc-100 disabled:opacity-40 flex items-center gap-1">
-                  Reset password
-                </Link>
-                <button
-                  onClick={openDownloadHistory}
-                  className="h-8 px-3 border rounded-lg text-xs font-medium bg-white shadow-sm text-zinc-900 hover:bg-zinc-100 flex items-center gap-1.5"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  Istoric descărcări
-                </button>
-                <button
-                  onClick={runMarketAnalysis}
-                  className="h-8 px-3 rounded-lg text-xs font-semibold bg-gradient-to-r from-[#8B5CF6] to-[#0070F3] text-white shadow-sm flex items-center gap-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform"
-                >
-                  <span className="animate-pulse">{"\u2726"}</span>
-                  AI Analiza
-                </button>
-              </div>
-            </div>
+<div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-zinc-100 pb-5 mb-6 gap-5 w-full">
+  {/* Secțiune Titlu, User & Indicator Stocare */}
+  <div className="space-y-3 w-full md:w-auto">
+    <div className="space-y-0.5">
+      <h1 className="text-xl md:text-2xl font-bold tracking-tight bg-gradient-to-r from-zinc-900 to-zinc-700 bg-clip-text text-transparent">
+        iMIDI MyCloud
+      </h1>
+      <div className="flex items-center gap-1.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        <p className="text-[11px] font-medium text-zinc-400 select-none tracking-wide">{user?.email}</p>
+      </div>
+    </div>
+
+    {/* Indicator de Stocare Vizual (Wow/Premium aspect) */}
+    <div className="w-full max-w-[220px] space-y-1">
+      <div className="flex justify-between text-[10px] font-semibold text-zinc-400">
+        <span>Stocare utilizată</span>
+        <span className={totalUsedMb >= maxMb ? "text-red-500 font-bold" : "text-zinc-600"}>
+          {totalUsedMb} / {maxMb} MB
+        </span>
+      </div>
+      <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
+        <div 
+          className={`h-full rounded-full transition-all duration-500 ${
+            (totalUsedMb / maxMb) > 0.9 
+              ? 'bg-red-500' 
+              : (totalUsedMb / maxMb) > 0.7 
+              ? 'bg-amber-500' 
+              : 'bg-blue-500'
+          }`}
+          style={{ width: `${Math.min((totalUsedMb / maxMb) * 100, 100)}%` }}
+        />
+      </div>
+    </div>
+  </div>
+
+  {/* Secțiune Butoane - Responsive Grid / Flex */}
+  <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full md:w-auto">
+    
+    {/* Buton Upload cu Loading micro-animație */}
+    <button 
+      disabled={totalUsedMb >= maxMb || uploading} 
+      onClick={() => fileRef.current?.click()} 
+      className="h-9 px-4 bg-blue-500 hover:bg-blue-600 active:scale-[0.98] text-white text-xs font-semibold rounded-xl disabled:opacity-40 disabled:pointer-events-none shadow-sm shadow-blue-100 transition-all duration-200 flex items-center justify-center gap-1.5 col-span-2 sm:col-span-1"
+    >
+      {uploading ? (
+        <>
+          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          <span className="animate-pulse">Se încarcă...</span>
+        </>
+      ) : (
+        <>
+          <span className="text-sm font-light">+</span>
+          <span>Upload</span>
+        </>
+      )}
+    </button>
+
+    {/* Buton Istoric Descărcări */}
+    <button
+      onClick={openDownloadHistory}
+      className="h-9 px-3 border border-zinc-200 rounded-xl text-xs font-medium bg-white text-zinc-700 hover:text-zinc-900 hover:bg-zinc-50 hover:border-zinc-300 active:scale-[0.98] shadow-xs transition-all duration-200 flex items-center justify-center gap-1.5"
+    >
+      <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span>Istoric</span>
+    </button>
+
+    {/* Buton Reset Pass */}
+    <Link 
+      href="/update-password" 
+      className="h-9 px-3 border border-zinc-200 rounded-xl text-xs font-medium bg-white text-zinc-700 hover:text-zinc-900 hover:bg-zinc-50 hover:border-zinc-300 active:scale-[0.98] shadow-xs transition-all duration-200 flex items-center justify-center gap-1.5"
+    >
+      Reset pass
+    </Link>
+
+    {/* Buton Log Out cu starea de deconectare */}
+    <button 
+      onClick={handleLogout} 
+      disabled={loggingOut} 
+      className="h-9 px-3 border border-zinc-200 rounded-xl text-xs font-medium bg-white text-red-500 hover:bg-red-50/60 hover:border-red-100 active:scale-[0.98] disabled:opacity-40 shadow-xs transition-all duration-200 flex items-center justify-center gap-1.5"
+    >
+      {loggingOut ? (
+        <span className="w-3.5 h-3.5 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+      ) : (
+        <svg className="w-3.5 h-3.5 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+      )}
+      <span>{loggingOut ? "Ieșire..." : "Log out"}</span>
+    </button>
+
+    {/* Buton AI - Design WOW Exclusiv */}
+    <button
+      onClick={runMarketAnalysis}
+      className="h-9 px-4 rounded-xl text-xs font-bold bg-gradient-to-r from-[#8B5CF6] to-[#0070F3] text-white shadow-md shadow-blue-500/10 flex items-center justify-center gap-1.5 cursor-pointer hover:scale-[1.02] hover:brightness-110 active:scale-[0.98] transition-all duration-200 col-span-2 sm:col-span-1 select-none"
+    >
+      <span className="animate-pulse text-sm text-purple-200">{"\u2726"}</span>
+      <span className="tracking-wide">AI Analyse</span>
+    </button>
+
+  </div>
+</div>
+
 
             <div className="bg-white border p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 shadow-sm">
               <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -366,10 +440,10 @@ const runMarketAnalysis = async () => {
                   <span className="flex items-center gap-1.5">
                     Stocare
                     {plan === "pro" && (
-                      <span className="text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded">ENTERPRISE</span>
+                      <span className="text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded">PRO PLAN</span>
                     )}
                     {plan === "enterprise" && (
-                      <span className="text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded">FULL</span>
+                      <span className="text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded">FULL PLAN</span>
                     )}
                   </span>
                   <span>
@@ -395,7 +469,7 @@ const runMarketAnalysis = async () => {
               {plan === "pro" && (
                 <div className="shrink-0 flex items-center gap-2">
                   <span className="h-9 px-4 flex items-center gap-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg whitespace-nowrap">
-                    ✓ Enterprise Activ
+                    ✓ Pro activ
                   </span>
                   <button
                     onClick={handleBuyEnterprise}
@@ -420,7 +494,7 @@ const runMarketAnalysis = async () => {
                 <p className="text-xs text-amber-800">Ai atins limita de {maxMb} MB. Nu mai poți urca fișiere noi până nu eliberezi spațiu sau extinzi stocarea.</p>
                 {plan === "free" && (
                   <button onClick={handleBuyCloud} disabled={buyingCloud} className="shrink-0 h-7 px-3 flex items-center bg-amber-900 text-white text-[11px] font-semibold rounded-lg whitespace-nowrap disabled:opacity-40">
-                    {buyingCloud ? "..." : "Cumpără 30GB · $50"}
+                    {buyingCloud ? "..." : "Cumpără 30GB · $49.9"}
                   </button>
                 )}
                 {plan === "pro" && (
@@ -550,7 +624,7 @@ const runMarketAnalysis = async () => {
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-mono uppercase tracking-wide text-zinc-400">Link de vanzare</p>
+                <p className="text-[10px] font-mono uppercase tracking-wide text-zinc-400">Seller link (link in BIO)</p>
                 <h3 className="text-sm font-bold text-zinc-900 truncate max-w-[220px]" title={shareBank.name}>{shareBank.name}</h3>
               </div>
               <button onClick={closeShareModal} className="w-7 h-7 rounded-full bg-zinc-100 flex items-center justify-center text-xs">✕</button>
