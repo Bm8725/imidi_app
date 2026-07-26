@@ -9,11 +9,11 @@ interface MetaMessProps {
 export default function MetaMess({ facebookUserId }: MetaMessProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // REPARAT CONCRET: Adăugat slash-ul și simbolul $ corect pentru interpolare
+  
   const messengerUrl = `https://m.me/${facebookUserId}`;
 
   return (
-    <div className="fixed bottom-4 left-4 md:bottom-6 md:left-6 z-50 font-sans select-none flex flex-col items-start">
+    <div className="fixed bottom-4 left-4 md:bottom-12 md:left-6 z-50 font-sans select-none flex flex-col items-start">
       
       {isOpen && (
         <div className="fixed inset-0 bottom-20 left-0 right-0 top-0 sm:absolute sm:inset-auto sm:bottom-16 sm:left-0 w-full sm:w-[360px] h-[calc(100vh-140px)] sm:h-[480px] bg-white rounded-t-2xl sm:rounded-2xl shadow-[0_12px_28px_0_rgba(0,0,0,0.2)] flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 duration-200 border border-gray-200">
@@ -28,8 +28,8 @@ export default function MetaMess({ facebookUserId }: MetaMessProps) {
                 <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#31A24C] rounded-full border-2 border-white" />
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-[14px] font-semibold text-gray-900 leading-tight">iMIDI Support</span>
-                <span className="text-[12px] text-gray-500">Activ(ă) acum</span>
+                <span className="text-[14px] font-semibold text-gray-900 leading-tight">META chat business connect </span>
+                
               </div>
             </div>
 
@@ -47,7 +47,7 @@ export default function MetaMess({ facebookUserId }: MetaMessProps) {
           <div className="flex-grow p-4 overflow-y-auto bg-white flex flex-col justify-end text-left">
             <div className="flex items-end gap-2 max-w-[85%] mb-2">
               <div className="bg-[#E4E6EB] text-gray-900 text-[14px] rounded-2xl px-3 py-2 leading-snug">
-                Salut! Ești conectat în siguranță cu contul tău iMIDI. Apasă pe butonul de mai jos pentru a deschide direct chat-ul tău în Messenger.
+                HI! You are connected to META business chat. Click to see you business discussion 
               </div>
             </div>
           </div>
@@ -60,7 +60,7 @@ export default function MetaMess({ facebookUserId }: MetaMessProps) {
               rel="noopener noreferrer"
               className="w-full bg-[#0084FF] hover:bg-[#0078e6] text-center text-white font-semibold text-[14px] py-2.5 px-4 rounded-xl transition-all shadow-sm"
             >
-              Trimite mesaj pe Messenger
+              Send on messenger
             </a>
           </div>
         </div>
