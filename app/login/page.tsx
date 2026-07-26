@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase"; // DECOMENTAT: Clientul tău Supabase
 export default function LoginPage() {
   const router = useRouter(); // Inițializare router Next.js
   const [loading, setLoading] = useState(false);
+  const [fbLoading, setFbLoading] = useState(false); // NOU: loading separat pt. Facebook
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({ email: "", password: "" });
 
@@ -44,6 +45,27 @@ export default function LoginPage() {
       setError(err.message || "Invalid credentials or database connection failure.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // NOU: login cu Facebook — Supabase redirecteaza automat catre Facebook,
+  // apoi inapoi la /auth/callback (trebuie sa existe ruta asta in proiect,
+  // spune-mi daca nu o ai si ti-o fac).
+  const handleFacebookLogin = async () => {
+    setFbLoading(true);
+    setError("");
+    try {
+      const { error: fbError } = await supabase.auth.signInWithOAuth({
+        provider: "facebook",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard/cloud-db`,
+        },
+      });
+      if (fbError) throw fbError;
+      // nu mai trebuie router.push aici — Supabase face redirect automat catre Facebook
+    } catch (err: any) {
+      setError(err.message || "Nu am putut porni login-ul cu Facebook.");
+      setFbLoading(false);
     }
   };
 
@@ -86,6 +108,34 @@ export default function LoginPage() {
 
         {/* CONTAINERUL PREMIUM TIP GLASSMORPHISM */}
         <div className="w-full bg-white/60 backdrop-blur-xl border border-white/80 sm:border-[#EAEAEA] rounded-3xl p-6 sm:p-10 shadow-[0_8px_32px_rgba(0,0,0,0.02),0_1px_2px_rgba(0,0,0,0.01)] transition-all duration-300 hover:shadow-[0_20px_40px_rgba(0,0,0,0.04)]">
+
+            {/* NOU: buton login cu Facebook */}
+            <button
+              type="button"
+              onClick={handleFacebookLogin}
+              disabled={fbLoading}
+              className="w-full h-11 bg-[#1877F2] text-white text-xs font-bold rounded-xl hover:bg-[#166FE5] active:scale-[0.99] transition-all duration-200 shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {fbLoading ? (
+                <span className="corp-mono flex items-center gap-2">
+                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Se conecteaza...</span>
+                </span>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.51 17.52 2 12 2S2 6.51 2 12.06c0 5 3.66 9.15 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.51 1.49-3.9 3.77-3.9 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.91h-2.33V22c4.78-.79 8.44-4.94 8.44-9.94Z"/></svg>
+                  <span>Continua cu Facebook</span>
+                </>
+              )}
+            </button>
+
+            {/* separator */}
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-black/[0.08]" />
+              <span className="text-[10px] uppercase tracking-wider text-black/40 font-semibold">sau</span>
+              <div className="flex-1 h-px bg-black/[0.08]" />
+            </div>
+
           <form onSubmit={handleLogin} className="space-y-4">
             
             {/* INPUT FIELD: EMAIL */}
