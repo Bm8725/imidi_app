@@ -7,6 +7,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 import { supabase } from "@/lib/supabase";
+// NOU: functii de verificare/upgrade a limitei de stocare
+import { getUserStorageLimitMb, upgradeToProPlan, upgradeToEnterprisePlan } from "@/lib/storageLimit";
 
 export default function CloudWorkspacePage() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -38,7 +40,13 @@ export default function CloudWorkspacePage() {
   const [marketAnalysisText, setMarketAnalysisText] = useState("");
   const [marketAnalysisError, setMarketAnalysisError] = useState("");
 
-  const lim = 6, maxMb = 50;
+  // ---- NOU: plan/limita dinamica + stare buton cumparare ----
+  const [plan, setPlan] = useState<"free" | "pro" | "enterprise">("free");
+  const [buyingCloud, setBuyingCloud] = useState(false);
+  const [buyingEnterprise, setBuyingEnterprise] = useState(false);
+
+  const lim = 6;
+  const [maxMb, setMaxMb] = useState(50); // NOU: nu mai e fix, vine din DB (vezi useEffect)
 
   useEffect(() => {
     (async () => {
@@ -47,7 +55,13 @@ export default function CloudWorkspacePage() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error("Unauthorized. Please log in.");
         setUser({ id: session.user.id, email: session.user.email, name: session.user.user_metadata?.full_name || "Operator", avatar: `https://dicebear.com{session.user.id}` });
-        
+
+        // NOU: citim limita reala a userului (Free 50MB sau Pro 30GB)
+        const { plan: userPlan, limitMb } = await getUserStorageLimitMb(session.user.id);
+        console.log("DEBUG plan citit din DB:", userPlan, "limitMb:", limitMb); // TEMPORAR - sterge dupa ce testezi
+        setPlan(userPlan);
+        setMaxMb(limitMb);
+
         const { data: all } = await supabase.from("cloud_banks").select("size_mb").eq("user_id", session.user.id);
         if (all) setTotalUsedMb(all.reduce((acc, c) => acc + Number(c.size_mb), 0));
 
@@ -59,6 +73,52 @@ export default function CloudWorkspacePage() {
       } catch (err: any) { setError(err.message); } finally { setLoading(false); }
     })();
   }, [page, activeTab]);
+
+  // NOU: cumpara 30GB — deschide plata Revolut, apoi (dupa confirmare) actualizeaza limita in DB
+  const handleBuyCloud = async () => {
+    if (!user) return;
+    window.open("https://revolut.me/mariusvalentin_b", "_blank", "noopener,noreferrer");
+
+    const confirmed = window.confirm(
+      "Am deschis pagina de plata Revolut intr-un tab nou.\n\nDupa ce ai trimis $50, apasa OK aici ca sa activam cei 30GB."
+    );
+    if (!confirmed) return;
+
+    setBuyingCloud(true);
+    try {
+      const { limitMb } = await upgradeToProPlan(user.id);
+      setPlan("pro");
+      setMaxMb(limitMb);
+      alert("Gata! Ai acum 30GB de stocare.");
+    } catch (err: any) {
+      alert(err.message || "Nu am putut activa spatiul suplimentar. Incearca din nou.");
+    } finally {
+      setBuyingCloud(false);
+    }
+  };
+
+  // NOU: Pas 2 — extinde la 250GB, disponibil doar dupa ce ai deja Pro (30GB)
+  const handleBuyEnterprise = async () => {
+    if (!user) return;
+    window.open("https://revolut.me/mariusvalentin_b", "_blank", "noopener,noreferrer");
+
+    const confirmed = window.confirm(
+      "Am deschis pagina de plata Revolut intr-un tab nou.\n\nDupa ce ai trimis $149.90, apasa OK aici ca sa activam cei 250GB."
+    );
+    if (!confirmed) return;
+
+    setBuyingEnterprise(true);
+    try {
+      const { limitMb } = await upgradeToEnterprisePlan(user.id);
+      setPlan("enterprise");
+      setMaxMb(limitMb);
+      alert("Gata! Ai acum 250GB de stocare.");
+    } catch (err: any) {
+      alert(err.message || "Nu am putut activa spatiul suplimentar. Incearca din nou.");
+    } finally {
+      setBuyingEnterprise(false);
+    }
+  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -271,15 +331,75 @@ const runMarketAnalysis = async () => {
                 <span className="text-xs font-bold">{user?.name || "Uploading..."}</span>
               </div>
               <div className="w-full sm:w-64">
-                <div className="text-[11px] text-zinc-500 flex justify-between font-medium"><span>Stocare</span><span>{totalUsedMb.toFixed(1)} / {maxMb} MB</span></div>
+                <div className="text-[11px] text-zinc-500 flex justify-between font-medium items-center">
+                  <span className="flex items-center gap-1.5">
+                    Stocare
+                    {plan === "pro" && (
+                      <span className="text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded">PRO</span>
+                    )}
+                    {plan === "enterprise" && (
+                      <span className="text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded">ENTERPRISE</span>
+                    )}
+                  </span>
+                  <span>
+                    {totalUsedMb >= 1024 ? `${(totalUsedMb / 1024).toFixed(2)} GB` : `${totalUsedMb.toFixed(1)} MB`}
+                    {" / "}
+                    {maxMb >= 1024 ? `${(maxMb / 1024).toFixed(0)} GB` : `${maxMb} MB`}
+                  </span>
+                </div>
                 <div className="w-full h-1.5 bg-zinc-100 rounded-full mt-1 border overflow-hidden"><div className={`h-full transition-all ${pct > 85 ? "bg-red-500" : pct > 60 ? "bg-amber-500" : "bg-zinc-900"}`} style={{ width: `${pct}%` }} /></div>
               </div>
+              {/* Pas 1: Free -> Pro (30GB) */}
+              {plan === "free" && (
+                <button
+                  onClick={handleBuyCloud}
+                  disabled={buyingCloud}
+                  className="shrink-0 h-9 px-4 bg-zinc-900 text-white text-xs font-semibold rounded-lg disabled:opacity-40 whitespace-nowrap"
+                >
+                  {buyingCloud ? "Se activeaza..." : "Cumpără 30GB · $50"}
+                </button>
+              )}
+
+              {/* Pas 2: Pro -> Enterprise (250GB), disponibil doar dupa ce ai deja 30GB */}
+              {plan === "pro" && (
+                <div className="shrink-0 flex items-center gap-2">
+                  <span className="h-9 px-4 flex items-center gap-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg whitespace-nowrap">
+                    ✓ 30GB Activ
+                  </span>
+                  <button
+                    onClick={handleBuyEnterprise}
+                    disabled={buyingEnterprise}
+                    className="h-9 px-4 bg-zinc-900 text-white text-xs font-semibold rounded-lg disabled:opacity-40 whitespace-nowrap"
+                  >
+                    {buyingEnterprise ? "Se activeaza..." : "Extinde la 250GB · $149.90"}
+                  </button>
+                </div>
+              )}
+
+              {/* Dupa Pas 2: Enterprise activ, fara alte optiuni de extindere */}
+              {plan === "enterprise" && (
+                <span className="shrink-0 h-9 px-4 flex items-center gap-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg whitespace-nowrap">
+                  ✓ 250GB Activ
+                </span>
+              )}
             </div>
 
             {totalUsedMb >= maxMb && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <p className="text-xs text-amber-800">Ai atins limita gratuită de {maxMb} MB. Nu mai poți urca fișiere noi până nu eliberezi spațiu sau extinzi stocarea.</p>
-                <Link href="/pricing" className="shrink-0 h-7 px-3 flex items-center bg-amber-900 text-white text-[11px] font-semibold rounded-lg whitespace-nowrap">Vezi opțiuni de stocare</Link>
+                <p className="text-xs text-amber-800">Ai atins limita de {maxMb} MB. Nu mai poți urca fișiere noi până nu eliberezi spațiu sau extinzi stocarea.</p>
+                {plan === "free" && (
+                  <button onClick={handleBuyCloud} disabled={buyingCloud} className="shrink-0 h-7 px-3 flex items-center bg-amber-900 text-white text-[11px] font-semibold rounded-lg whitespace-nowrap disabled:opacity-40">
+                    {buyingCloud ? "..." : "Cumpără 30GB · $50"}
+                  </button>
+                )}
+                {plan === "pro" && (
+                  <button onClick={handleBuyEnterprise} disabled={buyingEnterprise} className="shrink-0 h-7 px-3 flex items-center bg-amber-900 text-white text-[11px] font-semibold rounded-lg whitespace-nowrap disabled:opacity-40">
+                    {buyingEnterprise ? "..." : "Extinde la 250GB · $149.90"}
+                  </button>
+                )}
+                {plan === "enterprise" && (
+                  <Link href="/pricing" className="shrink-0 h-7 px-3 flex items-center bg-amber-900 text-white text-[11px] font-semibold rounded-lg whitespace-nowrap">Contacteaza-ne</Link>
+                )}
               </div>
             )}
 
