@@ -11,6 +11,7 @@ export default function LoginPage() {
   const router = useRouter(); // Inițializare router Next.js
   const [loading, setLoading] = useState(false);
   const [fbLoading, setFbLoading] = useState(false); // NOU: loading separat pt. Facebook
+  const [spotifyLoading, setSpotifyLoading] = useState(false); // NOU: loading separat pt. Spotify
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({ email: "", password: "" });
 
@@ -66,6 +67,25 @@ export default function LoginPage() {
     } catch (err: any) {
       setError(err.message || "Nu am putut porni login-ul cu Facebook.");
       setFbLoading(false);
+    }
+  };
+
+
+  // NOU: login cu Spotify — foloseste pagina dedicata /auth/callback/spotify
+  const handleSpotifyLogin = async () => {
+    setSpotifyLoading(true);
+    setError("");
+    try {
+      const { error: spotifyError } = await supabase.auth.signInWithOAuth({
+        provider: "spotify",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback/spotify?next=/dashboard/cloud-db`,
+        },
+      });
+      if (spotifyError) throw spotifyError;
+    } catch (err: any) {
+      setError(err.message || "Nu am putut porni login-ul cu Spotify.");
+      setSpotifyLoading(false);
     }
   };
 
@@ -135,6 +155,26 @@ export default function LoginPage() {
               <span className="text-[10px] uppercase tracking-wider text-black/40 font-semibold">sau</span>
               <div className="flex-1 h-px bg-black/[0.08]" />
             </div>
+
+            {/* NOU: buton login cu Spotify */}
+            <button
+              type="button"
+              onClick={handleSpotifyLogin}
+              disabled={spotifyLoading}
+              className="w-full h-11 bg-[#1DB954] text-white text-xs font-bold rounded-xl hover:bg-[#1aa34a] active:scale-[0.99] transition-all duration-200 shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 mb-5"
+            >
+              {spotifyLoading ? (
+                <span className="corp-mono flex items-center gap-2">
+                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Se conecteaza...</span>
+                </span>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm4.586 14.424a.622.622 0 0 1-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.622.622 0 1 1-.277-1.213c3.809-.87 7.077-.496 9.712 1.113.293.18.386.564.207.857Zm1.223-2.723a.78.78 0 0 1-1.072.257c-2.688-1.652-6.786-2.131-9.965-1.166a.78.78 0 0 1-.452-1.492c3.632-1.102 8.147-.568 11.232 1.328a.78.78 0 0 1 .257 1.073Zm.105-2.835c-3.223-1.914-8.54-2.09-11.618-1.156a.936.936 0 1 1-.543-1.79c3.532-1.072 9.404-.865 13.115 1.338a.936.936 0 0 1-.954 1.608Z"/></svg>
+                  <span>Continua cu Spotify</span>
+                </>
+              )}
+            </button>
 
           <form onSubmit={handleLogin} className="space-y-4">
             
