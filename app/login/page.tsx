@@ -152,7 +152,7 @@ export default function LoginPage() {
             {/* separator */}
             <div className="flex items-center gap-3 my-5">
               <div className="flex-1 h-px bg-black/[0.08]" />
-              <span className="text-[10px] uppercase tracking-wider text-black/40 font-semibold">sau</span>
+              <span className="text-[10px] uppercase tracking-wider text-black/40 font-semibold">or</span>
               <div className="flex-1 h-px bg-black/[0.08]" />
             </div>
 
@@ -176,6 +176,13 @@ export default function LoginPage() {
               )}
             </button>
 
+         {/* separator */}
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-black/[0.08]" />
+              <span className="text-[10px] uppercase tracking-wider text-black/40 font-semibold">or</span>
+              <div className="flex-1 h-px bg-black/[0.08]" />
+            </div>
+    
           <form onSubmit={handleLogin} className="space-y-4">
             
             {/* INPUT FIELD: EMAIL */}
