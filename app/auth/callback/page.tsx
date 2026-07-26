@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-export default function AuthCallbackPage() {
+function AuthCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
@@ -12,11 +12,8 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const next = searchParams.get("next") || "/dashboard/cloud-db";
 
-    // Supabase-js citeste automat access_token/refresh_token din URL (#...)
-    // si creeaza sesiunea, dar trebuie sa asteptam evenimentul / sa verificam.
     const finish = async () => {
       try {
-        // 1) verificam daca sesiunea a fost deja creata automat de supabase-js
         const { data: { session } } = await supabase.auth.getSession();
 
         if (session) {
@@ -24,7 +21,6 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        // 2) daca nu, ascultam explicit evenimentul de login (safety net)
         const { data: listener } = supabase.auth.onAuthStateChange((event, s) => {
           if (event === "SIGNED_IN" && s) {
             listener.subscription.unsubscribe();
@@ -32,7 +28,6 @@ export default function AuthCallbackPage() {
           }
         });
 
-        // 3) fallback: daca dupa 4 secunde tot nu s-a intamplat nimic, aratam eroare
         const timeout = setTimeout(() => {
           listener.subscription.unsubscribe();
           setError("Nu am putut finaliza autentificarea. Incearca din nou.");
@@ -68,5 +63,19 @@ export default function AuthCallbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-white">
+          <span className="inline-block w-5 h-5 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <AuthCallbackInner />
+    </Suspense>
   );
 }
