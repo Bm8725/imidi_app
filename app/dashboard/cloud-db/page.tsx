@@ -332,27 +332,7 @@ const runMarketAnalysis = async () => {
       </div>
     </div>
 
-    {/* Indicator de Stocare Vizual (Wow/Premium aspect) */}
-    <div className="w-full max-w-[220px] space-y-1">
-      <div className="flex justify-between text-[10px] font-semibold text-zinc-400">
-        <span>Stocare utilizată</span>
-        <span className={totalUsedMb >= maxMb ? "text-red-500 font-bold" : "text-zinc-600"}>
-          {totalUsedMb} / {maxMb} MB
-        </span>
-      </div>
-      <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
-        <div 
-          className={`h-full rounded-full transition-all duration-500 ${
-            (totalUsedMb / maxMb) > 0.9 
-              ? 'bg-red-500' 
-              : (totalUsedMb / maxMb) > 0.7 
-              ? 'bg-amber-500' 
-              : 'bg-blue-500'
-          }`}
-          style={{ width: `${Math.min((totalUsedMb / maxMb) * 100, 100)}%` }}
-        />
-      </div>
-    </div>
+
   </div>
 
   {/* Secțiune Butoane - Responsive Grid / Flex */}
@@ -568,55 +548,108 @@ const runMarketAnalysis = async () => {
         )}
       </main>
 
-      {/* modal istoric descarcari */}
-      {showDownloadHistory && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowDownloadHistory(false)}>
-          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl space-y-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-mono uppercase tracking-wide text-zinc-400">Istoric</p>
-                <h3 className="text-sm font-bold text-zinc-900">Descărcări pachete</h3>
-              </div>
-              <button onClick={() => setShowDownloadHistory(false)} className="w-7 h-7 rounded-full bg-zinc-100 flex items-center justify-center text-xs">✕</button>
-            </div>
+{/* modal istoric descarcari */}
+{showDownloadHistory && (
+  <div 
+    className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" 
+    onClick={() => setShowDownloadHistory(false)}
+  >
+    <div 
+      className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-zinc-100 space-y-4 max-h-[80vh] overflow-y-auto flex flex-col scale-in" 
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Header Modal */}
+      <div className="flex items-center justify-between shrink-0">
+        <div className="space-y-0.5">
+          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-500">Istoric</p>
+          <h3 className="text-base font-bold text-zinc-900 tracking-tight">Descărcări pachete</h3>
+        </div>
+        <button 
+          onClick={() => setShowDownloadHistory(false)} 
+          className="w-7 h-7 rounded-full bg-zinc-50 hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 flex items-center justify-center text-xs transition-colors active:scale-95"
+        >
+          ✕
+        </button>
+      </div>
 
-            {downloadHistoryLoading ? (
-              <div className="h-24 bg-zinc-50 border rounded-xl animate-pulse" />
-            ) : downloadHistoryError ? (
-              <p className="text-xs text-red-500">{downloadHistoryError}</p>
-            ) : downloadHistory.length === 0 ? (
-              <div className="text-center py-8 border border-dashed rounded-xl text-xs text-zinc-400">
-                Nicio descărcare inregistrata inca.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-[11px] text-zinc-500 font-medium">
-                  {downloadHistory.length} descărcări in total
-                </p>
-                <div className="border rounded-lg divide-y overflow-hidden">
-                  {downloadHistory.map((row) => {
-                    const dt = new Date(row.downloaded_at);
-                    const data = dt.toLocaleDateString("ro-RO");
-                    const ora = dt.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" });
-                    return (
-                      <div key={row.id} className="flex items-center justify-between px-3 py-2.5 text-xs bg-white">
-                        <div className="min-w-0 pr-2">
-                          <p className="font-semibold text-zinc-900 truncate" title={row.bank_name}>{row.bank_name}</p>
-                          <p className="text-[10px] text-zinc-400">{row.bank_type || "—"}</p>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p className="text-zinc-700 font-medium">{data}</p>
-                          <p className="text-[10px] text-zinc-400">{ora}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
+      {/* Corp Modal / Conținut */}
+      <div className="flex-1 overflow-y-auto pr-1">
+        {downloadHistoryLoading ? (
+          /* Skeleton Loader Premium pe linii, nu doar un bloc gri */
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex justify-between items-center p-3 border border-zinc-100 rounded-xl animate-pulse">
+                <div className="space-y-1.5 w-1/3">
+                  <div className="h-3 bg-zinc-100 rounded-md w-full" />
+                  <div className="h-2 bg-zinc-50 rounded-md w-2/3" />
+                </div>
+                <div className="space-y-1 w-1/4 flex flex-col items-end">
+                  <div className="h-2.5 bg-zinc-100 rounded-md w-3/4" />
+                  <div className="h-2 bg-zinc-50 rounded-md w-1/2" />
                 </div>
               </div>
-            )}
+            ))}
           </div>
-        </div>
-      )}
+        ) : downloadHistoryError ? (
+          <div className="p-3 bg-red-50/60 border border-red-100 rounded-xl flex items-center gap-2">
+            <span className="text-red-500 text-sm">⚠️</span>
+            <p className="text-xs text-red-600 font-medium">{downloadHistoryError}</p>
+          </div>
+        ) : downloadHistory.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 border border-dashed border-zinc-200 rounded-xl text-center px-4 space-y-2">
+            <div className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-400 text-lg">📁</div>
+            <p className="text-xs font-medium text-zinc-500">Nicio descărcare înregistrată încă.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-[11px] font-medium text-zinc-400 px-0.5">
+              <span>{downloadHistory.length} {downloadHistory.length === 1 ? 'descărcare' : 'descărcări în total'}</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            </div>
+
+            {/* Listă cu design modern (carduri separate cu efect de hover) */}
+            <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-0.5">
+              {downloadHistory.map((row) => {
+                const dt = new Date(row.downloaded_at);
+                const data = dt.toLocaleDateString("ro-RO", { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const ora = dt.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" });
+                
+                return (
+                  <div 
+                    key={row.id} 
+                    className="flex items-center justify-between p-3 text-xs bg-white border border-zinc-100 hover:border-zinc-200 hover:shadow-xs rounded-xl transition-all duration-150 group"
+                  >
+                    {/* Detalii Bancă */}
+                    <div className="min-w-0 pr-3 flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-zinc-50 group-hover:bg-blue-50/50 flex items-center justify-center text-sm shrink-0 border border-zinc-100/50 transition-colors">
+                        {row.bank_name?.toLowerCase().includes('edge') ? '🏦' : '💳'}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-zinc-800 truncate" title={row.bank_name}>
+                          {row.bank_name}
+                        </p>
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-zinc-50 text-zinc-500 border border-zinc-100">
+                          {row.bank_type || "Nespecificat"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Dată / Timp */}
+                    <div className="shrink-0 text-right space-y-0.5">
+                      <p className="text-zinc-700 font-semibold tracking-tight">{data}</p>
+                      <p className="text-[10px] text-zinc-400 font-mono">{ora}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* modal generare link de vanzare (cod ales de vanzator) */}
       {shareBank && (
