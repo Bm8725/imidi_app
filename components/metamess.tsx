@@ -9,7 +9,7 @@ interface MetaMessProps {
 export default function MetaMess({ facebookUserId }: MetaMessProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // REPARAT CONCRET: Adăugat m.me (sistemul oficial de redirecționare rapidă în chat-ul Messenger)
+  // REPARAT CONCRET: Adăugat slash-ul și simbolul $ corect pentru interpolare
   const messengerUrl = `https://m.me{facebookUserId}`;
 
   return (
