@@ -11,7 +11,7 @@ function SpotifyCallbackInner() {
   const [isError, setIsError] = useState(false);
 
   useEffect(() => {
-    const next = searchParams.get("next") || "/dashboard/cloud-db";
+    const next = "/dashboard/cloud-db"; // NOU: hardcodat, mereu acelasi loc, indiferent de query params
 
     const finish = async () => {
       try {
