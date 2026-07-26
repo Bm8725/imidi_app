@@ -139,22 +139,23 @@ export default function LoginPage() {
               {fbLoading ? (
                 <span className="corp-mono flex items-center gap-2">
                   <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Se conecteaza...</span>
+                  <span>Connecting...</span>
                 </span>
               ) : (
                 <>
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.51 17.52 2 12 2S2 6.51 2 12.06c0 5 3.66 9.15 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.51 1.49-3.9 3.77-3.9 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.91h-2.33V22c4.78-.79 8.44-4.94 8.44-9.94Z"/></svg>
-                  <span>Continua cu Facebook</span>
+                  <span>Continue with Facebook</span>
                 </>
               )}
             </button>
 
-            {/* separator */}
+               {/* separator */}
             <div className="flex items-center gap-3 my-5">
               <div className="flex-1 h-px bg-black/[0.08]" />
               <span className="text-[10px] uppercase tracking-wider text-black/40 font-semibold">or</span>
               <div className="flex-1 h-px bg-black/[0.08]" />
             </div>
+    
 
             {/* NOU: buton login cu Spotify */}
             <button
@@ -166,12 +167,12 @@ export default function LoginPage() {
               {spotifyLoading ? (
                 <span className="corp-mono flex items-center gap-2">
                   <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Se conecteaza...</span>
+                  <span>Connecting...</span>
                 </span>
               ) : (
                 <>
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm4.586 14.424a.622.622 0 0 1-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.622.622 0 1 1-.277-1.213c3.809-.87 7.077-.496 9.712 1.113.293.18.386.564.207.857Zm1.223-2.723a.78.78 0 0 1-1.072.257c-2.688-1.652-6.786-2.131-9.965-1.166a.78.78 0 0 1-.452-1.492c3.632-1.102 8.147-.568 11.232 1.328a.78.78 0 0 1 .257 1.073Zm.105-2.835c-3.223-1.914-8.54-2.09-11.618-1.156a.936.936 0 1 1-.543-1.79c3.532-1.072 9.404-.865 13.115 1.338a.936.936 0 0 1-.954 1.608Z"/></svg>
-                  <span>Continua cu Spotify</span>
+                  <span>Continue with Spotify</span>
                 </>
               )}
             </button>
