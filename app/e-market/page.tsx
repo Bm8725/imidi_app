@@ -500,13 +500,13 @@ useEffect(() => {
             </svg>
             <div>
               <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A7A5C] mb-1">
-                Catalog
+                www.imidi.co.uk
               </p>
-              <h1 className="text-3xl font-serif tracking-tight text-[#1C1A16]">iMIDI e-Market</h1>
-              <p className="text-xs text-[#7A7365] mt-1">
-                Platforma dedicata vanzarilor after-market de instrumente muzicale,  facilitati si 
-                preseturi pentru DAW-uri/synth direct din cloud, fara carduri de memorie sau SSD. Publica anunturi gratuite, cumpara sau vinde in siguranta. Anuntul este gratuit 15 zile.
-                Singura platforma de acest tip in Romania si Europa, cu suport tehnic si asistenta AI pentru configurarea spatiului tau de lucru in myCloud.
+              <h1 className="text-3xl font-serif tracking-tight text-[#1C1A16]">E-Market</h1>
+              <p className="text-x text-[#7A7365] mt-1">
+               The platform dedicated to selling and buying music instruments, presets, soundbanks, 
+               and scripts for artists and producers adapted to modern life. Asistat by AI Smith can sell digital products or physical instruments, and you can also buy from other artists.
+               Single platform that inovated the way artists and producers can sell and buy music instruments, presets, soundbanks, and scripts supported by Cloud. 
               </p>
             </div>
           </div>
@@ -530,9 +530,9 @@ useEffect(() => {
           ) : (
             <p className="text-x text-[#7A7365] font-mono">
               <a href="/login" className="text-[#FF5CA1] underline underline-offset-2">
-                Autentifica-te
+               Autentication
               </a>{" "}
-              pentru a publica.
+              to publish your products and start selling on iMIDI Market.
             </p>
           )}
         </div>
