@@ -30,7 +30,7 @@ function AuthCallbackInner() {
 
         const timeout = setTimeout(() => {
           listener.subscription.unsubscribe();
-          setError("Nu am putut finaliza autentificarea. Incearca din nou.");
+          setError("We couldn't complete the authentication. Please try again.");
         }, 4000);
 
         return () => {
@@ -38,7 +38,7 @@ function AuthCallbackInner() {
           listener.subscription.unsubscribe();
         };
       } catch (err: any) {
-        setError(err.message || "Eroare la autentificare.");
+        setError(err.message || "Error during authentication.");
       }
     };
 
@@ -52,13 +52,13 @@ function AuthCallbackInner() {
           <>
             <p className="text-sm text-red-600 font-medium">{error}</p>
             <a href="/login" className="text-xs text-[#0070F3] underline underline-offset-2">
-              Inapoi la login
+              Back to login
             </a>
           </>
         ) : (
           <>
             <span className="inline-block w-5 h-5 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
-            <p className="text-xs text-zinc-500 font-mono">Te autentificam...</p>
+            <p className="text-xs text-zinc-500 font-mono">Signing you in...</p>
           </>
         )}
       </div>

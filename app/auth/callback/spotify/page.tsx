@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 function SpotifyCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [statusMessage, setStatusMessage] = useState("Se inițializează conexiunea cu Spotify...");
+  const [statusMessage, setStatusMessage] = useState("Initializing connection with Spotify...");
   const [isError, setIsError] = useState(false);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ function SpotifyCallbackInner() {
         const { data: { session } } = await supabase.auth.getSession();
 
         if (session) {
-          setStatusMessage("Autentificare reușită! Te redirecționăm...");
+          setStatusMessage("Authentication successful! Redirecting you...");
           router.replace(next);
           return;
         }
@@ -29,7 +29,7 @@ function SpotifyCallbackInner() {
         const { data: listener } = supabase.auth.onAuthStateChange((event, s) => {
           if (event === "SIGNED_IN" && s) {
             listener.subscription.unsubscribe();
-            setStatusMessage("Autentificare reușită! Te redirecționăm...");
+            setStatusMessage("Authentication successful! Redirecting you...");
             router.replace(next);
           }
         });
@@ -37,7 +37,7 @@ function SpotifyCallbackInner() {
         const timeout = setTimeout(() => {
           listener.subscription.unsubscribe();
           setIsError(true);
-          setStatusMessage("Nu am putut finaliza autentificarea. Incearca din nou.");
+          setStatusMessage("We couldn't complete the authentication. Please try again.");
           setTimeout(() => router.push("/login"), 3000);
         }, 4000);
 
@@ -47,7 +47,7 @@ function SpotifyCallbackInner() {
         };
       } catch (err: any) {
         setIsError(true);
-        setStatusMessage(err.message || "A aparut o eroare la procesarea autentificarii.");
+        setStatusMessage(err.message || "Error during authentication.");
         setTimeout(() => router.push("/login"), 3000);
       }
     };
@@ -69,7 +69,7 @@ function SpotifyCallbackInner() {
         </div>
 
         <h1 className="text-xl font-bold mb-2">
-          {isError ? "Problemă la autentificare" : "Conectare securizată"}
+          {isError ? "Problem with authentication" : "Secure connection"}
         </h1>
 
         <p className={`text-sm ${isError ? "text-red-500" : "text-[#666666]"} corp-mono`}>
@@ -81,7 +81,7 @@ function SpotifyCallbackInner() {
             onClick={() => router.push("/login")}
             className="mt-6 text-xs font-bold text-white bg-black px-4 py-2 rounded-xl active:scale-[0.98] transition-all"
           >
-            Înapoi la Login
+            Back to login
           </button>
         )}
       </div>
