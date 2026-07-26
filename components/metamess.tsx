@@ -10,7 +10,7 @@ export default function MetaMess({ facebookUserId }: MetaMessProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   // REPARAT CONCRET: Adăugat slash-ul și simbolul $ corect pentru interpolare
-  const messengerUrl = `https://m.me{facebookUserId}`;
+  const messengerUrl = `https://m.me/${facebookUserId}`;
 
   return (
     <div className="fixed bottom-4 left-4 md:bottom-6 md:left-6 z-50 font-sans select-none flex flex-col items-start">
