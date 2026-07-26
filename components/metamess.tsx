@@ -9,8 +9,8 @@ interface MetaMessProps {
 export default function MetaMess({ facebookUserId }: MetaMessProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Link dinamic generat pe loc pentru fiecare user în parte
-  const messengerUrl = `https://facebook.com{facebookUserId}`;
+  // REPARAT CONCRET: Adăugat m.me (sistemul oficial de redirecționare rapidă în chat-ul Messenger)
+  const messengerUrl = `https://m.me{facebookUserId}`;
 
   return (
     <div className="fixed bottom-4 left-4 md:bottom-6 md:left-6 z-50 font-sans select-none flex flex-col items-start">
