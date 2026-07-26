@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { isPromoted } from "@/lib/promotion"; // NOU: helper de promovare
 
 
 interface Listing {
@@ -20,6 +21,7 @@ interface Listing {
   country: string | null;
   region: string | null;
   views_count: number;
+  promoted_until: string | null; // NOU
 }
 
 interface Review {
@@ -169,6 +171,9 @@ useEffect(() => {
     if (countryFilter.trim() !== "") {
       query = query.ilike("country", "%" + countryFilter + "%");
     }
+
+    // NOU: anunturile promovate (promoted_until in viitor) apar mereu primele
+    query = query.order("promoted_until", { ascending: false, nullsFirst: false });
 
     if (sortBy === "newest") {
       query = query.order("created_at", { ascending: false });
@@ -895,7 +900,12 @@ useEffect(() => {
               <div
                 key={item.id}
                 onClick={() => openListing(item)}
-                className="bg-white border border-black/5 rounded-2xl overflow-hidden flex flex-col group hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+                className={
+                  "bg-white rounded-2xl overflow-hidden flex flex-col group hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer " +
+                  (isPromoted(item.promoted_until)
+                    ? "border-2 border-[#FFB100] shadow-[0_0_0_1px_rgba(255,177,0,0.15)]"
+                    : "border border-black/5")
+                }
               >
                 <div className="h-44 bg-[#F7F6F3] relative flex items-center justify-center border-b border-black/5">
                   {item.images.length > 0 ? (
@@ -910,6 +920,12 @@ useEffect(() => {
                   <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded-full text-[9px] bg-white/90 border border-black/5 text-[#7A7365] font-mono uppercase tracking-wide">
                     {item.category}
                   </span>
+                  {/* NOU: badge de promovare */}
+                  {isPromoted(item.promoted_until) && (
+                    <span className="absolute top-2 left-[62px] px-1.5 py-0.5 rounded-full text-[9px] bg-[#FFB100] text-white font-bold font-mono uppercase tracking-wide flex items-center gap-0.5">
+                      ⭐ Promovat
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => shareListing(item, e)}
@@ -1010,6 +1026,12 @@ useEffect(() => {
                   <span className="text-xs text-[#9A907C] font-mono">Fara imagine</span>
                 )}
               </div>
+              {/* NOU: badge de promovare si in modal */}
+              {isPromoted(selectedListing.promoted_until) && (
+                <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] bg-[#FFB100] text-white font-bold font-mono uppercase tracking-wide flex items-center gap-1">
+                  ⭐ Promovat
+                </span>
+              )}
               <span className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full text-[10px] bg-black/60 text-white font-mono flex items-center gap-1.5">
                 <EyeIcon size={12} />
                 {selectedListing.views_count || 0} vizualizari
