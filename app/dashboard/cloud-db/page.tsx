@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+// Importăm componenta din folderul de componente
+import MetaMess from "@/components/metamess";
 
 import { supabase } from "@/lib/supabase";
 // NOU: functii de verificare/upgrade a limitei de stocare
@@ -47,6 +49,38 @@ export default function CloudWorkspacePage() {
 
   const lim = 6;
   const [maxMb, setMaxMb] = useState(50); // NOU: nu mai e fix, vine din DB (vezi useEffect)
+
+
+
+    
+
+// 1. Pune aceste două stări (useState) chiar la începutul componentei tale, sus de tot
+const [facebookId, setFacebookId] = useState<string | null>(null);
+const [userError, setUserError] = useState<string | null>(null);
+
+// 2. Înlocuiește liniile tale 58-62 cu acest bloc useEffect care trage ID-ul 100% automat:
+useEffect(() => {
+  async function loadUser() {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error || !user) {
+      setUserError("Trebuie să fii logat.");
+      return;
+    }
+
+    const fbIdentity = user.identities?.find(
+      (identity) => identity.provider === "facebook"
+    );
+
+    if (fbIdentity) {
+      setFacebookId(fbIdentity.id);
+    }
+  }
+
+  loadUser();
+}, []);
+
+
 
   useEffect(() => {
     (async () => {
@@ -844,6 +878,9 @@ const runMarketAnalysis = async () => {
   </div>
 )}
 
+
+ {userError && <div className="text-white text-xs">{userError}</div>}
+{facebookId && <MetaMess facebookUserId={facebookId} />}
 
       <Footer />
     </div>
