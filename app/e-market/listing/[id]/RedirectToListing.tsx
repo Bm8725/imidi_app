@@ -14,9 +14,9 @@ export default function RedirectToListing({ id }: { id: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white text-[#1C1A16]">
       <div className="text-center space-y-3">
-        <p className="text-xs font-mono text-[#9A907C]">Te redirectionam catre anunt...</p>
+        <p className="text-xs font-mono text-[#9A907C]">Redirect to post...</p>
         <a href={`/e-market?id=${id}`} className="text-xs text-[#B4592F] underline underline-offset-2">
-          Click aici daca nu esti redirectionat automat
+          Click here if not redirected automatically
         </a>
       </div>
     </div>

@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const pageUrl = `${SITE_URL}/e-market/listing/${id}`;
 
   return {
-    title: `${listing.title} — \u20AC${listing.price} pe iMIDI Market`,
+    title: `${listing.title} — \u20AC${listing.price} on iMIDI.co.uk/e-Market`,
     description: listing.description,
     openGraph: {
       title: listing.title,
