@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     if (authError || !user) return NextResponse.json({ error: "Utilizator neautorizat." }, { status: 401 });
 
     // 2. Interogăm API-ul Meta Graph folosind token-ul de utilizator primit din sesiune
-    const metaPagesRes = await fetch(`https://facebook.com{GRAPH_API_VERSION}/me/accounts`, {
+    const metaPagesRes = await fetch(`https://facebook.com/${GRAPH_API_VERSION}/me/accounts`, {
       method: "GET",
       headers: { Authorization: `Bearer ${userFbToken}` },
     });
