@@ -57,5 +57,41 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // sa citeasca meta tag-urile OG, apoi redirectionam omul real prin JS.
 export default async function ListingPage({ params }: Props) {
   const { id } = await params;
-  return <RedirectToListing id={id} />;
+
+  // Extragem datele din Supabase pe server pentru a construi structura JSON-LD
+  const { data: listing } = await supabase
+    .from("listings")
+    .select("title, description, images, price")
+    .eq("id", id)
+    .single();
+
+  // Generăm schema structurată pe care o va citi Google pentru afișarea prețului și stocului
+  const jsonLd = listing ? {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": listing.title,
+    "description": listing.description,
+    "image": listing.images?.[0] || DEFAULT_OG_IMAGE,
+    "offers": {
+      "@type": "Offer",
+      "price": listing.price,
+      "priceCurrency": "EUR",
+      "availability": "https://schema.org"
+    }
+  } : null;
+
+  return (
+    <>
+      {/* Scriptul JSON-LD generat pe server. Google îl devorează instant */}
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+
+      {/* Componenta ta originală de client, complet neatinsă */}
+      <RedirectToListing id={id} />
+    </>
+  );
 }

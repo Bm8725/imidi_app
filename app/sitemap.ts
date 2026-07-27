@@ -1,6 +1,6 @@
 /**
  * 
- * SEO GOOGLE, bots, automated
+ * SEO GOOGLE, bots, automated, advanced SEO systems
  *  */ 
 
 
@@ -24,7 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  // 3. Adăugăm și paginile tale principale din site
+  // 3. 
   return [
     {
       url: SITE_URL,
@@ -33,7 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1.0,
     },
     {
-      url: `${SITE_URL}/try_ts4x`,
+      url: `${SITE_URL}/products`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.9,
