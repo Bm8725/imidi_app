@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+
 const GRAPH_API_VERSION = process.env.META_GRAPH_API_VERSION || "v21.0";
 
 export async function GET(req: Request) {
