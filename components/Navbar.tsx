@@ -206,88 +206,96 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* MOBILE HEADER: SUS CU BUTON HAMBURGER PENTRU LOGIN ACCOUNT */}
-      <div className={`md:hidden fixed top-0 inset-x-0 h-14 bg-white/90 backdrop-blur-md border-b border-slate-200 z-50 flex items-center px-5 justify-between transition-transform duration-300 ${isVisible ? "translate-y-0" : "-translate-y-full"}`}>
-        <Link href="/" onClick={() => setIsMenuOpen(false)} className="text-lg font-black tracking-tight text-slate-950">iMIDI<span className="text-blue-600">.</span></Link>
-        
-        <div className="flex items-center gap-2">
+{/* MOBILE HEADER: SUS CU BUTON HAMBURGER PENTRU LOGIN ACCOUNT */}
+<div className={`md:hidden fixed top-0 inset-x-0 h-14 bg-white/90 backdrop-blur-md border-b border-slate-200 z-50 flex items-center px-5 justify-between transition-transform duration-300 ${isVisible ? "translate-y-0" : "-translate-y-full"}`}>
+  <Link href="/" onClick={() => setIsMenuOpen(false)} className="text-lg font-black tracking-tight text-slate-950">iMIDI<span className="text-blue-600">.</span></Link>
+  
+  <div className="flex items-center gap-2">
 
+    {user && (
+      <div className="relative">
+        <button
+          onClick={handleOpenNotifications}
+          aria-label="Notificări"
+          className="relative p-2 text-slate-600 hover:text-slate-900 transition-colors"
+        >
+          <svg viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" fill="none" className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+          </svg>
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#FF5CA1]" />
+          )}
+        </button>
 
-{user && (
-  <div className="relative">
-    <button
-      onClick={handleOpenNotifications}
-      aria-label="Notificări"
-      className="relative p-2 text-slate-600 hover:text-slate-900 transition-colors"
-    >
-      <svg viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" fill="none" className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-      </svg>
-      {unreadCount > 0 && (
-        <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#FF5CA1]" />
-      )}
-    </button>
-
-    {isNotifOpen && (
-      /* Modificat poziționarea și lățimea pentru ecranele de mobil ca să nu mai iasă în stânga ecranului */
-      <div className="absolute -right-12 sm:right-0 mt-2 w-[calc(100vw-2.5rem)] sm:w-80 max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50">
-        {notifications.length === 0 ? (
-          <p className="px-4 py-6 text-center text-xs text-slate-400">No notifications yet.</p>
-        ) : (
-          notifications.map((n) => (
-            <Link
-              key={n.id + n.createdAt}
-              href={n.href || "#"}
-              onClick={() => setIsNotifOpen(false)}
-              className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
-            >
-              {n.image ? (
-                <img src={n.image} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+        {isNotifOpen && (
+          <>
+            {/* Fundal transparent pe mobil pentru a închide fereastra la click în exterior */}
+            <div className="fixed inset-0 bg-transparent z-40 md:hidden" onClick={() => setIsNotifOpen(false)} />
+            
+            {/* 
+              Modificat poziționarea: pe mobil devine `fixed` raportat la ecran (nu mai este tăiat în stânga), 
+              iar pe ecrane mari revine sub formă de dropdown absolute standard 
+            */}
+            <div className="fixed top-16 left-4 right-4 w-[calc(100vw-2rem)] max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 md:absolute md:top-auto md:left-auto md:right-0 md:w-72 md:mt-2">
+              {notifications.length === 0 ? (
+                <p className="px-4 py-6 text-center text-xs text-slate-400">No notifications yet.</p>
               ) : (
-                <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0" />
+                notifications.map((n) => (
+                  <Link
+                    key={n.id + n.createdAt}
+                    href={n.href || "#"}
+                    onClick={() => setIsNotifOpen(false)}
+                    className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
+                  >
+                    {/* Imaginea folosește shrink-0 pentru a nu fi strivită de texte */}
+                    {n.image ? (
+                      <img src={n.image} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center text-[10px] text-slate-400 font-bold">iM</div>
+                    )}
+                    {/* flex-1 forțează textul să ocupe doar spațiul rămas liber */}
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-xs font-semibold text-slate-800 truncate">{n.title}</p>
+                      <p className="text-[11px] text-slate-500 truncate">{n.message}</p>
+                    </div>
+                  </Link>
+                ))
               )}
-              {/* Adăugat flex-1 ca textul să ocupe tot spațiul rămas, protejând imaginea din stânga */}
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-slate-800 truncate">{n.title}</p>
-                <p className="text-[11px] text-slate-500 truncate">{n.message}</p>
-              </div>
-            </Link>
-          ))
+            </div>
+          </>
         )}
       </div>
     )}
-  </div>
-)}
 
-
-          {/* HAMBURGER / CONT DISCRET DACĂ E LOGAT */}
-          <button 
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-2 text-slate-600 hover:text-slate-900 focus:outline-none transition-colors"
-            aria-label="Toggle Account Menu"
-          >
-            {user ? (
-              <div className="flex items-center gap-1.5">
-                <div className="relative w-6 h-6 shrink-0">
-                  <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-bold uppercase">
-                    {(user.name || user.email || "U").charAt(0)}
-                  </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
-                </div>
-                <span className="text-[11px] font-semibold text-slate-700 max-w-[80px] truncate">
-                  {user.name || user.email}
-                </span>
-              </div>
-            ) : (
-              <div className="w-5 h-4 flex flex-col justify-between items-center relative">
-                <span className={`w-5 h-0.5 bg-current rounded-full transition-all duration-300 origin-left ${isMenuOpen ? "rotate-45 translate-x-0.5" : ""}`} />
-                <span className={`w-5 h-0.5 bg-current rounded-full transition-all duration-200 ${isMenuOpen ? "opacity-0" : ""}`} />
-                <span className={`w-5 h-0.5 bg-current rounded-full transition-all duration-300 origin-left ${isMenuOpen ? "-rotate-45 translate-x-0.5" : ""}`} />
-              </div>
-            )}
-          </button>
+    {/* HAMBURGER / CONT DISCRET DACĂ E LOGAT */}
+    <button 
+      onClick={() => setIsMenuOpen(!isMenuOpen)}
+      className="p-2 text-slate-600 hover:text-slate-900 focus:outline-none transition-colors"
+      aria-label="Toggle Account Menu"
+    >
+      {user ? (
+        <div className="flex items-center gap-1.5">
+          <div className="relative w-6 h-6 shrink-0">
+            <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-bold uppercase">
+              {(user.name || user.email || "U").charAt(0)}
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
+          </div>
+          <span className="text-[11px] font-semibold text-slate-700 max-w-[80px] truncate">
+            {user.name || user.email}
+          </span>
         </div>
-      </div>
+      ) : (
+        <div className="w-5 h-4 flex flex-col justify-between items-center relative">
+          <span className={`w-5 h-0.5 bg-current rounded-full transition-all duration-300 origin-left ${isMenuOpen ? "rotate-45 translate-x-0.5" : ""}`} />
+          <span className={`w-5 h-0.5 bg-current rounded-full transition-all duration-200 ${isMenuOpen ? "opacity-0" : ""}`} />
+          <span className={`w-5 h-0.5 bg-current rounded-full transition-all duration-300 origin-left ${isMenuOpen ? "-rotate-45 translate-x-0.5" : ""}`} />
+        </div>
+      )}
+    </button>
+  </div>
+</div>
+
 
       {/* MOBILE OVERLAY: LOGIN & REGISTER FULLSCREEN CORPORATE */}
       <div 
