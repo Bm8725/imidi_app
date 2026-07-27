@@ -52,23 +52,27 @@ export default function LoginPage() {
   // NOU: login cu Facebook — Supabase redirecteaza automat catre Facebook,
   // apoi inapoi la /auth/callback (trebuie sa existe ruta asta in proiect,
   // spune-mi daca nu o ai si ti-o fac).
-  const handleFacebookLogin = async () => {
-    setFbLoading(true);
-    setError("");
-    try {
-      const { error: fbError } = await supabase.auth.signInWithOAuth({
-        provider: "facebook",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard/cloud-db`,
-        },
-      });
-      if (fbError) throw fbError;
-      // nu mai trebuie router.push aici — Supabase face redirect automat catre Facebook
-    } catch (err: any) {
-      setError(err.message || "Nu am putut porni login-ul cu Facebook.");
-      setFbLoading(false);
-    }
-  };
+const handleFacebookLogin = async () => {
+  setFbLoading(true);
+  setError("");
+
+  try {
+    const { error: fbError } = await supabase.auth.signInWithOAuth({
+      provider: "facebook",
+      options: {
+        scopes:
+          "email,pages_show_list,pages_manage_posts,pages_read_engagement",
+        redirectTo: `${window.location.origin}/auth/callback?next=/dashboard/cloud-db`,
+      },
+    });
+
+    if (fbError) throw fbError;
+
+  } catch (err: any) {
+    setError(err.message || "Nu am putut porni login-ul cu Facebook.");
+    setFbLoading(false);
+  }
+};
 
 
   // NOU: login cu Spotify — foloseste pagina dedicata /auth/callback/spotify
