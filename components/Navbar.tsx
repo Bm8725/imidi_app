@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 const links = [
   { href: "/", label: "Home", icon: "M2.25 12 11.204 3.045a1.125 1.125 0 0 1 1.592 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21.75h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21.75h2.25" },
@@ -18,6 +19,42 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [user, setUser] = useState<{ name?: string; email?: string } | null>(null);
+
+  useEffect(() => {
+    // Ia sesiunea curentă din Supabase la montare
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser({
+          name: session.user.user_metadata?.full_name || session.user.user_metadata?.name,
+          email: session.user.email,
+        });
+      } else {
+        setUser(null);
+      }
+    });
+
+    // Ascultă schimbările de auth (login/logout/refresh) în timp real
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          name: session.user.user_metadata?.full_name || session.user.user_metadata?.name,
+          email: session.user.email,
+        });
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -73,8 +110,29 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center space-x-4">
-            <Link href="/login" className="text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-950 transition-colors">Sign In</Link>
-            <Link href="/register" className="text-xs font-bold uppercase tracking-wider bg-blue-600 text-white px-5 py-2.5 rounded-full hover:bg-blue-700 transition-all transform active:scale-95 shadow-sm">Get Started</Link>
+            {user ? (
+              <div className="flex items-center space-x-3">
+                <Link href="/dashboard/cloud-db" className="flex items-center space-x-2 group">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold uppercase">
+                    {(user.name || user.email || "U").charAt(0)}
+                  </div>
+                  <span className="text-xs font-semibold text-slate-700 group-hover:text-slate-950 transition-colors max-w-[120px] truncate">
+                    {user.name || user.email}
+                  </span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-950 transition-colors"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link href="/login" className="text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-950 transition-colors">Sign In</Link>
+                <Link href="/register" className="text-xs font-bold uppercase tracking-wider bg-blue-600 text-white px-5 py-2.5 rounded-full hover:bg-blue-700 transition-all transform active:scale-95 shadow-sm">Get Started</Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -83,17 +141,26 @@ export default function Navbar() {
       <div className={`md:hidden fixed top-0 inset-x-0 h-14 bg-white/90 backdrop-blur-md border-b border-slate-200 z-50 flex items-center px-5 justify-between transition-transform duration-300 ${isVisible ? "translate-y-0" : "-translate-y-full"}`}>
         <Link href="/" onClick={() => setIsMenuOpen(false)} className="text-lg font-black tracking-tight text-slate-950">iMIDI<span className="text-blue-600">.</span></Link>
         
-        {/* HAMBURGER CU LINII FINE DOAR PENTRU ACCOUNT OVERLAY */}
+        {/* HAMBURGER / AVATAR DISCRET DACĂ E LOGAT */}
         <button 
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 text-slate-600 hover:text-slate-900 focus:outline-none transition-colors"
           aria-label="Toggle Account Menu"
         >
-          <div className="w-5 h-4 flex flex-col justify-between items-center relative">
-            <span className={`w-5 h-0.5 bg-current rounded-full transition-all duration-300 origin-left ${isMenuOpen ? "rotate-45 translate-x-0.5" : ""}`} />
-            <span className={`w-5 h-0.5 bg-current rounded-full transition-all duration-200 ${isMenuOpen ? "opacity-0" : ""}`} />
-            <span className={`w-5 h-0.5 bg-current rounded-full transition-all duration-300 origin-left ${isMenuOpen ? "-rotate-45 translate-x-0.5" : ""}`} />
-          </div>
+          {user ? (
+            <div className="relative w-6 h-6">
+              <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-bold uppercase">
+                {(user.name || user.email || "U").charAt(0)}
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
+            </div>
+          ) : (
+            <div className="w-5 h-4 flex flex-col justify-between items-center relative">
+              <span className={`w-5 h-0.5 bg-current rounded-full transition-all duration-300 origin-left ${isMenuOpen ? "rotate-45 translate-x-0.5" : ""}`} />
+              <span className={`w-5 h-0.5 bg-current rounded-full transition-all duration-200 ${isMenuOpen ? "opacity-0" : ""}`} />
+              <span className={`w-5 h-0.5 bg-current rounded-full transition-all duration-300 origin-left ${isMenuOpen ? "-rotate-45 translate-x-0.5" : ""}`} />
+            </div>
+          )}
         </button>
       </div>
 
@@ -108,27 +175,59 @@ export default function Navbar() {
         </div>
 
         <div className="flex flex-col space-y-6 w-full max-w-sm mx-auto">
-          <div className="text-center space-y-1">
-            <h2 className="text-2xl font-black tracking-tight text-slate-950">Welcome Back<span className="text-blue-600">.</span></h2>
-            <p className="text-xs font-medium text-slate-500">Access your cloud  space</p>
-          </div>
+          {user ? (
+            <>
+              <div className="flex flex-col items-center space-y-3 text-center">
+                <div className="w-14 h-14 rounded-full bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center text-lg font-bold uppercase">
+                  {(user.name || user.email || "U").charAt(0)}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">{user.name || user.email}</p>
+                  {user.name && <p className="text-[11px] text-slate-400">{user.email}</p>}
+                </div>
+              </div>
 
-          <div className="flex flex-col space-y-3">
-            <Link 
-              href="/login" 
-              onClick={() => setIsMenuOpen(false)} 
-              className="w-full text-center py-3.5 rounded-full text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] transition-all"
-            >
-              Sign In
-            </Link>
-            <Link 
-              href="/register" 
-              onClick={() => setIsMenuOpen(false)} 
-              className="w-full text-center py-3.5 rounded-full text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98] transition-all shadow-sm"
-            >
-              Get Started
-            </Link>
-          </div>
+              <div className="flex flex-col space-y-3">
+                <Link 
+                  href="/dashboard/cloud-db" 
+                  onClick={() => setIsMenuOpen(false)} 
+                  className="w-full text-center py-3.5 rounded-full text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-[0.98] transition-all"
+                >
+                  mySpace
+                </Link>
+                <button
+                  onClick={() => { handleLogout(); setIsMenuOpen(false); }}
+                  className="w-full text-center py-3 rounded-full text-xs font-medium text-slate-400 hover:text-slate-700 transition-colors"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-black tracking-tight text-slate-950">Welcome Back<span className="text-blue-600">.</span></h2>
+                <p className="text-xs font-medium text-slate-500">Access your cloud  space</p>
+              </div>
+
+              <div className="flex flex-col space-y-3">
+                <Link 
+                  href="/login" 
+                  onClick={() => setIsMenuOpen(false)} 
+                  className="w-full text-center py-3.5 rounded-full text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] transition-all"
+                >
+                  Sign In
+                </Link>
+                <Link 
+                  href="/register" 
+                  onClick={() => setIsMenuOpen(false)} 
+                  className="w-full text-center py-3.5 rounded-full text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98] transition-all shadow-sm"
+                >
+                  Get Started
+                </Link>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="absolute bottom-24 left-6 right-6 text-center">
@@ -138,7 +237,7 @@ export default function Navbar() {
 
       {/* MOBILE NAV: BARA DE JOS RĂMÂNE PENTRU NAVIGARE CU SOLID FILL LA ACTIVE */}
       <nav className={`md:hidden fixed bottom-5 inset-x-4 z-50 transition-all duration-300 ${isVisible ? "translate-y-0 opacity-100" : "translate-y-28 opacity-0 pointer-events-none"}`}>
-        <div className="bg-white/95 border border-slate-200 backdrop-blur-xl rounded-2xl p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.04)]">
+        <div className="bg-white/95 border border-slate-300 backdrop-blur-xl rounded-2xl p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
           <div className="flex items-center justify-between relative">
             {links.map((l) => {
               const cur = pathname === l.href;
@@ -150,7 +249,7 @@ export default function Navbar() {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {/* ICONIȚA CU SOLID FILL LA ACTIVE */}
-                  <div className={`p-2 rounded-xl transition-all duration-200 ${cur ? 'text-blue-600 bg-blue-50/60 scale-105' : 'text-slate-400 hover:text-slate-900'}`}>
+                  <div className={`p-2 rounded-xl transition-all duration-200 ${cur ? 'text-blue-600 bg-blue-50/60 scale-105' : 'text-slate-700 hover:text-slate-950'}`}>
                     <svg 
                       viewBox="0 0 24 24" 
                       strokeWidth={cur ? "1.5" : "2.5"} 
@@ -162,7 +261,7 @@ export default function Navbar() {
                     </svg>
                   </div>
                   
-                  <span className={`text-[8px] font-semibold uppercase tracking-wider mt-1 transition-colors duration-200 ${cur ? 'text-blue-600 font-bold' : 'text-slate-400'}`}>
+                  <span className={`text-[8px] font-semibold uppercase tracking-wider mt-1 transition-colors duration-200 ${cur ? 'text-blue-600 font-bold' : 'text-slate-600'}`}>
                     {l.label === "Market" ? "Market" : l.label}
                   </span>
 
