@@ -122,32 +122,23 @@ export default function SocialPostsPage() {
     setResultError("");
 
     try {
-      // 1. Luăm sesiunea curentă din browser
+      // 1. Preluăm sesiunea curentă activă din browser
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error("Sesiunea ta a expirat. Te rugăm să te reautentifici.");
       }
 
-      const userFbToken = session.provider_token; // Token-ul tău de utilizator Facebook
+      // 2. Extragem token-ul de Facebook pe care Supabase îl ține în sesiune
+      const userFbToken = session.provider_token;
 
       if (!userFbToken) {
-        throw new Error("Lipsesc datele Facebook. Deconectează-te și loghează-te din nou cu Facebook pe imidi.co.uk.");
+        throw new Error(
+          "Lipsesc datele Facebook din sesiune. Deconectează-te și loghează-te din nou cu Facebook pe imidi.co.uk."
+        );
       }
 
-      // 2. Întrebăm Meta ce PAGINI administrezi cu acest cont
-      const metaPagesRes = await fetch(`https://facebook.com{userFbToken}`);
-      const metaPagesData = await metaPagesRes.json();
-
-      if (!metaPagesRes.ok || !metaPagesData.data || metaPagesData.data.length === 0) {
-        throw new Error("Nu am găsit nicio Pagină de Facebook (Business/Brand) administrată de acest cont. Creează o pagină pe Facebook pentru a putea posta.");
-      }
-
-      // 3. Luăm automt prima pagină găsită în contul tău
-      const primaryPage = metaPagesData.data[0];
-      const pageId = primaryPage.id;
-      const pageAccessToken = primaryPage.access_token; // <-- Acesta este token-ul corect de pagină!
-
-      // 4. Trimitem datele PAGINII către backend, nu ale profilului personal
+      // 3. Trimitem token-urile direct către backend-ul tău Next.js
+      // Backend-ul va citi Facebook-ul, va completa rubricile din DB și va posta automat.
       const res = await fetch("/api/posts/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -155,8 +146,8 @@ export default function SocialPostsPage() {
           message,
           imageUrl: imageUrl || undefined,
           scheduledPublishTime,
-          fbPageId: pageId, 
-          fbPageAccessToken: pageAccessToken
+          supabaseToken: session.access_token, // Trimis pentru validarea securizată a userului
+          userFbToken: userFbToken,            // Trimis pentru umplerea automată a rubricilor Meta
         }),
       });
 
@@ -165,8 +156,8 @@ export default function SocialPostsPage() {
 
       setResultMsg(
         scheduleMode === "later"
-          ? `Postare programată cu succes pe pagina "${primaryPage.name}".`
-          : `Postare publicată acum pe pagina "${primaryPage.name}".`
+          ? `Postare programată cu succes pe pagina "${data.pageName}".`
+          : `Postare publicată acum pe pagina "${data.pageName}".`
       );
     } catch (err: any) {
       setResultError(err.message || "Eroare necunoscută.");
