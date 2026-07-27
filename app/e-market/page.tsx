@@ -146,6 +146,8 @@ useEffect(() => {
   };
 }, []);
 
+
+
 useEffect(() => {
   // Citim ID-ul din URL dacă utilizatorul a venit de pe un link de share
   const queryParams = new URLSearchParams(window.location.search);
