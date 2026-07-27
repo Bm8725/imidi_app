@@ -12,7 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { publishFacebookPost } from "@/lib/meta-fb";
+import { publishFacebookPost } from "@/lib/meta";
 
 export async function POST(req: NextRequest) {
   try {
