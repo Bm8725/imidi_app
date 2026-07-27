@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import NotificationBell from "@/components/NotificationBell";
 import { supabase } from "@/lib/supabase";
 import { buildPostMessage, getListingImage, Listing } from "@/lib/postMessageBuilder";
-
 
 export default function SocialPostsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
@@ -27,18 +27,21 @@ export default function SocialPostsPage() {
   const [resultMsg, setResultMsg] = useState("");
   const [resultError, setResultError] = useState("");
 
-  // Verificare obligatorie: fără identitate Facebook legată, nu se poate posta.
+  // Verificare obligatorie: fără pagină Facebook conectată, nu se poate posta.
   useEffect(() => {
     (async () => {
       setCheckingFbAuth(true);
       try {
-        const { data: { user }, error: userErr } = await supabase.auth.getUser();
-        if (userErr || !user) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
           setFacebookConnected(false);
           return;
         }
-        const fbIdentity = user.identities?.find((identity) => identity.provider === "facebook");
-        setFacebookConnected(!!fbIdentity);
+        const res = await fetch("/api/meta/status", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const data = await res.json();
+        setFacebookConnected(!!data.connected);
       } finally {
         setCheckingFbAuth(false);
       }
@@ -123,42 +126,46 @@ export default function SocialPostsPage() {
     setResultError("");
 
     try {
-      // 1. Preluăm sesiunea curentă activă din browser
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("Sesiunea ta a expirat. Te rugăm să te reautentifici.");
-      }
+      if (!session) throw new Error("Sesiune expirată, te rugăm să te reloghezi.");
 
-      // 2. Extragem token-ul de Facebook pe care Supabase îl ține în sesiune
-      const userFbToken = session.provider_token;
-
-      if (!userFbToken) {
-        throw new Error(
-          "Lipsesc datele Facebook din sesiune. Deconectează-te și loghează-te din nou cu Facebook pe imidi.co.uk."
-        );
-      }
-
-      // 3. Trimitem token-urile direct către backend-ul tău Next.js
-      // Backend-ul va citi Facebook-ul, va completa rubricile din DB și va posta automat.
-      const res = await fetch("/api/posts/publish", {
+      const res = await fetch("/api/post/publish", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           message,
           imageUrl: imageUrl || undefined,
           scheduledPublishTime,
-          supabaseToken: session.access_token, // Trimis pentru validarea securizată a userului
-          userFbToken: userFbToken,            // Trimis pentru umplerea automată a rubricilor Meta
         }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Eroare la publicare.");
 
+      // Salvăm postarea în DB ca să putem urmări statusul ei (pentru notificări).
+      const fbPostId = data.facebook?.id || data.facebook?.post_id;
+
+      if (fbPostId) {
+        await supabase.from("scheduled_posts").insert({
+          user_id: session.user.id,
+          listing_id: selected?.id || null,
+          fb_post_id: fbPostId,
+          message,
+          image_url: imageUrl || null,
+          scheduled_publish_time:
+            scheduleMode === "later" ? new Date(scheduledLocal).toISOString() : null,
+          status: scheduleMode === "later" ? "scheduled" : "published",
+          published_at: scheduleMode === "now" ? new Date().toISOString() : null,
+        });
+      }
+
       setResultMsg(
         scheduleMode === "later"
-          ? `Postare programată cu succes pe pagina "${data.pageName}".`
-          : `Postare publicată acum pe pagina "${data.pageName}".`
+          ? "Postare programată cu succes pe Facebook. Vei primi o notificare când se publică efectiv."
+          : "Postare publicată acum pe Facebook."
       );
     } catch (err: any) {
       setResultError(err.message || "Eroare necunoscută.");
@@ -167,12 +174,14 @@ export default function SocialPostsPage() {
     }
   };
 
-
   return (
     <div className="bg-[#FAF9F6] text-zinc-900 min-h-screen flex flex-col antialiased">
       <Navbar />
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 pt-24 pb-12">
-        <h1 className="text-xl md:text-2xl font-bold tracking-tight mb-1">Postări Facebook</h1>
+        <div className="flex items-center justify-between mb-1">
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">Postări Facebook</h1>
+          <NotificationBell />
+        </div>
         <p className="text-xs text-zinc-400 mb-6">
           Alege o listare activă — mesajul și linkul de promovare se completează automat.
         </p>

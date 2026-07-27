@@ -1,7 +1,10 @@
 /**
  * lib/meta.ts
- * Funcții dinamice pentru publicare pe Facebook Page prin Meta Graph API,
- * folosind credențialele extrase din Supabase.
+ * Funcții pentru publicare pe Facebook Page prin Meta Graph API.
+ *
+ * IMPORTANT: pageId + pageAccessToken se dau ca parametri, NU mai vin
+ * din .env — fiecare user are propria pagină Facebook conectată automat
+ * la login (vezi meta_connections + /api/meta/connect).
  */
 
 const GRAPH_API_VERSION = process.env.META_GRAPH_API_VERSION || "v21.0";
@@ -36,15 +39,18 @@ async function callGraphApi(
 /* ------------------------------------------------------------------ */
 
 interface PublishFacebookPostParams {
-  pageId: string;                 // Transmis dinamic din Supabase
-  pageAccessToken: string;        // Transmis dinamic din Supabase
+  pageId: string;
+  pageAccessToken: string;
   message: string;
-  imageUrl?: string;              
-  scheduledPublishTime?: number;  
+  imageUrl?: string;
+  scheduledPublishTime?: number; // unix timestamp (secunde), min. 10 min în viitor
 }
 
 /**
- * Publică (sau programează) o postare text/imagine pe pagina de Facebook a unui user specific.
+ * Publică (sau programează) o postare text/imagine pe pagina de Facebook.
+ * - Fără imageUrl -> postare text simplă pe /feed
+ * - Cu imageUrl   -> postare cu imagine pe /photos (caption = message)
+ * - Cu scheduledPublishTime -> Facebook programează nativ postarea
  */
 export async function publishFacebookPost({
   pageId,
@@ -75,9 +81,12 @@ export async function publishFacebookPost({
 }
 
 /**
- * Șterge o postare folosind token-ul utilizatorului.
+ * Șterge o postare programată sau publicată de pe pagină.
  */
-export async function deleteFacebookPost(postId: string, pageAccessToken: string): Promise<MetaApiResponse> {
+export async function deleteFacebookPost(
+  postId: string,
+  pageAccessToken: string
+): Promise<MetaApiResponse> {
   return callGraphApi(`/${postId}`, "POST", {
     access_token: pageAccessToken,
     method: "delete",
@@ -85,9 +94,12 @@ export async function deleteFacebookPost(postId: string, pageAccessToken: string
 }
 
 /**
- * Listează postările programate pentru o pagină specifică.
+ * Listează postările programate (nepublicate încă) ale paginii.
  */
-export async function getScheduledFacebookPosts(pageId: string, pageAccessToken: string): Promise<MetaApiResponse> {
+export async function getScheduledFacebookPosts(
+  pageId: string,
+  pageAccessToken: string
+): Promise<MetaApiResponse> {
   return callGraphApi(`/${pageId}/scheduled_posts`, "GET", {
     access_token: pageAccessToken,
     fields: "id,message,scheduled_publish_time,created_time",

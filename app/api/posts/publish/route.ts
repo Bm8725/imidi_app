@@ -1,216 +1,75 @@
 /**
- * app/api/posts/publish/route.ts
+ * app/api/post/publish/route.ts
+ *
+ * Endpoint pentru publicare/programare postări pe Facebook.
+ * Ia automat page_id + page_access_token din meta_connections,
+ * pe baza userului autentificat — nimic hardcodat în .env.
+ *
+ * Header: Authorization: Bearer <supabase session access_token>
+ * Body: { message, imageUrl?, scheduledPublishTime? }
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { publishFacebookPost } from "@/lib/meta";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-
-    const {
-      message,
-      imageUrl,
-      scheduledPublishTime,
-      supabaseToken,
-      userFbToken,
-    } = body;
-
-    if (!supabaseToken || !userFbToken) {
-      return NextResponse.json(
-        {
-          error:
-            "Sesiune Facebook sau Supabase lipsă. Reconectează contul.",
-        },
-        { status: 401 }
-      );
+    const authHeader = req.headers.get("authorization");
+    const accessToken = authHeader?.replace("Bearer ", "");
+    if (!accessToken) {
+      return NextResponse.json({ error: "Neautentificat." }, { status: 401 });
     }
 
-    if (!message || !message.trim()) {
-      return NextResponse.json(
-        {
-          error: "Mesajul este obligatoriu.",
-        },
-        { status: 400 }
-      );
+    const { data: { user }, error: userErr } = await supabaseAdmin.auth.getUser(accessToken);
+    if (userErr || !user) {
+      return NextResponse.json({ error: "Sesiune invalidă." }, { status: 401 });
     }
 
-
-    // ==============================
-    // SUPABASE USER AUTH
-    // ==============================
-
-    const supabase = createClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${supabaseToken}`,
-          },
-        },
-      }
-    );
-
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-
-    if (authError || !user) {
-      return NextResponse.json(
-        {
-          error: "Utilizator neautorizat.",
-        },
-        { status: 401 }
-      );
-    }
-
-
-
-    // ==============================
-    // GET FACEBOOK PAGE TOKEN
-    // ==============================
-
-    const metaPagesRes = await fetch(
-      "https://graph.facebook.com/v23.0/me/accounts",
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${userFbToken}`,
-        },
-      }
-    );
-
-
-    const metaPagesData = await metaPagesRes.json();
-
-
-    if (!metaPagesRes.ok) {
-      console.error(
-        "META PAGE ERROR:",
-        metaPagesData
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            metaPagesData?.error?.message ||
-            "Facebook nu a returnat paginile.",
-        },
-        { status: 400 }
-      );
-    }
-
-
-
-    if (
-      !metaPagesData.data ||
-      metaPagesData.data.length === 0
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Nu există pagini Facebook asociate sau lipsesc permisiunile.",
-        },
-        { status: 400 }
-      );
-    }
-
-
-
-    const page = metaPagesData.data[0];
-
-
-    const pageId = page.id;
-    const pageName = page.name;
-    const pageAccessToken = page.access_token;
-
-
-
-    // ==============================
-    // SAVE CONNECTION
-    // ==============================
-
-
-    const { error: saveError } = await supabase
+    const { data: connection, error: connErr } = await supabaseAdmin
       .from("user_meta_connections")
-      .upsert(
-        {
-          user_id: user.id,
-          fb_page_id: pageId,
-          fb_page_name: pageName,
-          fb_page_access_token: pageAccessToken,
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: "user_id",
-        }
-      );
+      .select("fb_page_id, fb_page_access_token")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-
-    if (saveError) {
-      console.error(
-        "SUPABASE SAVE ERROR:",
-        saveError
+    if (connErr) throw connErr;
+    if (!connection) {
+      return NextResponse.json(
+        { error: "Contul Facebook nu este conectat. Conectează-l mai întâi." },
+        { status: 400 }
       );
     }
 
+    const body = await req.json();
+    const { message, imageUrl, scheduledPublishTime } = body;
 
+    if (!message) {
+      return NextResponse.json({ error: "Câmpul 'message' este obligatoriu." }, { status: 400 });
+    }
 
-    // ==============================
-    // PUBLISH FACEBOOK POST
-    // ==============================
-
+    if (scheduledPublishTime) {
+      const minTime = Math.floor(Date.now() / 1000) + 10 * 60;
+      if (scheduledPublishTime < minTime) {
+        return NextResponse.json(
+          { error: "scheduledPublishTime trebuie să fie cu minim 10 minute în viitor." },
+          { status: 400 }
+        );
+      }
+    }
 
     const result = await publishFacebookPost({
-      pageId,
-      pageAccessToken,
+      pageId: connection.fb_page_id,
+      pageAccessToken: connection.fb_page_access_token,
       message,
       imageUrl,
       scheduledPublishTime,
     });
 
-
-
+    return NextResponse.json({ facebook: result }, { status: 200 });
+  } catch (err: any) {
     return NextResponse.json(
-      {
-        success: true,
-        pageName,
-        facebook: result,
-      },
-      {
-        status: 200,
-      }
-    );
-
-
-
-  } catch (error: any) {
-
-    console.error(
-      "PUBLISH ERROR:",
-      error
-    );
-
-
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error?.message ||
-          "Eroare necunoscută la publicare.",
-      },
-      {
-        status: 500,
-      }
+      { error: err.message || "Eroare necunoscută la publicare" },
+      { status: 500 }
     );
   }
 }
