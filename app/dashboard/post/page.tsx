@@ -122,12 +122,21 @@ export default function SocialPostsPage() {
     setResultError("");
 
     try {
-      // --- EXTRAGERE TOKEN SESIUNE DIN CLIENTUL SUPABASE ---
+      // 1. Luăm sesiunea curentă direct din browser (unde datele sunt complete)
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error("Sesiunea ta a expirat. Te rugăm să te reautentifici.");
       }
 
+      // 2. Extragem token-ul de Facebook pe care Supabase îl pune la dispoziție pe frontend
+      const fbToken = session.provider_token; // <-- Aici ține Supabase token-ul de Facebook în browser!
+      const fbUserId = session.user?.user_metadata?.provider_id; // <-- ID-ul tău de Facebook
+
+      if (!fbToken) {
+        throw new Error("Lipsesc datele Facebook din sesiune. Deconectează-te și loghează-te din nou cu Facebook.");
+      }
+
+      // 3. Trimitem totul direct către backend
       const res = await fetch("/api/posts/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -135,7 +144,9 @@ export default function SocialPostsPage() {
           message,
           imageUrl: imageUrl || undefined,
           scheduledPublishTime,
-          supabaseToken: session.access_token, // <-- Injectat direct în JSON
+          // Trimitem datele Meta direct din frontend
+          fbPageId: fbUserId, 
+          fbPageAccessToken: fbToken
         }),
       });
 
@@ -153,6 +164,7 @@ export default function SocialPostsPage() {
       setPublishing(false);
     }
   };
+
 
 
   return (
