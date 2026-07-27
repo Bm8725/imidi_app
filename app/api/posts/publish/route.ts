@@ -12,11 +12,13 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    // Preluăm parametrii noi trimiși de frontend-ul tău actualizat
     const { message, imageUrl, scheduledPublishTime, supabaseToken, userFbToken } = body;
 
+    // Sincronizăm validarea cu datele primite
     if (!supabaseToken || !userFbToken) {
       return NextResponse.json(
-        { error: "Sesiune Facebook sau Supabase lipsă. Te rugăm să te reautentifici." },
+        { error: "Sesiune Facebook sau Supabase lipsă. Te rugăm să reîmprospătezi pagina imidi.co.uk." },
         { status: 401 }
       );
     }
@@ -35,11 +37,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Utilizator neautorizat." }, { status: 401 });
     }
 
-    // 2. Încercăm să citim datele din tabelul tău (dacă există)
     let pageId = "";
     let pageAccessToken = "";
     let pageName = "";
 
+    // 2. Încercăm să citim datele din tabelul tău în Supabase
     const { data: metaData } = await supabase
       .from("user_meta_connections")
       .select("fb_page_id, fb_page_access_token, fb_page_name")
@@ -84,7 +86,7 @@ export async function POST(req: NextRequest) {
       pageName = metaData.fb_page_name || "Pagina ta";
     }
 
-    // 4. Trimitem postarea dinamic
+    // 4. Trimitem postarea dinamic prin Meta Graph API
     const result = await publishFacebookPost({
       pageId: pageId,
       pageAccessToken: pageAccessToken,
