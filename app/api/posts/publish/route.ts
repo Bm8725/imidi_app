@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     if (!metaData?.fb_page_access_token || !metaData?.fb_page_id) {
       
       // ✅ REPARAT: Folosim exclusiv endpoint-ul oficial Meta Graph API pentru dezvoltatori
-      const metaPagesRes = await fetch(`https://facebook.com{userFbToken}`);
+      const metaPagesRes = await fetch(`https://facebook.com${userFbToken}`);
       const metaPagesData = await metaPagesRes.json();
 
       if (!metaPagesRes.ok || !metaPagesData.data || metaPagesData.data.length === 0) {
