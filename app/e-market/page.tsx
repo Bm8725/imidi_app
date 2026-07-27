@@ -619,96 +619,126 @@ useEffect(() => {
           )}
         </div>
 
-        <div className="max-w-6xl mx-auto px-6 mt-6">
-          <form onSubmit={runSearch} className="flex gap-2">
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Cauta dupa titlu sau descriere..."
-              className="flex-1 h-10 bg-white border border-black/10 rounded-full px-4 text-xs outline-none focus:border-[#B4592F]/50 text-[#1C1A16]"
-            />
-            <button
-              type="submit"
-              className="h-10 px-5 bg-[#1C1A16] text-white text-xs rounded-full cursor-pointer hover:bg-[#33302A] transition-colors"
-            >
-              Cauta
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className={
-                showAdvanced
-                  ? "h-10 px-4 text-xs rounded-full border bg-[#1C1A16] text-white border-[#1C1A16] transition-colors"
-                  : "h-10 px-4 text-xs rounded-full border bg-white text-[#1C1A16] border-black/10 transition-colors"
-              }
-            >
-              Filtre
-            </button>
-          </form>
+       <div className="max-w-6xl mx-auto px-6 mt-6">
+  <form onSubmit={runSearch} className="flex gap-2">
+    <div className="flex-1 relative group">
+      {/* Iconiță de lupă discretă în interiorul inputului */}
+      <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 group-focus-within:text-[#B4592F] transition-colors pointer-events-none">
+        <svg viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" className="w-4 h-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.603 10.601Z" />
+        </svg>
+      </span>
+      <input
+        type="text"
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        placeholder="Cauta dupa titlu sau descriere..."
+        className="w-full h-11 bg-white border border-black/10 rounded-full pl-11 pr-4 text-xs outline-none focus:border-[#B4592F]/50 text-[#1C1A16] shadow-sm hover:border-black/20 focus:shadow-md transition-all"
+      />
+    </div>
 
-          {showAdvanced && (
-            <div className="mt-3 bg-white border border-black/5 rounded-2xl p-4 flex flex-wrap gap-3 items-end">
-              <div>
-                <label className="block text-[9px] font-mono uppercase text-[#9A907C] mb-1">
-                  Pret minim
-                </label>
-                <input
-                  type="number"
-                  value={priceMin}
-                  onChange={(e) => setPriceMin(e.target.value)}
-                  placeholder="0"
-                  className="w-24 h-9 bg-[#F7F6F3] border border-black/10 rounded-lg px-2 text-xs outline-none focus:border-[#B4592F]/50"
-                />
-              </div>
-              <div>
-                <label className="block text-[9px] font-mono uppercase text-[#9A907C] mb-1">
-                  Pret maxim
-                </label>
-                <input
-                  type="number"
-                  value={priceMax}
-                  onChange={(e) => setPriceMax(e.target.value)}
-                  placeholder="9999"
-                  className="w-24 h-9 bg-[#F7F6F3] border border-black/10 rounded-lg px-2 text-xs outline-none focus:border-[#B4592F]/50"
-                />
-              </div>
-              <div>
-                <label className="block text-[9px] font-mono uppercase text-[#9A907C] mb-1">
-                  Tara
-                </label>
-                <input
-                  type="text"
-                  value={countryFilter}
-                  onChange={(e) => setCountryFilter(e.target.value)}
-                  placeholder="ex: Romania"
-                  className="w-32 h-9 bg-[#F7F6F3] border border-black/10 rounded-lg px-2 text-xs outline-none focus:border-[#B4592F]/50"
-                />
-              </div>
-              <div>
-                <label className="block text-[9px] font-mono uppercase text-[#9A907C] mb-1">
-                  Sorteaza
-                </label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="h-9 bg-[#F7F6F3] border border-black/10 rounded-lg px-2 text-xs outline-none focus:border-[#B4592F]/50"
-                >
-                  <option value="newest">Cele mai noi</option>
-                  <option value="price_asc">Pret crescator</option>
-                  <option value="price_desc">Pret descrescator</option>
-                </select>
-              </div>
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="h-9 px-3 text-[10px] font-mono text-[#9A907C] hover:text-[#1C1A16] cursor-pointer"
-              >
-                Reseteaza filtrele
-              </button>
-            </div>
-          )}
+    <button
+      type="submit"
+      className="h-11 px-6 bg-[#1C1A16] text-white text-xs font-semibold rounded-full cursor-pointer hover:bg-[#33302A] active:scale-[0.98] shadow-sm transition-all flex items-center gap-1.5"
+    >
+      Cauta
+    </button>
+
+    <button
+      type="button"
+      onClick={() => setShowAdvanced(!showAdvanced)}
+      className={
+        showAdvanced
+          ? "h-11 px-5 text-xs font-semibold rounded-full border bg-[#1C1A16] text-white border-[#1C1A16] active:scale-[0.98] transition-all flex items-center gap-1.5"
+          : "h-11 px-5 text-xs font-semibold rounded-full border bg-white text-[#1C1A16] border-black/10 hover:bg-slate-50 hover:border-black/20 active:scale-[0.98] transition-all flex items-center gap-1.5 shadow-sm"
+      }
+    >
+      {/* Iconiță pentru filtre */}
+      <svg viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" className="w-3.5 h-3.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+      </svg>
+      Filtre
+    </button>
+  </form>
+
+  {showAdvanced && (
+    /* Adăugat o tranziție de fade-in discretă și umbră mai fină pentru panou */
+    <div className="mt-3 bg-white border border-black/5 rounded-2xl p-5 flex flex-wrap gap-4 items-end shadow-md animate-in fade-in slide-in-from-top-2 duration-200">
+      <div className="flex-1 min-w-[100px]">
+        <label className="block text-[9px] font-mono uppercase tracking-wider text-[#9A907C] mb-1.5">
+          Pret minim
+        </label>
+        <div className="relative">
+          <input
+            type="number"
+            value={priceMin}
+            onChange={(e) => setPriceMin(e.target.value)}
+            placeholder="0"
+            className="w-full h-10 bg-[#F7F6F3] border border-black/5 rounded-xl pl-3 pr-7 text-xs outline-none focus:bg-white focus:border-[#B4592F]/50 transition-all"
+          />
+          <span className="absolute inset-y-0 right-3 flex items-center text-[10px] font-semibold text-slate-400">$</span>
         </div>
+      </div>
+
+      <div className="flex-1 min-w-[100px]">
+        <label className="block text-[9px] font-mono uppercase tracking-wider text-[#9A907C] mb-1.5">
+          Pret maxim
+        </label>
+        <div className="relative">
+          <input
+            type="number"
+            value={priceMax}
+            onChange={(e) => setPriceMax(e.target.value)}
+            placeholder="9999"
+            className="w-full h-10 bg-[#F7F6F3] border border-black/5 rounded-xl pl-3 pr-7 text-xs outline-none focus:bg-white focus:border-[#B4592F]/50 transition-all"
+          />
+          <span className="absolute inset-y-0 right-3 flex items-center text-[10px] font-semibold text-slate-400">$</span>
+        </div>
+      </div>
+
+      <div className="flex-[1.5] min-w-[140px]">
+        <label className="block text-[9px] font-mono uppercase tracking-wider text-[#9A907C] mb-1.5">
+          Tara
+        </label>
+        <input
+          type="text"
+          value={countryFilter}
+          onChange={(e) => setCountryFilter(e.target.value)}
+          placeholder="ex: Romania"
+          className="w-full h-10 bg-[#F7F6F3] border border-black/5 rounded-xl px-3 text-xs outline-none focus:bg-white focus:border-[#B4592F]/50 transition-all"
+        />
+      </div>
+
+      <div className="flex-[1.5] min-w-[140px]">
+        <label className="block text-[9px] font-mono uppercase tracking-wider text-[#9A907C] mb-1.5">
+          Sorteaza
+        </label>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as any)}
+          className="w-full h-10 bg-[#F7F6F3] border border-black/5 rounded-xl px-3 text-xs outline-none focus:bg-white focus:border-[#B4592F]/50 transition-all cursor-pointer appearance-none"
+        >
+          <option value="newest">Cele mai noi</option>
+          <option value="price_asc">Pret crescator</option>
+          <option value="price_desc">Pret descrescator</option>
+        </select>
+      </div>
+
+      <button
+        type="button"
+        onClick={resetFilters}
+        className="h-10 px-4 text-[10px] font-mono text-[#9A907C] hover:text-rose-500 rounded-xl hover:bg-rose-50 transition-all cursor-pointer flex items-center gap-1 shrink-0"
+      >
+        {/* Iconiță X pentru resetare filtru */}
+        <svg viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" className="w-3 h-3">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+        </svg>
+        Reseteaza
+      </button>
+    </div>
+  )}
+</div>
+
 
         <div className="max-w-6xl mx-auto px-6 mt-4 flex gap-2">
           {(["all", "instrument", "preset"] as const).map((f) => (
