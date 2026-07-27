@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { initNotifications, markAllNotificationsRead, type AppNotification } from "@/lib/notifications";
 
 const links = [
   { href: "/", label: "Home", icon: "M2.25 12 11.204 3.045a1.125 1.125 0 0 1 1.592 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21.75h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21.75h2.25" },
@@ -20,6 +21,22 @@ export default function Navbar() {
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [user, setUser] = useState<{ name?: string; email?: string } | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    const cleanup = initNotifications(setNotifications);
+    return cleanup;
+  }, []);
+
+  const handleOpenNotifications = () => {
+    const next = !isNotifOpen;
+    setIsNotifOpen(next);
+    if (next && unreadCount > 0) {
+      setNotifications(markAllNotificationsRead());
+    }
+  };
 
   useEffect(() => {
     // Ia sesiunea curentă din Supabase la montare
@@ -119,6 +136,49 @@ export default function Navbar() {
               </svg>
               Publish
             </Link>
+            {user && (
+              <div className="relative">
+                <button
+                  onClick={handleOpenNotifications}
+                  aria-label="Notificări"
+                  className="relative p-2 text-slate-500 hover:text-slate-950 hover:bg-slate-100 rounded-full transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" fill="none" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#FF5CA1]" />
+                  )}
+                </button>
+
+                {isNotifOpen && (
+                  <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50">
+                    {notifications.length === 0 ? (
+                      <p className="px-4 py-6 text-center text-xs text-slate-400">Nicio notificare încă.</p>
+                    ) : (
+                      notifications.map((n) => (
+                        <Link
+                          key={n.id + n.createdAt}
+                          href={n.href || "#"}
+                          onClick={() => setIsNotifOpen(false)}
+                          className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
+                        >
+                          {n.image ? (
+                            <img src={n.image} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-slate-800 truncate">{n.title}</p>
+                            <p className="text-[11px] text-slate-500 truncate">{n.message}</p>
+                          </div>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {user ? (
               <div className="flex items-center space-x-3">
                 <Link href="/dashboard/cloud-db" className="flex items-center space-x-2 group">
@@ -160,6 +220,50 @@ export default function Navbar() {
             </svg>
             Publish
           </Link>
+
+          {user && (
+            <div className="relative">
+              <button
+                onClick={handleOpenNotifications}
+                aria-label="Notificări"
+                className="relative p-2 text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                <svg viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" fill="none" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                </svg>
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#FF5CA1]" />
+                )}
+              </button>
+
+              {isNotifOpen && (
+                <div className="absolute right-0 mt-2 w-72 max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50">
+                  {notifications.length === 0 ? (
+                    <p className="px-4 py-6 text-center text-xs text-slate-400">Nicio notificare încă.</p>
+                  ) : (
+                    notifications.map((n) => (
+                      <Link
+                        key={n.id + n.createdAt}
+                        href={n.href || "#"}
+                        onClick={() => setIsNotifOpen(false)}
+                        className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
+                      >
+                        {n.image ? (
+                          <img src={n.image} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-800 truncate">{n.title}</p>
+                          <p className="text-[11px] text-slate-500 truncate">{n.message}</p>
+                        </div>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* HAMBURGER / CONT DISCRET DACĂ E LOGAT */}
           <button 
