@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { isPromoted } from "@/lib/promotion"; // NOU: helper de promovare
+import { listenToNewListings } from "@/lib/notify";
 
 
 interface Listing {
@@ -119,6 +120,31 @@ const generateWithAI = async () => {
   }
 };
 
+
+
+useEffect(() => {
+  // Pornim ascultătorul din Supabase
+  const channel = listenToNewListings();
+
+  // Funcția care se execută când evenimentul global se declanșează
+  const handleNewListing = (e: Event) => {
+    const listing = (e as CustomEvent).detail;
+    
+    // În loc de fetchListings, forțăm o reîmprospătare curată a datelor prin URL sau window
+    window.location.reload(); 
+    
+    // Alerta vizuală
+    alert(`🔥 Anunț Nou: ${listing.title} la doar €${listing.price}!`);
+  };
+
+  // Ascultăm evenimentul global pe fereastră
+  window.addEventListener("imidi-new-listing", handleNewListing);
+
+  return () => {
+    if (channel) supabase.removeChannel(channel);
+    window.removeEventListener("imidi-new-listing", handleNewListing);
+  };
+}, []);
 
 useEffect(() => {
   // Citim ID-ul din URL dacă utilizatorul a venit de pe un link de share

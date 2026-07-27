@@ -90,7 +90,7 @@ export default async function ListingPage({ params }: Props) {
         />
       )}
 
-      {/* Componenta ta originală de client, complet neatinsă */}
+      {/*  */}
       <RedirectToListing id={id} />
     </>
   );
