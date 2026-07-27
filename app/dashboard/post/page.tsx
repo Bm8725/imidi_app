@@ -122,6 +122,12 @@ export default function SocialPostsPage() {
     setResultError("");
 
     try {
+      // --- EXTRAGERE TOKEN SESIUNE DIN CLIENTUL SUPABASE ---
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Sesiunea ta a expirat. Te rugăm să te reautentifici.");
+      }
+
       const res = await fetch("/api/posts/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -129,6 +135,7 @@ export default function SocialPostsPage() {
           message,
           imageUrl: imageUrl || undefined,
           scheduledPublishTime,
+          supabaseToken: session.access_token, // <-- Injectat direct în JSON
         }),
       });
 
@@ -146,6 +153,7 @@ export default function SocialPostsPage() {
       setPublishing(false);
     }
   };
+
 
   return (
     <div className="bg-[#FAF9F6] text-zinc-900 min-h-screen flex flex-col antialiased">
