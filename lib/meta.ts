@@ -1,18 +1,11 @@
 /**
  * lib/meta.ts
- * Funcții pentru publicare pe Facebook Page prin Meta Graph API.
- *
- * Env vars necesare (.env.local):
- * META_PAGE_ID=...
- * META_PAGE_ACCESS_TOKEN=...        (long-lived page token)
- * META_GRAPH_API_VERSION=v21.0      (sau ultima versiune stabilă)
+ * Funcții dinamice pentru publicare pe Facebook Page prin Meta Graph API,
+ * folosind credențialele extrase din Supabase.
  */
 
 const GRAPH_API_VERSION = process.env.META_GRAPH_API_VERSION || "v21.0";
 const BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
-
-const PAGE_ID = process.env.META_PAGE_ID!;
-const PAGE_ACCESS_TOKEN = process.env.META_PAGE_ACCESS_TOKEN!;
 
 type MetaApiResponse = Record<string, any>;
 
@@ -43,28 +36,27 @@ async function callGraphApi(
 /* ------------------------------------------------------------------ */
 
 interface PublishFacebookPostParams {
+  pageId: string;                 // Transmis dinamic din Supabase
+  pageAccessToken: string;        // Transmis dinamic din Supabase
   message: string;
-  imageUrl?: string;              // opțional - postare cu imagine unică
-  scheduledPublishTime?: number;  // unix timestamp (secunde), min. 10 min în viitor
+  imageUrl?: string;              
+  scheduledPublishTime?: number;  
 }
 
 /**
- * Publică (sau programează) o postare text/imagine pe pagina de Facebook.
- * - Fără imageUrl -> postare text simplă pe /feed
- * - Cu imageUrl   -> postare cu imagine pe /photos (caption = message)
- * - Cu scheduledPublishTime -> Facebook programează nativ postarea
- *   (published=false + scheduled_publish_time), fără să fie nevoie
- *   de cron propriu pentru Facebook.
+ * Publică (sau programează) o postare text/imagine pe pagina de Facebook a unui user specific.
  */
 export async function publishFacebookPost({
+  pageId,
+  pageAccessToken,
   message,
   imageUrl,
   scheduledPublishTime,
 }: PublishFacebookPostParams): Promise<MetaApiResponse> {
-  const endpoint = imageUrl ? `/${PAGE_ID}/photos` : `/${PAGE_ID}/feed`;
+  const endpoint = imageUrl ? `/${pageId}/photos` : `/${pageId}/feed`;
 
   const params: Record<string, string> = {
-    access_token: PAGE_ACCESS_TOKEN,
+    access_token: pageAccessToken,
   };
 
   if (imageUrl) {
@@ -83,22 +75,21 @@ export async function publishFacebookPost({
 }
 
 /**
- * Șterge o postare programată sau publicată de pe pagină.
+ * Șterge o postare folosind token-ul utilizatorului.
  */
-export async function deleteFacebookPost(postId: string): Promise<MetaApiResponse> {
+export async function deleteFacebookPost(postId: string, pageAccessToken: string): Promise<MetaApiResponse> {
   return callGraphApi(`/${postId}`, "POST", {
-    access_token: PAGE_ACCESS_TOKEN,
-    method: "delete", // Graph API acceptă override prin acest param pt DELETE via POST
+    access_token: pageAccessToken,
+    method: "delete",
   });
 }
 
 /**
- * Listează postările programate (nepublicate încă) ale paginii.
- * Util pentru a le afișa într-un calendar/dashboard.
+ * Listează postările programate pentru o pagină specifică.
  */
-export async function getScheduledFacebookPosts(): Promise<MetaApiResponse> {
-  return callGraphApi(`/${PAGE_ID}/scheduled_posts`, "GET", {
-    access_token: PAGE_ACCESS_TOKEN,
+export async function getScheduledFacebookPosts(pageId: string, pageAccessToken: string): Promise<MetaApiResponse> {
+  return callGraphApi(`/${pageId}/scheduled_posts`, "GET", {
+    access_token: pageAccessToken,
     fields: "id,message,scheduled_publish_time,created_time",
   });
 }
