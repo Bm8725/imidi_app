@@ -154,7 +154,7 @@ export default function Navbar() {
                 {isNotifOpen && (
                   <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50">
                     {notifications.length === 0 ? (
-                      <p className="px-4 py-6 text-center text-xs text-slate-400">Nicio notificare încă.</p>
+                      <p className="px-4 py-6 text-center text-xs text-slate-400">No notifications yet.</p>
                     ) : (
                       notifications.map((n) => (
                         <Link
@@ -211,59 +211,54 @@ export default function Navbar() {
         <Link href="/" onClick={() => setIsMenuOpen(false)} className="text-lg font-black tracking-tight text-slate-950">iMIDI<span className="text-blue-600">.</span></Link>
         
         <div className="flex items-center gap-2">
-          <Link
-            href="/e-market"
-            className="flex items-center gap-1 text-slate-700 border border-slate-200 text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-full active:scale-95 hover:border-slate-950 hover:text-slate-950 transition-all"
-          >
-            <svg viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" className="w-3 h-3">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Publish
-          </Link>
 
-          {user && (
-            <div className="relative">
-              <button
-                onClick={handleOpenNotifications}
-                aria-label="Notificări"
-                className="relative p-2 text-slate-600 hover:text-slate-900 transition-colors"
-              >
-                <svg viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" fill="none" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-                </svg>
-                {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#FF5CA1]" />
-                )}
-              </button>
 
-              {isNotifOpen && (
-                <div className="absolute right-0 mt-2 w-72 max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50">
-                  {notifications.length === 0 ? (
-                    <p className="px-4 py-6 text-center text-xs text-slate-400">Nicio notificare încă.</p>
-                  ) : (
-                    notifications.map((n) => (
-                      <Link
-                        key={n.id + n.createdAt}
-                        href={n.href || "#"}
-                        onClick={() => setIsNotifOpen(false)}
-                        className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
-                      >
-                        {n.image ? (
-                          <img src={n.image} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
-                        ) : (
-                          <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0" />
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 truncate">{n.title}</p>
-                          <p className="text-[11px] text-slate-500 truncate">{n.message}</p>
-                        </div>
-                      </Link>
-                    ))
-                  )}
-                </div>
+{user && (
+  <div className="relative">
+    <button
+      onClick={handleOpenNotifications}
+      aria-label="Notificări"
+      className="relative p-2 text-slate-600 hover:text-slate-900 transition-colors"
+    >
+      <svg viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" fill="none" className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+      </svg>
+      {unreadCount > 0 && (
+        <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#FF5CA1]" />
+      )}
+    </button>
+
+    {isNotifOpen && (
+      /* Modificat poziționarea și lățimea pentru ecranele de mobil ca să nu mai iasă în stânga ecranului */
+      <div className="absolute -right-12 sm:right-0 mt-2 w-[calc(100vw-2.5rem)] sm:w-80 max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50">
+        {notifications.length === 0 ? (
+          <p className="px-4 py-6 text-center text-xs text-slate-400">No notifications yet.</p>
+        ) : (
+          notifications.map((n) => (
+            <Link
+              key={n.id + n.createdAt}
+              href={n.href || "#"}
+              onClick={() => setIsNotifOpen(false)}
+              className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
+            >
+              {n.image ? (
+                <img src={n.image} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+              ) : (
+                <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0" />
               )}
-            </div>
-          )}
+              {/* Adăugat flex-1 ca textul să ocupe tot spațiul rămas, protejând imaginea din stânga */}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-800 truncate">{n.title}</p>
+                <p className="text-[11px] text-slate-500 truncate">{n.message}</p>
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
+    )}
+  </div>
+)}
+
 
           {/* HAMBURGER / CONT DISCRET DACĂ E LOGAT */}
           <button 
