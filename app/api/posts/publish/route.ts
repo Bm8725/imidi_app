@@ -3,17 +3,20 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { publishFacebookPost } from "@/lib/meta";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { message, imageUrl, scheduledPublishTime, fbPageId, fbPageAccessToken } = body;
+    const { message, imageUrl, scheduledPublishTime, supabaseToken, userFbToken } = body;
 
-    // Validăm că am primit datele de Facebook din frontend
-    if (!fbPageId || !fbPageAccessToken) {
+    if (!supabaseToken || !userFbToken) {
       return NextResponse.json(
-        { error: "Datele de autentificare Facebook lipsesc din cerere." },
+        { error: "Sesiune Facebook sau Supabase lipsă. Te rugăm să te reautentifici." },
         { status: 401 }
       );
     }
@@ -22,16 +25,75 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Câmpul 'message' este obligatoriu." }, { status: 400 });
     }
 
-    // Publicăm postarea direct prin Meta API folosind datele primite curat din frontend
+    // 1. Inițializăm clientul Supabase cu drepturile utilizatorului logat
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${supabaseToken}` } },
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Utilizator neautorizat." }, { status: 401 });
+    }
+
+    // 2. Încercăm să citim datele din tabelul tău (dacă există)
+    let pageId = "";
+    let pageAccessToken = "";
+    let pageName = "";
+
+    const { data: metaData } = await supabase
+      .from("user_meta_connections")
+      .select("fb_page_id, fb_page_access_token, fb_page_name")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    // 3. AUTOMATIZARE: Dacă rubrica este goală în DB, o umplem noi acum!
+    if (!metaData?.fb_page_access_token || !metaData?.fb_page_id) {
+      
+      // Întrebăm Meta ce pagini deține contul respectiv
+      const metaPagesRes = await fetch(`https://facebook.com{userFbToken}`);
+      const metaPagesData = await metaPagesRes.json();
+
+      if (!metaPagesRes.ok || !metaPagesData.data || metaPagesData.data.length === 0) {
+        return NextResponse.json(
+          { error: "Nu am găsit nicio Pagină de Facebook. Creează o pagină de brand pe Facebook mai întâi." },
+          { status: 400 }
+        );
+      }
+
+      // Luăm prima pagină returnată de Facebook
+      const primaryPage = metaPagesData.data[0];
+      pageId = primaryPage.id;
+      pageAccessToken = primaryPage.access_token;
+      pageName = primaryPage.name;
+
+      // SALVĂM ȘI UMPLEM RUBRICA ÎN SUPABASE AUTOMAT
+      await supabase
+        .from("user_meta_connections")
+        .upsert({
+          user_id: user.id,
+          fb_page_id: pageId,
+          fb_page_name: pageName,
+          fb_page_access_token: pageAccessToken,
+          updated_at: new Date().toISOString()
+        }, { onConflict: "user_id" });
+
+    } else {
+      // Dacă rubrica era deja plină, folosim datele existente din DB
+      pageId = metaData.fb_page_id;
+      pageAccessToken = metaData.fb_page_access_token;
+      pageName = metaData.fb_page_name || "Pagina ta";
+    }
+
+    // 4. Trimitem postarea dinamic
     const result = await publishFacebookPost({
-      pageId: fbPageId, 
-      pageAccessToken: fbPageAccessToken,
+      pageId: pageId,
+      pageAccessToken: pageAccessToken,
       message,
       imageUrl,
       scheduledPublishTime,
     });
 
-    return NextResponse.json({ facebook: result }, { status: 200 });
+    return NextResponse.json({ success: true, pageName, facebook: result }, { status: 200 });
 
   } catch (err: any) {
     return NextResponse.json(
