@@ -104,13 +104,13 @@ export default function Navbar() {
         }`}
       >
         <div className="absolute top-24 left-6 right-6 border-b border-slate-100 pb-2">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">iMIDI Gateway</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">iMIDI </p>
         </div>
 
         <div className="flex flex-col space-y-6 w-full max-w-sm mx-auto">
           <div className="text-center space-y-1">
             <h2 className="text-2xl font-black tracking-tight text-slate-950">Welcome Back<span className="text-blue-600">.</span></h2>
-            <p className="text-xs font-medium text-slate-500">Access your cloud studio space</p>
+            <p className="text-xs font-medium text-slate-500">Access your cloud  space</p>
           </div>
 
           <div className="flex flex-col space-y-3">
