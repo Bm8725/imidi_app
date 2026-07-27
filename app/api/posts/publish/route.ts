@@ -14,7 +14,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { message, imageUrl, scheduledPublishTime, supabaseToken } = body;
 
-    // 1. Verificăm prezența token-ului trimis de pe frontend
     if (!supabaseToken) {
       return NextResponse.json(
         { error: "Sesiune lipsă sau expirată. Te rugăm să te reautentifici." },
@@ -23,23 +22,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (!message) {
-      return NextResponse.json(
-        { error: "Câmpul 'message' este obligatoriu." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Câmpul 'message' este obligatoriu." }, { status: 400 });
     }
 
-    if (scheduledPublishTime) {
-      const minTime = Math.floor(Date.now() / 1000) + 10 * 60; // +10 minute
-      if (scheduledPublishTime < minTime) {
-        return NextResponse.json(
-          { error: "scheduledPublishTime trebuie să fie cu minim 10 minute în viitor." },
-          { status: 400 }
-        );
-      }
-    }
-
-    // 2. Inițializăm clientul Supabase folosind token-ul de sesiune al userului
+    // 1. Inițializăm clientul Supabase cu token-ul primit
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: {
@@ -48,40 +34,39 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // 3. Validăm utilizatorul pe serverele Supabase
+    // 2. Luăm datele complete ale utilizatorului logat
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json(
-        { error: "Utilizator neautorizat sau sesiune expirată." },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Utilizator neautorizat." }, { status: 401 });
     }
 
-    // 4. Extragem automat pagina de Facebook și token-ul ei din baza ta de date
-    // (Asigură-te că numele tabelei coincide cu ce ai configurat în Supabase)
-    const { data: metaData, error: dbError } = await supabase
-      .from("user_meta_connections")
-      .select("fb_page_id, fb_page_access_token")
-      .eq("user_id", user.id)
-      .single();
+    // 3. Extragem identitatea de Facebook pe care Supabase o are deja salvată nativ
+    const fbIdentity = user.identities?.find((id) => id.provider === "facebook");
+    
+    // ID-ul de utilizator Facebook și token-ul lui de acces oferit la login
+    const fbUserId = fbIdentity?.id; 
+    const fbUserToken = fbIdentity?.identity_data?.access_token;
 
-    if (dbError || !metaData?.fb_page_access_token || !metaData?.fb_page_id) {
+    if (!fbUserId || !fbUserToken) {
       return NextResponse.json(
-        { error: "Contul sau pagina de Facebook nu sunt configurate pe platformă." },
+        { error: "Nu am găsit un cont de Facebook conectat la profilul tău Supabase." },
         { status: 400 }
       );
     }
 
-    // 5. Publicăm postarea prin Meta API utilizând credențialele dinamice
+    // 4. Publicăm postarea folosind datele preluate nativ din logare
+    // NOTĂ: fbUserId este ID-ul de profil. Pentru pagini de brand, Meta recomandă Page ID, 
+    // dar poți posta direct pe profilul/pagina implicită legată prin acest token.
     const result = await publishFacebookPost({
-      pageId: metaData.fb_page_id,
-      pageAccessToken: metaData.fb_page_access_token,
+      pageId: fbUserId, 
+      pageAccessToken: fbUserToken,
       message,
       imageUrl,
       scheduledPublishTime,
     });
 
     return NextResponse.json({ facebook: result }, { status: 200 });
+
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "Eroare necunoscută la publicare" },
