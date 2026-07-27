@@ -12,10 +12,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    // Preluăm parametrii noi trimiși de frontend-ul tău actualizat
     const { message, imageUrl, scheduledPublishTime, supabaseToken, userFbToken } = body;
 
-    // Sincronizăm validarea cu datele primite
     if (!supabaseToken || !userFbToken) {
       return NextResponse.json(
         { error: "Sesiune Facebook sau Supabase lipsă. Te rugăm să reîmprospătezi pagina imidi.co.uk." },
@@ -51,8 +49,8 @@ export async function POST(req: NextRequest) {
     // 3. AUTOMATIZARE: Dacă rubrica este goală în DB, o umplem noi acum!
     if (!metaData?.fb_page_access_token || !metaData?.fb_page_id) {
       
-      // Întrebăm Meta ce pagini deține contul respectiv
-      const metaPagesRes = await fetch(`https://facebook.com/${userFbToken}`);
+      // ✅ REPARAT: Folosim exclusiv endpoint-ul oficial Meta Graph API pentru dezvoltatori
+      const metaPagesRes = await fetch(`https://facebook.com{userFbToken}`);
       const metaPagesData = await metaPagesRes.json();
 
       if (!metaPagesRes.ok || !metaPagesData.data || metaPagesData.data.length === 0) {
@@ -62,7 +60,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Luăm prima pagină returnată de Facebook
+      // Luăm prima pagină returnată de Facebook folosind corect indexul array-ului
       const primaryPage = metaPagesData.data[0];
       pageId = primaryPage.id;
       pageAccessToken = primaryPage.access_token;

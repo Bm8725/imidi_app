@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
 import { buildPostMessage, getListingImage, Listing } from "@/lib/postMessageBuilder";
 
+
 export default function SocialPostsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
