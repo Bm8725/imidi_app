@@ -1,6 +1,5 @@
 import { supabase } from "./supabase";
 
-// Definirea structurii unei notificări din aplicație
 export interface AppNotification {
   id: string;
   title: string;
@@ -11,23 +10,19 @@ export interface AppNotification {
   createdAt: string;
 }
 
-// O stare locală globală pentru a păstra notificările în memorie la mutări de pagini
 let globalNotifications: AppNotification[] = [];
 
 /**
  * Inițializează ascultarea notificărilor și încarcă datele inițiale.
- * @param setNotifications Callback-ul React din componentă pentru actualizarea stării interne.
  */
 export function initNotifications(setNotifications: (notifs: AppNotification[]) => void) {
-  // Funcție locală pentru a prelua datele din Supabase
   const fetchNotifications = async () => {
     const { data, error } = await supabase
-      .from("notifications") // Numele tabelei din baza ta de date Supabase
+      .from("notifications")
       .select("*")
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      // Mapăm câmpurile din baza de date la interfața AppNotification
       const mapped: AppNotification[] = data.map((item: any) => ({
         id: item.id,
         title: item.title,
@@ -45,20 +40,18 @@ export function initNotifications(setNotifications: (notifs: AppNotification[]) 
 
   fetchNotifications();
 
-  // Ascultare în timp real prin Supabase Realtime pentru inserări sau modificări noi
+  // Corectat eroarea de tip: am trecut tipul generic în .on() și am schimbat "scheme" în "schema"
   const channel = supabase
     .channel("realtime-notifications")
     .on(
-      "postgres_changes",
-      { event: "*", scheme: "public", table: "notifications" },
+      "postgres_changes" as any,
+      { event: "*", schema: "public", table: "notifications" },
       () => {
-        // Când se schimbă ceva în baza de date, refacem fetch-ul
         fetchNotifications();
       }
     )
     .subscribe();
 
-  // Returnăm o funcție de cleanup pe care useEffect-ul din Navbar o va executa la demontare
   return () => {
     supabase.removeChannel(channel);
   };
@@ -66,20 +59,18 @@ export function initNotifications(setNotifications: (notifs: AppNotification[]) 
 
 /**
  * Marchează instantaneu toate notificările curente ca fiind citite.
- * @returns Lista actualizată de notificări marcată local ca citită.
  */
 export function markAllNotificationsRead(): AppNotification[] {
-  // Actualizăm starea în memorie instant pentru un feedback UI rapid
   globalNotifications = globalNotifications.map((n) => ({ ...n, read: true }));
 
-  // Trimitem asincron cererea de update în Supabase
   supabase
     .from("notifications")
     .update({ read: true })
-    .eq("read", false) // Doar cele necitite
+    .eq("read", false)
     .then(({ error }) => {
-      if (error) console.error("Eroare la marcarea notificărilor ca citite:", error);
+      if (error) console.error("Eroare la marcarea ca citite:", error);
     });
 
   return globalNotifications;
 }
+
