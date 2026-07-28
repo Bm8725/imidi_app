@@ -15,7 +15,7 @@ export default function DownloadLinkPage() {
   // Stări pentru datele reale ale vânzătorului și ale fișierului
   const [sellerName, setSellerName] = useState("Verified iMIDI Seller");
   // NOU: Stare pentru numele conținutului/fișierului digital
-  const [contentName, setContentName] = useState("Digital Content link");
+  const [contentName, setContentName] = useState("Digital Content Package");
   const [fetchingSeller, setFetchingSeller] = useState(true);
 
   // Apelăm API-ul nostru de backend pentru a trage detaliile în siguranță
@@ -105,7 +105,8 @@ export default function DownloadLinkPage() {
           </h1>
           
           <p className="text-sm text-zinc-500 leading-relaxed pt-1">
-            This repository contains high-fidelity digital content protected by imidi.co.uk. Please enter your cryptographic access key below to pull the files.
+            This repository contains high-fidelity digital content protected by imidi.co.uk. Please enter your cryptographic access key below to pull the files. Can download one time 
+            after recept the code. 
           </p>
         </div>
 
