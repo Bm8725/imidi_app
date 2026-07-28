@@ -75,7 +75,7 @@ export default function DownloadLinkPage() {
       <header className="max-w-md w-full mx-auto flex items-center justify-between text-[11px] font-medium tracking-widest text-zinc-400 uppercase select-none">
         <span>iMIDI CLOUD infrastructure</span>
         <div className="flex items-center gap-1.5">
-          <span className="w-1 h-1 bg-emerald-500 rounded-full" />
+         
           
         </div>
       </header>
@@ -134,7 +134,7 @@ export default function DownloadLinkPage() {
                   required
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="Paste your token here"
+                  placeholder="Paste your code here"
                   autoFocus
                   className="w-full h-12 bg-zinc-50 border border-zinc-200/80 rounded-xl px-4 text-sm font-medium text-zinc-900 outline-none transition-all duration-200 focus:border-zinc-900 focus:bg-white placeholder:text-zinc-400 shadow-sm"
                 />
