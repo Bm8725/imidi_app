@@ -80,9 +80,10 @@ export default function HomePage() {
           </div>
 
           <div className="max-w-2xl mx-auto space-y-4 aw-hero-item" style={{ animationDelay: "0.15s" }}>
-            <p className="text-lg sm:text-xl md:text-2xl font-light text-[#B4B4BC] tracking-wide leading-relaxed px-1">
-              The standard for modern synth LIVE performance, based on audio samples (.wav) at high quality and low latency.
-            </p>
+<p className="text-lg sm:text-xl md:text-2xl font-light text-[#B4B4BC] tracking-wide leading-relaxed px-1">
+  The global digital standard for modern synth performance. Premium,  audio samples or presets delivered instantly anywhere in the world through the cloud e-market. 
+</p>
+
             <p className="aw-mono text-xs sm:text-sm text-[#7C7C86] tracking-widest uppercase">
               Powered by TS-CORE DSP & LIVE PERFORMANCE
             </p>
