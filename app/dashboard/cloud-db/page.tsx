@@ -36,7 +36,7 @@ export default function CloudWorkspacePage() {
   const [shareResultExpires, setShareResultExpires] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
   // NOU: pretul anuntului de pe Market legat de acest bank + comisionul iMIDI
-  const [shareListing, setShareListing] = useState<{ price: number; title: string } | null>(null);
+  const [shareListing, setShareListing] = useState<{ price: number; title: string; digitalLink: string | null } | null>(null);
   const COMMISSION_RATE = 0.1; // 10%
   // NOU: 2 moduri de generare — "simple" (fara pret) sau "priced" (pret+comision automat din anunt)
   const [shareMode, setShareMode] = useState<"simple" | "priced">("simple");
@@ -111,15 +111,15 @@ useEffect(() => {
         if (data) {
           // NOU: legam fiecare bank de anuntul lui de pe Market (daca exista), o singura data aici
           const bankIds = data.map((b: any) => b.id);
-          let listingsByBank: Record<string, { id: string; price: number; title: string }> = {};
+          let listingsByBank: Record<string, { id: string; price: number; title: string; digitalLink: string | null }> = {};
           if (bankIds.length > 0) {
             const { data: listingsData } = await supabase
               .from("listings")
-              .select("id, price, title, bank_id")
+              .select("id, price, title, bank_id, digital_link")
               .in("bank_id", bankIds);
             if (listingsData) {
               listingsData.forEach((l: any) => {
-                listingsByBank[l.bank_id] = { id: l.id, price: Number(l.price), title: l.title };
+                listingsByBank[l.bank_id] = { id: l.id, price: Number(l.price), title: l.title, digitalLink: l.digital_link };
               });
             }
           }
@@ -273,7 +273,7 @@ useEffect(() => {
     setShareResultExpires("");
     setShareCopied(false);
     setShareListing(bank.listing || null); // legat deja la incarcarea paginii
-    setShareMode(bank.listing ? "priced" : "simple");
+    setShareMode(bank.listing?.digitalLink ? "priced" : "simple");
   };
 
   const closeShareModal = () => {
@@ -721,7 +721,8 @@ const runMarketAnalysis = async () => {
               <button onClick={closeShareModal} className="w-7 h-7 rounded-full bg-zinc-100 flex items-center justify-center text-xs">✕</button>
             </div>
 
-            {/* NOU: 2 optiuni la generare — link simplu, sau link cu pret+comision (automat, din anunt) */}
+            {/* NOU: 2 optiuni la generare — link simplu (folosit ca digital_link cand publici anuntul),
+                sau link cu pret+comision (nelimitat, dupa ce anuntul e live cu pret + digital content) */}
             <div className="flex gap-1 bg-zinc-100 p-1 rounded-lg">
               <button
                 type="button"
@@ -732,16 +733,16 @@ const runMarketAnalysis = async () => {
               </button>
               <button
                 type="button"
-                onClick={() => shareListing && setShareMode("priced")}
-                disabled={!shareListing}
-                title={!shareListing ? "Necesită un anunț publicat pe Market pentru acest fișier" : undefined}
+                onClick={() => shareListing?.digitalLink && setShareMode("priced")}
+                disabled={!shareListing?.digitalLink}
+                title={!shareListing?.digitalLink ? "Necesită un anunț publicat (cu preț și digital link) pentru acest fișier" : undefined}
                 className={`flex-1 h-8 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed ${shareMode === "priced" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"}`}
               >
                 Link cu comision
               </button>
             </div>
 
-            {shareMode === "priced" && shareListing ? (
+            {shareMode === "priced" && shareListing?.digitalLink ? (
               <div className="bg-zinc-50 border rounded-lg p-3 space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-zinc-500">Preț anunț</span>
@@ -758,9 +759,9 @@ const runMarketAnalysis = async () => {
               </div>
             ) : (
               <p className="text-[11px] text-zinc-400 bg-zinc-50 border rounded-lg p-3">
-                {shareListing
+                {shareListing?.digitalLink
                   ? "Link fără preț atașat — cumpărătorul primește fișierul, fără sumă/comision afișate."
-                  : "Fișierul nu are un anunț pe Market, deci prețul nu poate fi luat automat. Poți genera doar linkul simplu."}
+                  : "Folosește acest link ca digital content când publici anunțul pe Market. După ce anunțul e live (cu preț), poți genera oricâte linkuri „cu comision” pentru WhatsApp."}
               </p>
             )}
 
