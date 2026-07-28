@@ -83,7 +83,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-[#0D0E12] text-white">
         {children}
-        <WhatsAppWidget />
+        {/*<WhatsAppWidget />*/}
         <CookieBanner/>
           <MetaAuthListener />
         {/* Script nativ Next.js pentru înregistrarea silențioasă a sw.js în Production */}

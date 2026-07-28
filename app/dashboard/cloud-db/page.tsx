@@ -50,6 +50,7 @@ export default function CloudWorkspacePage() {
   const lim = 6;
   const [maxMb, setMaxMb] = useState(50); // NOU: nu mai e fix, vine din DB (vezi useEffect)
 
+const [analysisCriterion, setAnalysisCriterion] = useState<"volume" | "profit" | "interest">("volume");
 
 
     
