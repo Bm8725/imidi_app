@@ -35,10 +35,6 @@ export default function CloudWorkspacePage() {
   const [shareResultUrl, setShareResultUrl] = useState("");
   const [shareResultExpires, setShareResultExpires] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
-  // NOU: pretul anuntului de pe Market legat de acest bank + comisionul iMIDI
-  const [shareListing, setShareListing] = useState<{ price: number; title: string } | null>(null);
-  const [shareListingLoading, setShareListingLoading] = useState(false);
-  const COMMISSION_RATE = 0.1; // 10%
 
   // ---- AI analiza piata ----
   const [showMarketAnalysis, setShowMarketAnalysis] = useState(false);
@@ -248,46 +244,22 @@ useEffect(() => {
   };
 
   // ---- share link: deschide modalul pt un bank anume ----
-  const openShareModal = async (bank: any) => {
+  const openShareModal = (bank: any) => {
     setShareBank(bank);
     setShareCode("");
     setShareError("");
     setShareResultUrl("");
     setShareResultExpires("");
     setShareCopied(false);
-    setShareListing(null);
-
-    // NOU: cautam anuntul de pe Market legat de acest bank, ca sa afisam pretul si comisionul
-    setShareListingLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("listings")
-        .select("price, title")
-        .eq("bank_id", bank.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      if (data) setShareListing({ price: Number(data.price), title: data.title });
-    } catch {
-      // daca nu exista anunt publicat pe Market pentru acest bank, ramane null (fara eroare afisata)
-    } finally {
-      setShareListingLoading(false);
-    }
   };
 
   const closeShareModal = () => {
     setShareBank(null);
-    setShareListing(null);
   };
 
   const generateShareLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!shareBank) return;
-    if (!shareListing) {
-      setShareError("Acest fișier nu are un anunț activ pe Market. Publică-l întâi.");
-      return;
-    }
     if (shareCode.trim().length < 4) {
       setShareError("Codul trebuie sa aiba minim 4 caractere.");
       return;
@@ -725,63 +697,24 @@ const runMarketAnalysis = async () => {
               <button onClick={closeShareModal} className="w-7 h-7 rounded-full bg-zinc-100 flex items-center justify-center text-xs">✕</button>
             </div>
 
-            {/* NOU: pretul anuntului + comisionul iMIDI, daca exista un anunt publicat pe Market pt acest bank */}
-            {shareListingLoading ? (
-              <div className="h-16 bg-zinc-50 border rounded-lg animate-pulse" />
-            ) : shareListing ? (
-              <div className="bg-zinc-50 border rounded-lg p-3 space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-500">Preț anunț</span>
-                  <span className="font-bold text-zinc-900">{shareListing.price.toFixed(2)} lei</span>
-                </div>
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-zinc-400">Comision iMIDI ({(COMMISSION_RATE * 100).toFixed(0)}%)</span>
-                  <span className="text-red-500 font-medium">- {(shareListing.price * COMMISSION_RATE).toFixed(2)} lei</span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] border-t pt-1.5 mt-1.5">
-                  <span className="text-zinc-500 font-medium">Încasezi</span>
-                  <span className="text-emerald-600 font-bold">{(shareListing.price * (1 - COMMISSION_RATE)).toFixed(2)} lei</span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-[11px] text-zinc-400 bg-zinc-50 border rounded-lg p-3">
-                Acest fișier nu are un anunț publicat pe Market — linkul de mai jos e doar pentru livrare directă, fără preț/comision.
-              </p>
-            )}
-
             {!shareResultUrl ? (
-              shareListingLoading ? null : shareListing ? (
-                <form onSubmit={generateShareLink} className="space-y-3">
-                  <p className="text-[11px] text-zinc-500">
-                    Alege un cod pe care il trimiti separat cumparatorului (WhatsApp, chat etc.). Linkul functioneaza o singura data si expira in 15 zile.
-                  </p>
-                  <input
-                    type="text"
-                    value={shareCode}
-                    onChange={(e) => setShareCode(e.target.value)}
-                    placeholder="Codul tau (minim 4 caractere)"
-                    autoFocus
-                    className="w-full h-10 border rounded-lg px-3 text-xs outline-none focus:border-zinc-400"
-                  />
-                  {shareError && <p className="text-[11px] text-red-500">{shareError}</p>}
-                  <button type="submit" disabled={shareLoading} className="w-full h-10 bg-zinc-900 text-white text-xs font-semibold rounded-lg disabled:opacity-40">
-                    {shareLoading ? "Se genereaza..." : "Genereaza link"}
-                  </button>
-                </form>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-[11px] text-zinc-500">
-                    Poți genera linkul de vânzare doar pentru fișiere care au un anunț activ pe Market.
-                  </p>
-                  <Link
-                    href="/e-market"
-                    onClick={closeShareModal}
-                    className="block w-full text-center h-10 leading-10 bg-zinc-900 text-white text-xs font-semibold rounded-lg"
-                  >
-                    Publică un anunț
-                  </Link>
-                </div>
-              )
+              <form onSubmit={generateShareLink} className="space-y-3">
+                <p className="text-[11px] text-zinc-500">
+                  Alege un cod pe care il trimiti separat cumparatorului (WhatsApp, chat etc.). Linkul functioneaza o singura data si expira in 15 zile.
+                </p>
+                <input
+                  type="text"
+                  value={shareCode}
+                  onChange={(e) => setShareCode(e.target.value)}
+                  placeholder="Codul tau (minim 4 caractere)"
+                  autoFocus
+                  className="w-full h-10 border rounded-lg px-3 text-xs outline-none focus:border-zinc-400"
+                />
+                {shareError && <p className="text-[11px] text-red-500">{shareError}</p>}
+                <button type="submit" disabled={shareLoading} className="w-full h-10 bg-zinc-900 text-white text-xs font-semibold rounded-lg disabled:opacity-40">
+                  {shareLoading ? "Se genereaza..." : "Genereaza link"}
+                </button>
+              </form>
             ) : (
               <div className="space-y-3">
                 <div>
