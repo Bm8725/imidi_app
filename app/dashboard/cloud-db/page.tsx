@@ -376,20 +376,19 @@ const runMarketAnalysis = async () => {
   {/* PANOU PRINCIPAL (STÂNGA - 2 TREIMI): CONTROL VAULT */}
   <div className="lg:col-span-2 flex flex-col justify-between bg-[#0D0D0D] border border-zinc-800/80 p-6 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] min-h-[190px] relative overflow-hidden group">
     
-    {/* POZA DE PROFIL PE FUNDAL - SE RANDEAZĂ DOAR DACĂ EXISTĂ AVATAR */}
-    {user?.avatar && (
-      <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden">
-        <img 
-          src={user.avatar} 
-          alt="User Profile Background" 
-          className="w-full h-full object-cover opacity-20 blur-[2px] group-hover:scale-105 transition-transform duration-700 ease-out"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0D] via-[#0D0D0D]/85 to-transparent" />
-      </div>
-    )}
+    {/* POZA DE FUNDAL: AVATAR SAU IMPLICIT profile.jpg */}
+    <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden">
+      <img 
+        src={user?.avatar || "/profile.jpg"} 
+        alt="Vault Background" 
+        className="w-full h-full object-cover opacity-25 blur-[3px] group-hover:scale-105 transition-transform duration-700 ease-out"
+        onError={(e) => { e.currentTarget.src = "/profile.jpg"; }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0D] via-[#0D0D0D]/80 to-transparent" />
+    </div>
 
     {/* Glow decorativ subtil pe fundal */}
-    <div className="absolute -top-12 -left-12 w-32 h-32 bg-[#FF7A1A]/5 rounded-full blur-3xl pointer-events-none" />
+    <div className="absolute -top-12 -left-12 w-32 h-32 bg-[#FF7A1A]/5 rounded-full blur-3xl pointer-events-none z-0" />
     
     <div className="relative z-10 space-y-1">
       <h1 className="text-2xl font-black tracking-tight text-white">
@@ -478,10 +477,10 @@ const runMarketAnalysis = async () => {
       <div className="flex items-center gap-3">
         <div className="relative">
           <img 
-            src={user?.avatar || "/user.webp"} 
+            src={user?.avatar || "/profile.jpg"} 
             alt="User Avatar"
             className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-700 object-cover shadow-inner" 
-            onError={(e) => { e.currentTarget.src = "/user.webp"; }}
+            onError={(e) => { e.currentTarget.src = "/profile.jpg"; }}
           />
           <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#FF7A1A] border-2 border-[#0D0D0D]" />
         </div>
@@ -515,8 +514,8 @@ const runMarketAnalysis = async () => {
         <div 
           className={`h-full transition-all duration-700 ease-out shadow-[0_0_15px_rgba(255,122,26,0.3)] ${
             pct > 85 ? "bg-gradient-to-r from-red-600 to-red-400" : pct > 60 ? "bg-gradient-to-r from-amber-600 to-amber-400" : "bg-gradient-to-r from-[#FF7A1A] to-[#ffa566]"
-          }`} 
-          style={{ width: `${pct}%` }} 
+          }`}
+          style={{ width: `${pct}%` }}
         />
       </div>
     </div>
