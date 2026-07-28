@@ -10,45 +10,12 @@ function getSupabaseAdmin() {
   }
 
   return createClient(url, serviceKey, {
-    auth: { persistSession: false },
+    auth: {
+      persistSession: false,
+    },
   });
 }
 
-// ---- NOU: Metodă GET care extrage numele în siguranță de pe server ----
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const token = searchParams.get("token");
-
-    if (!token) return NextResponse.json({ seller_name: "Verified iMIDI Seller" });
-
-    const supabaseAdmin = getSupabaseAdmin();
-
-    // Rulăm o interogare sigură pe tabelul de share-uri din sistemul tău
-    // Încercăm întâi tabelul standard de linkuri create de RPC-ul tău
-    const { data: shareData } = await supabaseAdmin
-      .from("share_links") 
-      .select("user_id")
-      .eq("token", token)
-      .maybeSingle();
-
-    const userId = shareData?.user_id;
-
-    if (!userId) {
-      return NextResponse.json({ seller_name: "Verified iMIDI Seller" });
-    }
-
-    // Luăm numele din metadatele contului de Auth Supabase (Funcționează și pt Facebook/Spotify/Email)
-    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
-    const finalName = authUser?.user?.user_metadata?.full_name || authUser?.user?.email?.split("@")[0];
-
-    return NextResponse.json({ seller_name: finalName || "Verified iMIDI Seller" });
-  } catch (err) {
-    return NextResponse.json({ seller_name: "Verified iMIDI Seller" });
-  }
-}
-
-// ---- Funcția ta POST neschimbată ----
 export async function POST(req: NextRequest) {
   try {
     const { token, code } = await req.json();
@@ -71,6 +38,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Extragere sigură: verificăm dacă `data` este o listă (folosește data[0]) sau un obiect direct
     const resultData = Array.isArray(data) ? data[0] : data;
 
     if (!resultData || !resultData.storage_path || !resultData.filename) {
@@ -96,6 +64,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: signed.signedUrl, filename });
   } catch (err: any) {
     console.error("Eroare pe ruta de redeem:", err);
+    
+    // Trimitem mesajul real de eroare în response pentru a vedea exact problema pe ecran fără să mai cauți în loguri
     return NextResponse.json(
       { error: err?.message || "Eroare interna server." }, 
       { status: 500 }
