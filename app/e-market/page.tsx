@@ -671,22 +671,24 @@ useEffect(() => {
         </div>
 
        <div className="max-w-6xl mx-auto px-6 mt-6">
-<div className="w-full space-y-3">
-  {/* Selector de Mod: Clasic vs AI Smith (Separare completă prin searchMode) */}
-  <div className="flex gap-4 px-2 select-none">
+
+
+<div className="w-full space-y-3 px-1 sm:px-0">
+  {/* Selector de Mod: Clasic vs AI Smith (Responsive & Touch-friendly pe mobil) */}
+  <div className="flex gap-4 px-1 select-none border-b border-zinc-100 pb-1">
     <button
       type="button"
       onClick={() => setSearchMode("classic")}
-      className={`text-[10px] font-bold uppercase tracking-wider transition-colors pb-0.5 ${
+      className={`text-[10px] font-bold uppercase tracking-wider transition-colors pb-1.5 ${
         searchMode === "classic" ? "text-[#1C1A16] border-b-2 border-[#1C1A16]" : "text-zinc-400 hover:text-zinc-600"
       }`}
     >
-      Căutare Clasic
+      Clasical search
     </button>
     <button
       type="button"
       onClick={() => setSearchMode("ai")}
-      className={`text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1 pb-0.5 ${
+      className={`text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1 pb-1.5 ${
         searchMode === "ai" ? "text-pink-600 border-b-2 border-pink-500" : "text-zinc-400 hover:text-pink-500"
       }`}
     >
@@ -694,32 +696,29 @@ useEffect(() => {
     </button>
   </div>
 
-  {/* Formularul Unic Integrat Dinamic */}
+  {/* Formularul Unic - RECONSTRUIT RESPONSIVE (flex-col pe mobil, flex-row pe desktop) */}
   <form 
     onSubmit={searchMode === "ai" ? handleAiSmithSearch : runSearch} 
-    className="flex gap-2"
+    className="flex flex-col md:flex-row gap-2.5 w-full"
   >
-    <div className="flex-1 relative group">
-      {/* Iconiță dinamică în interiorul inputului (Lupă pentru Clasic, Sparkles pentru AI) */}
+    {/* Input-ul ocupă lungimea maximă pe orice ecran */}
+    <div className="flex-1 relative group w-full">
       <span className={`absolute inset-y-0 left-4 flex items-center transition-colors pointer-events-none ${
         searchMode === "ai" 
           ? "text-pink-400 group-focus-within:text-pink-500" 
           : "text-slate-400 group-focus-within:text-[#B4592F]"
       }`}>
         {searchMode === "ai" ? (
-          /* Iconiță AI Sparkles */
-          <svg viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" className={`w-4 h-4 ${aiSearchLoading ? "animate-spin" : ""}`}>
+          <svg viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" fill="none" className={`w-4 h-4 ${aiSearchLoading ? "animate-spin" : ""}`}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 21l-.813-5.096L3 15.187l5.096-.813L9 9.313l.813 5.061 5.096.813-5.096.813ZM19.071 9.142 18.5 12l-.571-2.858L15 8.571l2.929-.571L18.5 5l.571 2.929L22 8.571l-2.929.571ZM11.44 3.44 11 4.5l-.44-1.06L9.5 3l1.06-.44L11 1.5l.44 1.06L12.5 3l-1.06.44Z" />
           </svg>
         ) : (
-          /* Iconiță Lupă Clasic */
-          <svg viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" className="w-4 h-4">
+          <svg viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" fill="none" className="w-4 h-4">
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.603 10.601Z" />
           </svg>
         )}
       </span>
 
-      {/* Input Unic Inteligent */}
       <input
         type="text"
         value={searchMode === "ai" ? aiSearchInput : searchInput}
@@ -732,66 +731,63 @@ useEffect(() => {
         }}
         placeholder={
           searchMode === "ai" 
-            ? "Tell Smith what do you serach.. (ex: preset tehno sub 30€, services, audio..)" 
+            ? "Spune-i lui AI Smith ce cauți... (ex: preset tehno sub 30€)" 
             : "Cauta dupa titlu sau descriere..."
         }
-        className={`w-full h-11 bg-white border rounded-full pl-11 pr-16 text-xs outline-none shadow-sm transition-all ${
+        className={`w-full h-12 bg-white border rounded-2xl pl-11 pr-4 text-xs outline-none shadow-sm transition-all ${
           searchMode === "ai" 
             ? "border-pink-200 focus:border-pink-500/50 hover:border-pink-300 text-zinc-900 font-medium" 
             : "border-black/10 focus:border-[#B4592F]/50 text-[#1C1A16] hover:border-black/20"
         } focus:shadow-md`}
       />
-
-      {/* Versiunea asistentului atașată în interior când modul AI este activ */}
-      {searchMode === "ai" && (
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-bold tracking-widest text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded-md uppercase select-none">
-         
-        </span>
-      )}
     </div>
 
-    {/* Buton de Căutare Dinamic (Negru pentru Clasic, Roz Gradient pentru AI) */}
-    <button
-      type="submit"
-      disabled={searchMode === "ai" && aiSearchLoading}
-      className={`h-11 px-6 text-xs font-semibold rounded-full cursor-pointer active:scale-[0.98] shadow-sm transition-all flex items-center gap-1.5 whitespace-nowrap ${
-        searchMode === "ai" 
-          ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:opacity-95 shadow-pink-500/10 hover:shadow-md hover:shadow-pink-500/20" 
-          : "bg-[#1C1A16] text-white hover:bg-[#33302A]"
-      }`}
-    >
-      {searchMode === "ai" && (
-        <svg viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" fill="none" className={`w-3.5 h-3.5 ${aiSearchLoading ? "animate-spin" : ""}`}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 21l-.813-5.096L3 15.187l5.096-.813L9 9.313l.813 5.061 5.061-.813L9 9.313l.813 5.061 5.096.813-5.096.813ZM19.071 9.142 18.5 12l-.571-2.858L15 8.571l2.929-.571L18.5 5l.571 2.929L22 8.571l-2.929.571ZM11.44 3.44 11 4.5l-.44-1.06L9.5 3l1.06-.44L11 1.5l.44 1.06L12.5 3l-1.06.44Z" />
-        </svg>
-      )}
-      <span>{searchMode === "ai" ? (aiSearchLoading ? "Searching..." : "Search with Smith") : "Search"}</span>
-    </button>
+    {/* Zonă de butoane: pe mobil stau 50/50 pe un singur rând compact */}
+    <div className="flex gap-2 w-full md:w-auto">
+      {/* Buton Căutare / Smith */}
+      <button
+        type="submit"
+        disabled={searchMode === "ai" && aiSearchLoading}
+        className={`flex-1 md:flex-none h-12 px-6 text-xs font-semibold rounded-2xl cursor-pointer active:scale-[0.98] shadow-sm transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+          searchMode === "ai" 
+            ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:opacity-95 shadow-pink-500/10 hover:shadow-md hover:shadow-pink-500/20" 
+            : "bg-[#1C1A16] text-white hover:bg-[#33302A]"
+        }`}
+      >
+        {searchMode === "ai" && (
+          <svg viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" fill="none" className={`w-3.5 h-3.5 ${aiSearchLoading ? "animate-spin" : ""}`}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 21l-.813-5.096L3 15.187l5.096-.813L9 9.313l.813 5.061 5.061-.813L9 9.313l.813 5.061 5.096.813-5.096.813ZM19.071 9.142 18.5 12l-.571-2.858L15 8.571l2.929-.571L18.5 5l.571 2.929L22 8.571l-2.929.571ZM11.44 3.44 11 4.5l-.44-1.06L9.5 3l1.06-.44L11 1.5l.44 1.06L12.5 3l-1.06.44Z" />
+          </svg>
+        )}
+        <span>{searchMode === "ai" ? (aiSearchLoading ? "Searching..." : "Smith search") : "Search"}</span>
+      </button>
 
-    {/* Butonul tău de Filtre Avansate */}
-    <button
-      type="button"
-      onClick={() => setShowAdvanced(!showAdvanced)}
-      className={
-        showAdvanced
-          ? "h-11 px-5 text-xs font-semibold rounded-full border bg-[#1C1A16] text-white border-[#1C1A16] active:scale-[0.98] transition-all flex items-center gap-1.5"
-          : "h-11 px-5 text-xs font-semibold rounded-full border bg-white text-[#1C1A16] border-black/10 hover:bg-slate-50 hover:border-black/20 active:scale-[0.98] transition-all flex items-center gap-1.5 shadow-sm"
-      }
-    >
-      <svg viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" fill="none" className="w-3.5 h-3.5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
-      </svg>
-      Filtre
-    </button>
+      {/* Buton Filtre Avansate */}
+      <button
+        type="button"
+        onClick={() => setShowAdvanced(!showAdvanced)}
+        className={
+          showAdvanced
+            ? "flex-1 md:flex-none h-12 px-5 text-xs font-semibold rounded-xl border bg-[#1C1A16] text-white border-[#1C1A16] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5"
+            : "flex-1 md:flex-none h-12 px-5 text-xs font-semibold rounded-xl border bg-white text-[#1C1A16] border-black/10 hover:bg-slate-50 hover:border-black/20 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 shadow-sm"
+        }
+      >
+        <svg viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" fill="none" className="w-3.5 h-3.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+        </svg>
+        Filtre
+      </button>
+    </div>
   </form>
 
-  {/* Feedback text discret sub bară */}
+  {/* Text de feedback AI */}
   {searchMode === "ai" && aiSearchFeedback && (
-    <p className="text-[10px] text-pink-600/90 font-medium px-4 tracking-wide flex items-center gap-1 animate-fade-in">
+    <p className="text-[10px] text-pink-600/90 font-medium px-2 tracking-wide flex items-center gap-1 animate-fade-in">
       <span className="inline-block animate-pulse">✦</span> {aiSearchFeedback}
     </p>
   )}
 </div>
+
 
 
   {showAdvanced && (
