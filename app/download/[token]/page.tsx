@@ -63,112 +63,120 @@ export default function DownloadLinkPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4 relative overflow-hidden font-sans select-none selection:bg-teal-500/30 selection:text-teal-200">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-4 relative overflow-hidden font-sans select-none selection:bg-cyan-500/30 selection:text-cyan-200">
       
-      {/* Background neon abstract de atmosferă cinematică */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-teal-500/10 rounded-full blur-[80px] pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-[300px] h-[300px] bg-orange-500/5 rounded-full blur-[100px] pointer-events-none" />
+      {/* BACKGROUND ELEMENT 1: Rețea digitală / Linii de Server abstracte */}
+      <div className="absolute inset-0 bg-[radial-gradient(#ffffff03_1px,transparent_1px)] [background-size:16px_16px] opacity-70 pointer-events-none" />
+      
+      {/* BACKGROUND ELEMENT 2: Nebuloasă Cloud dinamică (Albastru Cyber & Cyan) */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-br from-cyan-600/10 via-blue-600/5 to-transparent rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* Cardul principal cu efect premium de sticlă fumurie (Glassmorphism) */}
-      <div className="bg-zinc-900/60 border border-white/5 backdrop-blur-xl rounded-3xl p-7 max-w-sm w-full shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-zinc-800/50 text-center relative z-10 transition-all duration-300">
+      {/* CARDUL PRINCIPAL: Structură stilizată ca un Nod de Server Cloud ultra-modern */}
+      <div className="bg-zinc-900/40 border border-white/5 backdrop-blur-2xl rounded-3xl p-8 max-w-sm w-full shadow-[0_30px_70px_rgba(0,0,0,0.7)] text-center relative z-10 transition-all duration-500 hover:border-cyan-500/20 group">
         
-        {/* Glow discret pe rama de sus */}
-        <div className="absolute top-0 inset-x-10 h-px bg-gradient-to-r from-transparent via-teal-500/30 to-transparent" />
+        {/* Neon Glow Bar (Semnalizează conexiunea activă la rețeaua cloud) */}
+        <div className="absolute top-0 inset-x-16 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
 
-        {/* SECȚIUNE: AVATAR & NUME VÂNZĂTOR */}
-        <div className="flex flex-col items-center space-y-3 border-b border-white/[0.04] pb-5">
-          <div className="relative group">
-            {/* Efect de inel cu animație fină de rotație */}
-            <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-teal-500/30 via-orange-500/20 to-transparent blur-[2px]" />
-            <div className="w-14 h-14 bg-zinc-900 border border-white/10 rounded-full flex items-center justify-center font-bold text-white tracking-wider text-base uppercase relative z-10 shadow-inner">
-              {sellerName.substring(0, 2)}
+        {/* SECȚIUNEA 1: CLOUD ROUTING & OPERATOR */}
+        <div className="flex flex-col items-center space-y-3 border-b border-white/[0.05] pb-5">
+          
+          {/* Pictogramă Cloud Tech cu unde de rețea */}
+          <div className="relative">
+            {/* Cercuri concentrice animate (Pulse de rețea) */}
+            <span className="absolute inset-0 rounded-full border border-cyan-500/20 animate-ping opacity-40 pointer-events-none scale-110" />
+            
+            <div className="w-14 h-14 bg-zinc-950 border border-white/10 rounded-2xl flex items-center justify-center relative z-10 shadow-inner group-hover:border-cyan-500/30 transition-colors duration-300">
+              {/* Iconiță Cloud SVG minimalistă */}
+              <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7 text-cyan-400">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
+              </svg>
             </div>
-            {/* Indicator verde de securitate / online */}
-            <span className="absolute bottom-0 right-0 w-3 h-3 bg-teal-400 border-2 border-zinc-900 rounded-full z-20 shadow-lg animate-pulse" />
           </div>
 
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest block">SECURE ENCRYPTED TRANSFER</span>
-            <h2 className="text-sm font-semibold text-white tracking-wide">
-              {fetchingSeller ? (
-                <span className="text-zinc-500 inline-flex items-center gap-1 animate-pulse">Retrieving sender...</span>
-              ) : (
-                sellerName
-              )}
-            </h2>
+          <div className="space-y-1">
+            <span className="text-[9px] font-bold text-cyan-500 uppercase tracking-[0.25em] block">Cloud Storage Node</span>
+            <div className="flex items-center justify-center gap-1.5 bg-white/[0.02] border border-white/5 px-3 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_6px_#34d399]" />
+              <h2 className="text-xs font-medium text-zinc-300 tracking-wide">
+                {fetchingSeller ? "Resolving cluster..." : `Owner: ${sellerName}`}
+              </h2>
+            </div>
           </div>
         </div>
 
-        {/* SECȚIUNE: TEXTE DE TITLU */}
-        <div className="space-y-2 pt-2">
-          <h1 className="text-xl font-bold tracking-tight text-white bg-gradient-to-b from-white to-zinc-400 bg-clip-text text-transparent">
-            Decrypt & Download
+        {/* SECȚIUNEA 2: TITLURI DE SERVICIU */}
+        <div className="space-y-2 pt-4">
+          <h1 className="text-lg font-bold tracking-tight text-white uppercase tracking-wider">
+            Secure Digital Asset
           </h1>
-          <p className="text-xs text-zinc-400 leading-relaxed px-2">
-            Enter the unique crypto token key provided by the operator. Secure smart gateway by <span className="text-teal-400 font-medium">iMIDI Cloud</span>.
+          <p className="text-[11px] text-zinc-400 leading-relaxed px-1">
+            This cloud repository is encrypted. Please authenticate via your unique gateway token to pull the high-fidelity sound banks.
           </p>
         </div>
 
-        {/* SECȚIUNE: FORMULAR INTERACTIV SAU SUCCES */}
-        <div className="pt-2">
+        {/* SECȚIUNEA 3: INPUT DIGITALIZAT ȘI DECRIPTARE */}
+        <div className="pt-4">
           {done ? (
-            <div className="space-y-3 p-4 bg-teal-950/20 border border-teal-500/20 rounded-2xl animate-fade-in">
-              <div className="w-8 h-8 rounded-full bg-teal-500/10 border border-teal-400/30 flex items-center justify-center mx-auto text-teal-400">
-                ✓
+            <div className="space-y-3 p-4 bg-cyan-950/20 border border-cyan-500/20 rounded-2xl">
+              <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-400/30 flex items-center justify-center mx-auto text-cyan-400 animate-bounce">
+                ↓
               </div>
-              <p className="text-xs text-teal-300 font-medium tracking-wide">
-                The secure bridge has opened. Your download has started automatically.
+              <p className="text-xs text-cyan-300 font-medium tracking-wide">
+                Handshake successful. Stream connection established, file downloading...
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="relative group">
+              
+              {/* Căsuță de Input stilizată ca o consolă de server */}
+              <div className="relative">
                 <input
                   type="text"
                   required
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="•••• •••• ••••"
+                  placeholder="ENTER ACCESS KEY"
                   autoFocus
-                  className="w-full h-12 text-center tracking-[0.2em] font-mono bg-zinc-950/80 border border-white/5 rounded-xl px-4 text-sm text-teal-300 outline-none placeholder:text-zinc-700 focus:border-teal-500/40 focus:ring-1 focus:ring-teal-500/20 transition-all duration-300 shadow-inner group-hover:border-white/10"
+                  className="w-full h-11 text-center tracking-[0.15em] font-mono bg-zinc-950 border border-white/5 rounded-xl px-4 text-xs text-cyan-300 outline-none placeholder:text-zinc-600 focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/10 transition-all duration-300 shadow-inner"
                 />
+                {/* Linii fine decorative de colț (Console style) */}
+                <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-zinc-700 rounded-tl-md pointer-events-none" />
+                <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-zinc-700 rounded-br-md pointer-events-none" />
               </div>
 
               {error && (
-                <p className="text-xs text-orange-400 font-medium bg-orange-500/5 border border-orange-500/10 py-2 rounded-xl animate-shake">
-                  ⚠️ {error}
+                <p className="text-[11px] text-red-400 font-medium bg-red-950/20 border border-red-500/10 py-2 rounded-xl">
+                  ✕ {error}
                 </p>
               )}
 
+              {/* Buton cu design futurist de inițializare serviciu */}
               <button
                 type="submit"
                 disabled={loading || fetchingSeller}
-                className="group relative w-full h-12 bg-white text-zinc-950 text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-30 disabled:pointer-events-none transition-all duration-300 hover:bg-zinc-100 hover:scale-[1.01] active:scale-[0.99] shadow-lg shadow-white/5 overflow-hidden"
+                className="w-full h-11 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-20 disabled:pointer-events-none transition-all duration-300 hover:brightness-110 hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] active:scale-[0.99] flex items-center justify-center"
               >
-                {/* Micro-glow effect în interiorul butonului la hover */}
-                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer transition-transform duration-1000" />
-                
-                <span className="relative z-10 flex items-center justify-center gap-1.5">
-                  {loading ? (
-                    <>
-                      <svg className="animate-spin h-3 w-3 text-zinc-900" xmlns="http://w3.org" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Validating Hash...
-                    </>
-                  ) : (
-                    "Authorize Download"
-                  )}
-                </span>
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-3.5 w-3.5 text-white" xmlns="http://w3.org" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Decrypting Pipeline...
+                  </span>
+                ) : (
+                  "Request Cloud Delivery"
+                )}
               </button>
             </form>
           )}
         </div>
 
-        {/* Footer-ul discret de accesibilitate */}
-        <div className="pt-2 text-[10px] text-zinc-600 tracking-wide">
-          End-to-End Cryptographic Security Node
+        {/* SECȚIUNEA 4: FOOTER METADATA CLOUD */}
+        <div className="pt-4 border-t border-white/[0.03] mt-2 flex items-center justify-between text-[9px] text-zinc-600 uppercase tracking-widest font-mono">
+          <span>SaaS Service v4.0</span>
+          <span>imidi.co.uk</span>
         </div>
 
       </div>
