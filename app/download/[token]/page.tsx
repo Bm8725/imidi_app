@@ -12,11 +12,13 @@ export default function DownloadLinkPage() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
 
-  // Stări pentru datele reale ale vânzătorului
+  // Stări pentru datele reale ale vânzătorului și ale fișierului
   const [sellerName, setSellerName] = useState("Verified iMIDI Seller");
+  // NOU: Stare pentru numele conținutului/fișierului digital
+  const [contentName, setContentName] = useState("Digital Content Pack");
   const [fetchingSeller, setFetchingSeller] = useState(true);
 
-  // Apelăm API-ul nostru de backend pentru a trage numele vânzătorului
+  // Apelăm API-ul nostru de backend pentru a trage detaliile în siguranță
   useEffect(() => {
     async function loadSellerDetails() {
       if (!token) return;
@@ -25,6 +27,10 @@ export default function DownloadLinkPage() {
         const data = await res.json();
         if (data?.seller_name) {
           setSellerName(data.seller_name);
+        }
+        // NOU: Mapăm numele conținutului trimis de backend
+        if (data?.filename) {
+          setContentName(data.filename);
         }
       } catch (err) {
         console.error("Eroare la preluarea vânzătorului:", err);
@@ -74,23 +80,32 @@ export default function DownloadLinkPage() {
         </div>
       </header>
 
-      {/* Corpul Principal - Fără nicio cutie / Fără chenar */}
+      {/* Corpul Principal - Borderless / Încorporat fluid */}
       <main className="max-w-md w-full mx-auto flex-1 flex flex-col justify-center space-y-8 my-auto">
         
-        {/* Secțiune Informații Vânzător (Integrată fluid în text) */}
-        <div className="space-y-1 text-left">
-          <span className="text-[10px] font-bold tracking-wider text-zinc-400 uppercase block">
-            Digital Asset Delivery
-          </span>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 md:text-3xl">
+        {/* Secțiune Informații Vânzător și Content (Integrată curat) */}
+        <div className="space-y-2 text-left">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold tracking-wider text-zinc-400 uppercase">
+              Digital Delivery
+            </span>
+            <span className="text-zinc-300">•</span>
+            <span className="text-[10px] font-medium text-zinc-500">
+              {fetchingSeller ? "syncing..." : `by ${sellerName}`}
+            </span>
+          </div>
+          
+          {/* NOU: Afișăm titlul real al fișierului primit din DB */}
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 md:text-3xl break-words">
             {fetchingSeller ? (
-              <span className="text-zinc-300 animate-pulse">Resolving secure gateway...</span>
+              <span className="text-zinc-200 animate-pulse">Loading content name...</span>
             ) : (
-              `Shared by ${sellerName}`
+              contentName
             )}
           </h1>
+          
           <p className="text-sm text-zinc-500 leading-relaxed pt-1">
-            This repository contains high-fidelity sound banks protected by imidi.co.uk. Please enter your cryptographic access key below to pull the files.
+            This repository contains high-fidelity digital audio banks protected by imidi.co.uk. Please enter your cryptographic access key below to pull the files.
           </p>
         </div>
 
@@ -109,7 +124,7 @@ export default function DownloadLinkPage() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               
-              {/* Input minimalist - se mărește fluid pe focus, fără colțuri console / fără bube */}
+              {/* Input minimalist */}
               <div className="space-y-1.5 text-left">
                 <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block px-0.5">
                   Access Key
@@ -131,7 +146,7 @@ export default function DownloadLinkPage() {
                 </div>
               )}
 
-              {/* Buton minimalist solid, premium */}
+              {/* Buton minimalist solid */}
               <button
                 type="submit"
                 disabled={loading || fetchingSeller}
