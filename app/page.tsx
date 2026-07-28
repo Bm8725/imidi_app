@@ -85,7 +85,7 @@ export default function HomePage() {
 </p>
 
             <p className="aw-mono text-xs sm:text-sm text-[#7C7C86] tracking-widest uppercase">
-              Powered by TS-CORE DSP & LIVE PERFORMANCE
+              Explore our platform to dicover the next generation of synthesizer technology and e-market.
             </p>
           </div>
 
