@@ -16,67 +16,6 @@ function getSupabaseAdmin() {
   });
 }
 
-// ---- NOU INTEGRAT: Metoda GET pentru a aduce Numele Vânzătorului ȘI Numele Fișierului ----
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const token = searchParams.get("token");
-
-    if (!token) {
-      return NextResponse.json({ seller_name: "Verified iMIDI Seller", filename: "Digital Content Pack" });
-    }
-
-    const supabaseAdmin = getSupabaseAdmin();
-
-    // 1. Căutăm linkul în tabela ta de link-uri active (încercăm rând pe rând denumirile des întâlnite)
-    const { data: shareData } = await supabaseAdmin
-      .from("share_links") 
-      .select("user_id, bank_id, filename, name") // Tragem tot ce ar putea conține numele sau legătura
-      .eq("token", token)
-      .maybeSingle();
-
-    // Fallback în caz că tabela se numește cloud_shares
-    const finalShare = shareData || (await supabaseAdmin.from("cloud_shares").select("user_id, bank_id, filename, name").eq("token", token).maybeSingle()).data;
-
-    let userId = finalShare?.user_id;
-    let filename = finalShare?.filename || finalShare?.name || "Digital Content Pack";
-
-    // 2. Dacă avem un ID de fișier (bank_id) dar nu avem numele direct, îl căutăm în tabela cloud_banks
-    if (finalShare?.bank_id && filename === "Digital Content Pack") {
-      const { data: bankData } = await supabaseAdmin
-        .from("cloud_banks")
-        .select("name")
-        .eq("id", finalShare.bank_id)
-        .maybeSingle();
-      
-      if (bankData?.name) {
-        filename = bankData.name;
-      }
-    }
-
-    // 3. Preluăm numele real al vânzătorului din contul de autentificare
-    let sellerName = "Verified iMIDI Seller";
-    if (userId) {
-      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
-      if (authUser?.user?.user_metadata?.full_name) {
-        sellerName = authUser.user.user_metadata.full_name;
-      } else if (authUser?.user?.email) {
-        sellerName = authUser.user.email.split("@")[0];
-      }
-    }
-
-    return NextResponse.json({ 
-      seller_name: sellerName, 
-      filename: filename 
-    });
-
-  } catch (err) {
-    console.error("Eroare la obținerea detaliilor de share:", err);
-    return NextResponse.json({ seller_name: "Verified iMIDI Seller", filename: "Digital Content Pack" });
-  }
-}
-
-// ---- Funcția ta POST (Lăsată 100% INTACĂ și NEATINSĂ) ----
 export async function POST(req: NextRequest) {
   try {
     const { token, code } = await req.json();
@@ -99,6 +38,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Extragere sigură: verificăm dacă `data` este o listă (folosește data[0]) sau un obiect direct
     const resultData = Array.isArray(data) ? data[0] : data;
 
     if (!resultData || !resultData.storage_path || !resultData.filename) {
@@ -124,6 +64,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: signed.signedUrl, filename });
   } catch (err: any) {
     console.error("Eroare pe ruta de redeem:", err);
+    
+    // Trimitem mesajul real de eroare în response pentru a vedea exact problema pe ecran fără să mai cauți în loguri
     return NextResponse.json(
       { error: err?.message || "Eroare interna server." }, 
       { status: 500 }

@@ -73,10 +73,10 @@ export default function DownloadLinkPage() {
       
       {/* Top Header discret (Branding iMIDI încorporat nativ) */}
       <header className="max-w-md w-full mx-auto flex items-center justify-between text-[11px] font-medium tracking-widest text-zinc-400 uppercase select-none">
-        <span>iMIDI CLOUD</span>
+        <span>iMIDI CLOUD infrastructure</span>
         <div className="flex items-center gap-1.5">
           <span className="w-1 h-1 bg-emerald-500 rounded-full" />
-          <span className="text-[10px] tracking-normal lowercase text-zinc-400">secure node</span>
+          
         </div>
       </header>
 
@@ -105,7 +105,7 @@ export default function DownloadLinkPage() {
           </h1>
           
           <p className="text-sm text-zinc-500 leading-relaxed pt-1">
-            This repository contains high-fidelity digital audio banks protected by imidi.co.uk. Please enter your cryptographic access key below to pull the files.
+            This repository contains high-fidelity digital content protected by imidi.co.uk. Please enter your cryptographic access key below to pull the files.
           </p>
         </div>
 
@@ -161,7 +161,7 @@ export default function DownloadLinkPage() {
                     Authorizing...
                   </span>
                 ) : (
-                  "Download Repository"
+                  "Download "
                 )}
               </button>
             </form>
@@ -171,7 +171,7 @@ export default function DownloadLinkPage() {
 
       {/* Footer curat, încorporat direct la baza ecranului */}
       <footer className="max-w-md w-full mx-auto text-left text-[10px] text-zinc-400 font-medium tracking-wide flex justify-between items-center select-none border-t border-zinc-100 pt-4">
-        <span>SaaS Architecture v4.0</span>
+        
         <span className="hover:text-zinc-600 transition-colors">imidi.co.uk</span>
       </footer>
 
