@@ -341,12 +341,23 @@ const runMarketAnalysis = async () => {
   const pct = Math.min(100, (totalUsedMb / maxMb) * 100);
 
   return (
-    <div className="bg-[#FAF9F6] text-zinc-900 min-h-screen flex flex-col antialiased">
+    // Fundalul Ableton Live (Dark Grey industrial) cu texturi techno și selecție saturată
+    <div className="bg-[#181818] text-[#D0D0D0] min-h-screen flex flex-col antialiased selection:bg-[#FF7A1A] selection:text-black relative overflow-hidden">
+      
+      {/* Pete fine de lumină ambientală în fundal (LED Backlight dinamic) */}
+      <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-[#FF7A1A]/3 rounded-full blur-[140px] pointer-events-none z-0" />
+      <div className="absolute bottom-10 left-1/4 w-[400px] h-[400px] bg-indigo-500/[0.02] rounded-full blur-[120px] pointer-events-none z-0" />
+
       <Navbar />
       
-      {/* AM MODIFICAT AICI: am schimbat py-8 în pt-28 pb-8 */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 pt-28 pb-8 relative z-10">
-        {/* ... Tot conținutul de sub main plutește curat deasupra fundalului crem ... */}
+      {/* Mainframe optimizat cu o grilă tehnică fină (grid-lines discrete) */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-6 pt-32 pb-12 relative z-10 font-mono tracking-tight bg-[#1C1C1C]/40 border-x border-zinc-900/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        
+        {/* Contur decorativ specific panourilor din Ableton */}
+        <div className="absolute inset-0 border border-zinc-900/40 pointer-events-none rounded-sm m-2 opacity-50" />
+        
+        {/* Conținutul paginii tale se va randa aici, plutind deasupra finisajului industrial */}
+
 
 
 
@@ -359,155 +370,183 @@ const runMarketAnalysis = async () => {
           <>
             <input type="file" multiple ref={fileRef} onChange={handleUpload} className="hidden" accept="audio/*,.mid,.midi,.fxp,.fxb,.vital,.fst,.adg,.adv,.pst,.json,.ts4,.bin,.jsf,.jbb,.sf2,.hex,.jbs,.prf,.bup" />
             
-<div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-zinc-100 pb-5 mb-6 gap-5 w-full">
-  {/* Secțiune Titlu, User & Indicator Stocare */}
-  <div className="space-y-3 w-full md:w-auto">
-    <div className="space-y-0.5">
-      <h1 className="text-xl md:text-2xl font-bold tracking-tight bg-gradient-to-r from-zinc-900 to-zinc-700 bg-clip-text text-transparent">
-        iMIDI MyCloud
+{/* PLATFORMA GRID ULTRA-PREMIUM (SIDEBAR INTEGRAT SAAS) */}
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch w-full mb-10">
+  
+  {/* PANOU PRINCIPAL (STÂNGA - 2 TREIMI): CONTROL VAULT */}
+  <div className="lg:col-span-2 flex flex-col justify-between bg-[#0D0D0D] border border-zinc-800/80 p-6 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] min-h-[190px] relative overflow-hidden group">
+    {/* Glow decorativ subtil pe fundal */}
+    <div className="absolute -top-12 -left-12 w-32 h-32 bg-[#FF7A1A]/5 rounded-full blur-3xl pointer-events-none" />
+    
+    <div className="relative z-10 space-y-1">
+      <h1 className="text-2xl font-black tracking-tight text-white">
+        iMIDI <span className="bg-gradient-to-r from-[#FF7A1A] to-[#ff9f54] bg-clip-text text-transparent">MyCloud</span>
       </h1>
-      <div className="flex items-center gap-1.5">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-        <p className="text-[11px] font-medium text-zinc-400 select-none tracking-wide">{user?.email}</p>
+      <div className="flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#FF7A1A] animate-ping" />
+        {/* TEXT SCHIMBAT PE ALB CURAT */}
+        <p className="text-xs font-mono text-white select-none tracking-wider">{user?.email}</p>
       </div>
     </div>
 
+    {/* Zona Acțiuni Butoane */}
+    <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2.5 w-full mt-6 relative z-10">
+      
+      {/* Buton Upload cu efect de adâncime */}
+      <button 
+        disabled={totalUsedMb >= maxMb || uploading} 
+        onClick={() => fileRef.current?.click()} 
+        className="h-10 px-5 bg-[#FF7A1A] hover:bg-[#e06613] active:scale-[0.97] text-black text-xs font-extrabold uppercase tracking-widest rounded-xl disabled:opacity-20 disabled:pointer-events-none transition-all duration-200 flex items-center justify-center gap-2 col-span-2 sm:col-span-1 shadow-[0_0_25px_rgba(255,122,26,0.15)] cursor-pointer"
+      >
+        {uploading ? (
+          <>
+            <span className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+            <span className="animate-pulse tracking-normal font-bold">Syncing...</span>
+          </>
+        ) : (
+          <>
+            <span className="text-base font-black leading-none">+</span>
+            <span>Upload</span>
+          </>
+        )}
+      </button>
 
-  </div>
-
-  {/* Secțiune Butoane - Responsive Grid / Flex */}
-  <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full md:w-auto">
-    
-    {/* Buton Upload cu Loading micro-animație */}
-    <button 
-      disabled={totalUsedMb >= maxMb || uploading} 
-      onClick={() => fileRef.current?.click()} 
-      className="h-9 px-4 bg-blue-500 hover:bg-blue-600 active:scale-[0.98] text-white text-xs font-semibold rounded-xl disabled:opacity-40 disabled:pointer-events-none shadow-sm shadow-blue-100 transition-all duration-200 flex items-center justify-center gap-1.5 col-span-2 sm:col-span-1"
-    >
-      {uploading ? (
-        <>
-          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          <span className="animate-pulse">Se încarcă...</span>
-        </>
-      ) : (
-        <>
-          <span className="text-sm font-light">+</span>
-          <span>Upload</span>
-        </>
-      )}
-    </button>
-
-    {/* Buton Istoric Descărcări */}
-    <button
-      onClick={openDownloadHistory}
-      className="h-9 px-3 border border-zinc-200 rounded-xl text-xs font-medium bg-white text-zinc-700 hover:text-zinc-900 hover:bg-zinc-50 hover:border-zinc-300 active:scale-[0.98] shadow-xs transition-all duration-200 flex items-center justify-center gap-1.5"
-    >
-      <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      <span>Istoric</span>
-    </button>
-
-    {/* Buton Reset Pass */}
-    <Link 
-      href="/update-password" 
-      className="h-9 px-3 border border-zinc-200 rounded-xl text-xs font-medium bg-white text-zinc-700 hover:text-zinc-900 hover:bg-zinc-50 hover:border-zinc-300 active:scale-[0.98] shadow-xs transition-all duration-200 flex items-center justify-center gap-1.5"
-    >
-      Reset pass
-    </Link>
-
-    {/* Buton Log Out cu starea de deconectare */}
-    <button 
-      onClick={handleLogout} 
-      disabled={loggingOut} 
-      className="h-9 px-3 border border-zinc-200 rounded-xl text-xs font-medium bg-white text-red-500 hover:bg-red-50/60 hover:border-red-100 active:scale-[0.98] disabled:opacity-40 shadow-xs transition-all duration-200 flex items-center justify-center gap-1.5"
-    >
-      {loggingOut ? (
-        <span className="w-3.5 h-3.5 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
-      ) : (
-        <svg className="w-3.5 h-3.5 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+      {/* Buton Istoric Descărcări - TEXT ALB */}
+      <button
+        onClick={openDownloadHistory}
+        className="h-10 px-4 border border-zinc-700 rounded-xl text-xs font-semibold bg-zinc-900 text-white hover:bg-zinc-800 hover:border-zinc-600 active:scale-[0.97] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+      >
+        <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-      )}
-      <span>{loggingOut ? "Ieșire..." : "Log out"}</span>
-    </button>
+        <span>Istoric</span>
+      </button>
 
-    {/* Buton AI - Design WOW Exclusiv */}
-    <button
-      onClick={runMarketAnalysis}
-      className="h-9 px-4 rounded-xl text-xs font-bold bg-gradient-to-r from-[#8B5CF6] to-[#0070F3] text-white shadow-md shadow-blue-500/10 flex items-center justify-center gap-1.5 cursor-pointer hover:scale-[1.02] hover:brightness-110 active:scale-[0.98] transition-all duration-200 col-span-2 sm:col-span-1 select-none"
-    >
-      <span className="animate-pulse text-sm text-purple-200">{"\u2726"}</span>
-      <span className="tracking-wide">AI Analyse</span>
-    </button>
+      {/* Buton Reset Pass - TEXT ALB */}
+      <Link 
+        href="/update-password" 
+        className="h-10 px-4 border border-zinc-700 rounded-xl text-xs font-semibold bg-zinc-900 text-white hover:bg-zinc-800 hover:border-zinc-600 active:scale-[0.97] transition-all duration-200 flex items-center justify-center gap-2"
+      >
+        Reset pass
+      </Link>
 
+      {/* Buton Log Out - TEXT ROȘU CLAR */}
+      <button 
+        onClick={handleLogout} 
+        disabled={loggingOut} 
+        className="h-10 px-4 border border-zinc-700 rounded-xl text-xs font-semibold bg-zinc-900 text-red-400 hover:text-red-300 hover:bg-red-950/40 hover:border-red-900/50 active:scale-[0.97] disabled:opacity-20 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+      >
+        {loggingOut ? (
+          <span className="w-3.5 h-3.5 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+        ) : (
+          <svg className="w-3.5 h-3.5 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+        )}
+        <span>{loggingOut ? "Ieșire..." : "Log out"}</span>
+      </button>
+
+      {/* Buton AI - Gradient Cyberpunk Strălucitor */}
+      <button
+        onClick={runMarketAnalysis}
+        className="h-10 px-4 rounded-xl text-xs font-extrabold uppercase tracking-wider bg-gradient-to-r from-[#6366F1] via-[#4F46E5] to-[#0EA5E9] text-white shadow-[0_0_20px_rgba(99,102,241,0.2)] flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] hover:brightness-110 active:scale-[0.97] transition-all duration-200 col-span-2 sm:col-span-1 select-none"
+      >
+        <span className="text-sm text-purple-200">✦</span>
+        <span>AI Analyse</span>
+      </button>
+
+    </div>
   </div>
+
+  {/* SIDEBAR WIDGET (DREAPTA - O TREIME): PROFILE & STOCARE */}
+  <div className="bg-[#0D0D0D] border border-zinc-800/80 p-6 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] flex flex-col justify-between h-full min-h-[190px]">
+    
+    {/* Header Profil în Sidebar */}
+    <div className="flex items-center justify-between w-full pb-4 border-b border-zinc-800">
+      <div className="flex items-center gap-3">
+        <div className="relative">
+          <img 
+            src={user?.avatar || "/user.webp"} 
+            alt="User Avatar"
+            className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-700 object-cover shadow-inner" 
+            onError={(e) => { e.currentTarget.src = "/user.webp"; }}
+          />
+          <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#FF7A1A] border-2 border-[#0D0D0D]" />
+        </div>
+        <div className="flex flex-col">
+          {/* TEXT SCHIMBAT PE ALB CURAT */}
+          <span className="text-[10px] text-white uppercase tracking-widest font-mono font-bold">User</span>
+          <span className="text-sm font-bold text-white max-w-[110px] truncate tracking-wide">{user?.name || "Uploading..."}</span>
+        </div>
+      </div>
+      
+      {/* Badge Plan Stilizat Minimalist */}
+      <div className="shrink-0 flex items-center">
+        {plan === "free" && <span className="text-[9px] font-bold text-white font-mono border border-zinc-700 bg-zinc-900 px-2 py-1 rounded-md uppercase tracking-wider">FREE</span>}
+        {plan === "pro" && <span className="text-[9px] font-black text-black font-mono bg-emerald-400 px-2 py-1 rounded-md uppercase tracking-wider">PRO</span>}
+        {plan === "enterprise" && <span className="text-[9px] font-black text-black font-mono bg-cyan-400 px-2 py-1 rounded-md uppercase tracking-wider">FULL</span>}
+      </div>
+    </div>
+
+    {/* Statistici volum stocare */}
+    <div className="w-full mt-4 flex-1 flex flex-col justify-end">
+      {/* TEXT SCHIMBAT PE ALB CURAT */}
+      <div className="text-[10px] text-white flex justify-between font-mono tracking-widest font-black items-center mb-2">
+        <span>VAULT STORAGE</span>
+        <span className="text-white font-bold font-sans tracking-normal">
+          {totalUsedMb >= 1024 ? `${(totalUsedMb / 1024).toFixed(2)} GB` : `${totalUsedMb.toFixed(1)} MB`}
+          <span className="text-zinc-500 px-1 font-mono">/</span>
+          {maxMb >= 1024 ? `${(maxMb / 1024).toFixed(0)} GB` : `${maxMb} MB`}
+        </span>
+      </div>
+      
+      {/* Bara progres */}
+      <div className="w-full h-2 bg-zinc-950 rounded-full border border-zinc-800 overflow-hidden relative">
+        <div 
+          className={`h-full transition-all duration-700 ease-out shadow-[0_0_15px_rgba(255,122,26,0.3)] ${
+            pct > 85 ? "bg-gradient-to-r from-red-600 to-red-400" : pct > 60 ? "bg-gradient-to-r from-amber-600 to-amber-400" : "bg-gradient-to-r from-[#FF7A1A] to-[#ffa566]"
+          }`} 
+          style={{ width: `${pct}%` }} 
+        />
+      </div>
+    </div>
+
+    {/* Butoane premium pentru extindere spațiu */}
+    <div className="w-full mt-5 pt-3 border-t border-zinc-800">
+      {/* Pas 1: Free -> Pro (30GB) */}
+      {plan === "free" && (
+        <button
+          onClick={handleBuyCloud}
+          disabled={buyingCloud}
+          className="w-full h-9 px-4 bg-[#FF7A1A] hover:bg-[#e06613] text-black text-xs font-black uppercase tracking-widest rounded-xl disabled:opacity-20 whitespace-nowrap active:scale-[0.98] transition-all cursor-pointer shadow-[0_4px_15px_rgba(255,122,26,0.1)]"
+        >
+          {buyingCloud ? "Activare..." : "Upgrade 30GB · $50"}
+        </button>
+      )}
+
+      {/* Pas 2: Pro -> Enterprise (250GB) - TEXT BUTON ALB */}
+      {plan === "pro" && (
+        <button
+          onClick={handleBuyEnterprise}
+          disabled={buyingEnterprise}
+          className="w-full h-9 px-4 bg-zinc-900 border border-zinc-700 text-white hover:text-[#FF7A1A] hover:border-[#FF7A1A]/40 text-xs font-bold rounded-xl disabled:opacity-20 whitespace-nowrap active:scale-[0.98] transition-all cursor-pointer"
+        >
+          {buyingEnterprise ? "Activare..." : "Extinde 250GB · $149.90"}
+        </button>
+      )}
+
+      {/* Pas 3: Enterprise activ (250GB) */}
+      {plan === "enterprise" && (
+        <div className="w-full h-9 px-4 flex items-center justify-center gap-2 border border-cyan-500/20 bg-cyan-950/20 text-cyan-400 text-xs font-bold font-mono tracking-widest uppercase rounded-xl whitespace-nowrap">
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+          Vault Securizat Maximum
+        </div>
+      )}
+    </div>
+  </div>
+
 </div>
 
-
-            <div className="bg-white border p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 shadow-sm">
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <img 
-                  src={user?.avatar || "/user.webp"} 
-                  alt="User Avatar"
-                  className="w-8 h-8 rounded-lg bg-zinc-100 object-cover" 
-                  onError={(e) => { e.currentTarget.src = "/user.webp"; }}
-                />
-                <span className="text-xs font-bold">{user?.name || "Uploading..."}</span>
-              </div>
-              <div className="w-full sm:w-64">
-                <div className="text-[11px] text-zinc-500 flex justify-between font-medium items-center">
-                  <span className="flex items-center gap-1.5">
-                    Stocare
-                    {plan === "pro" && (
-                      <span className="text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded">PRO PLAN</span>
-                    )}
-                    {plan === "enterprise" && (
-                      <span className="text-[9px] font-bold text-white bg-emerald-500 px-1.5 py-0.5 rounded">FULL PLAN</span>
-                    )}
-                  </span>
-                  <span>
-                    {totalUsedMb >= 1024 ? `${(totalUsedMb / 1024).toFixed(2)} GB` : `${totalUsedMb.toFixed(1)} MB`}
-                    {" / "}
-                    {maxMb >= 1024 ? `${(maxMb / 1024).toFixed(0)} GB` : `${maxMb} MB`}
-                  </span>
-                </div>
-                <div className="w-full h-1.5 bg-zinc-100 rounded-full mt-1 border overflow-hidden"><div className={`h-full transition-all ${pct > 85 ? "bg-red-500" : pct > 60 ? "bg-amber-500" : "bg-zinc-900"}`} style={{ width: `${pct}%` }} /></div>
-              </div>
-              {/* Pas 1: Free -> Pro (30GB) */}
-              {plan === "free" && (
-                <button
-                  onClick={handleBuyCloud}
-                  disabled={buyingCloud}
-                  className="shrink-0 h-9 px-4 bg-zinc-900 text-white text-xs font-semibold rounded-lg disabled:opacity-40 whitespace-nowrap"
-                >
-                  {buyingCloud ? "Se activeaza..." : "Cumpără 30GB · $50"}
-                </button>
-              )}
-
-              {/* Pas 2: Pro -> Enterprise (250GB), disponibil doar dupa ce ai deja 30GB */}
-              {plan === "pro" && (
-                <div className="shrink-0 flex items-center gap-2">
-                  <span className="h-9 px-4 flex items-center gap-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg whitespace-nowrap">
-                    ✓ Pro activ
-                  </span>
-                  <button
-                    onClick={handleBuyEnterprise}
-                    disabled={buyingEnterprise}
-                    className="h-9 px-4 bg-zinc-900 text-white text-xs font-semibold rounded-lg disabled:opacity-40 whitespace-nowrap"
-                  >
-                    {buyingEnterprise ? "Se activeaza..." : "Extinde la 250GB · $149.90"}
-                  </button>
-                </div>
-              )}
-
-              {/* Pas 3: Enterprise activ (250GB) — stare finala, full */}
-              {plan === "enterprise" && (
-                <span className="shrink-0 h-9 px-4 flex items-center gap-1.5 bg-emerald-500 text-white text-xs font-semibold rounded-lg whitespace-nowrap">
-                  ✓ FULL 250GB
-                </span>
-              )}
-            </div>
 
             {totalUsedMb >= maxMb && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -529,51 +568,139 @@ const runMarketAnalysis = async () => {
             )}
 
 
-            <div className="flex gap-1 bg-zinc-200/50 p-1 rounded-lg w-fit mb-4">
-              {["all", "audio banks", "midi packs", "presets"].map(t => (
-                <button key={t} onClick={() => { setActiveTab(t); setPage(1); }} className={`h-7 px-3 text-xs capitalize rounded-md transition-all ${activeTab === t ? "bg-white text-zinc-900 shadow-sm font-semibold" : "text-zinc-500 hover:text-zinc-900"}`}>{t}</button>
-              ))}
-            </div>
+<div className="flex gap-0.5 bg-[#181818] p-0.5 rounded-sm w-fit mb-6 border border-[#2C2C2C] font-mono shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)]">
+  {["all", "audio banks", "midi packs", "presets"].map(t => (
+    <button 
+      key={t} 
+      onClick={() => { setActiveTab(t); setPage(1); }} 
+      className={`h-6 px-3 text-[10px] uppercase tracking-wider rounded-xs transition-colors cursor-pointer ${
+        activeTab === t 
+          ? "bg-[#333333] text-white border border-[#444444] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] font-bold" 
+          : "text-zinc-500 hover:text-zinc-300 hover:bg-[#222222]/50"
+      }`}
+    >
+      {t}
+    </button>
+  ))}
+</div>
 
-            {loading ? <div className="h-16 bg-white border rounded-xl animate-pulse" /> : banks.length === 0 ? <div className="text-center py-10 border border-dashed rounded-xl bg-white text-xs text-zinc-400">Not  packs or file found!</div> : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {banks.map(b => (
-                  <div key={b.id} className="bg-white border p-3 rounded-xl flex items-center justify-between hover:border-zinc-400 group transition-all shadow-sm">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 rounded-md flex items-center justify-center text-xs" style={{ backgroundColor: `${b.color_hex}10`, color: b.color_hex }}>{b.type === "Presets" ? "🎛️" : b.type === "MIDI Pack" ? "🎹" : "🎵"}</div>
-                      <div className="min-w-0">
-                        <h3 className="text-xs font-semibold truncate pr-2" title={b.name}>{b.name}</h3>
-                        <p className="text-[10px] text-zinc-400">{b.type} • {b.size_mb < 0.1 ? `${(b.size_mb * 1024).toFixed(0)} KB` : `${b.size_mb} MB`}</p>
-                      </div>
-                    </div>
-                    <div className="shrink-0 z-20 flex items-center gap-1">
-                      {delId === b.id ? (
-                        <div className="flex gap-1 bg-zinc-50 p-1 border rounded-md">
-                          <button onClick={async () => { await supabase.from("cloud_banks").delete().eq("id", b.id); setDelId(null); window.location.reload(); }} className="px-2 py-0.5 bg-red-500 text-white text-[10px] rounded">yes</button>
-                          <button onClick={() => setDelId(null)} className="px-2 py-0.5 text-zinc-500 text-[10px]">No</button>
-                        </div>
-                      ) : (
-                        <>
-                          <button onClick={() => openShareModal(b)} className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 sm:opacity-0 group-hover:opacity-100 transition-all" title="Genereaza link de vanzare">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path strokeLinecap="round" d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4" /></svg>
-                          </button>
-                          <button onClick={() => handleDownload(b)} disabled={downloadingId === b.id} className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 sm:opacity-0 group-hover:opacity-100 transition-all disabled:opacity-100">
-                            {downloadingId === b.id ? (
-                              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                            ) : (
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
-                            )}
-                          </button>
-                          <button onClick={() => setDelId(b.id)} className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-red-500 hover:bg-red-50 sm:opacity-0 group-hover:opacity-100 transition-all">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+
+ {loading ? (
+  /* State de Loading stilizat ca rack hardware gol în curs de scanare */
+  <div className="h-16 bg-[#222222] border border-[#2C2C2C] rounded-sm animate-pulse flex items-center px-4 font-mono text-[10px] text-zinc-500 uppercase tracking-wider">
+    Scanning device parameters...
+  </div>
+) : banks.length === 0 ? (
+  /* State Empty - Stil ecran LCD Ableton când nu sunt date */
+  <div className="text-center py-10 border border-dashed border-[#2C2C2C] rounded-sm bg-[#1E1E1E] font-mono text-[10px] text-zinc-500 uppercase tracking-widest">
+    No packs or file found on track!
+  </div>
+) : (
+  /* Grid-ul cu fișiere - Stil canale Mixer Ableton */
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+    {banks.map(b => (
+      <div 
+        key={b.id} 
+        className="bg-[#222222] border border-[#2C2C2C] p-3 rounded-sm flex items-center justify-between hover:bg-[#2A2A2A] hover:border-zinc-700 group transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Iconiță tip LED - folosește culoarea b.color_hex ca un bec hardware */}
+          <div 
+            className="w-8 h-8 rounded-sm flex items-center justify-center text-xs font-mono font-bold select-none border" 
+            style={{ 
+              backgroundColor: `${b.color_hex}08`, 
+              borderColor: `${b.color_hex}30`,
+              color: b.color_hex,
+              textShadow: `0 0 6px ${b.color_hex}40`
+            }}
+          >
+            {b.type === "Presets" ? "🎛️" : b.type === "MIDI Pack" ? "🎹" : "🎵"}
+          </div>
+          
+          <div className="min-w-0 font-mono">
+            {/* Titlu fișier - Text alb pur curat, foarte lizibil */}
+            <h3 className="text-xs font-bold text-white truncate pr-2 tracking-tight" title={b.name}>
+              {b.name}
+            </h3>
+            {/* Detalii tehnice - Gri fin industrial */}
+            <p className="text-[10px] text-zinc-400 mt-0.5 uppercase tracking-tight">
+              {b.type} <span className="text-zinc-600">•</span> {b.size_mb < 0.1 ? `${(b.size_mb * 1024).toFixed(0)} KB` : `${b.size_mb} MB`}
+            </p>
+          </div>
+        </div>
+
+        {/* Zona Butoane Acțiuni - Stil butoane iluminate de controller DJ */}
+        <div className="shrink-0 z-20 flex items-center gap-1 font-mono">
+          {delId === b.id ? (
+            /* Pop-up confirmare ștergere integrat în designul tehnic */
+            <div className="flex gap-1 bg-[#1A1A1A] p-1 border border-[#2C2C2C] rounded-sm">
+              <button 
+                onClick={async () => { 
+                  await supabase.from("cloud_banks").delete().eq("id", b.id); 
+                  setDelId(null); 
+                  window.location.reload(); 
+                }} 
+                className="px-2 py-0.5 bg-red-600 hover:bg-red-500 text-white text-[9px] font-bold uppercase rounded-sm transition-colors"
+              >
+                yes
+              </button>
+              <button 
+                onClick={() => setDelId(null)} 
+                className="px-2 py-0.5 text-zinc-400 hover:text-white text-[9px] font-bold uppercase rounded-sm transition-colors"
+              >
+                No
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Buton Share */}
+              <button 
+                onClick={() => openShareModal(b)} 
+                className="w-7 h-7 rounded-sm flex items-center justify-center border border-transparent text-zinc-500 hover:text-[#FF7A1A] hover:bg-[#2C2C2C] hover:border-zinc-700 sm:opacity-0 group-hover:opacity-100 transition-all cursor-pointer" 
+                title="Genereaza link de vanzare"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <path strokeLinecap="round" d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4" />
+                </svg>
+              </button>
+
+              {/* Buton Download */}
+              <button 
+                onClick={() => handleDownload(b)} 
+                disabled={downloadingId === b.id} 
+                className="w-7 h-7 rounded-sm flex items-center justify-center border border-transparent text-zinc-500 hover:text-white hover:bg-[#2C2C2C] hover:border-zinc-700 sm:opacity-0 group-hover:opacity-100 transition-all disabled:opacity-100 cursor-pointer"
+              >
+                {downloadingId === b.id ? (
+                  <svg className="w-3.5 h-3.5 animate-spin text-[#FF7A1A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Buton Șterge */}
+              <button 
+                onClick={() => setDelId(b.id)} 
+                className="w-7 h-7 rounded-sm flex items-center justify-center border border-transparent text-zinc-500 hover:text-red-500 hover:bg-red-950/20 hover:border-red-900/30 sm:opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+)}
+
 
             {banks.length > 0 && (
               <div className="flex justify-between items-center mt-6 text-xs border-t pt-4">
