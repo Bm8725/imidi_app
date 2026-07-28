@@ -15,7 +15,7 @@ export default function DownloadLinkPage() {
   // Stări pentru datele reale ale vânzătorului și ale fișierului
   const [sellerName, setSellerName] = useState("Verified iMIDI Seller");
   // NOU: Stare pentru numele conținutului/fișierului digital
-  const [contentName, setContentName] = useState("Digital Content Pack");
+  const [contentName, setContentName] = useState("Digital Content link");
   const [fetchingSeller, setFetchingSeller] = useState(true);
 
   // Apelăm API-ul nostru de backend pentru a trage detaliile în siguranță
