@@ -81,7 +81,7 @@ export default function HomePage() {
 
           <div className="max-w-2xl mx-auto space-y-4 aw-hero-item" style={{ animationDelay: "0.15s" }}>
 <p className="text-lg sm:text-xl md:text-2xl font-light text-[#B4B4BC] tracking-wide leading-relaxed px-1">
-  The global digital standard for modern digitalization. Premium,  audio samples/presets/firmware delivered instantly anywhere in the world through the cloud e-market up 8GB/product. 
+  The global digital standard for modern digitalization e-market. Premium,  audio samples/presets/content/firmware delivered instantly anywhere in the world through the cloud e-market up 8GB/product. 
 </p>
 
             <p className="aw-mono text-xs sm:text-sm text-[#7C7C86] tracking-widest uppercase">
