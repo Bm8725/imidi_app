@@ -344,8 +344,10 @@ const runMarketAnalysis = async () => {
     <div className="bg-[#FAF9F6] text-zinc-900 min-h-screen flex flex-col antialiased">
       <Navbar />
       
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-8 relative z-10">
+      {/* AM MODIFICAT AICI: am schimbat py-8 în pt-28 pb-8 */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 pt-28 pb-8 relative z-10">
         {/* ... Tot conținutul de sub main plutește curat deasupra fundalului crem ... */}
+
 
 
         {error ? (
