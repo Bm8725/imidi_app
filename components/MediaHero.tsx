@@ -110,25 +110,32 @@ export default function MediaHero() {
       </div>
 
       {/* 4. CTA-uri live — TS4X (SOLO) și i-volution (BASS), ancorate peste grid */}
-<div className="absolute inset-x-0 bottom-10 sm:bottom-14 z-30 flex flex-col md:flex-row justify-center items-center gap-4 md:gap-5 px-5 pointer-events-auto max-w-4xl mx-auto">
+<div className="absolute inset-x-0 bottom-10 sm:bottom-14 z-30 flex flex-row justify-center items-center gap-4 px-5 pointer-events-auto max-w-4xl mx-auto">
   
-
-
+  {/* E-Market - Icoană Căruț / Magazin */}
   <Link
     href="/e-market"
-    className="w-full md:w-auto h-11 inline-flex items-center justify-center border border-teal-400/20 bg-white/[0.03] backdrop-blur-md text-teal-300/90 font-medium text-sm px-7 rounded-full transition-all duration-300 hover:bg-teal-400/10 hover:border-teal-400/50 hover:text-teal-200 hover:scale-[1.01] active:scale-[0.99]"
+    title="Global E-Market"
+    className="w-12 h-12 inline-flex items-center justify-center border border-white/20 bg-white/5 backdrop-blur-md text-white/80 rounded-full transition-all duration-300 hover:bg-white/15 hover:border-white/50 hover:text-white hover:scale-105 active:scale-95"
   >
-    Global E-Market
+    <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+    </svg>
   </Link>
 
+  {/* Hardware - Icoană Microcip / Tech */}
   <Link
     href="/products"
-    className="w-full md:w-auto h-11 inline-flex items-center justify-center border border-teal-400/20 bg-white/[0.03] backdrop-blur-md text-teal-300/90 font-medium text-sm px-7 rounded-full transition-all duration-300 hover:bg-teal-400/10 hover:border-teal-400/50 hover:text-teal-200 hover:scale-[1.01] active:scale-[0.99]"
+    title="i-volution Hardware"
+    className="w-12 h-12 inline-flex items-center justify-center border border-white/20 bg-white/5 backdrop-blur-md text-white/80 rounded-full transition-all duration-300 hover:bg-white/15 hover:border-white/50 hover:text-white hover:scale-105 active:scale-95"
   >
-    i-volution Hardware
+    <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 3v1.5M4.5 8.25H3m10.5-5.25v1.5M3 12h1.5m16.5-.75h-1.5M21 12h-1.5m-3.75-9v1.5m2.25 13.5v1.5M7.5 21v-1.5m6.25 1.5v-1.5m-.75-6h-3.75A1.125 1.125 0 0 1 8.25 12V8.25a1.125 1.125 0 0 1 1.125-1.125h3.75A1.125 1.125 0 0 1 14.25 8.25V12A1.125 1.125 0 0 1 13.5 13.125ZM10.5 4.5H13.5A2.25 2.25 0 0 1 15.75 6.75V9.75A2.25 2.25 0 0 1 13.5 12H10.5A2.25 2.25 0 0 1 8.25 9.75V6.75A2.25 2.25 0 0 1 10.5 4.5Z" />
+    </svg>
   </Link>
 
 </div>
+
 
     </div>
   );
