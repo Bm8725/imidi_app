@@ -110,20 +110,34 @@ export default function MediaHero() {
       </div>
 
       {/* 4. CTA-uri live — TS4X (SOLO) și i-volution (BASS), ancorate peste grid */}
-      <div className="absolute inset-x-0 bottom-10 sm:bottom-14 z-30 flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 px-5 pointer-events-auto">
-        <Link
-          href="/ts4x"
-          className="hero-cta-glow w-full sm:w-auto h-12 inline-flex items-center justify-center bg-[#E2861A] text-white font-medium text-sm px-8 rounded-full transition-all duration-300 hover:bg-[#C77313] hover:scale-[1.02] active:scale-[0.99]"
-        >
-          TS4X Application
-        </Link>
-        <Link
-          href="/products"
-          className="w-full sm:w-auto h-12 inline-flex items-center justify-center border border-teal-400/40 bg-white/5 backdrop-blur-sm text-teal-300 font-medium text-sm px-8 rounded-full transition-all duration-300 hover:bg-teal-500/10 hover:border-teal-400/70 hover:text-teal-200"
-        >
-          i-volution Hardware
-        </Link>
-      </div>
+<div className="absolute inset-x-0 bottom-10 sm:bottom-14 z-30 flex flex-col md:flex-row justify-center items-center gap-4 md:gap-6 px-5 pointer-events-auto max-w-5xl mx-auto">
+  
+  {/* Butonul 1: TS4X (Portocaliu Vibrant) */}
+  <Link
+    href="/ts4x"
+    className="hero-cta-glow w-full md:w-auto h-12 inline-flex items-center justify-center bg-[#E2861A] text-white font-semibold text-sm px-8 rounded-full transition-all duration-300 hover:bg-[#C77313] hover:scale-[1.03] active:scale-[0.98] shadow-lg shadow-orange-500/20"
+  >
+    TS4X Application
+  </Link>
+
+  {/* Butonul 2: E-Market (Violet Neon - Nou) */}
+  <Link
+    href="/e-market"
+    className="w-full md:w-auto h-12 inline-flex items-center justify-center border border-purple-500/50 bg-purple-950/30 backdrop-blur-md text-purple-300 font-semibold text-sm px-8 rounded-full transition-all duration-300 hover:bg-purple-600/20 hover:border-purple-400 hover:text-purple-200 hover:scale-[1.03] active:scale-[0.98] shadow-lg shadow-purple-500/10"
+  >
+    Global E-Market
+  </Link>
+
+  {/* Butonul 3: Hardware (Teal/Cyan Cinematic) */}
+  <Link
+    href="/products"
+    className="w-full md:w-auto h-12 inline-flex items-center justify-center border border-teal-400/40 bg-white/5 backdrop-blur-sm text-teal-300 font-semibold text-sm px-8 rounded-full transition-all duration-300 hover:bg-teal-500/10 hover:border-teal-400/70 hover:text-teal-200 hover:scale-[1.03] active:scale-[0.98]"
+  >
+    i-volution Hardware
+  </Link>
+
+</div>
+
     </div>
   );
 }
