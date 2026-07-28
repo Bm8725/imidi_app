@@ -110,28 +110,20 @@ export default function MediaHero() {
       </div>
 
       {/* 4. CTA-uri live — TS4X (SOLO) și i-volution (BASS), ancorate peste grid */}
-<div className="absolute inset-x-0 bottom-10 sm:bottom-14 z-30 flex flex-col md:flex-row justify-center items-center gap-4 md:gap-6 px-5 pointer-events-auto max-w-5xl mx-auto">
+<div className="absolute inset-x-0 bottom-10 sm:bottom-14 z-30 flex flex-col md:flex-row justify-center items-center gap-4 md:gap-5 px-5 pointer-events-auto max-w-4xl mx-auto">
   
-  {/* Butonul 1: TS4X (Portocaliu Vibrant) */}
-  <Link
-    href="/ts4x"
-    className="hero-cta-glow w-full md:w-auto h-12 inline-flex items-center justify-center bg-[#E2861A] text-white font-semibold text-sm px-8 rounded-full transition-all duration-300 hover:bg-[#C77313] hover:scale-[1.03] active:scale-[0.98] shadow-lg shadow-orange-500/20"
-  >
-    TS4X Application
-  </Link>
 
-  {/* Butonul 2: E-Market (Violet Neon - Nou) */}
+
   <Link
     href="/e-market"
-    className="w-full md:w-auto h-12 inline-flex items-center justify-center border border-purple-500/50 bg-purple-950/30 backdrop-blur-md text-purple-300 font-semibold text-sm px-8 rounded-full transition-all duration-300 hover:bg-purple-600/20 hover:border-purple-400 hover:text-purple-200 hover:scale-[1.03] active:scale-[0.98] shadow-lg shadow-purple-500/10"
+    className="w-full md:w-auto h-11 inline-flex items-center justify-center border border-teal-400/20 bg-white/[0.03] backdrop-blur-md text-teal-300/90 font-medium text-sm px-7 rounded-full transition-all duration-300 hover:bg-teal-400/10 hover:border-teal-400/50 hover:text-teal-200 hover:scale-[1.01] active:scale-[0.99]"
   >
     Global E-Market
   </Link>
 
-  {/* Butonul 3: Hardware (Teal/Cyan Cinematic) */}
   <Link
     href="/products"
-    className="w-full md:w-auto h-12 inline-flex items-center justify-center border border-teal-400/40 bg-white/5 backdrop-blur-sm text-teal-300 font-semibold text-sm px-8 rounded-full transition-all duration-300 hover:bg-teal-500/10 hover:border-teal-400/70 hover:text-teal-200 hover:scale-[1.03] active:scale-[0.98]"
+    className="w-full md:w-auto h-11 inline-flex items-center justify-center border border-teal-400/20 bg-white/[0.03] backdrop-blur-md text-teal-300/90 font-medium text-sm px-7 rounded-full transition-all duration-300 hover:bg-teal-400/10 hover:border-teal-400/50 hover:text-teal-200 hover:scale-[1.01] active:scale-[0.99]"
   >
     i-volution Hardware
   </Link>
