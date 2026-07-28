@@ -718,64 +718,64 @@ const runMarketAnalysis = async () => {
 {/* modal istoric descarcari */}
 {showDownloadHistory && (
   <div 
-    className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" 
+    className="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-mono select-none" 
     onClick={() => setShowDownloadHistory(false)}
   >
     <div 
-      className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-zinc-100 space-y-4 max-h-[80vh] overflow-y-auto flex flex-col scale-in" 
+      className="bg-[#1E1E1E] text-[#D0D0D0] border border-[#2C2C2C] rounded-sm p-5 max-w-lg w-full shadow-[0_25px_60px_rgba(0,0,0,0.8)] space-y-4 max-h-[80vh] overflow-y-auto flex flex-col transition-all" 
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Header Modal */}
-      <div className="flex items-center justify-between shrink-0">
+      {/* Header Modal - Stil Rack Parametri */}
+      <div className="flex items-center justify-between shrink-0 pb-3 border-b border-[#2C2C2C]">
         <div className="space-y-0.5">
-          <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-500">Istoric</p>
-          <h3 className="text-base font-bold text-zinc-900 tracking-tight">Descărcări pachete</h3>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#FF7A1A]">TRACK LOG</p>
+          <h3 className="text-xs font-bold text-white uppercase tracking-tight">Descărcări pachete</h3>
         </div>
         <button 
           onClick={() => setShowDownloadHistory(false)} 
-          className="w-7 h-7 rounded-full bg-zinc-50 hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 flex items-center justify-center text-xs transition-colors active:scale-95"
+          className="w-7 h-7 rounded-sm bg-[#1A1A1A] border border-[#333333] flex items-center justify-center text-[10px] text-zinc-400 cursor-pointer hover:bg-[#FF7A1A] hover:text-black hover:border-transparent transition-all active:scale-95"
         >
           ✕
         </button>
       </div>
 
       {/* Corp Modal / Conținut */}
-      <div className="flex-1 overflow-y-auto pr-1">
+      <div className="flex-1 overflow-y-auto pr-1 text-xs">
         {downloadHistoryLoading ? (
-          /* Skeleton Loader Premium pe linii, nu doar un bloc gri */
-          <div className="space-y-2">
+          /* Skeleton Loader Premium - Stil LED Scan */
+          <div className="space-y-1.5">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="flex justify-between items-center p-3 border border-zinc-100 rounded-xl animate-pulse">
-                <div className="space-y-1.5 w-1/3">
-                  <div className="h-3 bg-zinc-100 rounded-md w-full" />
-                  <div className="h-2 bg-zinc-50 rounded-md w-2/3" />
+              <div key={i} className="flex justify-between items-center p-3 border border-[#2C2C2C] bg-[#222222] rounded-sm animate-pulse">
+                <div className="space-y-2 w-1/3">
+                  <div className="h-2.5 bg-zinc-800 rounded-sm w-full" />
+                  <div className="h-1.5 bg-zinc-900 rounded-sm w-2/3" />
                 </div>
-                <div className="space-y-1 w-1/4 flex flex-col items-end">
-                  <div className="h-2.5 bg-zinc-100 rounded-md w-3/4" />
-                  <div className="h-2 bg-zinc-50 rounded-md w-1/2" />
+                <div className="space-y-1.5 w-1/4 flex flex-col items-end">
+                  <div className="h-2 bg-zinc-800 rounded-sm w-3/4" />
+                  <div className="h-1.5 bg-zinc-900 rounded-sm w-1/2" />
                 </div>
               </div>
             ))}
           </div>
         ) : downloadHistoryError ? (
-          <div className="p-3 bg-red-50/60 border border-red-100 rounded-xl flex items-center gap-2">
-            <span className="text-red-500 text-sm">⚠️</span>
-            <p className="text-xs text-red-600 font-medium">{downloadHistoryError}</p>
+          <div className="p-3 bg-red-950/20 border border-red-900/40 rounded-sm flex items-center gap-2">
+            <span className="text-red-400 text-sm">⚠️</span>
+            <p className="text-xs text-red-400 font-mono font-medium">{downloadHistoryError}</p>
           </div>
         ) : downloadHistory.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 border border-dashed border-zinc-200 rounded-xl text-center px-4 space-y-2">
-            <div className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-400 text-lg">📁</div>
-            <p className="text-xs font-medium text-zinc-500">Nicio descărcare înregistrată încă.</p>
+          <div className="flex flex-col items-center justify-center py-12 border border-dashed border-[#2C2C2C] rounded-sm bg-[#1A1A1A] text-center px-4 space-y-2">
+            <div className="w-10 h-10 rounded-sm bg-[#222222] border border-[#2C2C2C] flex items-center justify-center text-zinc-500 text-base">📁</div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Nicio descărcare pe canal.</p>
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="flex items-center justify-between text-[11px] font-medium text-zinc-400 px-0.5">
-              <span>{downloadHistory.length} {downloadHistory.length === 1 ? 'descărcare' : 'descărcări în total'}</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-zinc-500 px-0.5">
+              <span>{downloadHistory.length} {downloadHistory.length === 1 ? 'LOG' : 'LOGS TOTAL'}</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF7A1A] shadow-[0_0_6px_rgba(255,122,26,0.6)]" />
             </div>
 
-            {/* Listă cu design modern (carduri separate cu efect de hover) */}
-            <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-0.5">
+            {/* Listă cu design mixer audio (canale separate cu hover fin) */}
+            <div className="space-y-1.5 max-h-[45vh] overflow-y-auto pr-0.5">
               {downloadHistory.map((row) => {
                 const dt = new Date(row.downloaded_at);
                 const data = dt.toLocaleDateString("ro-RO", { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -784,27 +784,27 @@ const runMarketAnalysis = async () => {
                 return (
                   <div 
                     key={row.id} 
-                    className="flex items-center justify-between p-3 text-xs bg-white border border-zinc-100 hover:border-zinc-200 hover:shadow-xs rounded-xl transition-all duration-150 group"
+                    className="flex items-center justify-between p-3 bg-[#222222] border border-[#2C2C2C] hover:bg-[#2A2A2A] hover:border-zinc-700 rounded-sm transition-all group shadow-[inset_0_1px_0_rgba(255,255,255,0.01)]"
                   >
                     {/* Detalii Bancă */}
-                    <div className="min-w-0 pr-3 flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-zinc-50 group-hover:bg-blue-50/50 flex items-center justify-center text-sm shrink-0 border border-zinc-100/50 transition-colors">
+                    <div className="min-w-0 pr-3 flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-sm bg-[#1A1A1A] border border-[#2C2C2C] group-hover:border-[#FF7A1A]/30 flex items-center justify-center text-xs shrink-0 transition-colors">
                         {row.bank_name?.toLowerCase().includes('edge') ? '🏦' : '💳'}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-zinc-800 truncate" title={row.bank_name}>
+                        <p className="font-bold text-white truncate text-xs tracking-tight" title={row.bank_name}>
                           {row.bank_name}
                         </p>
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-zinc-50 text-zinc-500 border border-zinc-100">
+                        <span className="inline-flex items-center mt-0.5 text-[9px] font-bold uppercase tracking-wider text-[#00F0FF]">
                           {row.bank_type || "Nespecificat"}
                         </span>
                       </div>
                     </div>
 
-                    {/* Dată / Timp */}
+                    {/* Dată / Timp - Afișaj curat de ceas hardware */}
                     <div className="shrink-0 text-right space-y-0.5">
-                      <p className="text-zinc-700 font-semibold tracking-tight">{data}</p>
-                      <p className="text-[10px] text-zinc-400 font-mono">{ora}</p>
+                      <p className="text-zinc-300 font-bold tracking-tight">{data}</p>
+                      <p className="text-[10px] text-zinc-500 font-mono font-medium">{ora}</p>
                     </div>
                   </div>
                 );
@@ -816,6 +816,7 @@ const runMarketAnalysis = async () => {
     </div>
   </div>
 )}
+
 
 
       {/* modal generare link de vanzare (cod ales de vanzator) */}
