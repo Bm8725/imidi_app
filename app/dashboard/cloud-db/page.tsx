@@ -35,11 +35,6 @@ export default function CloudWorkspacePage() {
   const [shareResultUrl, setShareResultUrl] = useState("");
   const [shareResultExpires, setShareResultExpires] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
-  // NOU: pretul anuntului de pe Market legat de acest bank + comisionul iMIDI
-  const [shareListing, setShareListing] = useState<{ price: number; title: string; digitalLink: string | null } | null>(null);
-  const COMMISSION_RATE = 0.1; // 10%
-  // NOU: 2 moduri de generare — "simple" (fara pret) sau "priced" (pret+comision automat din anunt)
-  const [shareMode, setShareMode] = useState<"simple" | "priced">("simple");
 
   // ---- AI analiza piata ----
   const [showMarketAnalysis, setShowMarketAnalysis] = useState(false);
@@ -108,23 +103,7 @@ useEffect(() => {
         if (activeTab !== "all") q = q.eq("type", { "audio banks": "Audio Bank", "midi packs": "MIDI Pack", "presets": "Presets" }[activeTab]);
         
         const { data } = await q.order("created_at", { ascending: false }).range((page - 1) * lim, page * lim - 1);
-        if (data) {
-          // NOU: legam fiecare bank de anuntul lui de pe Market (daca exista), o singura data aici
-          const bankIds = data.map((b: any) => b.id);
-          let listingsByBank: Record<string, { id: string; price: number; title: string; digitalLink: string | null }> = {};
-          if (bankIds.length > 0) {
-            const { data: listingsData } = await supabase
-              .from("listings")
-              .select("id, price, title, bank_id, digital_link")
-              .in("bank_id", bankIds);
-            if (listingsData) {
-              listingsData.forEach((l: any) => {
-                listingsByBank[l.bank_id] = { id: l.id, price: Number(l.price), title: l.title, digitalLink: l.digital_link };
-              });
-            }
-          }
-          setBanks(data.map((b: any) => ({ ...b, listing: listingsByBank[b.id] || null })));
-        }
+        if (data) setBanks(data);
       } catch (err: any) { setError(err.message); } finally { setLoading(false); }
     })();
   }, [page, activeTab]);
@@ -272,26 +251,12 @@ useEffect(() => {
     setShareResultUrl("");
     setShareResultExpires("");
     setShareCopied(false);
-    setShareListing(bank.listing || null); // legat deja la incarcarea paginii
-    setShareMode(bank.listing?.digitalLink ? "priced" : "simple");
   };
 
   const closeShareModal = () => {
     setShareBank(null);
-    setShareListing(null);
   };
 
-  // FAZA 1: link general, fara PIN si fara RPC — doar identificator de continut,
-  // folosit ca digital_link cand publici anuntul pe Market.
-  const generateSimpleLink = () => {
-    if (!shareBank) return;
-    const url = `${window.location.origin}/e-market/content/${shareBank.id}`;
-    setShareResultUrl(url);
-    setShareResultExpires("");
-  };
-
-  // FAZA 2: link real, cu PIN, unic per cumparator, prin RPC — disponibil doar
-  // dupa ce anuntul e live (are pret + digital_link), arata pret + comision.
   const generateShareLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!shareBank) return;
@@ -726,77 +691,13 @@ const runMarketAnalysis = async () => {
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-mono uppercase tracking-wide text-zinc-400">Link conținut / vânzare</p>
+                <p className="text-[10px] font-mono uppercase tracking-wide text-zinc-400">Seller link (link in BIO)</p>
                 <h3 className="text-sm font-bold text-zinc-900 truncate max-w-[220px]" title={shareBank.name}>{shareBank.name}</h3>
               </div>
               <button onClick={closeShareModal} className="w-7 h-7 rounded-full bg-zinc-100 flex items-center justify-center text-xs">✕</button>
             </div>
 
-            {/* NOU: 2 optiuni la generare — link simplu (folosit ca digital_link cand publici anuntul),
-                sau link cu pret+comision (nelimitat, dupa ce anuntul e live cu pret + digital content) */}
-            <div className="flex gap-1 bg-zinc-100 p-1 rounded-lg">
-              <button
-                type="button"
-                onClick={() => { setShareMode("simple"); setShareResultUrl(""); setShareError(""); }}
-                className={`flex-1 h-8 text-[11px] font-semibold rounded-md transition-all ${shareMode === "simple" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"}`}
-              >
-                Link simplu
-              </button>
-              <button
-                type="button"
-                onClick={() => { if (shareListing?.digitalLink) { setShareMode("priced"); setShareResultUrl(""); setShareError(""); } }}
-                disabled={!shareListing?.digitalLink}
-                title={!shareListing?.digitalLink ? "Necesită un anunț publicat (cu preț și digital link) pentru acest fișier" : undefined}
-                className={`flex-1 h-8 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed ${shareMode === "priced" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"}`}
-              >
-                Link cu comision
-              </button>
-            </div>
-
-            {shareMode === "priced" && shareListing?.digitalLink ? (
-              <div className="bg-zinc-50 border rounded-lg p-3 space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-500">Preț anunț</span>
-                  <span className="font-bold text-zinc-900">{shareListing.price.toFixed(2)} lei</span>
-                </div>
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-zinc-400">Comision iMIDI ({(COMMISSION_RATE * 100).toFixed(0)}%)</span>
-                  <span className="text-red-500 font-medium">- {(shareListing.price * COMMISSION_RATE).toFixed(2)} lei</span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] border-t pt-1.5 mt-1.5">
-                  <span className="text-zinc-500 font-medium">Încasezi</span>
-                  <span className="text-emerald-600 font-bold">{(shareListing.price * (1 - COMMISSION_RATE)).toFixed(2)} lei</span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-[11px] text-zinc-400 bg-zinc-50 border rounded-lg p-3">
-                {shareListing?.digitalLink
-                  ? "Ai deja anunț live — treci pe „Link cu comision” ca să trimiți vânzări individuale."
-                  : "Link identificator, fără PIN, doar ca să-l pui la digital content când publici anunțul. După ce anunțul e live, generezi de aici oricâte linkuri „cu comision”."}
-              </p>
-            )}
-
-            {shareMode === "simple" ? (
-              !shareResultUrl ? (
-                <button
-                  type="button"
-                  onClick={generateSimpleLink}
-                  className="w-full h-10 bg-zinc-900 text-white text-xs font-semibold rounded-lg"
-                >
-                  Genereaza link
-                </button>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-mono uppercase text-zinc-400 mb-1">Link (pune-l la digital content pe anunț)</p>
-                  <div className="flex gap-2">
-                    <input readOnly value={shareResultUrl} className="flex-1 h-9 border rounded-lg px-2 text-[11px] font-mono bg-zinc-50" />
-                    <button onClick={copyShareUrl} className="h-9 px-3 bg-zinc-900 text-white text-[11px] rounded-lg shrink-0">
-                      {shareCopied ? "Copiat" : "Copiaza"}
-                    </button>
-                  </div>
-                </div>
-              )
-            ) : !shareResultUrl ? (
+            {!shareResultUrl ? (
               <form onSubmit={generateShareLink} className="space-y-3">
                 <p className="text-[11px] text-zinc-500">
                   Alege un cod pe care il trimiti separat cumparatorului (WhatsApp, chat etc.). Linkul functioneaza o singura data si expira in 15 zile.
