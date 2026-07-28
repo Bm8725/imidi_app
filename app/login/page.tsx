@@ -91,17 +91,16 @@ export default function LoginPage() {
 
 
   return (
-    <div className="bg-[#FAFAFA] text-[#111111] min-h-screen flex flex-col antialiased selection:bg-[#0070F3]/10 relative overflow-x-hidden">
-      <style>{`
-        @import url('https://googleapis.com'); 
-        .corp-sans { font-family: 'Inter', sans-serif; } 
-        .corp-mono { font-family: 'JetBrains Mono', monospace; }
-      `}</style>
+   <div className="bg-gradient-to-tr from-[#E0E7FF] via-[#EEF2FF] to-[#F5F3FF] text-[#111111] min-h-screen flex flex-col antialiased selection:bg-[#4F46E5]/20 relative overflow-x-hidden">
+  <style>{`
+    @import url('https://googleapis.com'); 
+    .corp-sans { font-family: 'Inter', sans-serif; } 
+    .corp-mono { font-family: 'JetBrains Mono', monospace; }
+  `}</style>
 
-      {/* ULTRA-PREMIUM INTERACTIVE BACKGROUND */}
-      <div className="absolute top-[-10%] right-[-10%] w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] bg-gradient-to-b from-[#0070F3]/8 to-transparent rounded-full blur-[80px] sm:blur-[140px] pointer-events-none z-0" />
-      <div className="absolute bottom-[5%] left-[-15%] w-[250px] sm:w-[500px] h-[250px] sm:h-[500px] bg-gradient-to-tr from-[#FF5CA1]/6 to-transparent rounded-full blur-[70px] sm:blur-[120px] pointer-events-none z-0" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:20px_20px] sm:bg-[size:32px_32px] pointer-events-none z-0" />
+  {/* INTERACTIVE BACKGROUND: ALBASTRU-MOV NEON EXTRA INTENS ȘI VIU */}
+  <div className="absolute top-[-10%] right-[-5%] w-[400px] sm:w-[800px] h-[400px] sm:h-[800px] bg-gradient-to-br from-[#4F46E5]/35 via-[#8B5CF6]/30 to-transparent rounded-full blur-[70px] sm:blur-[110px] pointer-events-none z-0 animate-pulse duration-[5000ms]" />
+  <div className="absolute bottom-[5%] left-[-10%] w-[350px] sm:w-[700px] h-[350px] sm:h-[700px] bg-gradient-to-tr from-[#6366F1]/30 via-[#EC4899]/15 to-transparent rounded-full blur-[80px] sm:blur-[120px] pointer-events-none z-0" />
 
       <Navbar />
 
