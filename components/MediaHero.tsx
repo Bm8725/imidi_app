@@ -110,26 +110,41 @@ export default function MediaHero() {
       </div>
 
       {/* 4. CTA-uri live — TS4X (SOLO) și i-volution (BASS), ancorate peste grid */}
-<div className="absolute inset-x-0 bottom-10 sm:bottom-14 z-30 flex flex-row justify-center items-center gap-4 px-5 pointer-events-auto max-w-4xl mx-auto">
+<div className="absolute inset-x-0 bottom-10 sm:bottom-14 z-30 flex flex-row justify-center items-center gap-5 px-5 pointer-events-auto max-w-4xl mx-auto">
   
-  {/* E-Market - Icoană Căruț / Magazin */}
+  {/* 1. Cloud / Buy Instant (Efect Puls și Glow) */}
+  <Link
+    href="/mycloud"
+    title="Instant Cloud Purchase"
+    className="group relative w-14 h-14 inline-flex items-center justify-center border border-white/30 bg-white/5 backdrop-blur-md text-white rounded-full transition-all duration-500 hover:bg-white/20 hover:border-white hover:scale-110 active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.4)]"
+  >
+    {/* Inel exterior animat (Pulse) */}
+    <span className="absolute inset-0 rounded-full border border-white/40 animate-ping opacity-25 group-hover:opacity-0 transition-opacity duration-300"></span>
+    
+    {/* Iconiță Cloud + Săgeată în jos (Download/Buy) */}
+    <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-6 h-6 transition-transform duration-300 group-hover:-translate-y-0.5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9.75v6.75m0 0-3-3m3 3 3-3m-8.25 6a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
+    </svg>
+  </Link>
+
+  {/* 2. Global E-Market */}
   <Link
     href="/e-market"
     title="Global E-Market"
-    className="w-12 h-12 inline-flex items-center justify-center border border-white/20 bg-white/5 backdrop-blur-md text-white/80 rounded-full transition-all duration-300 hover:bg-white/15 hover:border-white/50 hover:text-white hover:scale-105 active:scale-95"
+    className="group relative w-14 h-14 inline-flex items-center justify-center border border-white/20 bg-white/5 backdrop-blur-md text-white/80 rounded-full transition-all duration-500 hover:bg-white/20 hover:border-white/80 hover:scale-110 active:scale-95 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)]"
   >
-    <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+    <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-6 h-6 transition-transform duration-300 group-hover:-translate-y-0.5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
     </svg>
   </Link>
 
-  {/* Hardware - Icoană Microcip / Tech */}
+  {/* 3. i-volution Hardware */}
   <Link
     href="/products"
     title="i-volution Hardware"
-    className="w-12 h-12 inline-flex items-center justify-center border border-white/20 bg-white/5 backdrop-blur-md text-white/80 rounded-full transition-all duration-300 hover:bg-white/15 hover:border-white/50 hover:text-white hover:scale-105 active:scale-95"
+    className="group relative w-14 h-14 inline-flex items-center justify-center border border-white/20 bg-white/5 backdrop-blur-md text-white/80 rounded-full transition-all duration-500 hover:bg-white/20 hover:border-white/80 hover:scale-110 active:scale-95 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)]"
   >
-    <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+    <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-6 h-6 transition-transform duration-300 group-hover:-translate-y-0.5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 3v1.5M4.5 8.25H3m10.5-5.25v1.5M3 12h1.5m16.5-.75h-1.5M21 12h-1.5m-3.75-9v1.5m2.25 13.5v1.5M7.5 21v-1.5m6.25 1.5v-1.5m-.75-6h-3.75A1.125 1.125 0 0 1 8.25 12V8.25a1.125 1.125 0 0 1 1.125-1.125h3.75A1.125 1.125 0 0 1 14.25 8.25V12A1.125 1.125 0 0 1 13.5 13.125ZM10.5 4.5H13.5A2.25 2.25 0 0 1 15.75 6.75V9.75A2.25 2.25 0 0 1 13.5 12H10.5A2.25 2.25 0 0 1 8.25 9.75V6.75A2.25 2.25 0 0 1 10.5 4.5Z" />
     </svg>
   </Link>
