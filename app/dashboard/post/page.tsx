@@ -175,7 +175,7 @@ export default function SocialPostsPage() {
   };
 
   return (
-    <div className="bg-[#FAF9F6] text-zinc-900 min-h-screen flex flex-col antialiased">
+    <div className="bg-[#e3f1f1] text-zinc-900 min-h-screen flex flex-col antialiased">
       <Navbar />
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 pt-24 pb-12">
         <div className="flex items-center justify-between mb-1">

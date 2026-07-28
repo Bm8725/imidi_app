@@ -375,6 +375,19 @@ const runMarketAnalysis = async () => {
   
   {/* PANOU PRINCIPAL (STÂNGA - 2 TREIMI): CONTROL VAULT */}
   <div className="lg:col-span-2 flex flex-col justify-between bg-[#0D0D0D] border border-zinc-800/80 p-6 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] min-h-[190px] relative overflow-hidden group">
+    
+    {/* POZA DE PROFIL PE FUNDAL - SE RANDEAZĂ DOAR DACĂ EXISTĂ AVATAR */}
+    {user?.avatar && (
+      <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden">
+        <img 
+          src={user.avatar} 
+          alt="User Profile Background" 
+          className="w-full h-full object-cover opacity-20 blur-[2px] group-hover:scale-105 transition-transform duration-700 ease-out"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0D] via-[#0D0D0D]/85 to-transparent" />
+      </div>
+    )}
+
     {/* Glow decorativ subtil pe fundal */}
     <div className="absolute -top-12 -left-12 w-32 h-32 bg-[#FF7A1A]/5 rounded-full blur-3xl pointer-events-none" />
     
@@ -383,7 +396,6 @@ const runMarketAnalysis = async () => {
         iMIDI <span className="bg-gradient-to-r from-[#FF7A1A] to-[#ff9f54] bg-clip-text text-transparent">MyCloud</span>
       </h1>
       <div className="flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#FF7A1A] animate-ping" />
         {/* TEXT SCHIMBAT PE ALB CURAT */}
         <p className="text-xs font-mono text-white select-none tracking-wider">{user?.email}</p>
       </div>
@@ -474,7 +486,6 @@ const runMarketAnalysis = async () => {
           <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#FF7A1A] border-2 border-[#0D0D0D]" />
         </div>
         <div className="flex flex-col">
-          {/* TEXT SCHIMBAT PE ALB CURAT */}
           <span className="text-[10px] text-white uppercase tracking-widest font-mono font-bold">User</span>
           <span className="text-sm font-bold text-white max-w-[110px] truncate tracking-wide">{user?.name || "Uploading..."}</span>
         </div>
@@ -490,7 +501,6 @@ const runMarketAnalysis = async () => {
 
     {/* Statistici volum stocare */}
     <div className="w-full mt-4 flex-1 flex flex-col justify-end">
-      {/* TEXT SCHIMBAT PE ALB CURAT */}
       <div className="text-[10px] text-white flex justify-between font-mono tracking-widest font-black items-center mb-2">
         <span>VAULT STORAGE</span>
         <span className="text-white font-bold font-sans tracking-normal">
@@ -524,7 +534,7 @@ const runMarketAnalysis = async () => {
         </button>
       )}
 
-      {/* Pas 2: Pro -> Enterprise (250GB) - TEXT BUTON ALB */}
+      {/* Pas 2: Pro -> Enterprise (250GB) */}
       {plan === "pro" && (
         <button
           onClick={handleBuyEnterprise}
