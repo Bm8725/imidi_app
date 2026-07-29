@@ -128,21 +128,43 @@ const generateWithAI = async () => {
 
 ///////////////////////////////////////////////   search AI smith ///////////////////////////////////
   // ---- AI SMITH SEARCH MOD (NOU) ----
+    // ---- AI SMITH SEARCH MOD (NOU) ----
   const [aiSearchInput, setAiSearchInput] = useState("");
   const [aiSearchLoading, setAiSearchLoading] = useState(false);
-  const [aiSearchFeedback, setAiSearchFeedback] = useState("");
-   // Controler dedicat pentru comutarea tab-urilor de căutare
+  
+  // Setăm un mesaj inițial de întâmpinare din partea lui Smith
+  const [aiSearchFeedback, setAiSearchFeedback] = useState("Hello! I am Smith, let's find your product! 🔎");
   const [searchMode, setSearchMode] = useState<"classic" | "ai">("classic");
+
+  // EFECT: Schimbă mesajul lui Smith din când în când doar dacă utilizatorul nu caută activ ceva
+  useEffect(() => {
+    const smithMessages = [
+      "Hello! I am Smith, let's find your product! 🔎",
+      "Looking for something specific? I can help! 🤖",
+      "Try my AI search for lightning-fast results! ✨",
+      "Tell me what you need, I'll do the rest! 🧠"
+    ];
+
+    const interval = setInterval(() => {
+      // Schimbăm mesajul doar dacă nu suntem în mijlocul unei căutări (fără loading)
+      if (!aiSearchLoading) {
+        const randomIndex = Math.floor(Math.random() * smithMessages.length);
+        setAiSearchFeedback(smithMessages[randomIndex]);
+      }
+    }, 15000); // La fiecare 15 secunde
+
+    return () => clearInterval(interval);
+  }, [aiSearchLoading]);
 
   const handleAiSmithSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (aiSearchInput.trim().length < 4) {
-      setAiSearchFeedback("Scrie o cerință mai clară (ex: clape ieftine sau preset techno).");
+      setAiSearchFeedback("Scrie o cerință mai clară (ex: clape ieftine sau preset techno). 🛠️");
       return;
     }
 
     setAiSearchLoading(true);
-    setAiSearchFeedback("Smith configurează filtrele în rețea...");
+    setAiSearchFeedback("Smith configurează filtrele în rețea... 🤖⚡");
     
     try {
       const res = await fetch("/api/ai/search-intent", {
@@ -166,10 +188,10 @@ const generateWithAI = async () => {
       setPriceMax(data.priceMax !== null ? data.priceMax.toString() : "");
       setPriceMin(data.priceMin !== null ? data.priceMin.toString() : "");
       
-      setAiSearchFeedback(`Filtre aplicate cu succes pentru: "${aiSearchInput.trim()}"`);
+      setAiSearchFeedback(`Gata! Filtre aplicate pentru: "${aiSearchInput.trim()}" ✨`);
       setAiSearchInput(""); // Ștergem textul din bară după execuție
     } catch (err: any) {
-      setAiSearchFeedback(`Smith nu a înțeles perfect textul. Încearcă o căutare normală.`);
+      setAiSearchFeedback(`Smith nu a înțeles perfect textul. Încearcă o căutare normală. 🤯`);
       console.error(err.message);
     } finally {
       setAiSearchLoading(false);
@@ -591,7 +613,7 @@ useEffect(() => {
     </svg>
     <div>
       <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A7A5C] mb-1">
-        www.imidi.co.uk
+        www.imidi.co.uk/e-market
       </p>
       <h1 className="text-3xl font-serif tracking-tight text-[#1C1A16]">E-Market</h1>
       <p className="text-sm text-[#7A7365] mt-1">
@@ -681,26 +703,57 @@ useEffect(() => {
 
 <div className="w-full space-y-3 px-1 sm:px-0">
   {/* Selector de Mod: Clasic vs AI Smith (Responsive & Touch-friendly pe mobil) */}
-  <div className="flex gap-4 px-1 select-none border-b border-zinc-100 pb-1">
-    <button
-      type="button"
-      onClick={() => setSearchMode("classic")}
-      className={`text-[10px] font-bold uppercase tracking-wider transition-colors pb-1.5 ${
-        searchMode === "classic" ? "text-[#1C1A16] border-b-2 border-[#1C1A16]" : "text-zinc-400 hover:text-zinc-600"
-      }`}
-    >
-      Clasical search
-    </button>
-    <button
-      type="button"
-      onClick={() => setSearchMode("ai")}
-      className={`text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1 pb-1.5 ${
-        searchMode === "ai" ? "text-pink-600 border-b-2 border-pink-500" : "text-zinc-400 hover:text-pink-500"
-      }`}
-    >
-      <span className="animate-pulse">✦</span> AI Smith Search
-    </button>
-  </div>
+<div className="relative flex gap-4 px-1 select-none border-b border-zinc-100 pb-1 pt-7">
+  
+  {/* Bula lui Smith - Rulează permanent (și pe Classic și pe AI) dacă există un mesaj */}
+  {aiSearchFeedback && (
+    <div className="absolute -top-1 left-[140px] transform -translate-x-1/2 -translate-y-full transition-all duration-300 bg-white border border-pink-200 text-zinc-600 text-[10px] font-semibold px-3 py-1.5 rounded-xl shadow-[0_4px_15px_rgba(219,39,119,0.08)] z-10 w-52 leading-normal animate-bounce [animation-iteration-count:1] [animation-duration:0.6s]">
+      <div className="flex items-start gap-1.5 text-left">
+        {/* Bulină mică roz care pulsează ca un indicator live de AI */}
+<span className="relative flex h-3 w-3 mt-0.5 shrink-0 items-center justify-center">
+  
+  {/* Semnul de AI (Steluța) animat discret */}
+  <span className="relative text-pink-500 font-bold text-xs animate-pulse drop-shadow-[0_0_4px_rgba(219,39,119,0.5)]">
+    ✦
+  </span>
+</span>
+
+        <span className="block break-words">{aiSearchFeedback}</span>
+      </div>
+      {/* Săgeată albă cu contur roz orientată în jos către butonul AI */}
+      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-1.5 h-1.5 bg-white border-r border-b border-pink-200 rotate-45"></div>
+    </div>
+  )}
+
+  {/* Buton Classical Search */}
+  <button
+    type="button"
+    onClick={() => setSearchMode("classic")}
+    className={`text-[10px] font-bold uppercase tracking-wider transition-colors pb-1.5 ${
+      searchMode === "classic" 
+        ? "text-[#1C1A16] border-b-2 border-[#1C1A16]" 
+        : "text-zinc-400 hover:text-zinc-600"
+    }`}
+  >
+    Clasical search
+  </button>
+
+  {/* Buton AI Smith Search */}
+  <button
+    type="button"
+    onClick={() => setSearchMode("ai")}
+    className={`text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 px-2 pb-1.5 rounded-t-md ${
+      searchMode === "ai"
+        ? "text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 border-b-2 border-pink-500 bg-pink-50/40 shadow-[0_4px_12px_rgba(219,39,119,0.05)]"
+        : "text-zinc-400 hover:text-pink-500 hover:bg-zinc-50"
+    }`}
+  >
+    <span className={`text-xs ${searchMode === "ai" ? "text-pink-500 animate-spin [animation-duration:3s]" : "text-pink-400 animate-pulse"}`}>
+      ✦
+    </span>
+    <span>AI Smith Search</span>
+  </button>
+</div>
 
   {/* Formularul Unic - RECONSTRUIT RESPONSIVE (flex-col pe mobil, flex-row pe desktop) */}
   <form 
