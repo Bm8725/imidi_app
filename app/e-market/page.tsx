@@ -1360,7 +1360,7 @@ useEffect(() => {
                                     {/* Buton WhatsApp - REPARAT COMPLET CU SLASH ȘI PREFIX */}
 <a
   href={
-    "https://wa.me" + 
+    "https://wa.me/" + 
     (selectedListing.phone.replace(/[^0-9]/g, "").startsWith("0") 
       ? "40" + selectedListing.phone.replace(/[^0-9]/g, "").substring(1) 
       : selectedListing.phone.replace(/[^0-9]/g, "")) + 
