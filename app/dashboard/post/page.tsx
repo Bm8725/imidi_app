@@ -75,9 +75,9 @@ export default function SocialPostsPage() {
 const handleConnectFacebook = () => {
   setConnectingFb(true);
   const params = new URLSearchParams({
-    client_id: process.env.NEXT_PUBLIC_FACEBOOK_APP_ID!,
+    client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
     redirect_uri: `${window.location.origin}/api/meta/callback`,
-    config_id: process.env.NEXT_PUBLIC_FACEBOOK_CONFIG_ID!,
+    config_id: process.env.NEXT_PUBLIC_META_CONFIG_ID!,
     response_type: "code",
     state: window.location.pathname, // ca sa stim unde redirectam userul inapoi
   });

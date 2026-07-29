@@ -47,8 +47,8 @@ export async function GET(req: NextRequest) {
   try {
     // ---- 1. code -> short-lived user access token ----
     const tokenUrl = new URL(`${BASE_URL}/oauth/access_token`);
-    tokenUrl.searchParams.set("client_id", process.env.FACEBOOK_APP_ID!);
-    tokenUrl.searchParams.set("client_secret", process.env.FACEBOOK_APP_SECRET!);
+    tokenUrl.searchParams.set("client_id", process.env.META_APP_ID!);
+    tokenUrl.searchParams.set("client_secret", process.env.META_APP_SECRET!);
     tokenUrl.searchParams.set("redirect_uri", `${origin}/api/meta/callback`);
     tokenUrl.searchParams.set("code", code);
 
@@ -61,8 +61,8 @@ export async function GET(req: NextRequest) {
     // ---- 2. short-lived -> long-lived user access token (~60 zile) ----
     const longLivedUrl = new URL(`${BASE_URL}/oauth/access_token`);
     longLivedUrl.searchParams.set("grant_type", "fb_exchange_token");
-    longLivedUrl.searchParams.set("client_id", process.env.FACEBOOK_APP_ID!);
-    longLivedUrl.searchParams.set("client_secret", process.env.FACEBOOK_APP_SECRET!);
+    longLivedUrl.searchParams.set("client_id", process.env.META_APP_ID!);
+    longLivedUrl.searchParams.set("client_secret", process.env.META_APP_SECRET!);
     longLivedUrl.searchParams.set("fb_exchange_token", shortLivedToken);
 
     const longLivedRes = await fetch(longLivedUrl.toString());
