@@ -547,7 +547,7 @@ const runMarketAnalysis = async () => {
 
       {/* Pas 3: Enterprise activ (250GB) */}
       {plan === "enterprise" && (
-        <div className="w-full h-9 px-4 flex items-center justify-center gap-2 border border-cyan-500/20 bg-cyan-950/20 text-cyan-400 text-xs font-bold font-mono tracking-widest uppercase rounded-xl whitespace-nowrap">
+        <div className="w-full h-9 px-4 flex items-center justify-center gap-2 border border-white  bg-white text-cyan-400 text-xs font-bold font-mono tracking-widest uppercase rounded-xl whitespace-nowrap">
           
           Enterprise plan active
         </div>
