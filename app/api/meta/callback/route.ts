@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
           fb_page_id: page.id,
           fb_page_name: page.name,
           fb_page_access_token: page.access_token,
-          connected_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         },
         { onConflict: "user_id" }
       );
