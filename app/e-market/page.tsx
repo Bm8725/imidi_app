@@ -1341,7 +1341,7 @@ useEffect(() => {
               {/* contact */}
               <div className="bg-gray-50 border border-black/5 rounded-2xl p-5 flex flex-col gap-3.5 w-full">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">
-                  Contactează Vânzătorul
+                  Contact the seller
                 </span>
                 
                 <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full">
@@ -1381,29 +1381,37 @@ useEffect(() => {
                                             Trimite Mesaj
                                           </a>
 
+                                          <a
+                                        href={`sms:${selectedListing.phone}?body=${encodeURIComponent(`Salut! Sunt interesat de anuntul tau "${selectedListing.title}" de pe iMIDI.`)}`}
+                                        className="w-full text-center text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all"
+                                      >
+                                        Trimite SMS Rapid
+                                      </a>
+
+
 
                     </>
                   )}
                   
-{selectedListing.email && (
-  <a
-    href={
-      "mailto:" + selectedListing.email +
-      "?subject=" + encodeURIComponent(`Interesat de anunțul: ${selectedListing.title || ''}`) +
-      "&body=" + encodeURIComponent(
-        `Salut!\n\n` +
-        `Sunt interesat de anunțul tău: "${selectedListing.title || ''}"\n` +
-        `Preț: ${selectedListing.price || 'Nespecificat'}\n\n` +
-        `Vezi detalii aici: ${typeof window !== 'undefined' ? window.location.href : ''}\n\n` +
-        `Aștept un răspuns. Mulțumesc!`
-      )
-    }
-    className="w-full text-center text-sm font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-sm active:scale-95 hover:scale-[1.01]"
-  >
-    <span className="text-base">{"\u2709"}</span>
-    Trimite Email
-  </a>
-)}
+                        {selectedListing.email && (
+                          <a
+                            href={
+                              "mailto:" + selectedListing.email +
+                              "?subject=" + encodeURIComponent(`Interesat de anunțul: ${selectedListing.title || ''}`) +
+                              "&body=" + encodeURIComponent(
+                                `Salut!\n\n` +
+                                `Sunt interesat de anunțul tău: "${selectedListing.title || ''}"\n` +
+                                `Preț: ${selectedListing.price || 'Nespecificat'}\n\n` +
+                                `Vezi detalii aici: ${typeof window !== 'undefined' ? window.location.href : ''}\n\n` +
+                                `Aștept un răspuns. Mulțumesc!`
+                              )
+                            }
+                            className="w-full text-center text-sm font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-sm active:scale-95 hover:scale-[1.01]"
+                          >
+                            <span className="text-base">{"\u2709"}</span>
+                            Trimite Email
+                          </a>
+                        )}
 
                 </div>
 
