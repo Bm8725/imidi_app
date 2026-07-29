@@ -42,8 +42,8 @@ export const viewport: Viewport = {
 
 // Metadate SEO Avansate, OpenGraph (Facebook/Discord) și Mobile-Ready
 export const metadata: Metadata = {
-  title: "iMIDI App — Shape the Digital Music Future and Market",
-  description: "The next generation of synthesizer technology. Experience real-time cloud synergy, high-fidelity sound engines, and modern midi controls.",
+  title: "iMIDI App — Shape the Digital Future and Market",
+  description: "The next generation of market place. Experience real-time cloud synergy, high-fidelity sound engines, and modern midi controls.",
   keywords: ["midi", "synth", "synthesizer", "digital music", "audio app", "next gen synth", "iMIDI"],
   authors: [{ name: "iMIDI Team" }],
   manifest: "/manifest.json",

@@ -88,6 +88,12 @@ export default function EMarketPage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [shareFeedbackId, setShareFeedbackId] = useState<string | null>(null);
 
+
+  const [isPhoneRevealed, setIsPhoneRevealed] = useState(false);
+
+
+
+
   ///// ai mod 
   const [aiKeywords, setAiKeywords] = useState("");
 const [aiLoading, setAiLoading] = useState(false);
@@ -1348,13 +1354,26 @@ useEffect(() => {
                   {selectedListing.phone && (
                     <>
                       {/* Buton Apel */}
-                      <a
-                        href={"tel:" + selectedListing.phone}
-                        className="flex-1 min-w-[160px] text-center text-sm font-bold text-white bg-[#B4592F] hover:bg-[#964723] px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 hover:scale-[1.02]"
-                      >
-                        <span className="text-base">{"\u260E"}</span>
-                        {selectedListing.phone}
-                      </a>
+{/* Buton Apel Inteligent cu Reveal și Protecție Spam */}
+{!isPhoneRevealed ? (
+  <button
+    type="button"
+    onClick={() => setIsPhoneRevealed(true)}
+    className="flex-1 min-w-[160px] text-center text-sm font-bold text-white bg-[#B4592F] hover:bg-[#964723] px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 hover:scale-[1.02]"
+  >
+    <span className="text-base">📞</span>
+    <span>Show number</span>
+  </button>
+) : (
+  <a
+    href={"tel:" + selectedListing.phone}
+    className="flex-1 min-w-[160px] text-center text-sm font-bold text-[#B4592F] bg-[#B4592F]/10 border border-[#B4592F]/30 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all active:scale-95 animate-fadeIn"
+  >
+    <span className="text-base">📞</span>
+    <span className="tracking-wider">{selectedListing.phone}</span>
+  </a>
+)}
+
                       
                      
                                     {/* Buton WhatsApp - REPARAT COMPLET CU SLASH ȘI PREFIX */}
@@ -1378,20 +1397,20 @@ useEffect(() => {
                                             <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                                               <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.713-1.455L0 24zm6.59-4.846c1.66.986 3.288 1.474 4.803 1.475 5.394 0 9.779-4.384 9.782-9.78.001-2.614-1.017-5.074-2.871-6.928C16.447 2.067 14 1.05 11.4 1.05c-5.4 0-9.785 4.387-9.788 9.783-.001 1.704.469 3.371 1.359 4.881l-.972 3.548 3.648-.957zm11.124-4.525c-.3-.15-1.77-.874-2.043-.973-.274-.1-.473-.15-.673.15-.199.299-.772.972-.946 1.172-.174.2-.349.224-.649.075-.3-.15-1.267-.467-2.414-1.492-.893-.796-1.496-1.78-1.671-2.079-.174-.3-.019-.462.13-.611.135-.133.3-.349.45-.523.149-.174.199-.299.299-.498.1-.2.05-.374-.025-.523-.075-.15-.673-1.62-.922-2.218-.242-.585-.488-.507-.673-.517-.174-.007-.373-.008-.573-.008-.2 0-.523.075-.797.373-.274.299-1.045 1.021-1.045 2.49 0 1.47 1.07 2.89 1.219 3.09.149.2 2.107 3.216 5.106 4.512.714.308 1.272.492 1.707.63.717.227 1.37.195 1.887.118.577-.087 1.77-.723 2.019-1.42.249-.696.249-1.295.174-1.42-.075-.125-.275-.199-.575-.349z" />
                                             </svg>
-                                            Trimite Mesaj
+                                            Send message
                                           </a>
 
-<a
-  href={`sms:${selectedListing.phone}?body=${encodeURIComponent(
-    `Salut! Sunt interesat de anunțul tău "${selectedListing.title || ''}" de pe iMIDI.\n` +
-    `Preț: ${selectedListing.price || 'Nespecificat'}\n\n` +
-    `Vezi anunțul aici: ${typeof window !== 'undefined' ? window.location.href : ''}`
-  )}`}
-  className="w-full text-center text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-sm active:scale-95 hover:scale-[1.01]"
->
-  <span className="text-base">💬</span>
-  Trimite SMS Rapid
-</a>
+                                    <a
+                                      href={`sms:${selectedListing.phone}?body=${encodeURIComponent(
+                                        `Salut! Sunt interesat de anunțul tău "${selectedListing.title || ''}" de pe iMIDI.\n` +
+                                        `Preț: ${selectedListing.price || 'Nespecificat'}\n\n` +
+                                        `Vezi anunțul aici: ${typeof window !== 'undefined' ? window.location.href : ''}`
+                                      )}`}
+                                      className="w-full text-center text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-sm active:scale-95 hover:scale-[1.01]"
+                                    >
+                                      <span className="text-base">💬</span>
+                                      SMS send 
+                                    </a>
 
 
 
@@ -1414,7 +1433,7 @@ useEffect(() => {
                             className="w-full text-center text-sm font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-sm active:scale-95 hover:scale-[1.01]"
                           >
                             <span className="text-base">{"\u2709"}</span>
-                            Trimite Email
+                            Send e-mail
                           </a>
                         )}
 
@@ -1422,7 +1441,7 @@ useEffect(() => {
 
                 {!selectedListing.phone && !selectedListing.email && (
                   <span className="text-sm text-[#9A907C] font-semibold text-center py-2 bg-gray-100 rounded-xl">
-                    Vânzătorul nu a lăsat date de contact.
+                    The selller doesn't have an contact!
                   </span>
                 )}
               </div>
