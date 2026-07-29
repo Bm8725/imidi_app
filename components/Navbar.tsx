@@ -151,45 +151,32 @@ export default function Navbar() {
                   )}
                 </button>
 
-{isNotifOpen && (
-  <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50">
-    {notifications.length === 0 ? (
-      <p className="px-4 py-6 text-center text-xs text-slate-400">No notifications yet.</p>
-    ) : (
-      notifications.map((n) => {
-        // Curățăm URL-ul în caz că vine de forma "/e-market" sau are spații/slash-uri greșite
-        let finalHref = n.href || "#";
-        
-        if (finalHref.includes('e-market')) {
-          // Extrage doar ID-ul curat de la finalul stringului din DB
-          const curatId = finalHref.split('/').pop()?.trim();
-          // Forțează formatul standard pe care Next.js îl poate ruta
-          finalHref = curatId ? `/e-market/listing/${curatId}` : '/e-market';
-        }
-
-        return (
-          <Link
-            key={n.id + n.createdAt}
-            href={finalHref}
-            onClick={() => setIsNotifOpen(false)}
-            className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
-          >
-            {n.image ? (
-              <img src={n.image} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
-            ) : (
-              <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0" />
-            )}
-            <div className="flex-1 min-w-0 text-left">
-              <p className="text-xs font-semibold text-slate-800 truncate">{n.title}</p>
-              <p className="text-[11px] text-slate-500 truncate">{n.message}</p>
-            </div>
-          </Link>
-        );
-      })
-    )}
-  </div>
-)}
-
+                {isNotifOpen && (
+                  <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50">
+                    {notifications.length === 0 ? (
+                      <p className="px-4 py-6 text-center text-xs text-slate-400">No notifications yet.</p>
+                    ) : (
+                      notifications.map((n) => (
+                        <Link
+                          key={n.id + n.createdAt}
+                          href={n.href || "#"}
+                          onClick={() => setIsNotifOpen(false)}
+                          className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
+                        >
+                          {n.image ? (
+                            <img src={n.image} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-slate-800 truncate">{n.title}</p>
+                            <p className="text-[11px] text-slate-500 truncate">{n.message}</p>
+                          </div>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {user ? (

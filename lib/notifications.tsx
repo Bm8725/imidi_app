@@ -19,22 +19,29 @@ export function initNotifications(setNotifications: (notifs: AppNotification[]) 
   const fetchNotifications = async () => {
     const { data, error } = await supabase
       .from("notifications")
-      .select("*")
+      .select("id, title, message, href, image, read, created_at, listing_id") // Am adăugat listing_id
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      const mapped: AppNotification[] = data.map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        message: item.message,
-        // MODIFICARE DIRECTĂ: Dacă în DB e doar 'e-market', îi punem automat id-ul la final
-        href: item.href === "e-market" || item.href === "/e-market"
-          ? `/e-market/listing/${item.id}`
-          : (item.href || undefined),
-        image: item.image || undefined,
-        read: item.read ?? false,
-        createdAt: item.created_at,
-      }));
+      const mapped: AppNotification[] = data.map((item: any) => {
+        // Dacă din orice motiv href e doar static, îl corectăm pe loc folosind listing_id sau id
+        const idAnunt = item.listing_id || item.id;
+        let finalHref = item.href;
+        
+        if (!finalHref || finalHref === "e-market" || finalHref === "/e-market") {
+          finalHref = `/e-market/listing/${idAnunt}`;
+        }
+
+        return {
+          id: item.id,
+          title: item.title,
+          message: item.message,
+          href: finalHref,
+          image: item.image || undefined,
+          read: item.read ?? false,
+          createdAt: item.created_at,
+        };
+      });
       
       globalNotifications = mapped;
       setNotifications(mapped);
