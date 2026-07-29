@@ -17,10 +17,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ connected: false, error: "Sesiune invalida in server" }, { status: 401 });
     }
 
-    // 3. Căutăm conexiunea (Am adăugat și connected_at în select-ul de mai jos)
+    // 3. Căutăm conexiunea (FĂRĂ connected_at, doar datele esențiale)
     const { data: connection, error: dbErr } = await supabaseAdmin
       .from("user_meta_connections")
-      .select("fb_page_id, fb_page_name, connected_at")
+      .select("fb_page_id, fb_page_name")
       .eq("user_id", user.id)
       .maybeSingle(); 
 
@@ -31,8 +31,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         connected: true,
         pageName: connection.fb_page_name,
-        pageId: connection.fb_page_id,
-        connectedAt: connection.connected_at
+        pageId: connection.fb_page_id
       });
     }
 
