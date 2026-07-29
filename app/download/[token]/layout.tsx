@@ -7,23 +7,23 @@
 
 import { Metadata } from "next";
 
-type Props = {
-  params: { token: string };
+type LayoutProps = {
+  params: Promise<{ token: string }>;
   children: React.ReactNode;
 };
 
-// Această funcție rulează pe server și generează preview-ul instant pentru orice platformă de share
-export async function generateMetadata({ params }: { params: { token: string } }): Promise<Metadata> {
-  const token = params.token;
+// Next.js cere ca params să fie tratat ca Promise asincron în generateMetadata
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  // Aici rezolvăm eroarea din consolă prin extragerea token-ului asincron cu await
+  const { token } = await params;
   
   let title = "Digital Content Package";
   let description = "Secure digital delivery via iMIDI infrastructure. Enter your access key to download.";
 
   if (token) {
     try {
-      // Interogăm API-ul intern folosind URL-ul complet absolut (obligatoriu pe server)
       const res = await fetch(`https://imidi.co.uk{token}`, {
-        next: { revalidate: 60 } // Cache de 1 minut pentru performanță
+        next: { revalidate: 60 }
       });
       
       if (res.ok) {
@@ -43,8 +43,6 @@ export async function generateMetadata({ params }: { params: { token: string } }
   return {
     title: `${title} | iMIDI CLOUD`,
     description: description,
-    
-    // 1. Standardul Open Graph - Folosit de WhatsApp, Facebook, Discord, Telegram, LinkedIn, iMessage
     openGraph: {
       title: `📦 ${title}`,
       description: description,
@@ -52,7 +50,7 @@ export async function generateMetadata({ params }: { params: { token: string } }
       siteName: "iMIDI Cloud Infrastructure",
       images: [
         {
-          url: "https://imidi.co.uk", // Imaginea logo care apare ca thumbnail (sub 300KB)
+          url: "https://imidi.co.uk",
           width: 192,
           height: 192,
           alt: "iMIDI Secure Transfer Node",
@@ -60,8 +58,6 @@ export async function generateMetadata({ params }: { params: { token: string } }
       ],
       type: "website",
     },
-    
-    // 2. Standardul specific pentru platforma X / Twitter (Card Mare cu Imagine)
     twitter: {
       card: "summary_large_image",
       title: `📦 ${title}`,
@@ -71,6 +67,10 @@ export async function generateMetadata({ params }: { params: { token: string } }
   };
 }
 
-export default function DownloadLayout({ children }: Props) {
+// În layout-ul propriu-zis, Next.js primește params ca Promise, dar nu e obligatoriu să îi facem await dacă nu îl folosim în interfață
+export default async function DownloadLayout({ children, params }: LayoutProps) {
+  // Consumăm promisiunea pentru a asigura maparea corectă a tipurilor în Next.js
+  await params;
+  
   return <>{children}</>;
 }
