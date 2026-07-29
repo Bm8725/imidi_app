@@ -108,11 +108,21 @@ export default function Navbar() {
   return (
     <>
       {/* DESKTOP NAV: CORPORATE CLASSIC */}
-      <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 hidden md:block ${scrolled ? "bg-white border-b border-slate-200 shadow-sm h-16" : "bg-slate-50/50 border-b border-transparent h-20"}`}>
-        <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
-          <Link href="/" className="text-xl font-black tracking-tight text-slate-950 group relative py-1">
-            <span>iMIDI</span><span className="text-blue-600 ml-0.5 inline-block group-hover:scale-125 transition-transform duration-200">.</span>
-          </Link>
+     <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 hidden md:block ${scrolled ? "bg-white border-b border-slate-200 shadow-sm h-16" : "bg-slate-50/50 border-b border-transparent h-20"}`}>
+  <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
+    <Link href="/" className="flex items-center group relative py-1">
+      {/* Imaginea logo-ului cu înălțime dinamică la scroll */}
+      <img 
+        src="/iiimidi.png" 
+        alt="iMIDI Logo" 
+        className={`w-auto object-contain transition-all duration-300 ${
+          scrolled ? "h-21" : "h-30"
+        }`} 
+      />
+      {/* Păstrăm punctul albastru animat de la final, plasat discret lângă imagine */}
+      <span className="text-blue-600 ml-0.5 inline-block group-hover:scale-125 transition-transform duration-200 font-black text-xl">.</span>
+    </Link>
+
 
           <div className="flex items-center space-x-2">
             {links.slice(1).map((l) => {
@@ -208,7 +218,21 @@ export default function Navbar() {
 
 {/* MOBILE HEADER: SUS CU BUTON HAMBURGER PENTRU LOGIN ACCOUNT */}
 <div className={`md:hidden fixed top-0 inset-x-0 h-14 bg-white/90 backdrop-blur-md border-b border-slate-200 z-50 flex items-center px-5 justify-between transition-transform duration-300 ${isVisible ? "translate-y-0" : "-translate-y-full"}`}>
-  <Link href="/" onClick={() => setIsMenuOpen(false)} className="text-lg font-black tracking-tight text-slate-950">iMIDI<span className="text-blue-600">.</span></Link>
+  <Link 
+    href="/" 
+    onClick={() => setIsMenuOpen(false)} 
+    className="flex items-center py-1"
+  >
+    {/* Logo-ul optimizat pentru înălțimea de mobil */}
+    <img 
+      src="/iiimidi.png" 
+      alt="iMIDI Logo" 
+      className="h-17 w-auto object-contain" 
+    />
+    {/* Punctul albastru de la final */}
+    <span className="text-blue-600 ml-0.5 font-black text-lg">.</span>
+  </Link>
+
   
   <div className="flex items-center gap-2">
 
