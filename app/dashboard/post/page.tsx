@@ -77,12 +77,13 @@ const handleConnectFacebook = () => {
   const params = new URLSearchParams({
     client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
     redirect_uri: `${window.location.origin}/api/meta/callback`,
-    config_id: process.env.NEXT_PUBLIC_META_CONFIG_ID!,
     response_type: "code",
-    state: window.location.pathname, // ca sa stim unde redirectam userul inapoi
+    scope: "pages_manage_posts,pages_read_engagement,pages_show_list", // Le cerem direct aici!
+    state: window.location.pathname, 
   });
-  window.location.href = `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;
+  window.location.href = `https://facebook.com{params.toString()}`;
 };
+
 
   const selectListing = (listing: Listing) => {
     setSelected(listing);
