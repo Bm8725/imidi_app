@@ -3,30 +3,30 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin"; // Clientul tău admin
 
 export async function GET(req: NextRequest) {
   try {
-    // 1. Extragem tokenul de autentificare din Header-ul trimis de Front-End
+    // 1. Extragem tokenul de autentificare din Header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ connected: false, error: "Lipseste tokenul de autentificare" }, { status: 41 }) ;
+      return NextResponse.json({ connected: false, error: "Lipseste tokenul de autentificare" }, { status: 401 });
     }
 
     const token = authHeader.split(" ")[1];
 
-    // 2. Validăm tokenul cu Supabase pentru a afla ID-ul utilizatorului curent
+    // 2. Validăm tokenul cu Supabase
     const { data: { user }, error: userErr } = await supabaseAdmin.auth.getUser(token);
     if (userErr || !user) {
       return NextResponse.json({ connected: false, error: "Sesiune invalida in server" }, { status: 401 });
     }
 
-    // 3. Căutăm conexiunea salvată în tabela din baza de date
+    // 3. Căutăm conexiunea (Am adăugat și connected_at în select-ul de mai jos)
     const { data: connection, error: dbErr } = await supabaseAdmin
       .from("user_meta_connections")
-      .select("fb_page_id, fb_page_name")
+      .select("fb_page_id, fb_page_name, connected_at")
       .eq("user_id", user.id)
-      .maybeSingle(); // Returnează null dacă nu găsește, nu dă eroare crash
+      .maybeSingle(); 
 
     if (dbErr) throw dbErr;
 
-    // 4. Returnăm datele brute către pagina ta de test
+    // 4. Returnăm datele către pagina ta de test
     if (connection && connection.fb_page_id) {
       return NextResponse.json({
         connected: true,
@@ -36,7 +36,6 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Dacă tabela este goală pentru acest user
     return NextResponse.json({
       connected: false,
       pageName: null,
