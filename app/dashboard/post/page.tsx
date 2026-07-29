@@ -15,7 +15,6 @@ export default function TestFacebookPage() {
         setLoading(true);
         setError("");
         
-        // 1. Verificăm dacă suntem logați în aplicație prin Supabase
         const { data: { session } } = await supabase.auth.getSession();
         setSessionData(session);
 
@@ -24,7 +23,6 @@ export default function TestFacebookPage() {
           return;
         }
 
-        // 2. Apelăm API-ul care verifică starea Facebook
         const res = await fetch("/api/meta/status", {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
@@ -42,25 +40,32 @@ export default function TestFacebookPage() {
   }, []);
 
   const handleConnect = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id || "";
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || "";
 
-    const params = new URLSearchParams({
-      client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
-      redirect_uri: `${window.location.origin}/api/meta/callback`,
-      response_type: "code",
-      messenger_page_auth_attr: JSON.stringify({
+      // Generare URL securizată folosind obiectul nativ URL pentru a evita "Unterminated template"
+      const oauthUrl = new URL("https://www.facebook.com/v21.0/dialog/oauth");
+      
+      oauthUrl.searchParams.set("client_id", process.env.NEXT_PUBLIC_META_APP_ID || "");
+      oauthUrl.searchParams.set("redirect_uri", window.location.origin + "/api/meta/callback");
+      oauthUrl.searchParams.set("response_type", "code");
+      oauthUrl.searchParams.set("messenger_page_auth_attr", JSON.stringify({
         pages_manage_posts: true,
         pages_read_engagement: true,
         pages_show_list: true
-      }),
-      state: JSON.stringify({ userId, path: "/dashboard/post" }),
-    });
+      }));
+      oauthUrl.searchParams.set("state", JSON.stringify({ userId: userId, path: "/dashboard/post" }));
 
-     window.location.href = `https://www.facebook.com/v21.0/dialog/oauth?
+      window.location.href = oauthUrl.toString();
+    } catch (err) {
+      console.error("Eroare la inițierea conectării:", err);
+    }
   };
 
-  if (loading) return <div style={{ padding: "20px" }}>Se încarcă datele de test...</div>;
+  if (loading) {
+    return <div style={{ padding: "20px", fontFamily: "sans-serif" }}>Se încarcă datele de test...</div>;
+  }
 
   return (
     <div style={{ padding: "30px", fontFamily: "monospace", maxWidth: "800px", margin: "0 auto" }}>
@@ -72,25 +77,25 @@ export default function TestFacebookPage() {
         </div>
       )}
 
-      {/* Buton pentru Conectare */}
       <div style={{ marginBottom: "30px" }}>
-        <button onClick={handleConnect} style={{ padding: "10px 20px", background: "#1877f2", color: "white", border: "none", borderRadius: "5px", cursor: "pointer" }}>
+        <button 
+          onClick={handleConnect} 
+          style={{ padding: "10px 20px", background: "#1877f2", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}
+        >
           🔗 Forțează Conectare Facebook
         </button>
       </div>
 
-      {/* Pasul 1: Sesiunea Supabase */}
-      <div style={{ border: "1px solid #ddd", padding: "15px", marginBottom: "20px", background: "#f9f9f9" }}>
+      <div style={{ border: "1px solid #ddd", padding: "15px", marginBottom: "20px", background: "#f9f9f9", borderRadius: "6px" }}>
         <h3>1. Status Sesiune Supabase User</h3>
         <p>Logat în aplicație: {sessionData ? "🟢 DA" : "🔴 NU"}</p>
         {sessionData && <p>User ID: <code>{sessionData.user.id}</code></p>}
       </div>
 
-      {/* Pasul 2: Răspunsul brut de la Meta */}
-      <div style={{ border: "1px solid #ddd", padding: "15px", background: "#f9f9f9" }}>
+      <div style={{ border: "1px solid #ddd", padding: "15px", background: "#f9f9f9", borderRadius: "6px" }}>
         <h3>2. Date brute returnate de /api/meta/status</h3>
         <p>Conectat la Facebook: {apiData?.connected ? "🟢 DA" : "🔴 NU"}</p>
-        <pre style={{ background: "#eee", padding: "10px", overflowX: "auto" }}>
+        <pre style={{ background: "#eee", padding: "10px", overflowX: "auto", borderRadius: "4px" }}>
           {JSON.stringify(apiData, null, 2)}
         </pre>
       </div>
