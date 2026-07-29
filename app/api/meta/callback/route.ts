@@ -1,10 +1,17 @@
 /**
  * app/api/meta/callback/route.ts
+ *
+ * Callback pentru "Facebook Login for Business".
+ * Primește ?code=... de la Facebook, il schimbă pe un user access token,
+ * apoi pe unul long-lived, ia paginile userului via /me/accounts,
+ * și salvează page_id + page_access_token in user_meta_connections.
+ *
+ * IMPORTANT: acest flow e complet separat de supabase.auth.linkIdentity —
+ * NU mai trece prin Supabase Auth pentru partea de permisiuni de Pagina.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const GRAPH_API_VERSION = process.env.META_GRAPH_API_VERSION || "v21.0";
 const BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
@@ -24,31 +31,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${origin}${state}?fb_error=missing_code`);
   }
 
-  // ---- 0. Preluarea sigură a utilizatorului autentificat din Supabase ----
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignorăm dacă este apelat dintr-un Server Component
-          }
-        },
-      },
-    }
-  );
+  // ---- 0. cine e userul curent (trebuie sa fie deja logat in aplicatie) ----
+  // Trimitem sesiunea Supabase printr-un cookie, nu prin Authorization header,
+  // pt ca acest request vine direct de la Facebook (browser redirect), nu din fetch-ul nostru.
+  const supabaseSession = req.cookies.get("sb-access-token")?.value; // ajusteaza numele cookie-ului la setup-ul tau real
+  if (!supabaseSession) {
+    return NextResponse.redirect(`${origin}/login?fb_error=not_logged_in`);
+  }
 
-  const { data: { user }, error: userErr } = await supabase.auth.getUser();
-  
+  const { data: { user }, error: userErr } = await supabaseAdmin.auth.getUser(supabaseSession);
   if (userErr || !user) {
     return NextResponse.redirect(`${origin}/login?fb_error=session_invalid`);
   }
@@ -80,7 +71,7 @@ export async function GET(req: NextRequest) {
 
     const longLivedUserToken = longLivedData.access_token as string;
 
-    // ---- 3. lista paginilor userului ----
+    // ---- 3. lista paginilor userului (page access token e deja long-lived aici) ----
     const pagesUrl = new URL(`${BASE_URL}/me/accounts`);
     pagesUrl.searchParams.set("access_token", longLivedUserToken);
     pagesUrl.searchParams.set("fields", "id,name,access_token");
@@ -94,20 +85,23 @@ export async function GET(req: NextRequest) {
       throw new Error("Contul tau de Facebook nu administreaza nicio Pagina.");
     }
 
-    // Luăm prima pagină găsită
+    // Daca userul are o singura pagina o luam automat; daca are mai multe,
+    // aici e locul unde ai putea afisa un ecran de selectie in loc sa iei prima.
     const page = pages[0];
 
-    // ---- 4. Salvăm conexiunea utilizând clientul de drepturi administrative/standard ----
-    // Notă: Folosim direct tabela cu regulă de „onConflict” pe user_id definită în Supabase Dashboard
-    const { error: upsertErr } = await supabase
+    // ---- 4. salvam conexiunea ----
+    const { error: upsertErr } = await supabaseAdmin
       .from("user_meta_connections")
-      .upsert({
-        user_id: user.id,
-        fb_page_id: page.id,
-        fb_page_name: page.name,
-        fb_page_access_token: page.access_token,
-        connected_at: new Date().toISOString(),
-      });
+      .upsert(
+        {
+          user_id: user.id,
+          fb_page_id: page.id,
+          fb_page_name: page.name,
+          fb_page_access_token: page.access_token,
+          connected_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
 
     if (upsertErr) throw upsertErr;
 
