@@ -8,6 +8,10 @@
  *
  * IMPORTANT: acest flow e complet separat de supabase.auth.linkIdentity —
  * NU mai trece prin Supabase Auth pentru partea de permisiuni de Pagina.
+ *
+ * FIX: sesiunea Supabase nu vine prin cookie (clientul standard supabase-js
+ * o ține în localStorage, nu în cookie), deci o primim prin `state`,
+ * trimisă de pe client odată cu access_token-ul curent al userului.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -19,27 +23,38 @@ const BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
-  const state = searchParams.get("state") || "/dashboard/posts";
+  const rawState = searchParams.get("state") || "";
+
+  // ---- 0. decodam state-ul: contine path-ul de redirect + access token-ul userului ----
+  let statePath = "/dashboard/posts";
+  let accessToken: string | null = null;
+
+  try {
+    const parsed = JSON.parse(decodeURIComponent(rawState));
+    statePath = parsed.path || statePath;
+    accessToken = parsed.token || null;
+  } catch {
+    // state vechi / necunoscut, fara JSON — il folosim ca path brut, fara token
+    if (rawState) statePath = rawState;
+  }
+
   const errorParam = searchParams.get("error_description") || searchParams.get("error");
 
   if (errorParam) {
     return NextResponse.redirect(
-      `${origin}${state}?fb_error=${encodeURIComponent(errorParam)}`
+      `${origin}${statePath}?fb_error=${encodeURIComponent(errorParam)}`
     );
   }
   if (!code) {
-    return NextResponse.redirect(`${origin}${state}?fb_error=missing_code`);
+    return NextResponse.redirect(`${origin}${statePath}?fb_error=missing_code`);
   }
 
-  // ---- 0. cine e userul curent (trebuie sa fie deja logat in aplicatie) ----
-  // Trimitem sesiunea Supabase printr-un cookie, nu prin Authorization header,
-  // pt ca acest request vine direct de la Facebook (browser redirect), nu din fetch-ul nostru.
-  const supabaseSession = req.cookies.get("sb-access-token")?.value; // ajusteaza numele cookie-ului la setup-ul tau real
-  if (!supabaseSession) {
+  // ---- 0.1 cine e userul curent (trebuie sa fie deja logat in aplicatie) ----
+  if (!accessToken) {
     return NextResponse.redirect(`${origin}/login?fb_error=not_logged_in`);
   }
 
-  const { data: { user }, error: userErr } = await supabaseAdmin.auth.getUser(supabaseSession);
+  const { data: { user }, error: userErr } = await supabaseAdmin.auth.getUser(accessToken);
   if (userErr || !user) {
     return NextResponse.redirect(`${origin}/login?fb_error=session_invalid`);
   }
@@ -105,11 +120,11 @@ export async function GET(req: NextRequest) {
 
     if (upsertErr) throw upsertErr;
 
-    return NextResponse.redirect(`${origin}${state}?fb_connected=1`);
+    return NextResponse.redirect(`${origin}${statePath}?fb_connected=1`);
   } catch (err: any) {
     console.error("Meta callback error:", err);
     return NextResponse.redirect(
-      `${origin}${state}?fb_error=${encodeURIComponent(err.message || "Eroare necunoscuta")}`
+      `${origin}${statePath}?fb_error=${encodeURIComponent(err.message || "Eroare necunoscuta")}`
     );
   }
 }

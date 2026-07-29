@@ -72,15 +72,28 @@ export default function SocialPostsPage() {
     })();
   }, []);
 
-const handleConnectFacebook = () => {
+const handleConnectFacebook = async () => {
   setConnectingFb(true);
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    setConnectingFb(false);
+    return;
+  }
+
+  const statePayload = {
+    path: window.location.pathname,
+    token: session.access_token,
+  };
+
   const params = new URLSearchParams({
     client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
     redirect_uri: `${window.location.origin}/api/meta/callback`,
     config_id: process.env.NEXT_PUBLIC_META_CONFIG_ID!,
     response_type: "code",
-    state: window.location.pathname, // ca sa stim unde redirectam userul inapoi
+    state: encodeURIComponent(JSON.stringify(statePayload)),
   });
+
   window.location.href = `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;
 };
 
