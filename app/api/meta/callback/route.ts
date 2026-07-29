@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin"; // Folosește clientul tău de admin
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const GRAPH_API_VERSION = process.env.META_GRAPH_API_VERSION || "v21.0";
 const BASE_URL = `https://facebook.com{GRAPH_API_VERSION}`;
@@ -10,16 +10,14 @@ export async function GET(req: NextRequest) {
   const stateParam = searchParams.get("state");
   
   let userId = "";
-  let redirectPath = "/dashboard/post"; // Ne întoarcem la pagina de test
+  let redirectPath = "/dashboard/post";
 
-  // 1. Extragem în siguranță ID-ul de utilizator transmis din Front-End
   if (stateParam) {
     try {
       const parsedState = JSON.parse(stateParam);
       userId = parsedState.userId;
       redirectPath = parsedState.path || redirectPath;
     } catch (e) {
-      // Fallback dacă starea a fost trimisă ca text simplu
       redirectPath = stateParam; 
     }
   }
@@ -28,13 +26,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${origin}${redirectPath}?fb_error=missing_code`);
   }
   
-  // Dacă nu am primit userId-ul prin starea securizată, abia atunci ne oprim
   if (!userId) {
     return NextResponse.redirect(`${origin}/login?fb_error=session_invalid_no_userid`);
   }
 
   try {
-    // ---- 2. Schimbăm codul pe short-lived user access token ----
+    // ---- 1. Schimbăm codul pe short-lived user access token ----
     const tokenUrl = new URL(`${BASE_URL}/oauth/access_token`);
     tokenUrl.searchParams.set("client_id", process.env.META_APP_ID!);
     tokenUrl.searchParams.set("client_secret", process.env.META_APP_SECRET!);
@@ -47,7 +44,7 @@ export async function GET(req: NextRequest) {
 
     const shortLivedToken = tokenData.access_token as string;
 
-    // ---- 3. Schimbăm pe long-lived user access token (~60 zile) ----
+    // ---- 2. Schimbăm pe long-lived user access token (~60 zile) ----
     const longLivedUrl = new URL(`${BASE_URL}/oauth/access_token`);
     longLivedUrl.searchParams.set("grant_type", "fb_exchange_token");
     longLivedUrl.searchParams.set("client_id", process.env.META_APP_ID!);
@@ -60,7 +57,7 @@ export async function GET(req: NextRequest) {
 
     const longLivedUserToken = longLivedData.access_token as string;
 
-    // ---- 4. Preluăm lista paginilor de Facebook ale utilizatorului ----
+    // ---- 3. Preluăm lista paginilor de Facebook ale utilizatorului ----
     const pagesUrl = new URL(`${BASE_URL}/me/accounts`);
     pagesUrl.searchParams.set("access_token", longLivedUserToken);
     pagesUrl.searchParams.set("fields", "id,name,access_token");
@@ -74,23 +71,21 @@ export async function GET(req: NextRequest) {
       throw new Error("Contul tau de Facebook nu administreaza nicio Pagina.");
     }
 
-    // Luăm prima pagină disponibilă
+    // CORECTARE: Extragem primul element din array în mod explicit!
     const page = pages[0];
 
-    // ---- 5. Salvăm conexiunea în DB legată direct de userId-ul extras din state ----
+    // ---- 4. Salvăm conexiunea în DB (FĂRĂ connected_at) ----
     const { error: upsertErr } = await supabaseAdmin
       .from("user_meta_connections")
       .upsert({
         user_id: userId,
         fb_page_id: page.id,
         fb_page_name: page.name,
-        fb_page_access_token: page.access_token,
-        connected_at: new Date().toISOString(),
+        fb_page_access_token: page.access_token
       });
 
     if (upsertErr) throw upsertErr;
 
-    // Ne întoarcem cu succes pe pagina de test
     return NextResponse.redirect(`${origin}${redirectPath}?fb_connected=1`);
   } catch (err: any) {
     console.error("Meta callback error:", err);
