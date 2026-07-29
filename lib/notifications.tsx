@@ -27,7 +27,10 @@ export function initNotifications(setNotifications: (notifs: AppNotification[]) 
         id: item.id,
         title: item.title,
         message: item.message,
-        href: item.href || undefined,
+        // MODIFICARE DIRECTĂ: Dacă în DB e doar 'e-market', îi punem automat id-ul la final
+        href: item.href === "e-market" || item.href === "/e-market"
+          ? `/e-market/listing/${item.id}`
+          : (item.href || undefined),
         image: item.image || undefined,
         read: item.read ?? false,
         createdAt: item.created_at,
@@ -40,7 +43,6 @@ export function initNotifications(setNotifications: (notifs: AppNotification[]) 
 
   fetchNotifications();
 
-  // Corectat eroarea de tip: am trecut tipul generic în .on() și am schimbat "scheme" în "schema"
   const channel = supabase
     .channel("realtime-notifications")
     .on(
@@ -56,6 +58,7 @@ export function initNotifications(setNotifications: (notifs: AppNotification[]) 
     supabase.removeChannel(channel);
   };
 }
+
 
 /**
  * Marchează instantaneu toate notificările curente ca fiind citite.
