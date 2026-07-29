@@ -548,8 +548,8 @@ const runMarketAnalysis = async () => {
       {/* Pas 3: Enterprise activ (250GB) */}
       {plan === "enterprise" && (
         <div className="w-full h-9 px-4 flex items-center justify-center gap-2 border border-cyan-500/20 bg-cyan-950/20 text-cyan-400 text-xs font-bold font-mono tracking-widest uppercase rounded-xl whitespace-nowrap">
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
-          Vault Securizat Maximum
+          
+          Enterprise plan active
         </div>
       )}
     </div>
