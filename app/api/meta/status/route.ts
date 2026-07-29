@@ -1,35 +1,50 @@
-/**
- * app/api/meta/status/route.ts
- * Returnează dacă userul curent are o pagină Facebook conectată,
- * fără să expună niciodată tokenul brut către client.
- */
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabaseAdmin"; // Clientul tău admin
 
-import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization");
-    const accessToken = authHeader?.replace("Bearer ", "");
-    if (!accessToken) {
-      return NextResponse.json({ connected: false }, { status: 401 });
+    // 1. Extragem tokenul de autentificare din Header-ul trimis de Front-End
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ connected: false, error: "Lipseste tokenul de autentificare" }, { status: 41 }) ;
     }
 
-    const { data: { user }, error: userErr } = await supabaseAdmin.auth.getUser(accessToken);
+    const token = authHeader.split(" ")[1];
+
+    // 2. Validăm tokenul cu Supabase pentru a afla ID-ul utilizatorului curent
+    const { data: { user }, error: userErr } = await supabaseAdmin.auth.getUser(token);
     if (userErr || !user) {
-      return NextResponse.json({ connected: false }, { status: 401 });
+      return NextResponse.json({ connected: false, error: "Sesiune invalida in server" }, { status: 401 });
     }
 
-    const { data, error } = await supabaseAdmin
+    // 3. Căutăm conexiunea salvată în tabela din baza de date
+    const { data: connection, error: dbErr } = await supabaseAdmin
       .from("user_meta_connections")
-      .select("fb_page_name")
+      .select("fb_page_id, fb_page_name")
       .eq("user_id", user.id)
-      .maybeSingle();
+      .maybeSingle(); // Returnează null dacă nu găsește, nu dă eroare crash
 
-    if (error) throw error;
+    if (dbErr) throw dbErr;
 
-    return NextResponse.json({ connected: !!data, pageName: data?.fb_page_name || null });
+    // 4. Returnăm datele brute către pagina ta de test
+    if (connection && connection.fb_page_id) {
+      return NextResponse.json({
+        connected: true,
+        pageName: connection.fb_page_name,
+        pageId: connection.fb_page_id,
+        connectedAt: connection.connected_at
+      });
+    }
+
+    // Dacă tabela este goală pentru acest user
+    return NextResponse.json({
+      connected: false,
+      pageName: null,
+      message: "Nu exista nicio configurare salvata in baza de date pentru acest user."
+    });
+
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("Eroare in /api/meta/status:", err);
+    return NextResponse.json({ connected: false, error: err.message }, { status: 500 });
   }
 }
