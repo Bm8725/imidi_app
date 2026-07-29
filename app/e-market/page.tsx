@@ -579,126 +579,133 @@ useEffect(() => {
     </svg>
   );
 
-  return (
-    <div className="bg-[#FFFFFF] text-[#1C1A16] min-h-screen flex flex-col antialiased relative">
-      <Navbar />
+return (
+  <div className="bg-[#FFFFFF] text-[#1C1A16] min-h-screen flex flex-col antialiased relative">
+    <Navbar />
 
-      <div className="border-b border-black/5 pt-36 pb-10 bg-[#F7F6F3]">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row justify-between sm:items-end gap-4">
-         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-[#EADCC6] pb-8 mb-8">
-  <div className="flex items-center gap-4">
-    <svg
-      width="48"
-      height="48"
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://w3.org"
-      className="shrink-0"
-    >
-      <path
-        d="M6 6H25L42 23L23 42L6 25V6Z"
-        stroke="#B4592F"
-        strokeWidth="2"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      <circle cx="15.5" cy="15.5" r="3" stroke="#B4592F" strokeWidth="2" />
-      <path
-        d="M17 31L20.5 24L24 33L27.5 21L31 28"
-        stroke="#1C1A16"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-    <div>
-      <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A7A5C] mb-1">
-        www.imidi.co.uk/e-market
-      </p>
-      <h1 className="text-3xl font-serif tracking-tight text-[#1C1A16]">E-Market</h1>
-      <p className="text-sm text-[#7A7365] mt-1">
-        The platform dedicated to selling and buying music instruments, presets, soundbanks, 
-        and scripts for artists and producers adapted to modern life. Asistat by AI Smith can sell digital products or physical instruments, and you can also buy from other artists.
-        Single platform that inovated the way artists and producers can sell and buy music instruments, presets, soundbanks, and scripts supported by Cloud. The publish is free for 14 days
-        and after that you can choose to promote your listing for a small fee. 
-      </p>
-    </div>
-  </div>
+    <div className="border-b border-black/5 pt-36 pb-10 bg-[#F7F6F3]">
+      {/* Containerul principal devine flex-col-reverse pe mobil pentru a aduce butonul sus */}
+      <div className="max-w-6xl mx-auto px-6 flex flex-col-reverse sm:flex-row justify-between sm:items-end gap-6">
+        
+        {/* Zona din stânga cu Logo, Text și Buton Revolut */}
+        <div className="flex flex-col gap-6 w-full">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 border-b border-[#EADCC6] pb-8">
+            
+            {/* Logo și Descriere Text */}
+            <div className="flex items-start gap-4">
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 48 48"
+                fill="none"
+                xmlns="http://w3.org"
+                className="shrink-0 mt-1"
+              >
+                <path
+                  d="M6 6H25L42 23L23 42L6 25V6Z"
+                  stroke="#B4592F"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+                <circle cx="15.5" cy="15.5" r="3" stroke="#B4592F" strokeWidth="2" />
+                <path
+                  d="M17 31L20.5 24L24 33L27.5 21L31 28"
+                  stroke="#1C1A16"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <div>
+                <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8A7A5C] mb-1">
+                  www.imidi.co.uk/e-market
+                </p>
+                <h1 className="text-3xl font-serif tracking-tight text-[#1C1A16]">E-Market</h1>
+                <p className="text-sm text-[#7A7365] mt-1 leading-relaxed">
+                  The platform dedicated to selling and buying music instruments, presets, soundbanks, 
+                  and scripts for artists and producers adapted to modern life. Assisted by AI Smith you can sell digital products or physical instruments, and you can also buy from other artists.
+                  Single platform that innovated the way artists and producers can sell and buy music instruments, presets, soundbanks, and scripts supported by Cloud. The publish is free for 14 days
+                  and after that you can choose to promote your listing for a small fee. 
+                </p>
+              </div>
+            </div>
 
-  {/* BUTONUL REVOLUT DE PROMOVARE */}
-<div className="shrink-0 w-full sm:w-auto relative group">
-  {/* Efectul de fundal animat (Glow) pe galben-perlă */}
-  <div className="absolute -inset-0.5 bg-gradient-to-r from-[#F2C94C] to-[#3A7BD5] rounded-md blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200 animate-pulse" />
-  
-  <a
-    href="https://revolut.me/mariusvalentin_b"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="relative flex sm:inline-flex items-center justify-between sm:justify-center gap-3 bg-[#0B1528] hover:bg-[#11203D] text-[#F2C94C] font-sans text-xs font-medium tracking-wide px-5 py-3 rounded-md border border-[#F2C94C]/30 transition-all duration-300 w-full sm:w-auto overflow-hidden"
-  >
-    {/* Linie strălucitoare care trece peste buton la hover */}
-    <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white/10 opacity-40 group-hover:animate-shine" />
+            {/* BUTONUL REVOLUT DE PROMOVARE */}
+            <div className="shrink-0 w-full sm:w-auto relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-[#F2C94C] to-[#3A7BD5] rounded-md blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200 animate-pulse" />
+              <a
+                href="https://revolut.me/mariusvalentin_b"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative flex sm:inline-flex items-center justify-between sm:justify-center gap-3 bg-[#0B1528] hover:bg-[#11203D] text-[#F2C94C] font-sans text-xs font-medium tracking-wide px-5 py-3 rounded-md border border-[#F2C94C]/30 transition-all duration-300 w-full sm:w-auto overflow-hidden"
+              >
+                <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white/10 opacity-40 group-hover:animate-shine" />
+                <div className="flex flex-col text-left sm:text-center">
+                  <span className="font-bold uppercase tracking-widest text-[11px] flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 animate-spin [animation-duration:6s] text-[#F2C94C]" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2l2.4 7.2L22 11.6l-7.6 2.4L12 22l-2.4-7.2L2 11.6l7.6-2.4z"/>
+                    </svg>
+                    Promovează Anunțul
+                  </span>
+                  <span className="text-[10px] text-[#7E8FAD] group-hover:text-[#F2C94C]/80 transition-colors mt-0.5">
+                    6 EUR / 45 zile via Revolut
+                  </span>
+                </div>
+                <svg 
+                  width="14" 
+                  height="14" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  className="transform transition-transform duration-300 group-hover:translate-x-1"
+                >
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </a>
+            </div>
 
-    <div className="flex flex-col text-left sm:text-center">
-      <span className="font-bold uppercase tracking-widest text-[11px] flex items-center gap-1.5">
-        {/* Sparkle Icon animat */}
-        <svg className="w-3.5 h-3.5 animate-spin [animation-duration:6s] text-[#F2C94C]" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 2l2.4 7.2L22 11.6l-7.6 2.4L12 22l-2.4-7.2L2 11.6l7.6-2.4z"/>
-        </svg>
-        Promovează Anunțul
-      </span>
-      <span className="text-[10px] text-[#7E8FAD] group-hover:text-[#F2C94C]/80 transition-colors mt-0.5">
-        6 EUR / 45 zile via Revolut
-      </span>
-    </div>
-    
-    {/* Săgeată discretă care se mișcă la hover */}
-    <svg 
-      width="14" 
-      height="14" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-      className="transform transition-transform duration-300 group-hover:translate-x-1"
-    >
-      <path d="M5 12h14M12 5l7 7-7 7"/>
-    </svg>
-  </a>
-</div>
-
-</div>
-
-          {user ? (
-<button
-  onClick={() => setShowForm(!showForm)}
-  className="group h-10 px-6 bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white text-xs font-bold rounded-xl cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 self-start shadow-[0_4px_20px_rgba(255,92,161,0.35)] border border-white/10 tracking-wide uppercase font-mono flex items-center gap-2"
->
-  {showForm ? (
-    <>
-      <span className="transition-transform duration-300 group-hover:rotate-90">✕</span>
-      Close
-    </>
-  ) : (
-    <>
-      <span className="animate-pulse transition-transform duration-500 group-hover:rotate-180">✦</span>
-      Publish+
-    </>
-  )}
-</button>
-          ) : (
-            <p className="text-x text-[#7A7365] font-mono">
-              <a href="/login" className="text-[#FF5CA1] underline underline-offset-2">
-               Autentication
-              </a>{" "}
-              to publish your products and start selling on iMIDI Market.
-            </p>
-          )}
+          </div>
         </div>
 
-       <div className="max-w-6xl mx-auto px-6 mt-6">
+        {/* ZONA BUTONULUI PUBLISH / LOGIN - Forțat primul pe mobil */}
+{/* ZONA BUTONULUI PUBLISH / LOGIN - Fixat sus la scroll pe mobil */}
+<div className="w-full sm:w-auto flex justify-end mb-4 sm:mb-0 sticky sm:relative top-[56px] sm:top-0 z-40 bg-[#F7F6F3]/90 backdrop-blur-sm py-2 sm:py-0 px-2 sm:px-0 rounded-b-xl shadow-md sm:shadow-none">
+  {user ? (
+    <button
+      onClick={() => setShowForm(!showForm)}
+      className="group h-11 sm:h-10 w-full sm:w-auto px-6 bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white text-xs font-bold rounded-xl cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-[0_4px_20px_rgba(255,92,161,0.35)] border border-white/10 tracking-wide uppercase font-mono flex items-center justify-center gap-2"
+    >
+      {showForm ? (
+        <>
+          <span className="transition-transform duration-300 group-hover:rotate-90">✕</span>
+          Close
+        </>
+      ) : (
+        <>
+          <span className="animate-pulse transition-transform duration-500 group-hover:rotate-180">✦</span>
+          Publish+
+        </>
+      )}
+    </button>
+  ) : (
+    <p className="text-xs text-[#7A7365] font-mono text-center sm:text-right bg-zinc-100/80 backdrop-blur-sm p-3 sm:p-0 rounded-xl sm:bg-transparent w-full sm:w-auto shadow-sm sm:shadow-none">
+      <a href="/login" className="text-[#FF5CA1] underline underline-offset-2 font-bold">
+        Authentication
+      </a>{" "}
+      to publish your products and start selling on iMIDI Market.
+    </p>
+  )}
+</div>
+
+
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 mt-6">
+
 
 
 <div className="w-full space-y-3 px-1 sm:px-0">
