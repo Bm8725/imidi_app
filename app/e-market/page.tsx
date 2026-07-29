@@ -1354,25 +1354,25 @@ useEffect(() => {
                   {selectedListing.phone && (
                     <>
                       {/* Buton Apel */}
-{/* Buton Apel Inteligent cu Reveal și Protecție Spam */}
-{!isPhoneRevealed ? (
-  <button
-    type="button"
-    onClick={() => setIsPhoneRevealed(true)}
-    className="flex-1 min-w-[160px] text-center text-sm font-bold text-white bg-[#B4592F] hover:bg-[#964723] px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 hover:scale-[1.02]"
-  >
-    <span className="text-base">📞</span>
-    <span>Show number</span>
-  </button>
-) : (
-  <a
-    href={"tel:" + selectedListing.phone}
-    className="flex-1 min-w-[160px] text-center text-sm font-bold text-[#B4592F] bg-[#B4592F]/10 border border-[#B4592F]/30 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all active:scale-95 animate-fadeIn"
-  >
-    <span className="text-base">📞</span>
-    <span className="tracking-wider">{selectedListing.phone}</span>
-  </a>
-)}
+                        {/* Buton Apel Inteligent cu Reveal și Protecție Spam */}
+                        {!isPhoneRevealed ? (
+                          <button
+                            type="button"
+                            onClick={() => setIsPhoneRevealed(true)}
+                            className="flex-1 min-w-[160px] text-center text-sm font-bold text-white bg-[#B4592F] hover:bg-[#964723] px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 hover:scale-[1.02]"
+                          >
+                            <span className="text-base">📞</span>
+                            <span>Show number</span>
+                          </button>
+                        ) : (
+                          <a
+                            href={"tel:" + selectedListing.phone}
+                            className="flex-1 min-w-[160px] text-center text-sm font-bold text-[#B4592F] bg-[#B4592F]/10 border border-[#B4592F]/30 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all active:scale-95 animate-fadeIn"
+                          >
+                            <span className="text-base">📞</span>
+                            <span className="tracking-wider">{selectedListing.phone}</span>
+                          </a>
+                        )}
 
                       
                      
