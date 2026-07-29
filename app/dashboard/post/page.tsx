@@ -13,6 +13,8 @@ export default function TestFacebookPage() {
     async function testConnection() {
       try {
         setLoading(true);
+        setError("");
+        
         // 1. Verificăm dacă suntem logați în aplicație prin Supabase
         const { data: { session } } = await supabase.auth.getSession();
         setSessionData(session);
@@ -22,7 +24,7 @@ export default function TestFacebookPage() {
           return;
         }
 
-        // 2. Apelăm API-ul tău care verifică starea Facebook
+        // 2. Apelăm API-ul care verifică starea Facebook
         const res = await fetch("/api/meta/status", {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
@@ -52,10 +54,10 @@ export default function TestFacebookPage() {
         pages_read_engagement: true,
         pages_show_list: true
       }),
-      state: JSON.stringify({ userId, path: "/post" }),
+      state: JSON.stringify({ userId, path: "/dashboard/post" }),
     });
 
-  window.location.href = `https://www.facebook.com/v21.0/dialog/oauth?
+     window.location.href = `https://www.facebook.com/v21.0/dialog/oauth?
   };
 
   if (loading) return <div style={{ padding: "20px" }}>Se încarcă datele de test...</div>;
@@ -70,7 +72,7 @@ export default function TestFacebookPage() {
         </div>
       )}
 
-      {/* Buton de Urgență pentru Conectare */}
+      {/* Buton pentru Conectare */}
       <div style={{ marginBottom: "30px" }}>
         <button onClick={handleConnect} style={{ padding: "10px 20px", background: "#1877f2", color: "white", border: "none", borderRadius: "5px", cursor: "pointer" }}>
           🔗 Forțează Conectare Facebook
