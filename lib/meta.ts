@@ -35,7 +35,7 @@ async function callGraphApi(
 }
 
 /* ------------------------------------------------------------------ */
-/* FACEBOOK                                                            */
+/* FACEBOOK              /meta                                         */
 /* ------------------------------------------------------------------ */
 
 interface PublishFacebookPostParams {

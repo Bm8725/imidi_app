@@ -72,24 +72,17 @@ export default function SocialPostsPage() {
     })();
   }, []);
 
-  const handleConnectFacebook = async () => {
-    setConnectingFb(true);
-    try {
-      const { error: linkErr } = await supabase.auth.linkIdentity({
-        provider: "facebook",
-        options: {
-          redirectTo: `${window.location.origin}/dashboard/posts`,
-          scopes: "pages_show_list,pages_manage_posts,pages_read_engagement",
-        },
-      });
-      if (linkErr) throw linkErr;
-      // Supabase redirecționează automat către Facebook OAuth;
-      // la revenire, useEffect-ul de mai sus reverifică identitatea.
-    } catch (err: any) {
-      setError(err.message || "Nu am putut porni conectarea cu Facebook.");
-      setConnectingFb(false);
-    }
-  };
+const handleConnectFacebook = () => {
+  setConnectingFb(true);
+  const params = new URLSearchParams({
+    client_id: process.env.NEXT_PUBLIC_FACEBOOK_APP_ID!,
+    redirect_uri: `${window.location.origin}/api/meta/callback`,
+    config_id: process.env.NEXT_PUBLIC_FACEBOOK_CONFIG_ID!,
+    response_type: "code",
+    state: window.location.pathname, // ca sa stim unde redirectam userul inapoi
+  });
+  window.location.href = `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;
+};
 
   const selectListing = (listing: Listing) => {
     setSelected(listing);
