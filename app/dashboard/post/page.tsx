@@ -81,7 +81,7 @@ const handleConnectFacebook = () => {
     scope: "pages_manage_posts,pages_read_engagement,pages_show_list", // Le cerem direct aici!
     state: window.location.pathname, 
   });
-  window.location.href = `https://facebook.com{params.toString()}`;
+window.location.href = `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;
 };
 
 
