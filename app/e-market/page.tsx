@@ -1381,12 +1381,17 @@ useEffect(() => {
                                             Trimite Mesaj
                                           </a>
 
-                                          <a
-                                        href={`sms:${selectedListing.phone}?body=${encodeURIComponent(`Salut! Sunt interesat de anuntul tau "${selectedListing.title}" de pe iMIDI.`)}`}
-                                        className="w-full text-center text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all"
-                                      >
-                                        Trimite SMS Rapid
-                                      </a>
+<a
+  href={`sms:${selectedListing.phone}?body=${encodeURIComponent(
+    `Salut! Sunt interesat de anunțul tău "${selectedListing.title || ''}" de pe iMIDI.\n` +
+    `Preț: ${selectedListing.price || 'Nespecificat'}\n\n` +
+    `Vezi anunțul aici: ${typeof window !== 'undefined' ? window.location.href : ''}`
+  )}`}
+  className="w-full text-center text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-sm active:scale-95 hover:scale-[1.01]"
+>
+  <span className="text-base">💬</span>
+  Trimite SMS Rapid
+</a>
 
 
 
