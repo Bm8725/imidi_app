@@ -32,19 +32,20 @@ Sarcina ta este sa analizezi textul liber scris de utilizator si sa extragi inte
 REGULI STRICTE DE PARSARE SI FILTRARE:
 1. "category": Trebuie sa fie obligatoriu una din valorile: "instrument" (daca cauta clape, hardware, synth fizic), "preset" (daca cauta sound-uri, patch-uri, banci de sunet, midi pack) sau "all" (daca nu reiese clar categoria).
 2. "keyword": Extrage doar cuvintele cheie principale de cautare (ex: daca scrie "caut un preset de techno gras", keyword-ul este "techno"). Daca textul contine doar preturi sau categorii, lasa string gol "".
-3. "priceMax": Daca utilizatorul mentioneaza un buget sau o limita de pret (ex: "pana in 30 de euro", "sub 100 euro"), extrage doar numarul intreg. Daca nu mentioneaza un pret maxim, returneaza null.
-4. "priceMin": Daca mentioneaza un pret minim (ex: "peste 20 euro"), extrage numarul. Daca nu, returneaza null.
+3. "relatedKeywords": O lista de 2-5 termeni inruditi cu keyword-ul principal, folositi pentru a gasi si alte anunturi similare din platforma — sinonime, subgenuri, denumiri alternative sau termeni tehnici apropiati (ex: pentru "techno" -> ["industrial techno", "hard techno", "peak time", "warehouse"]; pentru "clape" -> ["synth", "keyboard", "workstation"]). Daca keyword e gol, returneaza array gol [].
+4. "priceMax": Daca utilizatorul mentioneaza un buget sau o limita de pret (ex: "pana in 30 de euro", "sub 100 euro"), extrage doar numarul intreg. Daca nu mentioneaza un pret maxim, returneaza null.
+5. "priceMin": Daca mentioneaza un pret minim (ex: "peste 20 euro"), extrage numarul. Daca nu, returneaza null.
 
 REGULI STRICTE DE RASPUNS:
 - Raspunde DOAR cu un obiect JSON valid, fara text in plus, fara backtick-uri, fara markdown, fara introduceri.
-- Format exact de raspuns: {"category": "all"|"instrument"|"preset", "keyword": "...", "priceMin": numar|null, "priceMax": numar|null}`,
+- Format exact de raspuns: {"category": "all"|"instrument"|"preset", "keyword": "...", "relatedKeywords": ["...","..."], "priceMin": numar|null, "priceMax": numar|null}`,
         },
         {
           role: "user",
           content: `Textul cautat de utilizator: "${prompt}"`,
         },
       ],
-      max_tokens: 150,
+      max_tokens: 220, // marit fata de 150 ca sa incapa si relatedKeywords
       temperature: 0.1, // Temperatură mică pentru acuratețe maximă pe JSON și zero variații creative
     });
 
@@ -54,6 +55,7 @@ REGULI STRICTE DE RASPUNS:
     interface SearchFilters {
       category: "all" | "instrument" | "preset";
       keyword: string;
+      relatedKeywords: string[];
       priceMin: number | null;
       priceMax: number | null;
     }
@@ -69,6 +71,7 @@ REGULI STRICTE DE RASPUNS:
     return NextResponse.json({
       category: parsed.category || "all",
       keyword: parsed.keyword || "",
+      relatedKeywords: Array.isArray(parsed.relatedKeywords) ? parsed.relatedKeywords.filter(Boolean) : [],
       priceMin: parsed.priceMin || null,
       priceMax: parsed.priceMax || null,
     });
