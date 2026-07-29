@@ -72,27 +72,17 @@ export default function SocialPostsPage() {
     })();
   }, []);
 
-const handleConnectFacebook = async () => {
+const handleConnectFacebook = () => {
   setConnectingFb(true);
-  
-  // 1. Luăm sesiunea curentă direct din client (care este deja logat)
-  const { data: { session } } = await supabase.auth.getSession();
-  const userId = session?.user?.id || "";
-
-  // 2. Construim parametrii fără config_id și forțăm calea "/post"
   const params = new URLSearchParams({
     client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
     redirect_uri: `${window.location.origin}/api/meta/callback`,
+    config_id: process.env.NEXT_PUBLIC_META_CONFIG_ID!,
     response_type: "code",
-    scope: "pages_manage_posts,pages_read_engagement,pages_show_list", // Permisiunile necesare scrise direct text
-    // Îi transmitem serverului ID-ul de utilizator și locația exactă "/post"
-    state: JSON.stringify({ userId, path: "/post" }), 
+    state: window.location.pathname, // ca sa stim unde redirectam userul inapoi
   });
-  
-  // 3. Plecăm spre Facebook
   window.location.href = `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;
 };
-
 
   const selectListing = (listing: Listing) => {
     setSelected(listing);
