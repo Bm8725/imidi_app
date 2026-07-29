@@ -1,7 +1,7 @@
 /**
  * @project     iMIDI Web Application
  * @package     @imidi/core-app
- * @summary     Universal Metadata Provider for All Share Platforms (W3C OG Standard).
+ * @summary     Universal Metadata Provider with network fixes.
  * @file        app/download/[token]/layout.tsx
  */
 
@@ -12,27 +12,32 @@ type LayoutProps = {
   children: React.ReactNode;
 };
 
-// Next.js cere ca params să fie tratat ca Promise asincron în generateMetadata
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
-  // Aici rezolvăm eroarea din consolă prin extragerea token-ului asincron cu await
   const { token } = await params;
   
   let title = "Digital Content Package";
   let description = "Secure digital delivery via iMIDI infrastructure. Enter your access key to download.";
+  let imageUrl = "https://imidi.co.uk"; // Fallback sigur la o imagine care există deja în RootLayout
 
   if (token) {
     try {
+      // Adăugăm { cache: 'no-store' } pentru a opri Next.js din a memora un răspuns gol sau defect în faza de build
       const res = await fetch(`https://imidi.co.uk{token}`, {
-        next: { revalidate: 60 }
+        cache: 'no-store'
       });
       
       if (res.ok) {
         const data = await res.json();
+        
         if (data?.filename) {
           title = data.filename;
         }
-        if (data?.seller_name) {
-          description = `Pachet digital livrat în siguranță de ${data.seller_name} prin intermediul platformei imidi.co.uk.`;
+        
+        const seller = data?.seller_name || data?.seller || "Verified iMIDI Seller";
+        description = `Secure delivery by ${seller} protected by imidi.co.uk. Enter your access key to pull files.`;
+        
+        if (data?.cover_image || data?.image) {
+          imageUrl = data.cover_image || data.image;
         }
       }
     } catch (err) {
@@ -50,9 +55,9 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
       siteName: "iMIDI Cloud Infrastructure",
       images: [
         {
-          url: "https://imidi.co.uk",
-          width: 192,
-          height: 192,
+          url: imageUrl,
+          width: 1200,
+          height: 630,
           alt: "iMIDI Secure Transfer Node",
         },
       ],
@@ -62,15 +67,12 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
       card: "summary_large_image",
       title: `📦 ${title}`,
       description: description,
-      images: ["https://imidi.co.uk"],
+      images: [imageUrl],
     },
   };
 }
 
-// În layout-ul propriu-zis, Next.js primește params ca Promise, dar nu e obligatoriu să îi facem await dacă nu îl folosim în interfață
 export default async function DownloadLayout({ children, params }: LayoutProps) {
-  // Consumăm promisiunea pentru a asigura maparea corectă a tipurilor în Next.js
   await params;
-  
   return <>{children}</>;
 }
