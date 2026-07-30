@@ -24,7 +24,7 @@ export async function GET() {
 
     if (!listings || listings.length === 0) {
       return NextResponse.json(
-        { error: "Nu exista anunturi active momentan pe piata." },
+        { error: "Doesn't exist publish now on market." },
         { status: 400 }
       );
     }
