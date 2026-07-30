@@ -11,17 +11,25 @@ Setup necesar (o singura data, in Supabase Dashboard):
     URL: https://<domeniul-tau>/api/notifications/send-email
     Headers: x-webhook-secret: <valoarea din SUPABASE_WEBHOOK_SECRET>
 
+Trimitere email: SMTP propriu (cPanel), prin Nodemailer — trebuie instalat pachetul:
+  npm install nodemailer
+  npm install -D @types/nodemailer
+
 Env vars necesare (.env.local):
-  RESEND_API_KEY=...
-  RESEND_FROM_EMAIL="iMIDI Market <notificari@domeniul-tau.com>"
-  SUPABASE_WEBHOOK_SECRET=...           (orice string random, ales de tine)
-  SUPABASE_SERVICE_ROLE_KEY=...         (din Supabase -> Settings -> API, NU e cheia publica)
-  NEXT_PUBLIC_SUPABASE_URL=...
+  NEXT_PUBLIC_SUPABASE_URL=...          (probabil il ai deja, il refolosim)
+  SUPABASE_SERVICE_ROLE_KEY=...         (din Supabase -> Settings -> API, PRIVAT, NU e cheia publica/anon)
+  SMTP_HOST=mail.domeniul-tau.com       (din cPanel -> Email Accounts -> Connect Devices)
+  SMTP_PORT=587                         (sau 465, vezi cPanel)
+  SMTP_USER=adresa@domeniul-tau.com
+  SMTP_PASS=parola-contului-de-email
+  SMTP_FROM="iMIDI Market <adresa@domeniul-tau.com>"   (optional, altfel foloseste SMTP_USER)
+  SUPABASE_WEBHOOK_SECRET=...           (orice string random, ales de tine, PRIVAT)
+  SITE_URL=...                          (optional, doar pt link-urile din email)
 */
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
 // Client Supabase cu service role — necesar ca sa putem citi emailul userului
 // (auth.users nu e accesibil cu cheia publica / anon).
@@ -30,7 +38,16 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// SMTP propriu (cPanel) — vezi .env.local pentru SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT || 587),
+  secure: Number(process.env.SMTP_PORT) === 465, // true doar pe portul 465
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 interface NotificationRow {
   id: string;
@@ -115,17 +132,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User email not found" }, { status: 404 });
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://imidi.co.uk";
+    const siteUrl = process.env.SITE_URL || "https://imidi.co.uk";
 
-    const { error: sendError } = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "iMIDI Market <connect@imidi.co.uk>",
-      to: userData.user.email,
-      subject: notification.title,
-      html: buildEmailHtml(notification, siteUrl),
-    });
-
-    if (sendError) {
-      console.error("Eroare trimitere email Resend:", sendError);
+    try {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || `"iMIDI Market" <${process.env.SMTP_USER}>`,
+        to: userData.user.email,
+        subject: notification.title,
+        html: buildEmailHtml(notification, siteUrl),
+      });
+    } catch (sendError) {
+      console.error("Eroare trimitere email SMTP:", sendError);
       return NextResponse.json({ error: "Email send failed" }, { status: 500 });
     }
 
