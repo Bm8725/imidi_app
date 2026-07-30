@@ -107,8 +107,23 @@ export default function Navbar() {
 
   return (
     <>
-      {/* DESKTOP NAV: CORPORATE CLASSIC */}
-     <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 hidden md:block ${scrolled ? "bg-white border-b border-slate-200 shadow-sm h-16" : "bg-slate-50/50 border-b border-transparent h-20"}`}>
+      <style>{`
+        /* Scrim: intunecare foarte usoara in spatele navbar-ului cand e transparent,
+           ca sa garanteze contrast indiferent de imaginea din hero — nu mai are
+           nevoie de niciun efect pe text. */
+        .aw-nav-scrim {
+          background: linear-gradient(to bottom, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.16) 60%, rgba(0,0,0,0) 100%);
+        }
+      `}</style>
+
+      {/* Scrim discret: intunecare graduala doar sus, doar la desktop, doar cand nescrollat */}
+      <div
+        aria-hidden
+        className={`fixed top-0 inset-x-0 h-36 pointer-events-none z-40 hidden md:block transition-opacity duration-300 aw-nav-scrim ${scrolled ? "opacity-0" : "opacity-100"}`}
+      />
+
+      {/* DESKTOP NAV: transparent sus pe pagina, solid la scroll */}
+     <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 hidden md:block ${scrolled ? "bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm h-16" : "bg-transparent border-b border-transparent h-20"}`}>
   <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
     <Link href="/" className="flex items-center group relative py-1">
       {/* Imaginea logo-ului cu înălțime dinamică la scroll */}
@@ -116,19 +131,25 @@ export default function Navbar() {
         src="/iiimidi.png" 
         alt="iMIDI Logo" 
         className={`w-auto object-contain transition-all duration-300 ${
-          scrolled ? "h-21" : "h-30"
+          scrolled ? "h-21" : "h-30 drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)]"
         }`} 
       />
-      {/* Păstrăm punctul albastru animat de la final, plasat discret lângă imagine */}
-      <span className="text-blue-600 ml-0.5 inline-block group-hover:scale-125 transition-transform duration-200 font-black text-xl">.</span>
+      {/* Punctul de la final: albastru pe fundal alb, roz-accent (mai vizibil) pe transparent */}
+      <span className={`ml-0.5 inline-block group-hover:scale-125 transition-transform duration-200 font-black text-xl ${scrolled ? "text-blue-600" : "text-[#FF5CA1]"}`}>.</span>
     </Link>
 
 
           <div className="flex items-center space-x-2">
             {links.slice(1).map((l) => {
               const active = pathname === l.href;
+              const activeClass = scrolled
+                ? "text-blue-600 bg-blue-50"
+                : "text-white bg-white/15 backdrop-blur-sm";
+              const idleClass = scrolled
+                ? "text-slate-500 hover:text-slate-950 hover:bg-slate-100"
+                : "text-white/80 hover:text-white hover:bg-white/10";
               return (
-                <Link key={l.href} href={l.href} className={`text-xs font-semibold uppercase tracking-wider transition-all duration-200 relative py-2 px-4 rounded-full ${active ? "text-blue-600 bg-blue-50" : "text-slate-500 hover:text-slate-950 hover:bg-slate-100"}`}>
+                <Link key={l.href} href={l.href} className={`text-xs font-semibold uppercase tracking-wider transition-all duration-200 relative py-2 px-4 rounded-full ${active ? activeClass : idleClass}`}>
                   <span className="relative z-10">{l.label}</span>
                   {l.isNew && <span className="ml-1.5 px-1.5 py-0.5 text-[8px] font-bold bg-emerald-100 text-emerald-700 rounded-md">NEW</span>}
                 </Link>
@@ -143,7 +164,7 @@ export default function Navbar() {
                 <button
                   onClick={handleOpenNotifications}
                   aria-label="Notificări"
-                  className="relative p-2 text-slate-500 hover:text-slate-950 hover:bg-slate-100 rounded-full transition-colors"
+                  className={`relative p-2 rounded-full transition-colors ${scrolled ? "text-slate-500 hover:text-slate-950 hover:bg-slate-100" : "text-white/80 hover:text-white hover:bg-white/10"}`}
                 >
                   <svg viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" fill="none" className="w-5 h-5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
@@ -184,24 +205,33 @@ export default function Navbar() {
             {user ? (
               <div className="flex items-center space-x-3">
                 <Link href="/dashboard/cloud-db" className="flex items-center space-x-2 group">
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold uppercase">
+                  <div className={`w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-bold uppercase ${scrolled ? "bg-blue-600" : "bg-white/20 backdrop-blur-sm border border-white/30"}`}>
                     {(user.name || user.email || "U").charAt(0)}
                   </div>
-                  <span className="text-xs font-semibold text-slate-700 group-hover:text-slate-950 transition-colors max-w-[120px] truncate">
+                  <span className={`text-xs font-semibold transition-colors max-w-[120px] truncate ${scrolled ? "text-slate-700 group-hover:text-slate-950" : "text-white/90 group-hover:text-white"}`}>
                     {user.name || user.email}
                   </span>
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-950 transition-colors"
+                  className={`text-xs font-semibold uppercase tracking-wider transition-colors ${scrolled ? "text-slate-500 hover:text-slate-950" : "text-white/70 hover:text-white"}`}
                 >
                   Sign Out
                 </button>
               </div>
             ) : (
               <>
-                <Link href="/login" className="text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-950 transition-colors">Sign In</Link>
-                <Link href="/register" className="text-xs font-bold uppercase tracking-wider bg-blue-600 text-white px-5 py-2.5 rounded-full hover:bg-blue-700 transition-all transform active:scale-95 shadow-sm">Get Started</Link>
+                <Link href="/login" className={`text-xs font-semibold uppercase tracking-wider transition-colors ${scrolled ? "text-slate-500 hover:text-slate-950" : "text-white/80 hover:text-white"}`}>Sign In</Link>
+                <Link
+                  href="/register"
+                  className={`text-xs font-bold uppercase tracking-wider px-5 py-2.5 rounded-full transition-all transform active:scale-95 shadow-sm ${
+                    scrolled
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                      : "bg-white text-[#131316] hover:bg-white/90"
+                  }`}
+                >
+                  Get Started
+                </Link>
               </>
             )}
           </div>
