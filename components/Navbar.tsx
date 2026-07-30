@@ -137,15 +137,7 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center space-x-4">
-            <Link 
-              href="/e-market" 
-              className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700 border border-slate-200 px-4 py-2.5 rounded-full hover:border-slate-950 hover:text-slate-950 transition-all active:scale-95"
-            >
-              <svg viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" className="w-3.5 h-3.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Publish
-            </Link>
+
             {user && (
               <div className="relative">
                 <button
