@@ -209,7 +209,7 @@ export default function Navbar() {
       </nav>
 
 {/* MOBILE HEADER: SUS CU BUTON HAMBURGER PENTRU LOGIN ACCOUNT */}
-<div className="md:hidden fixed top-0 left-0 right-0 w-full h-12 bg-white/90 backdrop-blur-md border-b border-slate-200 z-50 flex items-center px-5 justify-between">
+<div className={`md:hidden fixed top-0 left-0 right-0 w-full h-14 z-50 flex items-center px-5 justify-between transition-all duration-300 transform-gpu [webkit-backdrop-filter:blur(12px)] ${scrolled ? "bg-white/75 backdrop-blur-md border-b border-slate-200 shadow-sm" : "bg-transparent border-b border-transparent"}`}>
 
   <Link 
     href="/" 
