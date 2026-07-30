@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { supabase } from "@/lib/supabase";
 
 const GITHUB_OWNER = "Bm8725";
 const GITHUB_REPO = "imidi_app";
@@ -90,6 +92,7 @@ function PhoneIllustration({ className = "" }: { className?: string }) {
 }
 
 export default function AndroidDownloadPage() {
+  const router = useRouter();
   const [downloadUrl, setDownloadUrl] = useState(FALLBACK_URL);
   const [isDownloading, setIsDownloading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -97,6 +100,25 @@ export default function AndroidDownloadPage() {
   const [assetSize, setAssetSize] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [qrExpanded, setQrExpanded] = useState(false);
+
+  // NOU: stare autentificare Supabase — gate-ul de download
+  const [user, setUser] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null);
+      setAuthChecked(true);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
 
   // Regenerăm QR-ul de fiecare dată când avem un downloadUrl nou (fallback -> link real de la GitHub)
   useEffect(() => {
@@ -160,7 +182,26 @@ export default function AndroidDownloadPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [qrExpanded]);
 
-  const handleButtonClick = () => {
+  // NOU: dacă nu ești logat, blocăm acțiunea și te trimitem la /login
+  const requireAuthOrRedirect = () => {
+    if (!user) {
+      router.push("/login?next=/download/android");
+      return false;
+    }
+    return true;
+  };
+
+  const handleQrClick = () => {
+    if (!requireAuthOrRedirect()) return;
+    if (qrDataUrl) setQrExpanded(true);
+  };
+
+  const handleButtonClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!requireAuthOrRedirect()) {
+      e.preventDefault();
+      return;
+    }
+
     if (isDownloading) return;
 
     setIsDownloading(true);
@@ -285,7 +326,7 @@ export default function AndroidDownloadPage() {
                 <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto text-center sm:text-left">
                   <button
                     type="button"
-                    onClick={() => qrDataUrl && setQrExpanded(true)}
+                    onClick={handleQrClick}
                     aria-label="Enlarge QR code"
                     className="w-[168px] h-[168px] shrink-0 rounded-xl border border-[#EAEAEA] bg-white p-3 shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition-transform duration-200 hover:scale-[1.04] hover:shadow-[0_6px_20px_rgba(0,112,243,0.15)] active:scale-[0.98] cursor-zoom-in"
                   >
@@ -334,6 +375,13 @@ export default function AndroidDownloadPage() {
                   )}
                 </a>
               </div>
+
+              {/* NOU: mesaj discret dacă nu ești logat */}
+              {authChecked && !user && (
+                <p className="text-[11px] text-gray-400 -mt-2">
+                  Trebuie să fii autentificat pentru a descărca. Vei fi redirecționat către pagina de login.
+                </p>
+              )}
             </div>
 
             {isDownloading && (
@@ -380,7 +428,7 @@ export default function AndroidDownloadPage() {
             />
             <div className="text-center">
               <div className="text-sm font-semibold text-black">Scan to download TS4X APK</div>
-              <div className="corp-mono text-[10px] text-gray-400 mt-1">{GITHUB_TAG}-stable</div>
+              <div className="corp-mono text-[10px] text-gray-400 mt-1">{GITHUB_TAG}-b</div>
             </div>
           </div>
         </div>
