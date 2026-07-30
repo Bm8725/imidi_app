@@ -138,104 +138,192 @@ export default function HomePage() {
         </div>
 
         {/* ================= SECTION: THE 3 PILLARS — raspunde direct la "ce e iMIDI" ================= */}
-        <div className="space-y-8 pt-4 text-left">
-          <div className="space-y-1">
-            <span className="aw-mono text-xs text-[#7C7C86] tracking-wider uppercase">One account, three tools</span>
-            <h2 className="aw-display text-2xl sm:text-3xl font-semibold tracking-tight text-[#F2F2F4] pt-1">What you get with iMIDI</h2>
+        {/* ================= SECTION: PILLARS / BENEFITS ================= */}
+        <div className="pt-20 border-t border-white/10 text-left max-w-7xl mx-auto px-4 sm:px-6">
+          
+          {/* Header */}
+          <div className="mb-12">
+            <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-white">
+              What you get with iMIDI
+            </h2>
+            <p className="mt-3 text-sm text-[#A1A1AA] max-w-xl leading-relaxed">
+              One unified account giving you seamless access to three production-grade utilities.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {PILLARS.map((p) => (
+          {/* Grilă cu animație de apariție la încărcare */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch animate-[fadeIn_0.6s_ease-out_both]">
+            {PILLARS.map((p, index) => (
               <Link
                 key={p.title}
                 href={p.href}
-                className="group relative rounded-2xl p-[1px] transition-all duration-500 hover:-translate-y-1"
-                style={{ background: `linear-gradient(135deg, ${p.color}40, rgba(255,255,255,0.06))` }}
+                className="group relative bg-transparent pt-6 pb-4 flex flex-col justify-between h-full transition-all duration-300 overflow-hidden"
               >
-                <div className="bg-[#18181C] p-6 rounded-2xl h-full flex flex-col justify-between space-y-5">
-                  <div className="space-y-2">
-                    <span className="aw-mono text-[9px] tracking-wider uppercase" style={{ color: p.color }}>{p.eyebrow}</span>
-                    <h3 className="aw-display text-lg font-medium text-[#F2F2F4]">{p.title}</h3>
-                    <p className="text-xs text-[#9A9AA3] font-light leading-relaxed">{p.desc}</p>
+                {/* LINIA DE SUS CU LUMINE FLUENTĂ AUTONOMĂ (Rulată în loop infinit pe rând) */}
+                <div 
+                  className="absolute top-0 left-0 h-[1.5px] bg-white/10 w-full overflow-hidden"
+                >
+                  <div 
+                    className="h-full w-1/2 opacity-80 animate-[shimmerLine_4s_infinite_ease-in-out]"
+                    style={{
+                      background: `linear-gradient(90deg, transparent, ${p.color}, transparent)`,
+                      animationDelay: `${index * 1.2}s` /* Pornește pe rând pentru fiecare card */
+                    }}
+                  />
+                </div>
+
+                {/* LUMINA AMBIENTALĂ AUTONOMĂ: Un puls discret din spate care pulsează în loop */}
+                <div 
+                  className="absolute inset-0 opacity-40 pointer-events-none blur-3xl animate-[pulseAmbient_6s_infinite_ease-in-out]"
+                  style={{
+                    background: `radial-gradient(300px circle at 50% 20%, ${p.color}06, transparent 50%)`,
+                    animationDelay: `${index * 0.8}s`
+                  }}
+                />
+
+                <div className="space-y-4 relative z-10">
+                  {/* Eyebrow */}
+                  <div className="text-xs font-bold uppercase tracking-widest" style={{ color: p.color }}>
+                    {p.eyebrow}
                   </div>
-                  <span className="aw-mono text-[10px] uppercase tracking-wide text-[#D4D4D9] flex items-center gap-1.5 group-hover:gap-2.5 transition-all">
-                    {p.cta} <span aria-hidden>→</span>
+                  
+                  {/* Conținut */}
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-white tracking-tight">
+                      {p.title}
+                    </h3>
+                    <p className="text-sm text-[#A1A1AA] font-normal leading-relaxed">
+                      {p.desc}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Buton Link cu micro-mișcare fluidă în loop */}
+                <div className="pt-6 mt-8 relative z-10">
+                  <span className="inline-flex items-center text-xs font-bold uppercase tracking-wide text-white/90">
+                    {p.cta}
+                    <svg 
+                      className="w-3.5 h-3.5 ml-1.5 transform transition-transform duration-300 ease-out group-hover:translate-x-1" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor" 
+                      strokeWidth="3"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
                   </span>
                 </div>
               </Link>
             ))}
           </div>
+
+          {/* STYLE BLOCK NECESAR PENTRU TAILWIND (Adaugă-l în fișierul tău global CSS sau lasă-l aici) */}
+          <style jsx global>{`
+            @keyframes shimmerLine {
+              0% { transform: translateX(-150%); }
+              50%, 100% { transform: translateX(250%); }
+            }
+            @keyframes pulseAmbient {
+              0%, 100% { opacity: 0.2; transform: scale(0.95); }
+              50% { opacity: 0.6; transform: scale(1.05); }
+            }
+          `}</style>
         </div>
 
+
+
         {/* ================= SECTION: COMMERCE NODES ================= */}
-        <div className="space-y-8 pt-12 border-t border-white/[0.06] text-left">
-          <div className="space-y-1">
-            <span className="aw-mono text-xs text-[#7C7C86] tracking-wider uppercase">Pricing</span>
-            <h2 className="aw-display text-2xl sm:text-3xl font-semibold tracking-tight text-[#F2F2F4] pt-1">Expand Your iMIDI Setup</h2>
-          </div>
+        <div className="pt-20 border-t border-white/10 text-left max-w-7xl mx-auto px-4 sm:px-6">
+          
+          {/* Header complet curat, fără descrieri inutile */}
+          <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-white mb-12">
+            Expand Your iMIDI Setup
+          </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Grilă curată, 100% transparentă, fără fundaluri gri care să se bată cu restul paginii */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
 
-            {/* CARD 1: TS4X LICENSE — bordură gradient roz */}
-            <div className="relative rounded-2xl p-[1px] bg-gradient-to-br from-[#FF5CA1]/40 via-white/[0.06] to-white/[0.06] hover:from-[#FF5CA1]/70 hover:via-[#FF8A3D]/20 transition-all duration-500 hover:-translate-y-1 group">
-              <div className="bg-[#1A1A1F] backdrop-blur-sm p-6 rounded-2xl flex flex-col justify-between items-start space-y-6 h-full">
-                <div className="space-y-2 w-full">
-                  <div className="flex justify-between items-center w-full flex-wrap gap-2">
-                    <span className="aw-mono text-[9px] text-[#7C7C86] tracking-wider uppercase">PERPETUAL_CORE</span>
-                    <span className="aw-mono text-lg font-medium text-[#F2F2F4]">$199.9<span className="text-xs text-[#5F5F68] font-light">/year</span></span>
-                  </div>
-                  <h3 className="aw-display text-lg font-medium text-[#F2F2F4] group-hover:text-[#FF5CA1] transition-colors">TS4X Synth Pro License</h3>
-                  <p className="text-xs text-[#9A9AA3] font-light leading-relaxed">
-                    Unlock the complete DSP core engine for life. Features advanced multi-channel execution, guaranteed sub-1.8ms latency, and priority firmware hotfixes.
+            {/* CARD 1: TS4X LICENSE */}
+            <div className="bg-transparent border-t border-white/20 pt-6 flex flex-col justify-between h-full transition-all duration-200 hover:border-white/40">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 text-xs font-semibold uppercase tracking-wider text-[#FF5CA1]">
+                  <span>Core Engine</span>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-white tracking-tight">
+                    TS4X Synth Pro License
+                  </h3>
+                  <p className="text-sm text-[#A1A1AA] font-normal leading-relaxed">
+                    Full access to the hardware-accelerated DSP core. Delivers multi-channel execution, sub-1.8ms latency, and priority firmware updates.
                   </p>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-6 mt-8">
+                <div className="text-2xl font-bold text-white tracking-tight">
+                  $199.9<span className="text-xs text-[#71717A] font-normal ml-1">/ year</span>
                 </div>
                 <Link
                   href="/ts4x"
-                  className="w-full h-10 bg-[#F2F2F4] text-[#131316] aw-mono text-xs font-semibold uppercase rounded-xl hover:bg-gradient-to-r hover:from-[#FF5CA1] hover:to-[#FF8A3D] hover:text-white transition-all duration-300 active:scale-[0.99] flex items-center justify-center"
+                  className="w-full h-11 bg-white text-black text-xs font-bold uppercase rounded-lg hover:bg-[#E4E4E7] transition-colors duration-200 active:scale-[0.99] flex items-center justify-center tracking-wide"
                 >
                   Purchase License
                 </Link>
               </div>
             </div>
 
-            {/* CARD 2: E-MARKET — bordură gradient portocaliu-roz, NOU */}
-            <div className="relative rounded-2xl p-[1px] bg-gradient-to-br from-[#FF8A3D]/40 via-white/[0.06] to-white/[0.06] hover:from-[#FF8A3D]/70 hover:via-[#FF5CA1]/20 transition-all duration-500 hover:-translate-y-1 group">
-              <div className="bg-[#1A1A1F] backdrop-blur-sm p-6 rounded-2xl flex flex-col justify-between items-start space-y-6 h-full">
-                <div className="space-y-2 w-full">
-                  <div className="flex justify-between items-center w-full flex-wrap gap-2">
-                    <span className="aw-mono text-[9px] text-[#7C7C86] tracking-wider uppercase">MARKETPLACE</span>
-                    <span className="aw-mono text-lg font-medium text-[#F2F2F4]">Free<span className="text-xs text-[#5F5F68] font-light"> · 14 days</span></span>
-                  </div>
-                  <h3 className="aw-display text-lg font-medium text-[#F2F2F4] group-hover:text-[#FF8A3D] transition-colors">Sell on E-Market</h3>
-                  <p className="text-xs text-[#9A9AA3] font-light leading-relaxed">
-                    List presets, sound banks, scripts or physical instruments. Free for the first 14 days, then promote your listing for a small fee to stay featured.
+            {/* CARD 2: E-MARKET */}
+            <div className="bg-transparent border-t border-white/20 pt-6 flex flex-col justify-between h-full transition-all duration-200 hover:border-white/40">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 text-xs font-semibold uppercase tracking-wider text-[#FF8A3D]">
+                  <span>Creator Hub</span>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-white tracking-tight">
+                    Sell on E-Market
+                  </h3>
+                  <p className="text-sm text-[#A1A1AA] font-normal leading-relaxed">
+                    Distribute custom sound banks, MIDI maps, scripts, or physical units. Keep 100% of your earnings during your initial trial period.
                   </p>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-6 mt-8">
+                <div className="text-2xl font-bold text-white tracking-tight">
+                  Free<span className="text-xs text-[#71717A] font-normal ml-1.5">for 14 days</span>
                 </div>
                 <Link
                   href="/e-market"
-                  className="w-full h-10 bg-white/[0.04] text-[#D4D4D9] border border-white/[0.08] aw-mono text-xs font-semibold uppercase rounded-xl hover:bg-gradient-to-r hover:from-[#FF8A3D] hover:to-[#FF5CA1] hover:text-white hover:border-transparent transition-all duration-300 active:scale-[0.99] flex items-center justify-center"
+                  className="w-full h-11 bg-transparent text-white border border-white/20 text-xs font-bold uppercase rounded-lg hover:bg-white/5 hover:border-white/40 transition-all duration-200 active:scale-[0.99] flex items-center justify-center tracking-wide"
                 >
                   Start Selling
                 </Link>
               </div>
             </div>
 
-            {/* CARD 3: CLOUD STORAGE — bordură gradient mov */}
-            <div className="relative rounded-2xl p-[1px] bg-gradient-to-br from-[#B47CFF]/40 via-white/[0.06] to-white/[0.06] hover:from-[#B47CFF]/70 hover:via-[#FF5CA1]/20 transition-all duration-500 hover:-translate-y-1 group">
-              <div className="bg-[#1A1A1F] backdrop-blur-sm p-6 rounded-2xl flex flex-col justify-between items-start space-y-6 h-full">
-                <div className="space-y-2 w-full">
-                  <div className="flex justify-between items-center w-full flex-wrap gap-2">
-                    <span className="aw-mono text-[9px] text-[#7C7C86] tracking-wider uppercase">CLOUD_EXPANSION</span>
-                    <span className="aw-mono text-lg font-medium text-[#F2F2F4]">$49.9<span className="text-xs text-[#5F5F68] font-light">/year</span></span>
-                  </div>
-                  <h3 className="aw-display text-lg font-medium text-[#F2F2F4] group-hover:text-[#B47CFF] transition-colors">MyCloud Preset Storage</h3>
-                  <p className="text-xs text-[#9A9AA3] font-light leading-relaxed">
-                    Expand your private space to 30 GB of secure storage. Back up thousands of sound banks, performance presets, TS4x and KORG/Genos custom maps straight from the stage.
+            {/* CARD 3: CLOUD STORAGE */}
+            <div className="bg-transparent border-t border-white/20 pt-6 flex flex-col justify-between h-full transition-all duration-200 hover:border-white/40">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 text-xs font-semibold uppercase tracking-wider text-[#B47CFF]">
+                  <span>Cloud Sync</span>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-white tracking-tight">
+                    MyCloud Storage
+                  </h3>
+                  <p className="text-sm text-[#A1A1AA] font-normal leading-relaxed">
+                    Secure 30 GB container optimized for active audio profiles. Backup performance maps, synth patches, and system states directly from the stage.
                   </p>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-6 mt-8">
+                <div className="text-2xl font-bold text-white tracking-tight">
+                  $49.9<span className="text-xs text-[#71717A] font-normal ml-1">/ year</span>
                 </div>
                 <Link
                   href="/mycloud"
-                  className="w-full h-10 bg-white/[0.04] text-[#D4D4D9] border border-white/[0.08] aw-mono text-xs font-semibold uppercase rounded-xl hover:bg-gradient-to-r hover:from-[#B47CFF] hover:to-[#FF5CA1] hover:text-white hover:border-transparent transition-all duration-300 active:scale-[0.99] flex items-center justify-center"
+                  className="w-full h-11 bg-transparent text-white border border-white/20 text-xs font-bold uppercase rounded-lg hover:bg-white/5 hover:border-white/40 transition-all duration-200 active:scale-[0.99] flex items-center justify-center tracking-wide"
                 >
                   Upgrade Storage
                 </Link>
@@ -244,6 +332,7 @@ export default function HomePage() {
 
           </div>
         </div>
+
 
         {/* CORE ENGINE DETAILS — TS4X + i-volution sunt paralele, nu secventiale, deci fara numerotare [01]/[02] */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 sm:gap-12 pt-12 border-t border-white/[0.06] text-left">
@@ -290,30 +379,74 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* HARDWARE & APPLICATION SPECIFICATIONS — titlu clarificat: astea sunt cerinte pt. TS4X, nu specificatii generice */}
-        <div className="space-y-8 pt-12 border-t border-white/[0.06] text-left">
-          <div className="space-y-2">
-            <span className="aw-mono text-xs text-[#7C7C86] tracking-wider uppercase">Recommended for running TS4X</span>
-            <h2 className="aw-display text-2xl sm:text-3xl font-semibold tracking-tight text-[#F2F2F4]">Engineered Specs</h2>
+        {/* ================= SECTION: ENGINEERED SPECS (Dashboard Approach) ================= */}
+        <div className="pt-24 border-t border-white/10 text-left max-w-7xl mx-auto px-4 sm:px-6">
+          
+          {/* Header complet curat și clasic */}
+          <div className="mb-14">
+            <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-white">
+              Engineered Specs
+            </h2>
+            <p className="mt-3 text-sm text-[#A1A1AA] max-w-xl leading-relaxed">
+              Recommended hardware architecture optimized for real-time TS4X signal processing.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="border border-white/[0.06] bg-[#18181C] p-6 rounded-2xl space-y-2 hover:border-[#FF5CA1]/30 hover:-translate-y-1 transition-all duration-300">
-              <div className="aw-mono text-xs text-[#6A6A73]">PROCESSORS</div>
-              <p className="text-sm font-medium text-[#D4D4D9]">Apple Silicon (M1/M2), Intel x86_64 up to 4.0 GHz, or ARM Cortex-A72 (3nm process).</p>
+          {/* Abordare Dashboard / Listă industrială — Fără cutii gri sau gradiente AI */}
+          <div className="space-y-0 animate-[fadeIn_0.6s_ease-out_both]">
+            
+            {/* Rândul 1: PROCESSORS */}
+            <div className="border-t border-white/10 py-6 grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-8 items-start relative group">
+              {/* Mic punct tehnic care pulsează autonom în stânga */}
+              <div className="absolute left-0 top-7 w-1 h-1 rounded-full bg-[#FF5CA1] opacity-60 animate-ping" />
+              
+              <div className="md:col-span-1 pl-4">
+                <span className="aw-mono text-xs font-bold tracking-widest text-[#FF5CA1]/90 uppercase">
+                  Processors
+                </span>
+              </div>
+              <div className="md:col-span-3">
+                <p className="text-base text-[#E4E4E7] font-medium leading-relaxed tracking-tight">
+                  Apple Silicon (M1/M2/M3), Intel x86_64 up to 4.0 GHz, or ARM Cortex-A72 (3nm architectural process).
+                </p>
+              </div>
             </div>
 
-            <div className="border border-white/[0.06] bg-[#18181C] p-6 rounded-2xl space-y-2 hover:border-[#FF8A3D]/30 hover:-translate-y-1 transition-all duration-300">
-              <div className="aw-mono text-xs text-[#6A6A73]">MEMORY & STORAGE</div>
-              <p className="text-sm font-medium text-[#D4D4D9]">8GB LPDDR4 RAM ensures stable execution. 512GB NVMe SSD optimization for rapid patch loading.</p>
+            {/* Rândul 2: MEMORY & STORAGE */}
+            <div className="border-t border-white/10 py-6 grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-8 items-start relative group">
+              <div className="absolute left-0 top-7 w-1 h-1 rounded-full bg-[#FF8A3D] opacity-60 animate-ping [animation-delay:0.4s]" />
+              
+              <div className="md:col-span-1 pl-4">
+                <span className="aw-mono text-xs font-bold tracking-widest text-[#FF8A3D]/90 uppercase">
+                  Memory & Storage
+                </span>
+              </div>
+              <div className="md:col-span-3">
+                <p className="text-base text-[#E4E4E7] font-medium leading-relaxed tracking-tight">
+                  8GB LPDDR4/5 RAM minimum for stable core execution. 512GB NVMe SSD optimization tailored for high-speed patch loading.
+                </p>
+              </div>
             </div>
 
-            <div className="border border-white/[0.06] bg-[#18181C] p-6 rounded-2xl space-y-2 hover:border-[#B47CFF]/30 hover:-translate-y-1 transition-all duration-300">
-              <div className="aw-mono text-xs text-[#6A6A73]">AUDIO OUT</div>
-              <p className="text-sm font-medium text-[#D4D4D9]">24-bit/192kHz stereo DACs, native external USB sound card compatibility, and Bluetooth 5.0 IO.</p>
+            {/* Rândul 3: AUDIO OUT */}
+            <div className="border-t border-b border-white/10 py-6 grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-8 items-start relative group">
+              <div className="absolute left-0 top-7 w-1 h-1 rounded-full bg-[#B47CFF] opacity-60 animate-ping [animation-delay:0.8s]" />
+              
+              <div className="md:col-span-1 pl-4">
+                <span className="aw-mono text-xs font-bold tracking-widest text-[#B47CFF]/90 uppercase">
+                  Audio Output
+                </span>
+              </div>
+              <div className="md:col-span-3">
+                <p className="text-base text-[#E4E4E7] font-medium leading-relaxed tracking-tight">
+                  24-bit / 192kHz stereo DACs, native multi-channel USB audio interface compatibility, and ultra-low latency Bluetooth 5.0 IO.
+                </p>
+              </div>
             </div>
+
           </div>
         </div>
+
 
         {/* ================= SECTION: FAQ ================= */}
         <div className="space-y-8 pt-12 border-t border-white/[0.06] text-left">
