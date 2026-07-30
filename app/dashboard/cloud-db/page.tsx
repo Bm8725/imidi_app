@@ -11,6 +11,39 @@ import MetaMess from "@/components/metamess";
 import { supabase } from "@/lib/supabase";
 // NOU: functii de verificare/upgrade a limitei de stocare
 import { getUserStorageLimitMb, upgradeToProPlan, upgradeToEnterprisePlan } from "@/lib/storageLimit";
+// NOU: TUS protocol — singurul mod prin care Supabase Storage da progres real de upload
+import * as tus from "tus-js-client";
+
+// ---- NOU: helpers de formatare pentru progres/viteza/ETA ----
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+  if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  if (bytes >= 1024) return (bytes / 1024).toFixed(0) + " KB";
+  return bytes + " B";
+}
+
+function formatEta(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) return "...";
+  if (seconds < 1) return "<1s";
+  if (seconds < 60) return `${Math.ceil(seconds)}s`;
+  const min = Math.floor(seconds / 60);
+  const sec = Math.round(seconds % 60);
+  if (min < 60) return `${min}m ${sec}s`;
+  const h = Math.floor(min / 60);
+  const remMin = min % 60;
+  return `${h}h ${remMin}m`;
+}
+
+interface UploadProgressState {
+  percent: number;
+  uploadedBytes: number;
+  totalBytes: number;
+  speedBytesPerSec: number;
+  etaSeconds: number | null;
+  currentFileName: string;
+  fileIndex: number;
+  fileCount: number;
+}
 
 export default function CloudWorkspacePage() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -26,6 +59,9 @@ export default function CloudWorkspacePage() {
   const [delId, setDelId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // NOU: progresul real de upload (TUS), afisat live in UI
+  const [uploadProgress, setUploadProgress] = useState<UploadProgressState | null>(null);
 
   // ---- share link (cod de acces pt cumparator) ----
   const [shareBank, setShareBank] = useState<any | null>(null);
@@ -155,34 +191,127 @@ useEffect(() => {
     }
   };
 
+  // NOU: upload printr-un singur fisier via TUS, cu progres real (bytes) reportat
+  // printr-un callback catre bucla principala, ca sa putem calcula progresul
+  // AGREGAT (peste toate fisierele selectate deodata), nu doar per-fisier.
+  const uploadFileWithProgress = (
+    file: File,
+    path: string,
+    onBytesProgress: (bytesUploaded: number) => void
+  ): Promise<void> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const { data: signed, error: signErr } = await supabase.storage
+          .from("cloud-db-bucket")
+          .createSignedUploadUrl(path);
+        if (signErr || !signed?.signedUrl) {
+          reject(signErr || new Error("Nu am putut genera URL-ul de upload."));
+          return;
+        }
+
+        const upload = new tus.Upload(file, {
+          endpoint: signed.signedUrl,
+          chunkSize: 6 * 1024 * 1024, // 6MB per bucata, recomandarea Supabase
+          retryDelays: [0, 1000, 3000, 5000],
+          metadata: {
+            filename: file.name,
+            filetype: file.type || "application/octet-stream",
+          },
+          onError: (err) => reject(err),
+          onProgress: (bytesUploaded) => {
+            onBytesProgress(bytesUploaded);
+          },
+          onSuccess: () => {
+            onBytesProgress(file.size); // ne asiguram ca ajunge exact la 100% pt fisierul asta
+            resolve();
+          },
+        });
+
+        upload.start();
+      } catch (err) {
+        reject(err);
+      }
+    });
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     setUploading(true);
+
+    // ---- pre-verificam limita de spatiu INAINTE sa pornim orice upload ----
+    let runningTotalMb = totalUsedMb;
+    const errors: string[] = [];
+    let blocked = false;
+    const filesToUpload: File[] = [];
+
+    for (const file of Array.from(files)) {
+      const fileSizeMb = file.size / (1024 * 1024);
+      if (runningTotalMb >= maxMb) {
+        blocked = true;
+        errors.push(`${file.name}: neîncărcat — ai atins limita de ${maxMb} MB.`);
+        continue;
+      }
+      if (runningTotalMb + fileSizeMb > maxMb) {
+        blocked = true;
+        errors.push(`${file.name}: neîncărcat — ar depăși limita de ${maxMb} MB.`);
+        continue;
+      }
+      runningTotalMb += fileSizeMb;
+      filesToUpload.push(file);
+    }
+
+    // ---- initializam progresul agregat, pe TOATE fisierele care chiar se incarca ----
+    const totalBytesAll = filesToUpload.reduce((acc, f) => acc + f.size, 0);
+    let bytesDoneFromPreviousFiles = 0;
+    const startTime = Date.now();
+
+    setUploadProgress(
+      filesToUpload.length > 0
+        ? {
+            percent: 0,
+            uploadedBytes: 0,
+            totalBytes: totalBytesAll,
+            speedBytesPerSec: 0,
+            etaSeconds: null,
+            currentFileName: filesToUpload[0].name,
+            fileIndex: 1,
+            fileCount: filesToUpload.length,
+          }
+        : null
+    );
+
     try {
       let runningTotal = totalUsedMb;
-      const errors: string[] = [];
-      let blocked = false;
 
-      for (const file of Array.from(files)) {
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
         const fileSizeMb = file.size / (1024 * 1024);
-
-        if (runningTotal >= maxMb) {
-          blocked = true;
-          errors.push(`${file.name}: neîncărcat — ai atins limita de ${maxMb} MB.`);
-          continue;
-        }
-        if (runningTotal + fileSizeMb > maxMb) {
-          blocked = true;
-          errors.push(`${file.name}: neîncărcat — ar depăși limita de ${maxMb} MB.`);
-          continue;
-        }
 
         try {
           const ext = file.name.split(".").pop()?.toLowerCase() || "";
           const path = `${user.id}/${Math.random().toString(36).substring(2)}.${ext}`;
-          const { error: upErr } = await supabase.storage.from("cloud-db-bucket").upload(path, file);
-          if (upErr) throw upErr;
+
+          await uploadFileWithProgress(file, path, (bytesUploaded) => {
+            const overallUploaded = bytesDoneFromPreviousFiles + bytesUploaded;
+            const elapsedSec = Math.max(0.001, (Date.now() - startTime) / 1000);
+            const speed = overallUploaded / elapsedSec;
+            const remainingBytes = Math.max(0, totalBytesAll - overallUploaded);
+            const eta = speed > 0 ? remainingBytes / speed : null;
+
+            setUploadProgress({
+              percent: totalBytesAll > 0 ? Math.min(100, (overallUploaded / totalBytesAll) * 100) : 0,
+              uploadedBytes: overallUploaded,
+              totalBytes: totalBytesAll,
+              speedBytesPerSec: speed,
+              etaSeconds: eta,
+              currentFileName: file.name,
+              fileIndex: i + 1,
+              fileCount: filesToUpload.length,
+            });
+          });
+
+          bytesDoneFromPreviousFiles += file.size;
 
           let type = "Audio Bank", color = "#3b82f6";
           if (["fxp", "fxb", "vital", "fst", "adg", "adv", "pst", "json", "ts4", "bin", "jsf", "jbb", "sf2", "hex", "jbs", "prf", "bup"].includes(ext)) {
@@ -196,7 +325,8 @@ useEffect(() => {
 
           runningTotal += fileSizeMb;
         } catch (fileErr: any) {
-          errors.push(`${file.name}: ${fileErr.message}`);
+          errors.push(`${file.name}: ${fileErr.message || "eroare la upload"}`);
+          bytesDoneFromPreviousFiles += file.size; // trecem peste, ca sa nu blocam procentul agregat
         }
       }
 
@@ -206,7 +336,12 @@ useEffect(() => {
         alert(`Unele fișiere nu s-au încărcat:\n${errors.join("\n")}`);
       }
       window.location.reload();
-    } catch (err: any) { alert(err.message); } finally { setUploading(false); }
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setUploading(false);
+      setUploadProgress(null);
+    }
   };
 
   const handleDownload = async (bank: any) => {
@@ -356,11 +491,6 @@ const runMarketAnalysis = async () => {
         
         {/* Contur decorativ specific panourilor din Ableton */}
         <div className="absolute inset-0 border border-zinc-900/40 pointer-events-none rounded-sm m-2 opacity-50" />
-        
-        {/* Conținutul paginii tale se va randa aici, plutind deasupra finisajului industrial */}
-
-
-
 
         {error ? (
           <div className="text-center p-6 bg-white border rounded-xl max-w-sm mx-auto shadow-sm mt-12">
@@ -371,13 +501,10 @@ const runMarketAnalysis = async () => {
           <>
             <input type="file" multiple ref={fileRef} onChange={handleUpload} className="hidden" accept="audio/*,.mid,.midi,.fxp,.fxb,.vital,.fst,.adg,.adv,.pst,.json,.ts4,.bin,.jsf,.jbb,.sf2,.hex,.jbs,.prf,.bup" />
             
-{/* PLATFORMA GRID ULTRA-PREMIUM (SIDEBAR INTEGRAT SAAS) */}
 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch w-full mb-10">
   
-  {/* PANOU PRINCIPAL (STÂNGA - 2 TREIMI): CONTROL VAULT */}
   <div className="lg:col-span-2 flex flex-col justify-between bg-[#0D0D0D] border border-zinc-800/80 p-6 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] min-h-[190px] relative overflow-hidden group">
     
-    {/* POZA DE FUNDAL: AVATAR SAU IMPLICIT profile.jpg */}
     <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden">
       <img 
         src={user?.avatar || "/profile.jpg"} 
@@ -388,7 +515,6 @@ const runMarketAnalysis = async () => {
       <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0D] via-[#0D0D0D]/80 to-transparent" />
     </div>
 
-    {/* Glow decorativ subtil pe fundal */}
     <div className="absolute -top-12 -left-12 w-32 h-32 bg-[#FF7A1A]/5 rounded-full blur-3xl pointer-events-none z-0" />
     
     <div className="relative z-10 space-y-1">
@@ -396,15 +522,39 @@ const runMarketAnalysis = async () => {
         iMIDI <span className="bg-gradient-to-r from-[#FF7A1A] to-[#ff9f54] bg-clip-text text-transparent">MyCloud</span>
       </h1>
       <div className="flex items-center gap-2">
-        {/* TEXT SCHIMBAT PE ALB CURAT */}
         <p className="text-xs font-mono text-white select-none tracking-wider">{user?.email}</p>
       </div>
     </div>
 
-    {/* Zona Acțiuni Butoane */}
+    {/* NOU: bara de progres reala de upload, cu procent / viteza / ETA / fisier curent */}
+    {uploadProgress && (
+      <div className="relative z-10 w-full mt-4 bg-black/30 border border-zinc-800 rounded-xl p-3 space-y-2">
+        <div className="flex items-center justify-between text-[10px] font-mono">
+          <span className="text-zinc-300 truncate max-w-[55%]" title={uploadProgress.currentFileName}>
+            {uploadProgress.fileCount > 1
+              ? `Fișier ${uploadProgress.fileIndex}/${uploadProgress.fileCount} — ${uploadProgress.currentFileName}`
+              : uploadProgress.currentFileName}
+          </span>
+          <span className="text-[#FF7A1A] font-bold">{uploadProgress.percent.toFixed(1)}%</span>
+        </div>
+        <div className="w-full h-2 bg-zinc-950 rounded-full border border-zinc-800 overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-[#FF7A1A] to-[#ffa566] transition-all duration-150 ease-out shadow-[0_0_10px_rgba(255,122,26,0.4)]"
+            style={{ width: `${uploadProgress.percent}%` }}
+          />
+        </div>
+        <div className="flex items-center justify-between text-[9px] font-mono text-zinc-500">
+          <span>{formatBytes(uploadProgress.uploadedBytes)} / {formatBytes(uploadProgress.totalBytes)}</span>
+          <span>
+            {uploadProgress.speedBytesPerSec > 0 ? `${formatBytes(uploadProgress.speedBytesPerSec)}/s` : "calculez viteza..."}
+            {uploadProgress.etaSeconds !== null && <> · ETA {formatEta(uploadProgress.etaSeconds)}</>}
+          </span>
+        </div>
+      </div>
+    )}
+
     <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2.5 w-full mt-6 relative z-10">
       
-      {/* Buton Upload cu efect de adâncime */}
       <button 
         disabled={totalUsedMb >= maxMb || uploading} 
         onClick={() => fileRef.current?.click()} 
@@ -413,7 +563,9 @@ const runMarketAnalysis = async () => {
         {uploading ? (
           <>
             <span className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-            <span className="animate-pulse tracking-normal font-bold">Syncing...</span>
+            <span className="animate-pulse tracking-normal font-bold">
+              {uploadProgress ? `${uploadProgress.percent.toFixed(0)}%` : "Syncing..."}
+            </span>
           </>
         ) : (
           <>
@@ -423,7 +575,6 @@ const runMarketAnalysis = async () => {
         )}
       </button>
 
-      {/* Buton Istoric Descărcări - TEXT ALB */}
       <button
         onClick={openDownloadHistory}
         className="h-10 px-4 border border-zinc-700 rounded-xl text-xs font-semibold bg-zinc-900 text-white hover:bg-zinc-800 hover:border-zinc-600 active:scale-[0.97] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
@@ -434,7 +585,6 @@ const runMarketAnalysis = async () => {
         <span>Istoric</span>
       </button>
 
-      {/* Buton Reset Pass - TEXT ALB */}
       <Link 
         href="/update-password" 
         className="h-10 px-4 border border-zinc-700 rounded-xl text-xs font-semibold bg-zinc-900 text-white hover:bg-zinc-800 hover:border-zinc-600 active:scale-[0.97] transition-all duration-200 flex items-center justify-center gap-2"
@@ -442,7 +592,6 @@ const runMarketAnalysis = async () => {
         Reset pass
       </Link>
 
-      {/* Buton Log Out - TEXT ROȘU CLAR */}
       <button 
         onClick={handleLogout} 
         disabled={loggingOut} 
@@ -458,7 +607,6 @@ const runMarketAnalysis = async () => {
         <span>{loggingOut ? "Ieșire..." : "Log out"}</span>
       </button>
 
-      {/* Buton AI - Gradient Cyberpunk Strălucitor */}
       <button
         onClick={runMarketAnalysis}
         className="h-10 px-4 rounded-xl text-xs font-extrabold uppercase tracking-wider bg-gradient-to-r from-[#6366F1] via-[#4F46E5] to-[#0EA5E9] text-white shadow-[0_0_20px_rgba(99,102,241,0.2)] flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] hover:brightness-110 active:scale-[0.97] transition-all duration-200 col-span-2 sm:col-span-1 select-none"
@@ -470,10 +618,8 @@ const runMarketAnalysis = async () => {
     </div>
   </div>
 
-  {/* SIDEBAR WIDGET (DREAPTA - O TREIME): PROFILE & STOCARE */}
   <div className="bg-[#0D0D0D] border border-zinc-800/80 p-6 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)] flex flex-col justify-between h-full min-h-[190px]">
     
-    {/* Header Profil în Sidebar */}
     <div className="flex items-center justify-between w-full pb-4 border-b border-zinc-800">
       <div className="flex items-center gap-3">
         <div className="relative">
@@ -491,7 +637,6 @@ const runMarketAnalysis = async () => {
         </div>
       </div>
       
-      {/* Badge Plan Stilizat Minimalist */}
       <div className="shrink-0 flex items-center">
         {plan === "free" && <span className="text-[9px] font-bold text-white font-mono border border-zinc-700 bg-zinc-900 px-2 py-1 rounded-md uppercase tracking-wider">FREE</span>}
         {plan === "pro" && <span className="text-[9px] font-black text-black font-mono bg-emerald-400 px-2 py-1 rounded-md uppercase tracking-wider">PRO</span>}
@@ -499,7 +644,6 @@ const runMarketAnalysis = async () => {
       </div>
     </div>
 
-    {/* Statistici volum stocare */}
     <div className="w-full mt-4 flex-1 flex flex-col justify-end">
       <div className="text-[10px] text-white flex justify-between font-mono tracking-widest font-black items-center mb-2">
         <span>VAULT STORAGE</span>
@@ -510,7 +654,6 @@ const runMarketAnalysis = async () => {
         </span>
       </div>
       
-      {/* Bara progres */}
       <div className="w-full h-2 bg-zinc-950 rounded-full border border-zinc-800 overflow-hidden relative">
         <div 
           className={`h-full transition-all duration-700 ease-out shadow-[0_0_15px_rgba(255,122,26,0.3)] ${
@@ -521,9 +664,7 @@ const runMarketAnalysis = async () => {
       </div>
     </div>
 
-    {/* Butoane premium pentru extindere spațiu */}
     <div className="w-full mt-5 pt-3 border-t border-zinc-800">
-      {/* Pas 1: Free -> Pro (30GB) */}
       {plan === "free" && (
         <button
           onClick={handleBuyCloud}
@@ -534,7 +675,6 @@ const runMarketAnalysis = async () => {
         </button>
       )}
 
-      {/* Pas 2: Pro -> Enterprise (250GB) */}
       {plan === "pro" && (
         <button
           onClick={handleBuyEnterprise}
@@ -545,10 +685,8 @@ const runMarketAnalysis = async () => {
         </button>
       )}
 
-      {/* Pas 3: Enterprise activ (250GB) */}
       {plan === "enterprise" && (
         <div className="w-full h-9 px-4 flex items-center justify-center gap-2 border border-white  bg-white text-cyan-400 text-xs font-bold font-mono tracking-widest uppercase rounded-xl whitespace-nowrap">
-          
           Enterprise plan active
         </div>
       )}
@@ -596,17 +734,14 @@ const runMarketAnalysis = async () => {
 
 
  {loading ? (
-  /* State de Loading stilizat ca rack hardware gol în curs de scanare */
   <div className="h-16 bg-[#222222] border border-[#2C2C2C] rounded-sm animate-pulse flex items-center px-4 font-mono text-[10px] text-zinc-500 uppercase tracking-wider">
     Scanning device parameters...
   </div>
 ) : banks.length === 0 ? (
-  /* State Empty - Stil ecran LCD Ableton când nu sunt date */
   <div className="text-center py-10 border border-dashed border-[#2C2C2C] rounded-sm bg-[#1E1E1E] font-mono text-[10px] text-zinc-500 uppercase tracking-widest">
     No packs or file found on track!
   </div>
 ) : (
-  /* Grid-ul cu fișiere - Stil canale Mixer Ableton */
   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
     {banks.map(b => (
       <div 
@@ -614,7 +749,6 @@ const runMarketAnalysis = async () => {
         className="bg-[#222222] border border-[#2C2C2C] p-3 rounded-sm flex items-center justify-between hover:bg-[#2A2A2A] hover:border-zinc-700 group transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
       >
         <div className="flex items-center gap-3 min-w-0">
-          {/* Iconiță tip LED - folosește culoarea b.color_hex ca un bec hardware */}
           <div 
             className="w-8 h-8 rounded-sm flex items-center justify-center text-xs font-mono font-bold select-none border" 
             style={{ 
@@ -628,21 +762,17 @@ const runMarketAnalysis = async () => {
           </div>
           
           <div className="min-w-0 font-mono">
-            {/* Titlu fișier - Text alb pur curat, foarte lizibil */}
             <h3 className="text-xs font-bold text-white truncate pr-2 tracking-tight" title={b.name}>
               {b.name}
             </h3>
-            {/* Detalii tehnice - Gri fin industrial */}
             <p className="text-[10px] text-zinc-400 mt-0.5 uppercase tracking-tight">
               {b.type} <span className="text-zinc-600">•</span> {b.size_mb < 0.1 ? `${(b.size_mb * 1024).toFixed(0)} KB` : `${b.size_mb} MB`}
             </p>
           </div>
         </div>
 
-        {/* Zona Butoane Acțiuni - Stil butoane iluminate de controller DJ */}
         <div className="shrink-0 z-20 flex items-center gap-1 font-mono">
           {delId === b.id ? (
-            /* Pop-up confirmare ștergere integrat în designul tehnic */
             <div className="flex gap-1 bg-[#1A1A1A] p-1 border border-[#2C2C2C] rounded-sm">
               <button 
                 onClick={async () => { 
@@ -663,7 +793,6 @@ const runMarketAnalysis = async () => {
             </div>
           ) : (
             <>
-              {/* Buton Share */}
               <button 
                 onClick={() => openShareModal(b)} 
                 className="w-7 h-7 rounded-sm flex items-center justify-center border border-transparent text-zinc-500 hover:text-[#FF7A1A] hover:bg-[#2C2C2C] hover:border-zinc-700 sm:opacity-0 group-hover:opacity-100 transition-all cursor-pointer" 
@@ -677,7 +806,6 @@ const runMarketAnalysis = async () => {
                 </svg>
               </button>
 
-              {/* Buton Download */}
               <button 
                 onClick={() => handleDownload(b)} 
                 disabled={downloadingId === b.id} 
@@ -694,7 +822,6 @@ const runMarketAnalysis = async () => {
                 )}
               </button>
 
-              {/* Buton Șterge */}
               <button 
                 onClick={() => setDelId(b.id)} 
                 className="w-7 h-7 rounded-sm flex items-center justify-center border border-transparent text-zinc-500 hover:text-red-500 hover:bg-red-950/20 hover:border-red-900/30 sm:opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
@@ -725,7 +852,6 @@ const runMarketAnalysis = async () => {
         )}
       </main>
 
-{/* modal istoric descarcari */}
 {showDownloadHistory && (
   <div 
     className="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 font-mono select-none" 
@@ -735,7 +861,6 @@ const runMarketAnalysis = async () => {
       className="bg-[#1E1E1E] text-[#D0D0D0] border border-[#2C2C2C] rounded-sm p-5 max-w-lg w-full shadow-[0_25px_60px_rgba(0,0,0,0.8)] space-y-4 max-h-[80vh] overflow-y-auto flex flex-col transition-all" 
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Header Modal - Stil Rack Parametri */}
       <div className="flex items-center justify-between shrink-0 pb-3 border-b border-[#2C2C2C]">
         <div className="space-y-0.5">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[#FF7A1A]">TRACK LOG</p>
@@ -749,10 +874,8 @@ const runMarketAnalysis = async () => {
         </button>
       </div>
 
-      {/* Corp Modal / Conținut */}
       <div className="flex-1 overflow-y-auto pr-1 text-xs">
         {downloadHistoryLoading ? (
-          /* Skeleton Loader Premium - Stil LED Scan */
           <div className="space-y-1.5">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex justify-between items-center p-3 border border-[#2C2C2C] bg-[#222222] rounded-sm animate-pulse">
@@ -784,7 +907,6 @@ const runMarketAnalysis = async () => {
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF7A1A] shadow-[0_0_6px_rgba(255,122,26,0.6)]" />
             </div>
 
-            {/* Listă cu design mixer audio (canale separate cu hover fin) */}
             <div className="space-y-1.5 max-h-[45vh] overflow-y-auto pr-0.5">
               {downloadHistory.map((row) => {
                 const dt = new Date(row.downloaded_at);
@@ -796,7 +918,6 @@ const runMarketAnalysis = async () => {
                     key={row.id} 
                     className="flex items-center justify-between p-3 bg-[#222222] border border-[#2C2C2C] hover:bg-[#2A2A2A] hover:border-zinc-700 rounded-sm transition-all group shadow-[inset_0_1px_0_rgba(255,255,255,0.01)]"
                   >
-                    {/* Detalii Bancă */}
                     <div className="min-w-0 pr-3 flex items-center gap-3">
                       <div className="w-7 h-7 rounded-sm bg-[#1A1A1A] border border-[#2C2C2C] group-hover:border-[#FF7A1A]/30 flex items-center justify-center text-xs shrink-0 transition-colors">
                         {row.bank_name?.toLowerCase().includes('edge') ? '🏦' : '💳'}
@@ -811,7 +932,6 @@ const runMarketAnalysis = async () => {
                       </div>
                     </div>
 
-                    {/* Dată / Timp - Afișaj curat de ceas hardware */}
                     <div className="shrink-0 text-right space-y-0.5">
                       <p className="text-zinc-300 font-bold tracking-tight">{data}</p>
                       <p className="text-[10px] text-zinc-500 font-mono font-medium">{ora}</p>
@@ -829,7 +949,6 @@ const runMarketAnalysis = async () => {
 
 
 
-      {/* modal generare link de vanzare (cod ales de vanzator) */}
       {shareBank && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={closeShareModal}>
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl space-y-4" onClick={(e) => e.stopPropagation()}>
@@ -882,7 +1001,6 @@ const runMarketAnalysis = async () => {
         </div>
       )}
 
-      {/* modal AI analiza piata Smith */}
 {showMarketAnalysis && (
   <div
     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300 animate-fadeIn"
@@ -892,10 +1010,8 @@ const runMarketAnalysis = async () => {
       className="bg-[#FDFBF7] font-serif border border-amber-900/10 rounded-2xl max-w-2xl w-full max-h-[88vh] overflow-y-auto shadow-[0_20px_50px_rgba(40,30,20,0.15)] relative"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Decorative top ambient glow */}
       <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-[#FF5CA1]/10 to-transparent pointer-events-none z-0" />
 
-      {/* Sticky Header pe Crem Curat */}
       <div className="sticky top-0 bg-[#F7F4EB]/90 backdrop-blur-md border-b border-amber-900/10 px-6 py-4 flex items-center justify-between z-10">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-widest text-[#FF5CA1] font-bold">
@@ -911,7 +1027,6 @@ const runMarketAnalysis = async () => {
         </button>
       </div>
 
-      {/* Rezultate și statistici animate / colorate */}
       <div className="p-6 space-y-6 relative z-10">
         {marketAnalysisLoading ? (
           <div className="flex flex-col items-center gap-3 text-sm text-amber-900/60 py-16 justify-center">
@@ -922,7 +1037,6 @@ const runMarketAnalysis = async () => {
           <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-4 font-sans">{marketAnalysisError}</p>
         ) : marketStats ? (
           <>
-            {/* Carduri Statistici Ultra-Colorate cu Gradienți Neon iMIDI */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
               <div className="bg-gradient-to-br from-[#FF5CA1]/10 to-[#8B5CF6]/10 border border-[#FF5CA1]/20 rounded-xl p-3.5 shadow-sm transform hover:scale-[1.02] transition-transform">
                 <p className="text-[9px] font-mono font-bold uppercase tracking-wider text-amber-950/60">Anunțuri active</p>
@@ -942,14 +1056,12 @@ const runMarketAnalysis = async () => {
               </div>
             </div>
 
-            {/* Alert bară expirare */}
             {marketStats.expiringSoon > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 font-sans flex items-center gap-2">
                 <span className="animate-bounce">🔔</span> {marketStats.expiringSoon} anunțuri expira în următoarele 3 zile
               </div>
             )}
 
-            {/* Breakdown pe categorii - Bare colorate cu umbre și tranziții */}
             {marketStats.categoryBreakdown && marketStats.categoryBreakdown.length > 0 && (
               <div className="bg-[#F7F4EB] border border-amber-900/5 rounded-xl p-4 space-y-4">
                 <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-950/60">
@@ -960,7 +1072,6 @@ const runMarketAnalysis = async () => {
                     const maxCount = Math.max(...marketStats.categoryBreakdown.map((x: any) => x.total_listings));
                     const widthPct = (c.total_listings / maxCount) * 100;
                     
-                    // Paletă vibrantă de culori premium pentru categorii (Pink, Violet, Blue, Emerald)
                     const colors = ["#FF5CA1", "#8B5CF6", "#0070F3", "#10b981"];
                     const currentColor = colors[i % colors.length];
 
@@ -989,7 +1100,6 @@ const runMarketAnalysis = async () => {
               </div>
             )}
 
-            {/* Top țări sub formă de Capsule Colorate */}
             {marketStats.topCountries && marketStats.topCountries.length > 0 && (
               <div className="space-y-2">
                 <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-950/60">Top țări active</p>
@@ -1007,7 +1117,6 @@ const runMarketAnalysis = async () => {
               </div>
             )}
 
-            {/* Rezumat AI - Card Stilizat cu Glow Lateral */}
             <div className="relative overflow-hidden rounded-xl border border-[#FF5CA1]/20 bg-white p-4 shadow-sm">
               <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#FF5CA1] to-[#8B5CF6]" />
               <p className="text-[9px] font-mono font-bold uppercase tracking-widest text-[#FF5CA1] mb-2 flex items-center gap-1">
