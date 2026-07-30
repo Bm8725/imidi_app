@@ -209,7 +209,8 @@ export default function Navbar() {
       </nav>
 
 {/* MOBILE HEADER: SUS CU BUTON HAMBURGER PENTRU LOGIN ACCOUNT */}
-<div className={`md:hidden fixed top-0 inset-x-0 h-14 bg-white/90 backdrop-blur-md border-b border-slate-200 z-50 flex items-center px-5 justify-between transition-transform duration-300 ${isVisible ? "translate-y-0" : "-translate-y-full"}`}>
+<div className="md:hidden fixed top-0 left-0 right-0 w-full h-12 bg-white/90 backdrop-blur-md border-b border-slate-200 z-50 flex items-center px-5 justify-between">
+
   <Link 
     href="/" 
     onClick={() => setIsMenuOpen(false)} 
@@ -380,7 +381,7 @@ export default function Navbar() {
         </div>
 
         <div className="absolute bottom-24 left-6 right-6 text-center">
-          <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest">Secure encrypted session</p>
+          <p className="text-[9px] font-medium text-slate-300 uppercase tracking-widest"></p>
         </div>
       </div>
 
