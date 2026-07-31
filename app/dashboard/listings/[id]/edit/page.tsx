@@ -158,7 +158,7 @@ export default function EditListingPage() {
         .eq("user_id", user.id);
 
       if (updErr) throw updErr;
-      router.push(`/dashboard/listings/${listingId}`);
+      router.push(`/e-market`);
     } catch (err: any) {
       setFormError(err.message || "Nu am putut salva modificările.");
     } finally {
