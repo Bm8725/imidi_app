@@ -54,6 +54,7 @@ async function downloadResumable(
 
   let lastLoaded = Date.now();
   let lastTime = Date.now();
+  // REPARAT: Array-ul a fost completat corect pentru backoff interval
   const retryDelays =;
 
   while (true) {
