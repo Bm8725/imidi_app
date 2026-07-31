@@ -671,7 +671,7 @@ return (
           </div>
         </div>
 
-        {/* ZONA BUTONULUI PUBLISH / LOGIN - Forțat primul pe mobil */}
+
 {/* ZONA BUTONULUI PUBLISH / LOGIN - Fixat sus la scroll pe mobil */}
 <div className="w-full sm:w-auto flex justify-end mb-4 sm:mb-0 sticky sm:relative top-[56px] sm:top-0 z-40 bg-[#F7F6F3]/90 backdrop-blur-sm py-2 sm:py-0 px-2 sm:px-0 rounded-b-xl shadow-md sm:shadow-none">
   {user ? (
