@@ -22,15 +22,31 @@ type DlProgress = {
   speedMbps: number;
   etaSec: number;
   retrying: boolean;
+  offline: boolean;
 };
 
+// asteapta evenimentul 'online' al browserului daca suntem offline;
+// se rezolva imediat daca deja avem conexiune
+function waitForOnline(): Promise<void> {
+  if (typeof navigator === "undefined" || navigator.onLine) return Promise.resolve();
+  return new Promise((resolve) => {
+    const handler = () => {
+      window.removeEventListener("online", handler);
+      resolve();
+    };
+    window.addEventListener("online", handler);
+  });
+}
+
+const STALL_TIMEOUT_MS = 15000; // daca nu vine niciun byte in 15s, consideram conexiunea moarta
+
 // ---- download rezumabil: fetch + Range headers, cu retry automat ----
-// Analogul de download al TUS: daca stream-ul pica, reluam de unde am ramas
-// cu "Range: bytes=<primit>-" in loc sa reincepem de la zero.
+// Analogul de download al TUS: daca stream-ul pica (inclusiv wifi picat),
+// reluam de unde am ramas cu "Range: bytes=<primit>-" in loc sa reincepem de la zero.
 async function downloadResumable(
   url: string,
   onProgress: (p: DlProgress) => void,
-  maxRetries = 6
+  maxRetries = 8
 ): Promise<Blob> {
   const chunks: Uint8Array[] = [];
   let receivedBytes = 0;
@@ -40,18 +56,37 @@ async function downloadResumable(
   let lastLoaded = 0;
   let lastTime = Date.now();
   let speedSamples: number[] = [];
-  const retryDelays = [0, 1000, 2000, 4000, 8000, 15000];
+  const retryDelays = [0, 1000, 2000, 4000, 8000, 15000, 20000, 30000];
 
   while (true) {
+    // daca nu avem net deloc, nu incercam orbeste — asteptam evenimentul 'online'
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      onProgress({
+        percent: totalBytes > 0 ? Math.min(100, (receivedBytes / totalBytes) * 100) : 0,
+        speedMbps: 0,
+        etaSec: 0,
+        retrying: true,
+        offline: true,
+      });
+      await waitForOnline();
+    }
+
+    const controller = new AbortController();
+    let stallTimer: ReturnType<typeof setTimeout> | null = null;
+    const resetStallTimer = () => {
+      if (stallTimer) clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => controller.abort(), STALL_TIMEOUT_MS);
+    };
+
     try {
       const headers: Record<string, string> = {};
       if (receivedBytes > 0) headers["Range"] = `bytes=${receivedBytes}-`;
 
-      const res = await fetch(url, { headers });
+      resetStallTimer(); // pornim watchdog-ul si pentru faza initiala de conectare
+      const res = await fetch(url, { headers, signal: controller.signal });
       if (!res.ok && res.status !== 206) throw new Error(`Server a răspuns cu status ${res.status}`);
       if (!res.body) throw new Error("Răspunsul nu conține date.");
 
-      // stabilim marimea totala: din Content-Range daca e reluare, altfel din Content-Length
       const contentRange = res.headers.get("content-range"); // ex: "bytes 500-999/2000"
       if (contentRange) {
         const totalStr = contentRange.split("/")[1];
@@ -67,6 +102,7 @@ async function downloadResumable(
         const { done, value } = await reader.read();
         if (done) break;
         if (value) {
+          resetStallTimer(); // au venit date — resetam watchdog-ul, conexiunea e vie
           chunks.push(value);
           receivedBytes += value.length;
 
@@ -90,23 +126,32 @@ async function downloadResumable(
               speedMbps: avgSpeed / (1024 * 1024),
               etaSec,
               retrying: false,
+              offline: false,
             });
           }
         }
       }
 
-      // s-a terminat cu succes
-      onProgress({ percent: 100, speedMbps: 0, etaSec: 0, retrying: false });
+      if (stallTimer) clearTimeout(stallTimer);
+      onProgress({ percent: 100, speedMbps: 0, etaSec: 0, retrying: false, offline: false });
       return new Blob(chunks as BlobPart[]);
     } catch (err) {
+      if (stallTimer) clearTimeout(stallTimer);
       attempt++;
       if (attempt > maxRetries) throw err;
+
       onProgress({
         percent: totalBytes > 0 ? Math.min(100, (receivedBytes / totalBytes) * 100) : 0,
         speedMbps: 0,
         etaSec: 0,
         retrying: true,
+        offline: typeof navigator !== "undefined" ? !navigator.onLine : false,
       });
+
+      // daca a picat conexiunea, asteptam sa revina inainte sa numaram backoff-ul,
+      // altfel n-are sens sa "ardem" incercari cat timp stim sigur ca nu avem net
+      await waitForOnline();
+
       const delay = retryDelays[Math.min(attempt - 1, retryDelays.length - 1)];
       await new Promise((r) => setTimeout(r, delay));
       // bucla reincepe si trimite Range de la receivedBytes — reluare reala, nu de la zero
