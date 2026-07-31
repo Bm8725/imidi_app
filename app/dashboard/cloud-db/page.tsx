@@ -654,6 +654,19 @@ export default function CloudWorkspacePage() {
                     <span>{loggingOut ? "Ieșire..." : "Log out"}</span>
                   </button>
 
+                       {/* NOU: Buton Anunțurile mele - duce catre pagina dedicata de listings ale userului */}
+                  <Link
+                    href="/dashboard/my-listings"
+                    className="h-10 px-4 border border-zinc-700 rounded-xl text-xs font-semibold bg-zinc-900 text-white hover:bg-zinc-800 hover:border-[#FF7A1A]/40 hover:text-[#FF7A1A] active:scale-[0.97] transition-all duration-200 flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                    </svg>
+                    <span>Anunțurile mele</span>
+                  </Link>
+
+
+
                   {/* Buton AI - Gradient Cyberpunk Strălucitor */}
                   <button
                     onClick={runMarketAnalysis}
