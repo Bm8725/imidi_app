@@ -7,9 +7,9 @@ interface Props {
 }
 
 const SITE_URL = "https://imidi.co.uk";
-const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`; // pune aici o imagine reala 1200x630, nu link catre homepage
+const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 
-// 1. GENERATORUL DINAMIC DE METADATE PENTRU RETELELE SOCIALE
+// 1. GENERATORUL DINAMIC DE METADATE "AI SMART SHARE"
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
 
@@ -23,21 +23,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Anunt indisponibil — iMIDI Market" };
   }
 
+  // Extragem prima imagine din array sau folosim imaginea default a platformei
   const mainImage = listing.images?.[0] || DEFAULT_OG_IMAGE;
   const pageUrl = `${SITE_URL}/e-market/listing/${id}`;
 
+  // Curățăm descrierea de tag-uri HTML și o scurtăm pentru a fi citită optim de rețelele sociale
+  const cleanDesc = listing.description?.replace(/<\/?[^>]+(>|$)/g, "").substring(0, 120) || "";
+
+  // CONSTRUIM URL-UL CĂTRE RUTA TA DE API SMARTSHARE (.ts / .tsx)
+  // Îi pasăm titlul, prețul, descrierea curățată și imaginea de fundal ca parametri
+  const smartShareImage = `${SITE_URL}/api/smart-share?title=${encodeURIComponent(listing.title)}&price=${listing.price || 0}&desc=${encodeURIComponent(cleanDesc)}&img=${encodeURIComponent(mainImage)}`;
+
+  // Titlu și descriere magnetice pentru previzualizarea text a share-ului
+  const intelligentTitle = `🔥 DOAR €${listing.price} | ${listing.title.toUpperCase()} ⚡`;
+  const intelligentDescription = `💎 Ofertă verificată pe iMIDI Market! 👉 ${cleanDesc}... Click pentru detalii, poze și contact rapid!`;
+
   return {
-    title: `${listing.title} — \u20AC${listing.price} on iMIDI.co.uk/e-Market`,
-    description: listing.description,
+    title: intelligentTitle,
+    description: intelligentDescription,
     openGraph: {
-      title: listing.title,
-      description: listing.description,
+      title: intelligentTitle,
+      description: intelligentDescription,
       url: pageUrl,
       siteName: "iMIDI Marketplace",
       type: "article",
       images: [
         {
-          url: mainImage,
+          url: smartShareImage, // Imaginea dinamică cu elemente suprapuse de AI
           width: 1200,
           height: 630,
           alt: listing.title,
@@ -46,15 +58,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: listing.title,
-      description: listing.description,
-      images: [mainImage],
+      title: intelligentTitle,
+      description: intelligentDescription,
+      images: [smartShareImage], // Imaginea dinamică cu elemente suprapuse de AI pentru Twitter/X
     },
   };
 }
 
-// 2. RANDAM HTML REAL (nu redirect() pe server!) ca sa apuce crawler-ele
-// sa citeasca meta tag-urile OG, apoi redirectionam omul real prin JS.
+// 2. RANDARE HTML REAL ȘI STRUCTURĂ JSON-LD PENTRU GOOGLE SEO
 export default async function ListingPage({ params }: Props) {
   const { id } = await params;
 
@@ -65,7 +76,7 @@ export default async function ListingPage({ params }: Props) {
     .eq("id", id)
     .single();
 
-  // Generăm schema structurată pe care o va citi Google pentru afișarea prețului și stocului
+  // Generăm schema structurată pe care o va citi Google (utilizatorul vede imaginea normală, curată)
   const jsonLd = listing ? {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -82,7 +93,7 @@ export default async function ListingPage({ params }: Props) {
 
   return (
     <>
-      {/* Scriptul JSON-LD generat pe server. Google îl devorează instant */}
+      {/* Scriptul JSON-LD generat pe server pentru indexare instantă în motorul de căutare */}
       {jsonLd && (
         <script
           type="application/ld+json"
@@ -90,7 +101,7 @@ export default async function ListingPage({ params }: Props) {
         />
       )}
 
-      {/*  */}
+      {/* Redirecționarea executată prin JS pe client către interfața vizuală a anunțului */}
       <RedirectToListing id={id} />
     </>
   );
