@@ -677,7 +677,7 @@ return (
   {user ? (
     <button
       onClick={() => setShowForm(!showForm)}
-      className="group h-11 sm:h-10 w-full sm:w-auto px-6 bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white text-xs font-bold rounded-xl cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-[0_4px_20px_rgba(255,92,161,0.35)] border border-white/10 tracking-wide uppercase font-mono flex items-center justify-center gap-2"
+      className="group h-11 sm:h-10 w-full sm:w-auto px-8 bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white text-xs font-bold rounded-xl cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-[0_4px_20px_rgba(255,92,161,0.35)] border border-white/10 tracking-wide uppercase font-mono flex items-center justify-center gap-2"
     >
       {showForm ? (
         <>
@@ -686,8 +686,9 @@ return (
         </>
       ) : (
         <>
-          <span className="animate-pulse transition-transform duration-500 group-hover:rotate-180">✦</span>
-          Publish+
+        
+           +NEW PUBLISH
+           <span className="animate-pulse transition-transform duration-500 group-hover:rotate-180">✦</span>
         </>
       )}
     </button>

@@ -169,7 +169,7 @@ export default function EditListingPage() {
   const isExpired = expiresAt ? new Date(expiresAt).getTime() <= Date.now() : false;
 
   return (
-    <div className="bg-[#181818] text-[#D0D0D0] min-h-screen flex flex-col antialiased selection:bg-[#FF7A1A] selection:text-black relative overflow-hidden">
+    <div className="bg-[#f5ecec] text-[#D0D0D0] min-h-screen flex flex-col antialiased selection:bg-[#FF7A1A] selection:text-black relative overflow-hidden">
       <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-[#FF7A1A]/3 rounded-full blur-[140px] pointer-events-none z-0" />
       <div className="absolute bottom-10 left-1/4 w-[400px] h-[400px] bg-indigo-500/[0.02] rounded-full blur-[120px] pointer-events-none z-0" />
 

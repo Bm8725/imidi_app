@@ -123,7 +123,7 @@ export default function MyListingsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
               <div className="space-y-1">
                 <button
-                  onClick={() => router.push("/dashboard")}
+                  onClick={() => router.push("/dashboard/cloud-db")}
                   className="flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-white uppercase tracking-widest mb-2 transition-colors cursor-pointer"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
