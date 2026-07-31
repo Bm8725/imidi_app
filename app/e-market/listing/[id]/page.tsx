@@ -7,9 +7,9 @@ interface Props {
 }
 
 const SITE_URL = "https://imidi.co.uk";
-const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
+const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`; // pune aici o imagine reala 1200x630, nu link catre homepage
 
-// 1. GENERATORUL DINAMIC DE METADATE "INTELLIGENT SHARE"
+// 1. GENERATORUL DINAMIC DE METADATE PENTRU RETELELE SOCIALE
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
 
@@ -23,37 +23,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Anunt indisponibil — iMIDI Market" };
   }
 
-  const baseImage = listing.images?.[0] || DEFAULT_OG_IMAGE;
+  const mainImage = listing.images?.[0] || DEFAULT_OG_IMAGE;
   const pageUrl = `${SITE_URL}/e-market/listing/${id}`;
 
-  // Curățăm descrierea de tag-uri HTML și o scurtăm inteligent
-  const cleanDesc = listing.description?.replace(/<\/?[^>]+(>|$)/g, "").substring(0, 130) || "";
-
-  // TEXTE INTELIGENTE (Cârlige psihologice pentru Social Media)
-  const intelligentTitle = `🔥 DOAR €${listing.price} | ${listing.title.toUpperCase()} ⚡`;
-  const intelligentDescription = `💎 Ofertă verificată pe iMIDI Market! \n👉 ${cleanDesc}... Click pentru poze, detalii și contact rapid!`;
-
-  // === SMART SHARE FĂRĂ ROUTE / FIȘIERE SUPLIMENTARE ===
-  // Folosim un serviciu public securizat de automatizare imagini (sticlă/text suprapus)
-  // Acesta ia poza ta din Supabase și trântește textul de impact + prețul direct peste ea
-  const textPesteImagine = encodeURIComponent(`🔥 SMART DEAL: €${listing.price}`);
-  const titluPesteImagine = encodeURIComponent(listing.title.substring(0, 30));
-  
-  // URL-ul generat dinamic care combină poza curată cu straturile de text inteligent pentru Facebook/WhatsApp
-  const smartShareImage = `https://cloudinary.com{textPesteImagine},g_north_west,x_50,y_50/co_rgb:00ffcc,l_text:Arial_40_bold:${titluPesteImagine},g_south_west,x_50,y_80/${encodeURIComponent(baseImage)}`;
-
   return {
-    title: intelligentTitle,
-    description: intelligentDescription,
+    title: `${listing.title} — \u20AC${listing.price} on iMIDI.co.uk/e-Market`,
+    description: listing.description,
     openGraph: {
-      title: intelligentTitle,
-      description: intelligentDescription,
+      title: listing.title,
+      description: listing.description,
       url: pageUrl,
       siteName: "iMIDI Marketplace",
       type: "article",
       images: [
         {
-          url: smartShareImage, // Imaginea inteligentă modificată doar la share
+          url: mainImage,
           width: 1200,
           height: 630,
           alt: listing.title,
@@ -62,29 +46,32 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: intelligentTitle,
-      description: intelligentDescription,
-      images: [smartShareImage], // Imaginea inteligentă modificată doar la share
+      title: listing.title,
+      description: listing.description,
+      images: [mainImage],
     },
   };
 }
 
-// 2. RANDARE HTML ȘI SCHEMA ORG (Aici rămâne totul curat pentru utilizatorul de pe site)
+// 2. RANDAM HTML REAL (nu redirect() pe server!) ca sa apuce crawler-ele
+// sa citeasca meta tag-urile OG, apoi redirectionam omul real prin JS.
 export default async function ListingPage({ params }: Props) {
   const { id } = await params;
 
+  // Extragem datele din Supabase pe server pentru a construi structura JSON-LD
   const { data: listing } = await supabase
     .from("listings")
     .select("title, description, images, price")
     .eq("id", id)
     .single();
 
+  // Generăm schema structurată pe care o va citi Google pentru afișarea prețului și stocului
   const jsonLd = listing ? {
     "@context": "https://schema.org",
     "@type": "Product",
     "name": listing.title,
     "description": listing.description,
-    "image": listing.images?.[0] || DEFAULT_OG_IMAGE, // Utilizatorul și Google văd poza curată, normală
+    "image": listing.images?.[0] || DEFAULT_OG_IMAGE,
     "offers": {
       "@type": "Offer",
       "price": listing.price,
@@ -95,12 +82,15 @@ export default async function ListingPage({ params }: Props) {
 
   return (
     <>
+      {/* Scriptul JSON-LD generat pe server. Google îl devorează instant */}
       {jsonLd && (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
+
+      {/*  */}
       <RedirectToListing id={id} />
     </>
   );
