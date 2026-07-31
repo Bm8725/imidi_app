@@ -170,7 +170,7 @@ export default function MyListingsPage() {
             ) : listings.length === 0 ? (
               <div className="text-center py-14 border border-dashed border-[#2C2C2C] rounded-sm bg-[#1E1E1E] font-mono text-[10px] text-zinc-500 uppercase tracking-widest space-y-3">
                 <p>Nu ai niciun anunț {filter !== "all" ? `în categoria "${filter}"` : "publicat încă"}.</p>
-                <Link href="/dashboard/listings/new" className="inline-block text-[#FF7A1A] hover:underline normal-case tracking-normal text-xs font-sans">
+                <Link href="/e-market" className="inline-block text-[#FF7A1A] hover:underline normal-case tracking-normal text-xs font-sans">
                   Publică primul tău anunț →
                 </Link>
               </div>

@@ -116,7 +116,7 @@ export default function HomePage() {
               </p>
 
               <p className="aw-mono text-xs sm:text-sm text-[#7C7C86] tracking-widest uppercase">
-                iMIDI app · E-Market marketplace · cloud synch
+                TRANSFER FAST - SECURE- CLOUD- AI - E-MARKET
               </p>
             </div>
 
