@@ -50,13 +50,9 @@ export async function POST(req: NextRequest) {
 
     const { storage_path, filename } = resultData;
 
-    // TTL marit la 30 min (nu 120s): codul e single-use, iar acum download-ul
-    // are progres real + retry cu backoff, deci poate dura mai mult decat 2 minute
-    // pe conexiuni lente. Daca linkul expira in timp ce codul e deja consumat,
-    // cumparatorul ramane blocat fara sa poata genera altul.
     const { data: signed, error: signError } = await supabaseAdmin.storage
       .from("cloud-db-bucket")
-      .createSignedUrl(storage_path, 1800);
+      .createSignedUrl(storage_path, 120);
 
     if (signError || !signed) {
       return NextResponse.json(
