@@ -131,7 +131,7 @@ export default function Navbar() {
         src="/iiimidi.png" 
         alt="iMIDI Logo" 
         className={`w-auto object-contain transition-all duration-300 ${
-          scrolled ? "h-21" : "h-30 drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)]"
+          scrolled ? "h-21" : "h-24 drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)]"
         }`} 
       />
       {/* Punctul de la final: albastru pe fundal alb, roz-accent (mai vizibil) pe transparent */}
