@@ -24,7 +24,8 @@ const STALL_TIMEOUT_MS = 15000;
 async function downloadResumable(url: string, onProgress: (p: DlProgress) => void, maxRetries = 8): Promise<Blob> {
   let chunks: Uint8Array[] = [], receivedBytes = 0, totalBytes = 0, attempt = 0;
   let lastLoaded = 0, lastTime = Date.now(), speedSamples: number[] = [];
-  const retryDelays =;
+  const retryDelays =[0, 1000, 2000, 4000, 8000, 15000, 20000, 30000];
+
 
   while (true) {
     if (typeof navigator !== "undefined" && !navigator.onLine) {
