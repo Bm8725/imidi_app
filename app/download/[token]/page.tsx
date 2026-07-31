@@ -55,7 +55,7 @@ async function downloadResumable(
   let lastLoaded = Date.now();
   let lastTime = Date.now();
   // REPARAT COMPLET: Valori adăugate manual fără întreruperi de sintaxă
-  const retryDelays =;
+  const retryDelays =[4000];
 
   while (true) {
     if (typeof navigator !== "undefined" && !navigator.onLine) {
