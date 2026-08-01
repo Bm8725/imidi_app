@@ -435,7 +435,7 @@ export default function DownloadLinkPage() {
               </div>
               {status === "reconnecting" && (
                 <p className="text-[11px] text-amber-600">
-                  Nu ai pierdut progresul - reluam exact de unde am ramas, fara cod nou.
+                  No problem. No lose your data. After connection go forward.
                 </p>
               )}
             </div>
