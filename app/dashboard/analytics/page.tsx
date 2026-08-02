@@ -207,10 +207,10 @@ export default async function AnalyticsPage() {
         <section className="space-y-3">
           <div className="flex items-baseline justify-between">
             <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
-              Sesiuni recente
+              Recent Sessions
             </h2>
-            <a href="/dashboard/session" className="text-xs text-zinc-500 underline">
-              vezi toate →
+            <a href="/dashboard/session" className="text-xs text-blue-500 underline">
+              → SEE ALL →
             </a>
           </div>
           <div className="border border-zinc-100 rounded-xl overflow-hidden">
