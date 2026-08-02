@@ -25,11 +25,11 @@ export async function POST(req: Request) {
     await transporter.sendMail({
       from: `"iMIDI Support Hub" <${process.env.SMTP_USER}>`,
       to: "connect@imidi.ro", // Adresa unde vrei să primești tichetele finale
-      subject: `[Support Ticket] ${form.subject || "Problemă nouă"} - ${form.category}`,
+      subject: `[Support 24/7 by AI] ${form.subject || "Problemă nouă"} - ${form.category}`,
       text: `Categorie: ${form.category}\nSubiect: ${form.subject}\n\nIstoric:\n${formattedHistory}`,
       html: `
         <div style="font-family: sans-serif; color: #111; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 12px; bg: #ffffff;">
-          <h2 style="font-size: 15px; font-weight: 800; border-bottom: 1px solid #eaeaea; padding-bottom: 10px; color: #4f46e5; margin-top: 0;">iMIDI Support Sync</h2>
+          <h2 style="font-size: 15px; font-weight: 800; border-bottom: 1px solid #eaeaea; padding-bottom: 10px; color: #4f46e5; margin-top: 0;">iMIDI Support AI</h2>
           <div style="background: #fafafa; padding: 12px; border-radius: 8px; margin: 15px 0; font-size: 13px; border: 1px solid #f0f0f0;">
             <p style="margin: 0; color: #666;"><strong>Categorie:</strong> ${form.category.toUpperCase()}</p>
             <p style="margin: 4px 0 0 0; color: #111;"><strong>Subiect:</strong> ${form.subject}</p>
