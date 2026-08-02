@@ -29,11 +29,10 @@ export default function InteractiveSupportForm() {
     }
     
     const userMsg: Message = { id: crypto.randomUUID(), role: "user", text: textToSend };
-    const updatedMessages = isInitial ? [userMsg] : [...messages, userMsg];
+    const updatedMessages: Message[] = isInitial ? [userMsg] : [...messages, userMsg];
     setMessages(updatedMessages);
 
     try {
-      // CORECTAT: Schimbat din "suport" în "support" ca să bată pe folderul tău real
       const res = await fetch("/api/ai/support", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -41,9 +40,12 @@ export default function InteractiveSupportForm() {
       });
       const data = await res.json();
       
-      let finalMessages = [...updatedMessages, { id: crypto.randomUUID(), role: "smith", text: data.reply }];
+      // Am forțat vectorul să fie recunoscut strict ca Message[] pentru a trece de compilatorul Vercel
+      let finalMessages: Message[] = [
+        ...updatedMessages, 
+        { id: crypto.randomUUID(), role: "smith", text: data.reply }
+      ];
 
-      // Mesajul prin care Smith anunță că trimite datele
       if (currentCount >= 3) {
         finalMessages = [
           ...finalMessages,
@@ -57,7 +59,6 @@ export default function InteractiveSupportForm() {
 
       setMessages(finalMessages);
 
-      // CORECTAT: Schimbat din "suport" în "support" pentru ruta de email
       if (currentCount >= 3) {
         await fetch("/api/ai/support/ticket", {
           method: "POST",
@@ -84,15 +85,15 @@ export default function InteractiveSupportForm() {
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Subject</label>
-            <input type="text" required value={form.subject} onChange={e => setForm({...form, subject: e.target.value})} placeholder="Subject" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-xs text-zinc-800 font-semibold focus:outline-none focus:border-indigo-500 transition-colors" />
+            <input type="text" required value={form.subject} onChange={e => setForm({...form, subject: e.target.value})} placeholder="Subiectul problemei" className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 text-xs text-zinc-800 font-semibold focus:outline-none focus:border-indigo-500 transition-colors" />
           </div>
         </div>
         <div className="space-y-1.5">
           <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Message</label>
-          <textarea required rows={5} value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Put your data here..." className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-xs text-zinc-800 font-medium leading-relaxed focus:outline-none focus:border-indigo-500 transition-colors" />
+          <textarea required rows={5} value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Introdu detaliile complete aici..." className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-xs text-zinc-800 font-medium leading-relaxed focus:outline-none focus:border-indigo-500 transition-colors" />
         </div>
         <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm">
-          Launch AI assistant →
+          Pornește asistența →
         </button>
       </form>
     );
@@ -102,10 +103,12 @@ export default function InteractiveSupportForm() {
     <div className="bg-white border border-zinc-200/70 rounded-2xl shadow-xs overflow-hidden flex flex-col h-[480px] font-sans">
       <div className="bg-zinc-950 px-4 py-3 flex items-center justify-between border-b border-zinc-800">
         <div className="flex items-center gap-2">
-   
-          <span className="text-xs font-bold text-white uppercase tracking-wider">Asistent Suport 24/7 by Smith </span>
+          <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+          <span className="text-xs font-bold text-white uppercase tracking-wider">Asistent Suport</span>
         </div>
-
+        <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-wider bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-md">
+          Mesaje rămase: {Math.max(0, 3 - userMessageCount)}
+        </span>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-50/20">
@@ -132,7 +135,7 @@ export default function InteractiveSupportForm() {
         ) : (
           <div className="p-2 bg-indigo-50/50 border border-indigo-100 rounded-xl text-center space-y-1">
             <p className="text-[11px] font-semibold text-indigo-950">📬 Solicitarea și istoricul discuției au fost transmise automat echipei iMIDI.</p>
-            <p className="text-[9px] text-indigo-500 font-bold uppercase tracking-wider">Shotly we wiil contact you.</p>
+            <p className="text-[9px] text-indigo-500 font-bold uppercase tracking-wider">Te vom contacta pe email în cel mai scurt timp.</p>
           </div>
         )}
       </div>
