@@ -93,7 +93,7 @@ export default function InteractiveSupportForm() {
           <textarea required rows={5} value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Introdu detaliile complete aici..." className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-xs text-zinc-800 font-medium leading-relaxed focus:outline-none focus:border-indigo-500 transition-colors" />
         </div>
         <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm">
-          Pornește asistența →
+          Launch AI support  →
         </button>
       </form>
     );
@@ -103,12 +103,10 @@ export default function InteractiveSupportForm() {
     <div className="bg-white border border-zinc-200/70 rounded-2xl shadow-xs overflow-hidden flex flex-col h-[480px] font-sans">
       <div className="bg-zinc-950 px-4 py-3 flex items-center justify-between border-b border-zinc-800">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-          <span className="text-xs font-bold text-white uppercase tracking-wider">Asistent Suport</span>
+        
+          <span className="text-xs font-bold text-white uppercase tracking-wider">Asistent Suport 24/7 </span>
         </div>
-        <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-wider bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-md">
-          Mesaje rămase: {Math.max(0, 3 - userMessageCount)}
-        </span>
+
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-50/20">
@@ -122,7 +120,7 @@ export default function InteractiveSupportForm() {
             </div>
           );
         })}
-        {loading && <div className="text-[10px] text-zinc-400 font-semibold px-2 animate-pulse">Se procesează răspunsul...</div>}
+        {loading && <div className="text-[10px] text-zinc-400 font-semibold px-2 animate-pulse">Answer processing...</div>}
         <div ref={chatEndRef} />
       </div>
 
@@ -135,7 +133,7 @@ export default function InteractiveSupportForm() {
         ) : (
           <div className="p-2 bg-indigo-50/50 border border-indigo-100 rounded-xl text-center space-y-1">
             <p className="text-[11px] font-semibold text-indigo-950">📬 Solicitarea și istoricul discuției au fost transmise automat echipei iMIDI.</p>
-            <p className="text-[9px] text-indigo-500 font-bold uppercase tracking-wider">Te vom contacta pe email în cel mai scurt timp.</p>
+            <p className="text-[9px] text-indigo-500 font-bold uppercase tracking-wider">Wiil we contact on email soon.</p>
           </div>
         )}
       </div>
