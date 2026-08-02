@@ -93,19 +93,50 @@ export default async function AnalyticsPage() {
 
 
 //***************** flags country ************* */
-function getFlagEmoji(countryCode: string) {
-  if (!countryCode || countryCode === "necunoscut" || countryCode === "—") return "🏳️";
-  const codePoints = countryCode
-    .toUpperCase()
-    .split("")
-    .map((char) =>  127397 + char.charCodeAt(0));
-  try {
-    return String.fromCodePoint(...codePoints);
-  } catch {
-    return "🏳️";
-  }
-}
+function getFlagEmoji(countryName: string) {
+  if (!countryName || countryName === "necunoscut" || countryName === "—") return "🏳️";
+  
+  // Curățăm textul pentru a evita erori de la spații sau litere mari/mici
+  const name = countryName.trim().toLowerCase();
 
+  const flagMap: Record<string, string> = {
+    // Nume în Română / Engleză
+    "romania": "🇷🇴",
+    "românia": "🇷🇴",
+    "ro": "🇷🇴",
+    "united states": "🇺🇸",
+    "usa": "🇺🇸",
+    "us": "🇺🇸",
+    "moldova": "🇲🇩",
+    "md": "🇲🇩",
+    "united kingdom": "🇬🇧",
+    "uk": "🇬🇧",
+    "gb": "🇬🇧",
+    "germany": "🇩🇪",
+    "germania": "🇩🇪",
+    "de": "🇩🇪",
+    "france": "🇫🇷",
+    "franța": "🇫🇷",
+    "fr": "🇫🇷",
+    "italy": "🇮🇹",
+    "italia": "🇮🇹",
+    "it": "🇮🇹",
+    "spain": "🇪🇸",
+    "spania": "🇪🇸",
+    "es": "🇪🇸",
+    "netherlands": "🇳🇱",
+    "olanda": "🇳🇱",
+    "nl": "🇳🇱",
+    "austria": "🇦🇹",
+    "at": "🇦🇹",
+    "belgium": "🇧🇪",
+    "belgia": "🇧🇪",
+    "be": "🇧🇪"
+  };
+
+  // Dacă țara există în dicționar, o returnăm. Dacă nu, punem un glob pământesc generat automat
+  return flagMap[name] || "🌐";
+}
 
 
   const totalSessions = summaries?.length ?? 0;
@@ -155,27 +186,74 @@ function getFlagEmoji(countryCode: string) {
           </div>
         </section>
 
-        {/* --- Trafic zilnic --- */}
-        <section className="space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
-            Pageviews / day
-          </h2>
-          <div className="flex items-end gap-1 h-24 border-b border-zinc-100 pb-1">
-            {dailyEntries.map(([day, count]) => (
-              <div
-                key={day}
-                title={`${day}: ${count} vizualizări`}
-                className="flex-1 bg-zinc-900 rounded-t-sm hover:bg-zinc-700 transition-colors"
-                style={{ height: `${(count / maxDaily) * 100}%` }}
-              />
-            ))}
-            {dailyEntries.length === 0 && (
-              <p className="text-xs text-zinc-400">
-                No data yet-the database is loading or is empty!
-              </p>
-            )}
+        {/* --- Trafic zilnic (Design Premium cu Bare Gradient și Detalii) --- */}
+        <section className="bg-white border border-zinc-200/60 rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                Pageviews / Day
+              </h2>
+              <p className="text-xs text-zinc-500 mt-0.5">Evoluția traficului în ultimele 30 de zile</p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-medium bg-zinc-50 border border-zinc-100 px-2 py-1 rounded-lg">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF7A1A]" />
+              Max: <span className="font-bold text-zinc-800">{maxDaily.toLocaleString()}</span>
+            </div>
           </div>
+
+          <div className="relative pt-4">
+            {/* Linii de ghidaj discrete pe fundal pentru valoarea maximă și medie */}
+            <div className="absolute inset-x-0 top-4 border-t border-dashed border-zinc-100 pointer-events-none" />
+            <div className="absolute inset-x-0 bottom-7 border-t border-zinc-100 pointer-events-none" />
+
+            {/* Containerul graficului cu bare */}
+            <div className="flex items-end gap-1 sm:gap-1.5 h-28 pb-7">
+              {dailyEntries.map(([day, count]) => {
+                const heightPercent = maxDaily > 0 ? (count / maxDaily) * 100 : 0;
+                // Formatăm data din YYYY-MM-DD în format mai scurt DD/MM pentru axă
+                const [, month, dateStr] = day.split("-");
+                const shortDate = `${dateStr}/${month}`;
+
+                return (
+                  <div key={day} className="flex-1 flex flex-col items-center group h-full justify-end relative">
+                    
+                    {/* Tooltip Premium Floating la hover peste bară */}
+                    <div className="absolute bottom-full mb-2 bg-zinc-950 text-white text-[10px] font-bold px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 transform translate-y-1 group-hover:translate-y-0 shadow-md z-30 whitespace-nowrap">
+                      <span className="text-[#FF7A1A]">{count}</span> vizualizări
+                      <div className="text-[8px] text-zinc-400 font-normal mt-0.5">{day}</div>
+                      {/* Săgeata tooltip-ului */}
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-950" />
+                    </div>
+
+                    {/* Bara graficului cu Gradient */}
+                    <div
+                      style={{ height: `${Math.max(4, heightPercent)}%` }} // Minim 4% înălțime ca să fie vizibilă bara chiar și la 0 vizualizări
+                      className={`w-full rounded-t-[3px] transition-all duration-300 relative overflow-hidden ${
+                        count > 0 
+                          ? "bg-gradient-to-t from-[#FF7A1A] to-[#ff9f54] group-hover:from-zinc-900 group-hover:to-zinc-800" 
+                          : "bg-zinc-100 group-hover:bg-zinc-200"
+                      }`}
+                    />
+
+                    {/* Axa X: Data sub bară, vizibilă doar din 4 în 4 zile pe mobil pentru a nu se suprapune textul */}
+                    <span className="absolute bottom-0 text-[8px] font-medium text-zinc-400 opacity-0 group-hover:opacity-100 sm:opacity-100 tracking-tighter mt-1 transition-opacity whitespace-nowrap">
+                      {shortDate}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {dailyEntries.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 border border-dashed border-zinc-200 rounded-xl bg-zinc-50/50">
+              <p className="text-xs text-zinc-400 font-medium">No data yet.</p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">Baza de date este goală sau tracker-ul nu a trimis evenimente în ultimele 30 de zile.</p>
+            </div>
+          )}
         </section>
+
+
 
         {/* --- Top pagini (Design UX îmbunătățit cu Linkuri) --- */}
         <section className="space-y-4">
