@@ -160,21 +160,61 @@ export default async function AnalyticsPage() {
           </div>
         </section>
 
-        {/* --- Top pagini --- */}
-        <section className="space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
-            Most pages visited
-          </h2>
-          <div className="space-y-1.5">
-            {topPaths.map(([path, count]) => (
-              <div key={path} className="flex items-center justify-between text-sm">
-                <span className="text-zinc-700 truncate max-w-[300px]">{path}</span>
-                <span className="text-zinc-400 tabular-nums">{count}</span>
-              </div>
-            ))}
-            {topPaths.length === 0 && <p className="text-xs text-zinc-400">No data yet.</p>}
+        {/* --- Top pagini (Design UX îmbunătățit cu Linkuri) --- */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              Most pages visited
+            </h2>
+            <span className="text-[10px] font-medium text-zinc-400">Views</span>
+          </div>
+
+          <div className="space-y-2">
+            {topPaths.map(([path, count]) => {
+              // Calculăm procentul relativ față de cea mai vizitată pagină din listă
+              const maxViews = topPaths[0]?.[1] || 1;
+              const percentage = (count / maxViews) * 100;
+
+              return (
+                <div 
+                  key={path} 
+                  className="group relative flex items-center justify-between p-2.5 rounded-xl border border-zinc-100 bg-white hover:border-[#FF7A1A]/20 hover:shadow-xs transition-all duration-200 overflow-hidden"
+                >
+                  {/* Bară de progres fină pe fundal */}
+                  <div 
+                    className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-[#FF7A1A]/4 to-[#ff9f54]/2 pointer-events-none transition-all duration-300"
+                    style={{ width: `${percentage}%` }}
+                  />
+
+                  {/* Linkul către pagină */}
+                  <div className="flex items-center gap-2 z-10 min-w-0 flex-1">
+                    <span className="text-xs text-zinc-300 group-hover:text-[#FF7A1A] transition-colors shrink-0">🔗</span>
+                    <a 
+                      href={path} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-xs font-medium text-zinc-700 hover:text-zinc-950 group-hover:text-[#FF7A1A] transition-colors truncate max-w-[85%] md:max-w-[90%]"
+                    >
+                      {path}
+                    </a>
+                  </div>
+
+                  {/* Numărul de vizualizări */}
+                  <span className="text-xs font-semibold text-zinc-500 group-hover:text-zinc-900 tabular-nums z-10 shrink-0 ml-3 bg-zinc-50 px-2 py-0.5 rounded-md border border-zinc-100 group-hover:border-[#FF7A1A]/10 transition-colors">
+                    {count.toLocaleString()}
+                  </span>
+                </div>
+              );
+            })}
+
+            {topPaths.length === 0 && (
+              <p className="text-xs text-zinc-400 py-4 text-center border border-dashed border-zinc-200 rounded-xl">
+                No data yet.
+              </p>
+            )}
           </div>
         </section>
+
 
         {/* --- Țări --- */}
         <section className="space-y-3">
