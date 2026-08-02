@@ -97,6 +97,16 @@ export default async function AnalyticsPage() {
       ? (summaries ?? []).reduce((sum, s) => sum + (s.duration_seconds || 0), 0) / totalSessions
       : 0;
   const loggedInSessions = (summaries ?? []).filter((s) => s.user_id).length;
+  const anonymousSessions = totalSessions - loggedInSessions;
+
+  // agregare pe țară — country e null pe localhost (header-ul vine doar din Vercel edge)
+  const countryMap = new Map<string, number>();
+  for (const s of summaries ?? []) {
+    const c = s.country ?? "necunoscut";
+    countryMap.set(c, (countryMap.get(c) ?? 0) + 1);
+  }
+  const countryCounts = Array.from(countryMap.entries()).sort(([, a], [, b]) => b - a);
+  const maxCountry = Math.max(1, ...countryCounts.map(([, v]) => v));
 
   return (
     <div className="min-h-screen bg-white px-6 py-12 md:py-16 font-sans text-zinc-900">
@@ -121,9 +131,9 @@ export default async function AnalyticsPage() {
             <div className="text-xl font-semibold mt-1">{formatDuration(avgDuration)}</div>
           </div>
           <div className="border border-zinc-100 rounded-xl p-4">
-            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Logați</div>
+            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Logați / Anonimi</div>
             <div className="text-xl font-semibold mt-1">
-              {totalSessions > 0 ? Math.round((loggedInSessions / totalSessions) * 100) : 0}%
+              {loggedInSessions} <span className="text-zinc-300">/</span> {anonymousSessions}
             </div>
           </div>
         </section>
@@ -166,6 +176,33 @@ export default async function AnalyticsPage() {
           </div>
         </section>
 
+        {/* --- Țări --- */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
+            Sesiuni după țară
+          </h2>
+          <div className="space-y-1.5">
+            {countryCounts.map(([country, count]) => (
+              <div key={country} className="flex items-center gap-3">
+                <span className="text-sm text-zinc-700 w-10 shrink-0">{country}</span>
+                <div className="flex-1 h-2 bg-zinc-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-zinc-900"
+                    style={{ width: `${(count / maxCountry) * 100}%` }}
+                  />
+                </div>
+                <span className="text-xs text-zinc-400 tabular-nums w-8 text-right">{count}</span>
+              </div>
+            ))}
+            {countryCounts.length === 0 && (
+              <p className="text-xs text-zinc-400">
+                Fără date de țară încă — pe localhost header-ul x-vercel-ip-country lipsește,
+                apare doar în producție pe Vercel.
+              </p>
+            )}
+          </div>
+        </section>
+
         {/* --- Sesiuni recente --- */}
         <section className="space-y-3">
           <div className="flex items-baseline justify-between">
@@ -182,6 +219,7 @@ export default async function AnalyticsPage() {
                 <tr>
                   <th className="text-left px-4 py-2">Vizitator</th>
                   <th className="text-left px-4 py-2">Intrare</th>
+                  <th className="text-left px-4 py-2">Țară</th>
                   <th className="text-right px-4 py-2">Durată</th>
                   <th className="text-right px-4 py-2">Pagini</th>
                 </tr>
@@ -199,13 +237,14 @@ export default async function AnalyticsPage() {
                     <td className="px-4 py-2.5 text-zinc-600 truncate max-w-[200px]">
                       {s.first_path}
                     </td>
+                    <td className="px-4 py-2.5 text-zinc-500">{s.country ?? "—"}</td>
                     <td className="px-4 py-2.5 text-right">{formatDuration(s.duration_seconds)}</td>
                     <td className="px-4 py-2.5 text-right">{s.pageview_count}</td>
                   </tr>
                 ))}
                 {(!summaries || summaries.length === 0) && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-zinc-400 text-xs">
+                    <td colSpan={5} className="px-4 py-8 text-center text-zinc-400 text-xs">
                       Fără sesiuni încă.
                     </td>
                   </tr>
