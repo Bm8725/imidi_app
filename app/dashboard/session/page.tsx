@@ -101,7 +101,7 @@ export default async function SessionsPage() {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-8">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-zinc-900">
-              Sessions <span className="bg-gradient-to-r from-[#FF7A1A] to-[#ff9f54] bg-clip-text text-transparent">Live</span>
+              Sessions <span className="bg-gradient-to-r from-[#FF7A1A] to-[#ff9f54] bg-clip-text text-transparent">analyse advanced</span>
             </h1>
             <p className="text-sm text-zinc-500 mt-1">Last 30 days · {total} sessions</p>
           </div>
@@ -174,7 +174,21 @@ export default async function SessionsPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-5 py-3.5 text-zinc-500 truncate max-w-[180px]">{s.first_path}</td>
+                  <td className="px-5 py-3.5 text-zinc-500 truncate max-w-[180px]">
+                                                        {s.first_path ? (
+                                                            <a 
+                                                            href={s.first_path} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer" 
+                                                            className="text-[#FF7A1A] hover:underline font-medium"
+                                                            >
+                                                            {s.first_path}
+                                                            </a>
+                                                        ) : (
+                                                            "—"
+                                                        )}
+                                                        </td>
+
                   <td className="px-5 py-3.5 text-zinc-500">{s.country ?? "—"}</td>
                   <td className="px-5 py-3.5 text-zinc-500">{deviceIcon(s.device)} {s.device ?? "—"}</td>
                   <td className="px-5 py-3.5 text-right text-zinc-700 font-medium">{formatDuration(s.duration_seconds)}</td>
@@ -211,19 +225,19 @@ export default async function SessionsPage() {
                 <span className="text-[10px] text-zinc-400 shrink-0">{timeAgo(s.started_at)}</span>
               </div>
               <td className="px-5 py-3.5 text-zinc-500 truncate max-w-[180px]">
-  {s.first_path ? (
-    <a 
-      href={s.first_path} 
-      target="_blank" 
-      rel="noopener noreferrer" 
-      className="text-[#FF7A1A] hover:underline font-medium"
-    >
-      {s.first_path}
-    </a>
-  ) : (
-    "—"
-  )}
-</td>
+                    {s.first_path ? (
+                        <a 
+                        href={s.first_path} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-[#FF7A1A] hover:underline font-medium"
+                        >
+                        {s.first_path}
+                        </a>
+                    ) : (
+                        "—"
+                    )}
+                    </td>
 
               <div className="flex items-center gap-4 text-[11px] text-zinc-500">
                 <span>{deviceIcon(s.device)} {s.device ?? "—"}</span>
@@ -239,6 +253,7 @@ export default async function SessionsPage() {
             </div>
           )}
         </div>
+
       </div>
     </div>
   );
