@@ -1,71 +1,85 @@
-"use client";
+import Link from "next/link";
+import InteractiveSupportForm from "@/components/interactive-support-form";
 
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import WhatsAppWidget from "@/components/WhatsAppWidget";
-
-// Adresele de contact — simplu, doar email. Adaugă/scoate aici dacă mai apare vreuna.
-const CONTACT_EMAILS = [
-  {
-    label: "General Support",
-    email: "contact@imidi.ro",
-    note: "TS4X, i-volution, MyCloud — any questions or issues",
-  },
-  {
-    label: "Sales / Licensing",
-    email: "licensing@imidi.ro",
-    note: "Price, licences, and bulk orders for TS4X or i-volution hardware",
-  },
-];
-
-export default function ContactPage() {
+export default async function SupportPage() {
   return (
-    <div className="bg-[#FAFAFA] text-[#111111] min-h-screen flex flex-col antialiased selection:bg-[#0070F3]/10 selection:text-[#0070F3]">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-        .corp-sans { font-family: 'Inter', sans-serif; }
-        .corp-mono { font-family: 'JetBrains Mono', monospace; }
-      `}</style>
+    <div className="relative min-h-screen bg-white font-sans text-zinc-900 antialiased selection:bg-zinc-100 overflow-hidden">
+      
+      {/* 🌊 Stripe-like Cinematic Waves & Glow Background */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden select-none">
+        {/* Ambient Lights */}
+        <div className="absolute -top-[20%] -right-[10%] w-[70%] h-[50%] rounded-full bg-indigo-500/10 blur-[130px]" />
+        <div className="absolute top-[10%] -left-[20%] w-[60%] h-[50%] rounded-full bg-violet-400/5 blur-[100px]" />
+        
+        {/* Wave 1: Linii fluide curbate */}
+        <svg className="absolute top-0 left-0 w-full h-[550px] opacity-[0.4] text-zinc-200" fill="none" viewBox="0 0 1440 400">
+          <path 
+            stroke="currentColor" 
+            strokeWidth="1.5" 
+            d="M0,120 C240,250 480,50 720,180 C960,310 1200,100 1440,220" 
+            className="text-zinc-200/80"
+          />
+          <path 
+            stroke="url(#stripe-gradient)" 
+            strokeWidth="1.5" 
+            d="M0,150 C280,290 520,30 760,210 C1000,390 1220,140 1440,250" 
+          />
+          <path 
+            stroke="currentColor" 
+            strokeWidth="1" 
+            strokeDasharray="4 4"
+            d="M0,90 C220,200 440,90 680,140 C920,190 1160,20 1440,160" 
+            className="text-zinc-300/50"
+          />
+          <defs>
+            <linearGradient id="stripe-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#e4e4e7" stopOpacity="0.2" />
+              <stop offset="30%" stopColor="#6366f1" stopOpacity="0.3" />
+              <stop offset="70%" stopColor="#a855f7" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#e4e4e7" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+        </svg>
 
-      <Navbar />
-
-      {/* Hero Header Minimalist */}
-      <div className="corp-sans bg-white border-b border-[#EAEAEA] pt-32 pb-12 text-left">
-        <div className="w-full max-w-3xl mx-auto px-6 space-y-2">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-black">Contact us</h1>
-          <p className="text-sm text-[#666666] leading-relaxed">
-            Write an message to our team and we will get back to you as soon as possible. You can also reach us on WhatsApp using the widget in the bottom right corner.
-          </p>
-        </div>
+        {/* Wave 2: Subtilă, plasată mai jos pentru adâncime */}
+        <svg className="absolute top-[80px] left-0 w-full h-[450px] opacity-[0.25]" fill="none" viewBox="0 0 1440 400">
+          <path 
+            stroke="rgba(99, 102, 241, 0.25)" 
+            strokeWidth="2" 
+            d="M0,200 C320,80 640,320 960,150 C1280,-20 1380,180 1440,120" 
+          />
+        </svg>
       </div>
 
-      <main className="corp-sans flex-1 w-full max-w-3xl mx-auto px-6 py-10 space-y-4">
-        {CONTACT_EMAILS.map((c) => (
-          <a
-            key={c.email}
-            href={`mailto:${c.email}`}
-            className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-[#EAEAEA] rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all hover:border-[#0070F3]/40 hover:shadow-[0_4px_16px_rgba(0,112,243,0.06)]"
-          >
-            <div className="space-y-1 min-w-0">
-              <h3 className="text-sm font-semibold text-black tracking-tight">{c.label}</h3>
-              <p className="text-xs text-[#666666]">{c.note}</p>
-            </div>
-            <span className="corp-mono shrink-0 text-sm sm:text-base font-semibold text-[#0070F3] group-hover:underline">
-              {c.email} →
-            </span>
-          </a>
-        ))}
+      <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-20 space-y-12">
+        
+        {/* Back navigation */}
+        <Link
+          href="/e-market"
+          className="group inline-flex items-center gap-2 text-[10px] font-bold text-zinc-400 hover:text-zinc-900 uppercase tracking-widest transition-colors"
+        >
+          <svg className="w-3 h-3 transform group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to
+        </Link>
 
-        {/* Footer discret — alternativă rapidă */}
-        <div className="bg-[#FAFAFA] border border-[#EAEAEA] border-dashed rounded-xl p-5 text-center">
-          <p className="text-xs text-[#666666]">
-            Prefer to last minute? Reach us on WhatsApp using the widget in the bottom right corner of the page.
+        {/* Minimalist Clean Header */}
+        <header className="space-y-2 border-b border-zinc-100 pb-8">
+          <h1 className="text-3xl font-black tracking-tight text-zinc-950">
+            Support iMIDI app
+          </h1>
+          <p className="text-xs text-zinc-500 font-medium">
+            Describe you problem that you meet!
           </p>
-        </div>
-      </main>
+        </header>
 
-  
-      <Footer />
+        {/* Form & Smart Router Container */}
+        <main className="relative">
+          <InteractiveSupportForm />
+        </main>
+
+      </div>
     </div>
   );
 }
