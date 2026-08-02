@@ -6,6 +6,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
+import { SessionTracker, trackEvent } from "@/lib/session-tracker";
 
 type Listing = {
   id: string;
@@ -80,6 +81,7 @@ export default function MyListingsPage() {
       if (delErr) throw delErr;
       setListings((prev) => prev.filter((l) => l.id !== id));
       setDelId(null);
+      trackEvent("listing_deleted", { listing_id: id });
     } catch (err: any) {
       alert(err.message || "Nu am putut șterge anunțul.");
     } finally {
@@ -106,6 +108,9 @@ export default function MyListingsPage() {
     <div className="bg-[#181818] text-[#D0D0D0] min-h-screen flex flex-col antialiased selection:bg-[#FF7A1A] selection:text-black relative overflow-hidden">
       <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-[#FF7A1A]/3 rounded-full blur-[140px] pointer-events-none z-0" />
       <div className="absolute bottom-10 left-1/4 w-[400px] h-[400px] bg-indigo-500/[0.02] rounded-full blur-[120px] pointer-events-none z-0" />
+
+      {/* Tracker global de sesiune — captează pageview + timp pe pagină + user_id dacă e logat */}
+      <SessionTracker />
 
       <Navbar />
 
@@ -139,6 +144,7 @@ export default function MyListingsPage() {
 
               <Link
                 href="/e-market"
+                onClick={() => trackEvent("new_listing_clicked")}
                 className="h-10 px-5 bg-[#FF7A1A] hover:bg-[#e06613] active:scale-[0.97] text-black text-xs font-extrabold uppercase tracking-widest rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(255,122,26,0.15)] cursor-pointer w-fit"
               >
                 <span className="text-base font-black leading-none">+</span>
@@ -151,7 +157,11 @@ export default function MyListingsPage() {
               {(["all", "active", "promoted", "expired"] as const).map((f) => (
                 <button
                   key={f}
-                  onClick={() => { setFilter(f); setPage(1); }}
+                  onClick={() => {
+                    setFilter(f);
+                    setPage(1);
+                    trackEvent("listings_filter_changed", { filter: f });
+                  }}
                   className={`h-6 px-3 text-[10px] uppercase tracking-wider rounded-xs transition-colors cursor-pointer ${
                     filter === f
                       ? "bg-[#333333] text-white border border-[#444444] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] font-bold"
@@ -252,6 +262,7 @@ export default function MyListingsPage() {
                                 </Link>
                                 <Link
                                   href={`/dashboard/listings/${l.id}/edit`}
+                                  onClick={() => trackEvent("listing_edit_clicked", { listing_id: l.id })}
                                   className="w-6 h-6 rounded-sm flex items-center justify-center border border-transparent text-zinc-500 hover:text-[#FF7A1A] hover:bg-[#2C2C2C] hover:border-zinc-700 sm:opacity-0 group-hover:opacity-100 transition-all"
                                   title="Editează"
                                 >
@@ -283,8 +294,26 @@ export default function MyListingsPage() {
               <div className="flex justify-between items-center mt-6 text-xs border-t border-zinc-800 pt-4">
                 <span className="text-zinc-400 font-medium">Page {page}</span>
                 <div className="flex gap-1">
-                  <button disabled={page === 1} onClick={() => setPage((p) => p - 1)} className="h-7 px-3 border border-zinc-700 rounded-md bg-[#222222] text-white disabled:opacity-40">←</button>
-                  <button disabled={listings.length < lim} onClick={() => setPage((p) => p + 1)} className="h-7 px-3 border border-zinc-700 rounded-md bg-[#222222] text-white disabled:opacity-40">→</button>
+                  <button
+                    disabled={page === 1}
+                    onClick={() => {
+                      setPage((p) => p - 1);
+                      trackEvent("listings_page_changed", { direction: "prev", page: page - 1 });
+                    }}
+                    className="h-7 px-3 border border-zinc-700 rounded-md bg-[#222222] text-white disabled:opacity-40"
+                  >
+                    ←
+                  </button>
+                  <button
+                    disabled={listings.length < lim}
+                    onClick={() => {
+                      setPage((p) => p + 1);
+                      trackEvent("listings_page_changed", { direction: "next", page: page + 1 });
+                    }}
+                    className="h-7 px-3 border border-zinc-700 rounded-md bg-[#222222] text-white disabled:opacity-40"
+                  >
+                    →
+                  </button>
                 </div>
               </div>
             )}
