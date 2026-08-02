@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { isPromoted } from "@/lib/promotion"; // NOU: helper de promovare
 import { listenToNewListings } from "@/lib/notify";
+import { trackEvent } from "@/lib/session-tracker";
 
 
 interface Listing {
@@ -189,6 +190,7 @@ const generateWithAI = async () => {
       setPriceMin(data.priceMin !== null ? data.priceMin.toString() : "");
       
       setAiSearchFeedback(`Gata! Filtre aplicate pentru: "${aiSearchInput.trim()}" ✨`);
+      trackEvent("ai_search_used", { prompt: aiSearchInput.trim() });
       setAiSearchInput(""); // Ștergem textul din bară după execuție
     } catch (err: any) {
       setAiSearchFeedback(`Smith nu a înțeles perfect textul. Încearcă o căutare normală. 🤯`);
@@ -397,6 +399,8 @@ useEffect(() => {
       });
       if (insertResult.error) throw insertResult.error;
 
+      trackEvent("listing_published", { category, price: parseFloat(price) });
+
       setTitle("");
       setDescription("");
       setPrice("");
@@ -447,6 +451,14 @@ useEffect(() => {
     setMyRating(0);
     setMyComment("");
     setReviewsLoading(true);
+    setIsPhoneRevealed(false);
+
+    trackEvent("listing_viewed", {
+      listing_id: item.id,
+      title: item.title,
+      price: item.price,
+      category: item.category,
+    });
 
     // incrementam contorul de vizualizari (fire-and-forget, nu blocam UI-ul)
     supabase.rpc("increment_listing_views", { listing_id_param: item.id }).then(() => {
@@ -482,6 +494,8 @@ useEffect(() => {
   const shareListing = async (item: Listing, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     const url = window.location.origin + "/e-market/listing/" + item.id;
+
+    trackEvent("listing_shared", { listing_id: item.id });
 
     if (typeof navigator !== "undefined" && (navigator as any).share) {
       try {
@@ -529,6 +543,7 @@ useEffect(() => {
           { onConflict: "listing_id,user_id" }
         );
       if (upsertResult.error) throw upsertResult.error;
+      trackEvent("review_submitted", { listing_id: selectedListing.id, rating: myRating });
       const idToReload = selectedListing.id;
       const current = listings.find((l) => l.id === idToReload) || selectedListing;
       await openListing(current);
@@ -638,6 +653,7 @@ return (
                 href="https://revolut.me/mariusvalentin_b"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackEvent("promote_link_clicked")}
                 className="relative flex sm:inline-flex items-center justify-between sm:justify-center gap-3 bg-[#0B1528] hover:bg-[#11203D] text-[#F2C94C] font-sans text-xs font-medium tracking-wide px-5 py-3 rounded-md border border-[#F2C94C]/30 transition-all duration-300 w-full sm:w-auto overflow-hidden"
               >
                 <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white/10 opacity-40 group-hover:animate-shine" />
@@ -942,7 +958,10 @@ return (
           {(["all", "instrument", "preset"] as const).map((f) => (
             <button
               key={f}
-              onClick={() => setFilter(f)}
+              onClick={() => {
+                setFilter(f);
+                trackEvent("marketplace_filter_changed", { filter: f });
+              }}
               className={
                 filter === f
                   ? "h-8 px-4 text-[11px] rounded-full border bg-[#1C1A16] text-[#FFFFFF] border-[#1C1A16] transition-colors"
@@ -1419,7 +1438,10 @@ return (
                         {!isPhoneRevealed ? (
                           <button
                             type="button"
-                            onClick={() => setIsPhoneRevealed(true)}
+                            onClick={() => {
+                              setIsPhoneRevealed(true);
+                              trackEvent("contact_phone_revealed", { listing_id: selectedListing.id });
+                            }}
                             className="flex-1 min-w-[160px] text-center text-sm font-bold text-white bg-[#B4592F] hover:bg-[#964723] px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 hover:scale-[1.02]"
                           >
                             <span className="text-base">📞</span>
@@ -1428,6 +1450,7 @@ return (
                         ) : (
                           <a
                             href={"tel:" + selectedListing.phone}
+                            onClick={() => trackEvent("contact_call_clicked", { listing_id: selectedListing.id })}
                             className="flex-1 min-w-[160px] text-center text-sm font-bold text-[#B4592F] bg-[#B4592F]/10 border border-[#B4592F]/30 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all active:scale-95 animate-fadeIn"
                           >
                             <span className="text-base">📞</span>
@@ -1453,6 +1476,7 @@ return (
                                             }
                                             target="_blank"
                                             rel="noopener noreferrer"
+                                            onClick={() => trackEvent("contact_whatsapp_clicked", { listing_id: selectedListing.id })}
                                             className="flex-1 min-w-[160px] text-center text-sm font-bold text-white bg-[#25D366] hover:bg-[#1ebd57] px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 hover:scale-[1.02]"
                                           >
                                             <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
@@ -1467,6 +1491,7 @@ return (
                                         `Preț: ${selectedListing.price || 'Nespecificat'}\n\n` +
                                         `Vezi anunțul aici: ${typeof window !== 'undefined' ? window.location.href : ''}`
                                       )}`}
+                                      onClick={() => trackEvent("contact_sms_clicked", { listing_id: selectedListing.id })}
                                       className="w-full text-center text-sm font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-sm active:scale-95 hover:scale-[1.01]"
                                     >
                                       <span className="text-base">💬</span>
@@ -1491,6 +1516,7 @@ return (
                                 `Aștept un răspuns. Mulțumesc!`
                               )
                             }
+                            onClick={() => trackEvent("contact_email_clicked", { listing_id: selectedListing.id })}
                             className="w-full text-center text-sm font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 px-5 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-sm active:scale-95 hover:scale-[1.01]"
                           >
                             <span className="text-base">{"\u2709"}</span>
