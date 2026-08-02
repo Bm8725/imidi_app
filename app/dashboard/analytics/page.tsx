@@ -191,33 +191,17 @@ function getCountryCode(countryName: string): string | null {
           </div>
         </section>
 
-        {/* --- Trafic zilnic (Stripe Indigo-Purple Style) --- */}
-        <section className="bg-white border border-zinc-200/70 rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.01)] space-y-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                Pageviews / Day
-              </h2>
-              <p className="text-xs text-zinc-500 mt-0.5">Traffic evolution within 30 days</p>
-            </div>
-            {/* Badge în stil Stripe */}
-            <div className="flex items-center gap-1.5 text-xs text-zinc-600 font-semibold bg-indigo-50/50 border border-indigo-100/60 px-2.5 py-1 rounded-lg">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
-              Peak: <span className="font-bold text-indigo-950">{maxDaily.toLocaleString()}</span>
-            </div>
-          </div>
-
-          <div className="relative pt-4">
-            {/* Linii de ghidaj orizontale specifice dashboard-urilor financiare */}
-            <div className="absolute inset-x-0 top-4 border-t border-dashed border-zinc-100 pointer-events-none" />
-            <div className="absolute inset-x-0 bottom-7 border-t border-zinc-100 pointer-events-none" />
-
-            {/* Containerul graficului cu bare */}
+{/* Containerul graficului cu bare */}
             <div className="flex items-end gap-1 sm:gap-1.5 h-28 pb-7">
-              {dailyEntries.map(([day, count]) => {
+              {dailyEntries.map(([day, count], index) => {
                 const heightPercent = maxDaily > 0 ? (count / maxDaily) * 100 : 0;
                 const [, month, dateStr] = day.split("-");
                 const shortDate = `${dateStr}/${month}`;
+
+                // Pe mobil (sub sm) afișăm eticheta doar din 5 în 5 zile, ca
+                // să nu se suprapună textul pe un spațiu prea îngust. Pe
+                // desktop (sm+) rămân toate vizibile, ca înainte.
+                const showLabelOnMobile = index % 5 === 0;
 
                 return (
                   <div key={day} className="flex-1 flex flex-col items-center group h-full justify-end relative">
@@ -240,23 +224,20 @@ function getCountryCode(countryName: string): string | null {
                       }`}
                     />
 
-                    {/* Axa X: Data sub bară */}
-                    <span className="absolute bottom-0 text-[8px] font-semibold text-zinc-400 opacity-0 group-hover:opacity-100 sm:opacity-100 tracking-tighter mt-1 transition-opacity whitespace-nowrap group-hover:text-indigo-600">
+                    {/* Axa X: Data sub bară — vizibilă mereu pe desktop; pe
+                        mobil doar din 5 în 5 zile (sau la hover, pentru orice
+                        bară individuală, pe dispozitive cu mouse/trackpad) */}
+                    <span
+                      className={`absolute bottom-0 text-[8px] font-semibold text-zinc-400 tracking-tighter mt-1 transition-opacity whitespace-nowrap group-hover:text-indigo-600 group-hover:opacity-100 ${
+                        showLabelOnMobile ? "opacity-100" : "opacity-0"
+                      } sm:opacity-100`}
+                    >
                       {shortDate}
                     </span>
                   </div>
                 );
               })}
             </div>
-          </div>
-
-          {dailyEntries.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-8 border border-dashed border-zinc-200 rounded-xl bg-zinc-50/50">
-              <p className="text-xs text-zinc-400 font-medium">No data yet.</p>
-              <p className="text-[11px] text-zinc-400 mt-0.5">Baza de date este goală sau tracker-ul nu a trimis evenimente în ultimele 30 de zile.</p>
-            </div>
-          )}
-        </section>
 
 
         {/* --- Top pagini (Design UX îmbunătățit cu Linkuri) --- */}
@@ -315,7 +296,7 @@ function getCountryCode(countryName: string): string | null {
         </section>
 
 
-        {/* --- Țări (Design UX Premium cu imagini de steaguri HD) --- */}
+      {/* --- Țări (Design UX Premium cu imagini de steaguri HD) --- */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
@@ -345,14 +326,14 @@ function getCountryCode(countryName: string): string | null {
                   <div className="flex items-center gap-3 z-10 min-w-0">
                     {!isUnknown ? (
                       /* Randeri steag HD din CDN */
-                        <img
-                        src={`https://flagcdn.com{isoCode}.png`}
-                        srcSet={`https://flagcdn.com{isoCode}.png 2x`}
+                      <img
+                        src={`https://flagcdn.com/w40/${isoCode}.png`}
+                        srcSet={`https://flagcdn.com/w80/${isoCode}.png 2x`}
                         width="20"
                         alt={country}
+                        loading="lazy"
                         className="rounded-sm shadow-xs border border-zinc-200/60 object-cover aspect-[4/3] shrink-0"
-                        />
-
+                      />
                     ) : (
                       /* Iconiță de fallback dacă e localhost */
                       <span className="text-sm shrink-0">🌐</span>
@@ -367,9 +348,9 @@ function getCountryCode(countryName: string): string | null {
                     <span className="text-[10px] text-zinc-400 font-medium bg-zinc-50 border border-zinc-100 group-hover:border-indigo-500/10 px-1.5 py-0.5 rounded-md transition-colors">
                       {Math.round(percentage)}%
                     </span>
-                    <span className="text-xs font-bold text-zinc-800 tabular-nums bg-zinc-950 text-white px-2 py-0.5 rounded-md group-hover:bg-indigo-600 transition-colors">
-                      {count}
-                    </span>
+                        <span className="text-xs font-bold text-zinc-700 tabular-nums bg-zinc-100 px-2 py-0.5 rounded-md">
+                        {count}
+                        </span>
                   </div>
                 </div>
               );
