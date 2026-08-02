@@ -21,6 +21,7 @@ import AIChatWidget from "@/components/AIChatWidget";
 import CookieBanner from "@/components/CookieBanner";
  import MetaAuthListener from "@/components/MetaAuthListener";
 import { Analytics } from '@vercel/analytics/react';
+import { SessionTracker } from "@/lib/session-tracker";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -83,6 +84,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#0D0E12] text-white">
+        <SessionTracker />
         {children}
         {/*<WhatsAppWidget />*/}
         <CookieBanner/>
