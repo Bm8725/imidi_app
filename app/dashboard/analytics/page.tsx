@@ -2,10 +2,9 @@ import { createClient } from "@supabase/supabase-js";
 
 /**
  * app/admin/analytics/page.tsx
- * Server Component — citește direct din Supabase via RPC-urile din
- * analytics-schema.sql. Pune-o în spatele autentificării de admin
- * pe care o ai deja (nu am adăugat auth aici, presupun că ruta e
- * deja protejată de un layout/middleware de admin).
+ * Folosește DOAR tabelele din sessions-schema.sql (pe care le ai deja):
+ * sessions, session_events, session_summaries. Nu depinde de web_vitals
+ * sau page_views — acelea erau dintr-un fișier separat, nefolosit de tine.
  */
 
 function getSupabase() {
@@ -16,132 +15,203 @@ function getSupabase() {
   );
 }
 
-type VitalsRow = { path: string; metric: string; p75_value: number; sample_count: number };
-type TrafficRow = { day: string; views: number };
-
-// Praguri oficiale Core Web Vitals (pentru "good"), în aceleași unități ca metric.value
-const THRESHOLDS: Record<string, { good: number; unit: string }> = {
-  LCP: { good: 2500, unit: "ms" },
-  CLS: { good: 0.1, unit: "" },
-  INP: { good: 200, unit: "ms" },
-  FCP: { good: 1800, unit: "ms" },
-  TTFB: { good: 800, unit: "ms" },
+type SessionSummary = {
+  session_id: string;
+  user_id: string | null;
+  user_email: string | null;
+  first_path: string | null;
+  referrer: string | null;
+  device: string | null;
+  country: string | null;
+  started_at: string;
+  last_seen_at: string;
+  duration_seconds: number;
+  event_count: number;
+  pageview_count: number;
 };
 
-function formatValue(metric: string, value: number) {
-  const unit = THRESHOLDS[metric]?.unit ?? "";
-  if (metric === "CLS") return value.toFixed(3);
-  return `${Math.round(value)}${unit}`;
-}
+type PageviewEvent = { path: string | null; created_at: string };
 
-function statusColor(metric: string, value: number) {
-  const t = THRESHOLDS[metric];
-  if (!t) return "text-zinc-500";
-  if (value <= t.good) return "text-emerald-600";
-  if (value <= t.good * 2.5) return "text-amber-600"; // aproximare pt "needs improvement"
-  return "text-red-600";
+function dayKey(iso: string) {
+  return iso.slice(0, 10); // YYYY-MM-DD
 }
 
 export default async function AnalyticsPage() {
   const supabase = getSupabase();
 
-  const [{ data: vitals, error: vitalsError }, { data: traffic, error: trafficError }] =
+  const since = new Date();
+  since.setDate(since.getDate() - 30);
+
+  const [{ data: summaries, error: summariesError }, { data: pageviews, error: pvError }] =
     await Promise.all([
-      supabase.rpc("web_vitals_p75", { days_back: 7 }) as unknown as Promise<{
-        data: VitalsRow[] | null;
-        error: unknown;
-      }>,
-      supabase.rpc("daily_pageviews", { days_back: 30 }) as unknown as Promise<{
-        data: TrafficRow[] | null;
+      supabase
+        .from("session_summaries")
+        .select("*")
+        .gte("started_at", since.toISOString())
+        .order("started_at", { ascending: false })
+        .limit(200) as unknown as Promise<{ data: SessionSummary[] | null; error: unknown }>,
+
+      supabase
+        .from("session_events")
+        .select("path, created_at")
+        .eq("event_name", "pageview")
+        .gte("created_at", since.toISOString()) as unknown as Promise<{
+        data: PageviewEvent[] | null;
         error: unknown;
       }>,
     ]);
 
-  if (vitalsError) console.error("Eroare vitals:", vitalsError);
-  if (trafficError) console.error("Eroare trafic:", trafficError);
+  if (summariesError) console.error("Eroare session_summaries:", summariesError);
+  if (pvError) console.error("Eroare session_events:", pvError);
 
-  const totalViews30d = (traffic ?? []).reduce((sum, r) => sum + Number(r.views), 0);
-  const maxDailyViews = Math.max(1, ...(traffic ?? []).map((r) => Number(r.views)));
-
-  // grupăm vitals pe path pentru afișare tabelară
-  const byPath = new Map<string, VitalsRow[]>();
-  for (const row of vitals ?? []) {
-    const list = byPath.get(row.path) ?? [];
-    list.push(row);
-    byPath.set(row.path, list);
+  // trafic zilnic, agregat aici (30 zile, volum mic, nu justifică încă un RPC)
+  const dailyCounts = new Map<string, number>();
+  for (const ev of pageviews ?? []) {
+    const key = dayKey(ev.created_at);
+    dailyCounts.set(key, (dailyCounts.get(key) ?? 0) + 1);
   }
+  const dailyEntries = Array.from(dailyCounts.entries()).sort(([a], [b]) => a.localeCompare(b));
+  const maxDaily = Math.max(1, ...dailyEntries.map(([, v]) => v));
+  const totalViews30d = (pageviews ?? []).length;
+
+  // top pagini după nr. de vizualizări
+  const pathCounts = new Map<string, number>();
+  for (const ev of pageviews ?? []) {
+    if (!ev.path) continue;
+    pathCounts.set(ev.path, (pathCounts.get(ev.path) ?? 0) + 1);
+  }
+  const topPaths = Array.from(pathCounts.entries())
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 8);
+
+  function formatDuration(seconds: number) {
+    if (!seconds || seconds < 60) return `${Math.round(seconds || 0)}s`;
+    const m = Math.floor(seconds / 60);
+    const s = Math.round(seconds % 60);
+    return `${m}m ${s}s`;
+  }
+
+  const totalSessions = summaries?.length ?? 0;
+  const avgDuration =
+    totalSessions > 0
+      ? (summaries ?? []).reduce((sum, s) => sum + (s.duration_seconds || 0), 0) / totalSessions
+      : 0;
+  const loggedInSessions = (summaries ?? []).filter((s) => s.user_id).length;
 
   return (
     <div className="min-h-screen bg-white px-6 py-12 md:py-16 font-sans text-zinc-900">
       <div className="max-w-4xl mx-auto space-y-12">
         <header>
           <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-          <p className="text-sm text-zinc-500 mt-1">
-            Core Web Vitals (p75, ultimele 7 zile) și trafic (ultimele 30 zile).
-          </p>
+          <p className="text-sm text-zinc-500 mt-1">Ultimele 30 zile, din sessions + session_events.</p>
         </header>
 
-        {/* --- Trafic --- */}
-        <section className="space-y-3">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
-              Pageviews (30 zile)
-            </h2>
-            <span className="text-lg font-semibold">{totalViews30d.toLocaleString()}</span>
+        {/* --- Sumar rapid --- */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="border border-zinc-100 rounded-xl p-4">
+            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Pageviews</div>
+            <div className="text-xl font-semibold mt-1">{totalViews30d.toLocaleString()}</div>
           </div>
+          <div className="border border-zinc-100 rounded-xl p-4">
+            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Sesiuni</div>
+            <div className="text-xl font-semibold mt-1">{totalSessions.toLocaleString()}</div>
+          </div>
+          <div className="border border-zinc-100 rounded-xl p-4">
+            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Durată medie</div>
+            <div className="text-xl font-semibold mt-1">{formatDuration(avgDuration)}</div>
+          </div>
+          <div className="border border-zinc-100 rounded-xl p-4">
+            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Logați</div>
+            <div className="text-xl font-semibold mt-1">
+              {totalSessions > 0 ? Math.round((loggedInSessions / totalSessions) * 100) : 0}%
+            </div>
+          </div>
+        </section>
 
+        {/* --- Trafic zilnic --- */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
+            Pageviews / zi
+          </h2>
           <div className="flex items-end gap-1 h-24 border-b border-zinc-100 pb-1">
-            {(traffic ?? []).map((r) => (
+            {dailyEntries.map(([day, count]) => (
               <div
-                key={r.day}
-                title={`${r.day}: ${r.views} vizualizări`}
+                key={day}
+                title={`${day}: ${count} vizualizări`}
                 className="flex-1 bg-zinc-900 rounded-t-sm hover:bg-zinc-700 transition-colors"
-                style={{ height: `${(Number(r.views) / maxDailyViews) * 100}%` }}
+                style={{ height: `${(count / maxDaily) * 100}%` }}
               />
             ))}
-            {(!traffic || traffic.length === 0) && (
-              <p className="text-xs text-zinc-400">Fără date încă.</p>
+            {dailyEntries.length === 0 && (
+              <p className="text-xs text-zinc-400">
+                Fără date încă — verifică dacă SessionTracker e activ în producție.
+              </p>
             )}
           </div>
         </section>
 
-        {/* --- Core Web Vitals per pagină --- */}
-        <section className="space-y-4">
+        {/* --- Top pagini --- */}
+        <section className="space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
-            Core Web Vitals per pagină
+            Pagini cele mai vizitate
           </h2>
-
-          {byPath.size === 0 && (
-            <p className="text-xs text-zinc-400">
-              Fără date încă — verifică dacă VitalsReporter e activ în producție.
-            </p>
-          )}
-
-          <div className="space-y-2">
-            {Array.from(byPath.entries()).map(([path, rows]) => (
-              <div
-                key={path}
-                className="border border-zinc-100 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3"
-              >
-                <span className="text-sm font-medium text-zinc-800 truncate max-w-[240px]">
-                  {path}
-                </span>
-                <div className="flex gap-4">
-                  {rows
-                    .sort((a, b) => a.metric.localeCompare(b.metric))
-                    .map((r) => (
-                      <div key={r.metric} className="text-right">
-                        <div className="text-[10px] text-zinc-400 uppercase tracking-wide">
-                          {r.metric}
-                        </div>
-                        <div className={`text-sm font-semibold ${statusColor(r.metric, r.p75_value)}`}>
-                          {formatValue(r.metric, r.p75_value)}
-                        </div>
-                      </div>
-                    ))}
-                </div>
+          <div className="space-y-1.5">
+            {topPaths.map(([path, count]) => (
+              <div key={path} className="flex items-center justify-between text-sm">
+                <span className="text-zinc-700 truncate max-w-[300px]">{path}</span>
+                <span className="text-zinc-400 tabular-nums">{count}</span>
               </div>
             ))}
+            {topPaths.length === 0 && <p className="text-xs text-zinc-400">Fără date încă.</p>}
+          </div>
+        </section>
+
+        {/* --- Sesiuni recente --- */}
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
+              Sesiuni recente
+            </h2>
+            <a href="/admin/sessions" className="text-xs text-zinc-500 underline">
+              vezi toate →
+            </a>
+          </div>
+          <div className="border border-zinc-100 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-zinc-50 text-[11px] uppercase tracking-wider text-zinc-400">
+                <tr>
+                  <th className="text-left px-4 py-2">Vizitator</th>
+                  <th className="text-left px-4 py-2">Intrare</th>
+                  <th className="text-right px-4 py-2">Durată</th>
+                  <th className="text-right px-4 py-2">Pagini</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {(summaries ?? []).slice(0, 10).map((s) => (
+                  <tr key={s.session_id} className="hover:bg-zinc-50/50">
+                    <td className="px-4 py-2.5 font-medium">
+                      {s.user_email ?? (
+                        <span className="text-zinc-400 font-normal">
+                          Anonim · {s.session_id.slice(0, 8)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-zinc-600 truncate max-w-[200px]">
+                      {s.first_path}
+                    </td>
+                    <td className="px-4 py-2.5 text-right">{formatDuration(s.duration_seconds)}</td>
+                    <td className="px-4 py-2.5 text-right">{s.pageview_count}</td>
+                  </tr>
+                ))}
+                {(!summaries || summaries.length === 0) && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-zinc-400 text-xs">
+                      Fără sesiuni încă.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </section>
       </div>
