@@ -142,14 +142,26 @@ export default function MyListingsPage() {
                 <p className="text-xs text-zinc-500">{listings.length} {listings.length === 1 ? "anunț" : "anunțuri"} pe pagina curentă</p>
               </div>
 
-              <Link
-                href="/e-market"
-                onClick={() => trackEvent("new_listing_clicked")}
-                className="h-10 px-5 bg-[#FF7A1A] hover:bg-[#e06613] active:scale-[0.97] text-black text-xs font-extrabold uppercase tracking-widest rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(255,122,26,0.15)] cursor-pointer w-fit"
-              >
-                <span className="text-base font-black leading-none">+</span>
-                <span>Anunț nou</span>
-              </Link>
+              <div className="flex items-center gap-2 w-fit">
+                <Link
+                  href="/admin/analytics"
+                  className="h-10 px-4 bg-[#222222] hover:bg-[#2A2A2A] border border-[#2C2C2C] hover:border-zinc-700 active:scale-[0.97] text-zinc-300 hover:text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  <span>Analytics</span>
+                </Link>
+
+                <Link
+                  href="/e-market"
+                  onClick={() => trackEvent("new_listing_clicked")}
+                  className="h-10 px-5 bg-[#FF7A1A] hover:bg-[#e06613] active:scale-[0.97] text-black text-xs font-extrabold uppercase tracking-widest rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(255,122,26,0.15)] cursor-pointer"
+                >
+                  <span className="text-base font-black leading-none">+</span>
+                  <span>Anunț nou</span>
+                </Link>
+              </div>
             </div>
 
             {/* Filtre status */}
