@@ -93,49 +93,47 @@ export default async function AnalyticsPage() {
 
 
 //***************** flags country ************* */
-function getFlagEmoji(countryName: string) {
-  if (!countryName || countryName === "necunoscut" || countryName === "—") return "🏳️";
+function getCountryCode(countryName: string): string | null {
+  if (!countryName || countryName === "necunoscut" || countryName === "—") return null;
   
-  // Curățăm textul pentru a evita erori de la spații sau litere mari/mici
   const name = countryName.trim().toLowerCase();
 
-  const flagMap: Record<string, string> = {
-    // Nume în Română / Engleză
-    "romania": "🇷🇴",
-    "românia": "🇷🇴",
-    "ro": "🇷🇴",
-    "united states": "🇺🇸",
-    "usa": "🇺🇸",
-    "us": "🇺🇸",
-    "moldova": "🇲🇩",
-    "md": "🇲🇩",
-    "united kingdom": "🇬🇧",
-    "uk": "🇬🇧",
-    "gb": "🇬🇧",
-    "germany": "🇩🇪",
-    "germania": "🇩🇪",
-    "de": "🇩🇪",
-    "france": "🇫🇷",
-    "franța": "🇫🇷",
-    "fr": "🇫🇷",
-    "italy": "🇮🇹",
-    "italia": "🇮🇹",
-    "it": "🇮🇹",
-    "spain": "🇪🇸",
-    "spania": "🇪🇸",
-    "es": "🇪🇸",
-    "netherlands": "🇳🇱",
-    "olanda": "🇳🇱",
-    "nl": "🇳🇱",
-    "austria": "🇦🇹",
-    "at": "🇦🇹",
-    "belgium": "🇧🇪",
-    "belgia": "🇧🇪",
-    "be": "🇧🇪"
+  const countryMap: Record<string, string> = {
+    "romania": "ro",
+    "românia": "ro",
+    "ro": "ro",
+    "united states": "us",
+    "united states of america": "us",
+    "usa": "us",
+    "us": "us",
+    "moldova": "md",
+    "md": "md",
+    "united kingdom": "gb",
+    "uk": "gb",
+    "gb": "gb",
+    "germany": "de",
+    "germania": "de",
+    "de": "de",
+    "france": "fr",
+    "franța": "fr",
+    "fr": "fr",
+    "italy": "it",
+    "italia": "it",
+    "it": "it",
+    "spain": "es",
+    "spania": "es",
+    "es": "es",
+    "netherlands": "nl",
+    "olanda": "nl",
+    "nl": "nl",
+    "austria": "at",
+    "at": "at",
+    "belgium": "be",
+    "belgia": "be",
+    "be": "be"
   };
 
-  // Dacă țara există în dicționar, o returnăm. Dacă nu, punem un glob pământesc generat automat
-  return flagMap[name] || "🌐";
+  return countryMap[name] || null;
 }
 
 
@@ -193,7 +191,7 @@ function getFlagEmoji(countryName: string) {
               <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                 Pageviews / Day
               </h2>
-              <p className="text-xs text-zinc-500 mt-0.5">Evoluția traficului în ultimele 30 de zile</p>
+              <p className="text-xs text-zinc-500 mt-0.5">Traffic evolution within 30 days</p>
             </div>
             {/* Badge în stil Stripe */}
             <div className="flex items-center gap-1.5 text-xs text-zinc-600 font-semibold bg-indigo-50/50 border border-indigo-100/60 px-2.5 py-1 rounded-lg">
@@ -310,7 +308,7 @@ function getFlagEmoji(countryName: string) {
         </section>
 
 
-        {/* --- Țări (Design UX Premium cu Drapele) --- */}
+        {/* --- Țări (Design UX Premium cu imagini de steaguri HD) --- */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
@@ -322,35 +320,46 @@ function getFlagEmoji(countryName: string) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {countryCounts.map(([country, count]) => {
               const percentage = (count / maxCountry) * 100;
-              const isUnknown = country === "necunoscut" || country === "—";
+              const isoCode = getCountryCode(country);
+              const isUnknown = !isoCode;
 
               return (
                 <div 
                   key={country} 
-                  className="group relative flex items-center justify-between p-3 rounded-xl border border-zinc-100 bg-white hover:border-[#FF7A1A]/20 hover:shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-200 overflow-hidden"
+                  className="group relative flex items-center justify-between p-3 rounded-xl border border-zinc-100 bg-white hover:border-indigo-500/20 hover:shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-200 overflow-hidden"
                 >
-                  {/* Bară de progres discretă pe fundal */}
+                  {/* Bară de progres discretă în stil Stripe */}
                   <div 
-                    className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-zinc-100/50 to-zinc-50/20 pointer-events-none transition-all duration-300 group-hover:from-[#FF7A1A]/5"
+                    className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-zinc-100/50 to-zinc-50/20 pointer-events-none transition-all duration-300 group-hover:from-indigo-500/5"
                     style={{ width: `${percentage}%` }}
                   />
 
-                  {/* Numele țării și Drapelul */}
+                  {/* Numele țării și Drapelul HD */}
                   <div className="flex items-center gap-3 z-10 min-w-0">
-                    <span className="text-lg shrink-0 filter drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)]">
-                      {getFlagEmoji(country)}
-                    </span>
-                    <span className="text-xs font-semibold uppercase text-zinc-700 tracking-wider">
+                    {!isUnknown ? (
+                      /* Randeri steag HD din CDN */
+                      <img
+                        src={`https://flagcdn.com{isoCode}.png`}
+                        srcSet={`https://flagcdn.com{isoCode}.png 2x`}
+                        width="20"
+                        alt={country}
+                        className="rounded-sm shadow-xs border border-zinc-200/60 object-cover aspect-[4/3] shrink-0"
+                      />
+                    ) : (
+                      /* Iconiță de fallback dacă e localhost */
+                      <span className="text-sm shrink-0">🌐</span>
+                    )}
+                    <span className="text-xs font-semibold uppercase text-zinc-700 tracking-wider truncate">
                       {isUnknown ? "Localhost / Unknown" : country}
                     </span>
                   </div>
 
                   {/* Numărul de sesiuni + Procentaj */}
                   <div className="flex items-center gap-2 z-10 shrink-0">
-                    <span className="text-[10px] text-zinc-400 font-medium bg-zinc-50 border border-zinc-100 group-hover:border-[#FF7A1A]/10 px-1.5 py-0.5 rounded-md transition-colors">
+                    <span className="text-[10px] text-zinc-400 font-medium bg-zinc-50 border border-zinc-100 group-hover:border-indigo-500/10 px-1.5 py-0.5 rounded-md transition-colors">
                       {Math.round(percentage)}%
                     </span>
-                    <span className="text-xs font-bold text-zinc-800 tabular-nums bg-zinc-900 text-white px-2 py-0.5 rounded-md group-hover:bg-[#FF7A1A] transition-colors">
+                    <span className="text-xs font-bold text-zinc-800 tabular-nums bg-zinc-950 text-white px-2 py-0.5 rounded-md group-hover:bg-indigo-600 transition-colors">
                       {count}
                     </span>
                   </div>
@@ -361,13 +370,11 @@ function getFlagEmoji(countryName: string) {
             {countryCounts.length === 0 && (
               <div className="col-span-full p-6 text-center border border-dashed border-zinc-200 rounded-xl bg-zinc-50/30">
                 <p className="text-xs text-zinc-400 font-medium">No country data yet.</p>
-                <p className="text-[11px] text-zinc-400 mt-1 max-w-sm mx-auto">
-                  The x-vercel-ip-country header is missing on localhost. It will light up automatically once deployed on Vercel.
-                </p>
               </div>
             )}
           </div>
         </section>
+
 
 
         {/* --- Sesiuni recente --- */}
