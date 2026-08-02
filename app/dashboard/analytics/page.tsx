@@ -209,7 +209,7 @@ export default async function AnalyticsPage() {
             <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
               Sesiuni recente
             </h2>
-            <a href="/admin/sessions" className="text-xs text-zinc-500 underline">
+            <a href="/dashboard/sessions" className="text-xs text-zinc-500 underline">
               vezi toate →
             </a>
           </div>
