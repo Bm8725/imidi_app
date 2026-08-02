@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 
 /**
  * app/dashboard/session/page.tsx
@@ -41,11 +39,11 @@ function formatDuration(seconds: number) {
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "acum";
-  if (mins < 60) return `acum ${mins}m`;
+  if (mins < 1) return "ago";
+  if (mins < 60) return ` ${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `acum ${hrs}h`;
-  return `acum ${Math.floor(hrs / 24)}z`;
+  if (hrs < 24) return ` ${hrs}h ago`;
+  return `ago ${Math.floor(hrs / 24)}z`;
 }
 
 function deviceIcon(device: string | null) {
@@ -67,7 +65,7 @@ export default async function SessionsPage() {
     .order("started_at", { ascending: false })
     .limit(100);
 
-  if (error) console.error("Eroare la citirea sesiunilor:", error);
+  if (error) console.error("Error to red sessions !:", error);
 
   const sessions = (data as SessionSummary[]) ?? [];
   const total = sessions.length;
@@ -86,10 +84,8 @@ export default async function SessionsPage() {
   const maxCountry = Math.max(1, ...topCountries.map(([, v]) => v));
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-zinc-50 font-sans text-zinc-900">
-      <Navbar />
-
-      <main className="flex-1 max-w-5xl w-full mx-auto px-5 sm:px-6 py-8 sm:py-12">
+    <div className="min-h-screen bg-gradient-to-b from-white to-zinc-50 font-sans text-zinc-900">
+      <div className="max-w-5xl mx-auto px-5 sm:px-6 py-8 sm:py-12">
         {/* Back button */}
         <Link
           href="/dashboard/cloud-db"
@@ -98,26 +94,26 @@ export default async function SessionsPage() {
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-          Înapoi la MyCloud
+          Back to MyCloud
         </Link>
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-8">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-zinc-900">
-              Sesiuni <span className="bg-gradient-to-r from-[#FF7A1A] to-[#ff9f54] bg-clip-text text-transparent">Live</span>
+              Sessions <span className="bg-gradient-to-r from-[#FF7A1A] to-[#ff9f54] bg-clip-text text-transparent">analyse imidi app</span>
             </h1>
-            <p className="text-sm text-zinc-500 mt-1">Ultimele 30 zile · {total} sesiuni</p>
+            <p className="text-sm text-zinc-500 mt-1">Last 30 days · {total} sessions</p>
           </div>
         </div>
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           {[
-            { label: "Total sesiuni", value: total },
-            { label: "Logați", value: loggedIn },
-            { label: "Anonimi", value: anonymous },
-            { label: "Durată medie", value: formatDuration(avgDuration) },
+            { label: "Total sessions", value: total },
+            { label: "Logged in", value: loggedIn },
+            { label: "Anonymous", value: anonymous },
+            { label: "Average duration", value: formatDuration(avgDuration) },
           ].map((stat) => (
             <div
               key={stat.label}
@@ -135,7 +131,7 @@ export default async function SessionsPage() {
         {topCountries.length > 0 && (
           <div className="bg-white border border-zinc-200/70 rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] mb-8">
             <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-4">
-              Top țări
+              Top Countries
             </h2>
             <div className="space-y-2.5">
               {topCountries.map(([country, count]) => (
@@ -159,13 +155,13 @@ export default async function SessionsPage() {
           <table className="w-full text-sm">
             <thead className="bg-zinc-50/80 text-[10px] uppercase tracking-wider text-zinc-400 border-b border-zinc-100">
               <tr>
-                <th className="text-left px-5 py-3 font-bold">Vizitator</th>
-                <th className="text-left px-5 py-3 font-bold">Intrare</th>
-                <th className="text-left px-5 py-3 font-bold">Țară</th>
+                <th className="text-left px-5 py-3 font-bold">Visitor</th>
+                <th className="text-left px-5 py-3 font-bold">First Page</th>
+                <th className="text-left px-5 py-3 font-bold">Country</th>
                 <th className="text-left px-5 py-3 font-bold">Device</th>
-                <th className="text-right px-5 py-3 font-bold">Durată</th>
-                <th className="text-right px-5 py-3 font-bold">Pagini</th>
-                <th className="text-right px-5 py-3 font-bold">Când</th>
+                <th className="text-right px-5 py-3 font-bold">Duration</th>
+                <th className="text-right px-5 py-3 font-bold">Pages</th>
+                <th className="text-right px-5 py-3 font-bold">When</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50">
@@ -178,7 +174,21 @@ export default async function SessionsPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-5 py-3.5 text-zinc-500 truncate max-w-[180px]">{s.first_path}</td>
+                  <td className="px-5 py-3.5 text-zinc-500 truncate max-w-[180px]">
+                                                        {s.first_path ? (
+                                                            <a 
+                                                            href={s.first_path} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer" 
+                                                            className="text-[#FF7A1A] hover:underline font-medium"
+                                                            >
+                                                            {s.first_path}
+                                                            </a>
+                                                        ) : (
+                                                            "—"
+                                                        )}
+                                                        </td>
+
                   <td className="px-5 py-3.5 text-zinc-500">{s.country ?? "—"}</td>
                   <td className="px-5 py-3.5 text-zinc-500">{deviceIcon(s.device)} {s.device ?? "—"}</td>
                   <td className="px-5 py-3.5 text-right text-zinc-700 font-medium">{formatDuration(s.duration_seconds)}</td>
@@ -189,7 +199,7 @@ export default async function SessionsPage() {
               {sessions.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-5 py-14 text-center text-zinc-400 text-sm">
-                    Fără sesiuni încă.
+                    No sessions yet.
                   </td>
                 </tr>
               )}
@@ -214,7 +224,21 @@ export default async function SessionsPage() {
                 </span>
                 <span className="text-[10px] text-zinc-400 shrink-0">{timeAgo(s.started_at)}</span>
               </div>
-              <p className="text-xs text-zinc-500 truncate mb-3">{s.first_path}</p>
+              <td className="px-5 py-3.5 text-zinc-500 truncate max-w-[180px]">
+                    {s.first_path ? (
+                        <a 
+                        href={s.first_path} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-[#FF7A1A] hover:underline font-medium"
+                        >
+                        {s.first_path}
+                        </a>
+                    ) : (
+                        "—"
+                    )}
+                    </td>
+
               <div className="flex items-center gap-4 text-[11px] text-zinc-500">
                 <span>{deviceIcon(s.device)} {s.device ?? "—"}</span>
                 <span>{s.country ?? "—"}</span>
@@ -225,13 +249,13 @@ export default async function SessionsPage() {
           ))}
           {sessions.length === 0 && (
             <div className="text-center py-14 text-zinc-400 text-sm bg-white border border-dashed border-zinc-200 rounded-2xl">
-              Fără sesiuni încă.
+              No sessions yet.
             </div>
           )}
         </div>
-      </main>
 
-      <Footer />
+      </div>
     </div>
   );
 }
+
