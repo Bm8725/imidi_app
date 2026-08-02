@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 /**
  * app/admin/analytics/page.tsx
@@ -8,42 +8,6 @@ import { redirect } from "next/navigation";
  * sessions, session_events, session_summaries. Nu depinde de web_vitals
  * sau page_views — acelea erau dintr-un fișier separat, nefolosit de tine.
  */
-
-// ────────────────────────────────────────────────────────────
-// Verificare de admin — redundantă cu middleware.ts (defense-in-depth).
-// Dacă cookie-ul admin_session lipsește/e invalid/expirat, redirect la login.
-// ────────────────────────────────────────────────────────────
-async function hmac(message: string, secret: string): Promise<string> {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
-  return Buffer.from(sig).toString("hex");
-}
-
-async function requireAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("admin_session")?.value;
-  const secret = process.env.ADMIN_SESSION_SECRET;
-
-  let valid = false;
-  if (token && secret) {
-    const [expiryStr, signature] = token.split(".");
-    if (expiryStr && signature) {
-      const expected = await hmac(expiryStr, secret);
-      valid = expected === signature && Date.now() <= Number(expiryStr);
-    }
-  }
-
-  if (!valid) {
-    redirect("/admin/login?next=/admin/analytics");
-  }
-}
 
 function getSupabase() {
   return createClient(
@@ -75,8 +39,6 @@ function dayKey(iso: string) {
 }
 
 export default async function AnalyticsPage() {
-  await requireAdmin();
-
   const supabase = getSupabase();
 
   const since = new Date();
@@ -202,273 +164,275 @@ function getCountryCode(countryName: string): string | null {
   const maxCountry = Math.max(1, ...countryCounts.map(([, v]) => v));
 
   return (
-    <div className="min-h-screen bg-white px-6 py-12 md:py-16 font-sans text-zinc-900">
-      <div className="max-w-4xl mx-auto space-y-12">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-          <p className="text-sm text-zinc-500 mt-1">Last 30 days, from sessions and session_events.</p>
-        </header>
+    <div className="min-h-screen flex flex-col bg-white text-zinc-900">
+      <Navbar />
 
-        {/* --- Sumar rapid --- */}
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="border border-zinc-100 rounded-xl p-4">
-            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Pageviews</div>
-            <div className="text-xl font-semibold mt-1">{totalViews30d.toLocaleString()}</div>
-          </div>
-          <div className="border border-zinc-100 rounded-xl p-4">
-            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Sessions</div>
-            <div className="text-xl font-semibold mt-1">{totalSessions.toLocaleString()}</div>
-          </div>
-          <div className="border border-zinc-100 rounded-xl p-4">
-            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Average duration</div>
-            <div className="text-xl font-semibold mt-1">{formatDuration(avgDuration)}</div>
-          </div>
-          <div className="border border-zinc-100 rounded-xl p-4">
-            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Logged in / Anonymous</div>
-            <div className="text-xl font-semibold mt-1">
-              {loggedInSessions} <span className="text-zinc-300">/</span> {anonymousSessions}
+      <main className="flex-1 px-6 py-12 md:py-16 font-sans">
+        <div className="max-w-4xl mx-auto space-y-12">
+          <header>
+            <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
+            <p className="text-sm text-zinc-500 mt-1">Last 30 days, from sessions and session_events.</p>
+          </header>
+
+          {/* --- Sumar rapid --- */}
+          <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="border border-zinc-100 rounded-xl p-4">
+              <div className="text-[10px] uppercase tracking-wider text-zinc-400">Pageviews</div>
+              <div className="text-xl font-semibold mt-1">{totalViews30d.toLocaleString()}</div>
             </div>
-          </div>
-        </section>
-
-{/* Containerul graficului cu bare */}
-            <div className="flex items-end gap-1 sm:gap-1.5 h-28 pb-7">
-              {dailyEntries.map(([day, count], index) => {
-                const heightPercent = maxDaily > 0 ? (count / maxDaily) * 100 : 0;
-                const [, month, dateStr] = day.split("-");
-                const shortDate = `${dateStr}/${month}`;
-
-                // Pe mobil (sub sm) afișăm eticheta doar din 5 în 5 zile, ca
-                // să nu se suprapună textul pe un spațiu prea îngust. Pe
-                // desktop (sm+) rămân toate vizibile, ca înainte.
-                const showLabelOnMobile = index % 5 === 0;
-
-                return (
-                  <div key={day} className="flex-1 flex flex-col items-center group h-full justify-end relative">
-                    
-                    {/* Tooltip Premium Floating (Stripe Dark Theme) */}
-                    <div className="absolute bottom-full mb-2 bg-zinc-900 text-white text-[10px] font-medium px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 transform translate-y-1 group-hover:translate-y-0 shadow-[0_4px_12px_rgba(0,0,0,0.15)] z-30 whitespace-nowrap border border-zinc-800">
-                      <span className="text-indigo-400 font-bold">{count}</span> vizualizări
-                      <div className="text-[9px] text-zinc-400 font-normal mt-0.5">{day}</div>
-                      {/* Săgeata tooltip-ului */}
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900" />
-                    </div>
-
-                    {/* Bara graficului cu Gradient Stripe Indigo -> Violet */}
-                    <div
-                      style={{ height: `${Math.max(4, heightPercent)}%` }} // Minim 4% pentru design continuu
-                      className={`w-full rounded-t-[3px] transition-all duration-300 relative overflow-hidden ${
-                        count > 0 
-                          ? "bg-gradient-to-t from-indigo-600 via-indigo-500 to-purple-500 group-hover:from-indigo-700 group-hover:to-purple-600 group-hover:shadow-[0_0_12px_rgba(99,102,241,0.4)]" 
-                          : "bg-zinc-100 group-hover:bg-zinc-200"
-                      }`}
-                    />
-
-                    {/* Axa X: Data sub bară — vizibilă mereu pe desktop; pe
-                        mobil doar din 5 în 5 zile (sau la hover, pentru orice
-                        bară individuală, pe dispozitive cu mouse/trackpad) */}
-                    <span
-                      className={`absolute bottom-0 text-[8px] font-semibold text-zinc-400 tracking-tighter mt-1 transition-opacity whitespace-nowrap group-hover:text-indigo-600 group-hover:opacity-100 ${
-                        showLabelOnMobile ? "opacity-100" : "opacity-0"
-                      } sm:opacity-100`}
-                    >
-                      {shortDate}
-                    </span>
-                  </div>
-                );
-              })}
+            <div className="border border-zinc-100 rounded-xl p-4">
+              <div className="text-[10px] uppercase tracking-wider text-zinc-400">Sessions</div>
+              <div className="text-xl font-semibold mt-1">{totalSessions.toLocaleString()}</div>
             </div>
+            <div className="border border-zinc-100 rounded-xl p-4">
+              <div className="text-[10px] uppercase tracking-wider text-zinc-400">Average duration</div>
+              <div className="text-xl font-semibold mt-1">{formatDuration(avgDuration)}</div>
+            </div>
+            <div className="border border-zinc-100 rounded-xl p-4">
+              <div className="text-[10px] uppercase tracking-wider text-zinc-400">Logged in / Anonymous</div>
+              <div className="text-xl font-semibold mt-1">
+                {loggedInSessions} <span className="text-zinc-300">/</span> {anonymousSessions}
+              </div>
+            </div>
+          </section>
 
+          {/* Containerul graficului cu bare */}
+          <div className="flex items-end gap-1 sm:gap-1.5 h-28 pb-7">
+            {dailyEntries.map(([day, count], index) => {
+              const heightPercent = maxDaily > 0 ? (count / maxDaily) * 100 : 0;
+              const [, month, dateStr] = day.split("-");
+              const shortDate = `${dateStr}/${month}`;
 
-        {/* --- Top pagini (Design UX îmbunătățit cu Linkuri) --- */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-              Most pages visited
-            </h2>
-            <span className="text-[10px] font-medium text-zinc-400">Views</span>
-          </div>
-
-          <div className="space-y-2">
-            {topPaths.map(([path, count]) => {
-              // Calculăm procentul relativ față de cea mai vizitată pagină din listă
-              const maxViews = topPaths[0]?.[1] || 1;
-              const percentage = (count / maxViews) * 100;
+              // Pe mobil (sub sm) afișăm eticheta doar din 5 în 5 zile, ca
+              // să nu se suprapună textul pe un spațiu prea îngust. Pe
+              // desktop (sm+) rămân toate vizibile, ca înainte.
+              const showLabelOnMobile = index % 5 === 0;
 
               return (
-                <div 
-                  key={path} 
-                  className="group relative flex items-center justify-between p-2.5 rounded-xl border border-zinc-100 bg-white hover:border-[#FF7A1A]/20 hover:shadow-xs transition-all duration-200 overflow-hidden"
-                >
-                  {/* Bară de progres fină pe fundal */}
-                  <div 
-                    className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-[#FF7A1A]/4 to-[#ff9f54]/2 pointer-events-none transition-all duration-300"
-                    style={{ width: `${percentage}%` }}
-                  />
-
-                  {/* Linkul către pagină */}
-                  <div className="flex items-center gap-2 z-10 min-w-0 flex-1">
-                    <span className="text-xs text-zinc-300 group-hover:text-[#FF7A1A] transition-colors shrink-0">🔗</span>
-                    <a 
-                      href={path} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-xs font-medium text-zinc-700 hover:text-zinc-950 group-hover:text-[#FF7A1A] transition-colors truncate max-w-[85%] md:max-w-[90%]"
-                    >
-                      {path}
-                    </a>
+                <div key={day} className="flex-1 flex flex-col items-center group h-full justify-end relative">
+                  
+                  {/* Tooltip Premium Floating (Stripe Dark Theme) */}
+                  <div className="absolute bottom-full mb-2 bg-zinc-900 text-white text-[10px] font-medium px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 transform translate-y-1 group-hover:translate-y-0 shadow-[0_4px_12px_rgba(0,0,0,0.15)] z-30 whitespace-nowrap border border-zinc-800">
+                    <span className="text-indigo-400 font-bold">{count}</span> vizualizări
+                    <div className="text-[9px] text-zinc-400 font-normal mt-0.5">{day}</div>
+                    {/* Săgeata tooltip-ului */}
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900" />
                   </div>
 
-                  {/* Numărul de vizualizări */}
-                  <span className="text-xs font-semibold text-zinc-500 group-hover:text-zinc-900 tabular-nums z-10 shrink-0 ml-3 bg-zinc-50 px-2 py-0.5 rounded-md border border-zinc-100 group-hover:border-[#FF7A1A]/10 transition-colors">
-                    {count.toLocaleString()}
+                  {/* Bara graficului cu Gradient Stripe Indigo -> Violet */}
+                  <div
+                    style={{ height: `${Math.max(4, heightPercent)}%` }} // Minim 4% pentru design continuu
+                    className={`w-full rounded-t-[3px] transition-all duration-300 relative overflow-hidden ${
+                      count > 0 
+                        ? "bg-gradient-to-t from-indigo-600 via-indigo-500 to-purple-500 group-hover:from-indigo-700 group-hover:to-purple-600 group-hover:shadow-[0_0_12px_rgba(99,102,241,0.4)]" 
+                        : "bg-zinc-100 group-hover:bg-zinc-200"
+                    }`}
+                  />
+
+                  {/* Axa X: Data sub bară — vizibilă mereu pe desktop; pe
+                      mobil doar din 5 în 5 zile (sau la hover, pentru orice
+                      bară individuală, pe dispozitive cu mouse/trackpad) */}
+                  <span
+                    className={`absolute bottom-0 text-[8px] font-semibold text-zinc-400 tracking-tighter mt-1 transition-opacity whitespace-nowrap group-hover:text-indigo-600 group-hover:opacity-100 ${
+                      showLabelOnMobile ? "opacity-100" : "opacity-0"
+                    } sm:opacity-100`}
+                  >
+                    {shortDate}
                   </span>
                 </div>
               );
             })}
-
-            {topPaths.length === 0 && (
-              <p className="text-xs text-zinc-400 py-4 text-center border border-dashed border-zinc-200 rounded-xl">
-                No data yet.
-              </p>
-            )}
-          </div>
-        </section>
-
-
-      {/* --- Țări (Design UX Premium cu imagini de steaguri HD) --- */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-              Sessions by country
-            </h2>
-            <span className="text-[10px] font-medium text-zinc-400">Sessions</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {countryCounts.map(([country, count]) => {
-              const percentage = (count / maxCountry) * 100;
-              const isoCode = getCountryCode(country);
-              const isUnknown = !isoCode;
+          {/* --- Top pagini (Design UX îmbunătățit cu Linkuri) --- */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                Most pages visited
+              </h2>
+              <span className="text-[10px] font-medium text-zinc-400">Views</span>
+            </div>
 
-              return (
-                <div 
-                  key={country} 
-                  className="group relative flex items-center justify-between p-3 rounded-xl border border-zinc-100 bg-white hover:border-indigo-500/20 hover:shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-200 overflow-hidden"
-                >
-                  {/* Bară de progres discretă în stil Stripe */}
+            <div className="space-y-2">
+              {topPaths.map(([path, count]) => {
+                // Calculăm procentul relativ față de cea mai vizitată pagină din listă
+                const maxViews = topPaths[0]?.[1] || 1;
+                const percentage = (count / maxViews) * 100;
+
+                return (
                   <div 
-                    className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-zinc-100/50 to-zinc-50/20 pointer-events-none transition-all duration-300 group-hover:from-indigo-500/5"
-                    style={{ width: `${percentage}%` }}
-                  />
+                    key={path} 
+                    className="group relative flex items-center justify-between p-2.5 rounded-xl border border-zinc-100 bg-white hover:border-[#FF7A1A]/20 hover:shadow-xs transition-all duration-200 overflow-hidden"
+                  >
+                    {/* Bară de progres fină pe fundal */}
+                    <div 
+                      className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-[#FF7A1A]/4 to-[#ff9f54]/2 pointer-events-none transition-all duration-300"
+                      style={{ width: `${percentage}%` }}
+                    />
 
-                  {/* Numele țării și Drapelul HD */}
-                  <div className="flex items-center gap-3 z-10 min-w-0">
-                    {!isUnknown ? (
-                      /* Randeri steag HD din CDN */
-                      <img
-                        src={`https://flagcdn.com/w40/${isoCode}.png`}
-                        srcSet={`https://flagcdn.com/w80/${isoCode}.png 2x`}
-                        width="20"
-                        alt={country}
-                        loading="lazy"
-                        className="rounded-sm shadow-xs border border-zinc-200/60 object-cover aspect-[4/3] shrink-0"
-                      />
-                    ) : (
-                      /* Iconiță de fallback dacă e localhost */
-                      <span className="text-sm shrink-0">🌐</span>
-                    )}
-                    <span className="text-xs font-semibold uppercase text-zinc-700 tracking-wider truncate">
-                      {isUnknown ? "Localhost / Unknown" : country}
+                    {/* Linkul către pagină */}
+                    <div className="flex items-center gap-2 z-10 min-w-0 flex-1">
+                      <span className="text-xs text-zinc-300 group-hover:text-[#FF7A1A] transition-colors shrink-0">🔗</span>
+                      <a 
+                        href={path} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-xs font-medium text-zinc-700 hover:text-zinc-950 group-hover:text-[#FF7A1A] transition-colors truncate max-w-[85%] md:max-w-[90%]"
+                      >
+                        {path}
+                      </a>
+                    </div>
+
+                    {/* Numărul de vizualizări */}
+                    <span className="text-xs font-semibold text-zinc-500 group-hover:text-zinc-900 tabular-nums z-10 shrink-0 ml-3 bg-zinc-50 px-2 py-0.5 rounded-md border border-zinc-100 group-hover:border-[#FF7A1A]/10 transition-colors">
+                      {count.toLocaleString()}
                     </span>
                   </div>
+                );
+              })}
 
-                  {/* Numărul de sesiuni + Procentaj */}
-                  <div className="flex items-center gap-2 z-10 shrink-0">
-                    <span className="text-[10px] text-zinc-400 font-medium bg-zinc-50 border border-zinc-100 group-hover:border-indigo-500/10 px-1.5 py-0.5 rounded-md transition-colors">
-                      {Math.round(percentage)}%
-                    </span>
-                        <span className="text-xs font-bold text-zinc-700 tabular-nums bg-zinc-100 px-2 py-0.5 rounded-md">
-                        {count}
-                        </span>
-                  </div>
-                </div>
-              );
-            })}
+              {topPaths.length === 0 && (
+                <p className="text-xs text-zinc-400 py-4 text-center border border-dashed border-zinc-200 rounded-xl">
+                  No data yet.
+                </p>
+              )}
+            </div>
+          </section>
 
-            {countryCounts.length === 0 && (
-              <div className="col-span-full p-6 text-center border border-dashed border-zinc-200 rounded-xl bg-zinc-50/30">
-                <p className="text-xs text-zinc-400 font-medium">No country data yet.</p>
-              </div>
-            )}
-          </div>
-        </section>
+          {/* --- Țări (Design UX Premium cu imagini de steaguri HD) --- */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                Sessions by country
+              </h2>
+              <span className="text-[10px] font-medium text-zinc-400">Sessions</span>
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {countryCounts.map(([country, count]) => {
+                const percentage = (count / maxCountry) * 100;
+                const isoCode = getCountryCode(country);
+                const isUnknown = !isoCode;
 
+                return (
+                  <div 
+                    key={country} 
+                    className="group relative flex items-center justify-between p-3 rounded-xl border border-zinc-100 bg-white hover:border-indigo-500/20 hover:shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-200 overflow-hidden"
+                  >
+                    {/* Bară de progres discretă în stil Stripe */}
+                    <div 
+                      className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-zinc-100/50 to-zinc-50/20 pointer-events-none transition-all duration-300 group-hover:from-indigo-500/5"
+                      style={{ width: `${percentage}%` }}
+                    />
 
-        {/* --- Sesiuni recente --- */}
-        <section className="space-y-3">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
-              Recent Sessions
-            </h2>
-            <a href="/dashboard/session" className="text-xs text-blue-500 underline">
-              → SEE ALL →
-            </a>
-          </div>
-          <div className="border border-zinc-100 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-zinc-50 text-[11px] uppercase tracking-wider text-zinc-400">
-                <tr>
-                  <th className="text-left px-4 py-2">Visitor</th>
-                  <th className="text-left px-4 py-2">Entry</th>
-                  <th className="text-left px-4 py-2">Country</th>
-                  <th className="text-right px-4 py-2">Duration</th>
-                  <th className="text-right px-4 py-2">Pages</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-50">
-                {(summaries ?? []).slice(0, 10).map((s) => (
-                  <tr key={s.session_id} className="hover:bg-zinc-50/50">
-                    <td className="px-4 py-2.5 font-medium">
-                      {s.user_email ?? (
-                        <span className="text-zinc-400 font-normal">
-                          Anonim · {s.session_id.slice(0, 8)}
-                        </span>
+                    {/* Numele țării și Drapelul HD */}
+                    <div className="flex items-center gap-3 z-10 min-w-0">
+                      {!isUnknown ? (
+                        /* Randeri steag HD din CDN */
+                        <img
+                          src={`https://flagcdn.com/w40/${isoCode}.png`}
+                          srcSet={`https://flagcdn.com/w80/${isoCode}.png 2x`}
+                          width="20"
+                          alt={country}
+                          loading="lazy"
+                          className="rounded-sm shadow-xs border border-zinc-200/60 object-cover aspect-[4/3] shrink-0"
+                        />
+                      ) : (
+                        /* Iconiță de fallback dacă e localhost */
+                        <span className="text-sm shrink-0">🌐</span>
                       )}
-                    </td>
-                            <td className="px-5 py-3.5 text-zinc-500 truncate max-w-[180px]">
-                            {s.first_path ? (
-                                <a 
-                                href={s.first_path} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="text-[#FF7A1A] hover:underline font-medium"
-                                >
-                                {s.first_path}
-                                </a>
-                            ) : (
-                                "—"
-                            )}
-                            </td>
+                      <span className="text-xs font-semibold uppercase text-zinc-700 tracking-wider truncate">
+                        {isUnknown ? "Localhost / Unknown" : country}
+                      </span>
+                    </div>
 
-                    <td className="px-4 py-2.5 text-zinc-500">{s.country ?? "—"}</td>
-                    <td className="px-4 py-2.5 text-right">{formatDuration(s.duration_seconds)}</td>
-                    <td className="px-4 py-2.5 text-right">{s.pageview_count}</td>
-                  </tr>
-                ))}
-                {(!summaries || summaries.length === 0) && (
+                    {/* Numărul de sesiuni + Procentaj */}
+                    <div className="flex items-center gap-2 z-10 shrink-0">
+                      <span className="text-[10px] text-zinc-400 font-medium bg-zinc-50 border border-zinc-100 group-hover:border-indigo-500/10 px-1.5 py-0.5 rounded-md transition-colors">
+                        {Math.round(percentage)}%
+                      </span>
+                      <span className="text-xs font-bold text-zinc-700 tabular-nums bg-zinc-100 px-2 py-0.5 rounded-md">
+                        {count}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {countryCounts.length === 0 && (
+                <div className="col-span-full p-6 text-center border border-dashed border-zinc-200 rounded-xl bg-zinc-50/30">
+                  <p className="text-xs text-zinc-400 font-medium">No country data yet.</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* --- Sesiuni recente --- */}
+          <section className="space-y-3">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
+                Recent Sessions
+              </h2>
+              <a href="/dashboard/session" className="text-xs text-blue-500 underline">
+                → SEE ALL →
+              </a>
+            </div>
+            <div className="border border-zinc-100 rounded-xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-50 text-[11px] uppercase tracking-wider text-zinc-400">
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-zinc-400 text-xs">
-                      No sessions yet.
-                    </td>
+                    <th className="text-left px-4 py-2">Visitor</th>
+                    <th className="text-left px-4 py-2">Entry</th>
+                    <th className="text-left px-4 py-2">Country</th>
+                    <th className="text-right px-4 py-2">Duration</th>
+                    <th className="text-right px-4 py-2">Pages</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
+                </thead>
+                <tbody className="divide-y divide-zinc-50">
+                  {(summaries ?? []).slice(0, 10).map((s) => (
+                    <tr key={s.session_id} className="hover:bg-zinc-50/50">
+                      <td className="px-4 py-2.5 font-medium">
+                        {s.user_email ?? (
+                          <span className="text-zinc-400 font-normal">
+                            Anonim · {s.session_id.slice(0, 8)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 text-zinc-500 truncate max-w-[180px]">
+                        {s.first_path ? (
+                          <a 
+                            href={s.first_path} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-[#FF7A1A] hover:underline font-medium"
+                          >
+                            {s.first_path}
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+
+                      <td className="px-4 py-2.5 text-zinc-500">{s.country ?? "—"}</td>
+                      <td className="px-4 py-2.5 text-right">{formatDuration(s.duration_seconds)}</td>
+                      <td className="px-4 py-2.5 text-right">{s.pageview_count}</td>
+                    </tr>
+                  ))}
+                  {(!summaries || summaries.length === 0) && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-zinc-400 text-xs">
+                        No sessions yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <Footer />
     </div>
   );
 }
