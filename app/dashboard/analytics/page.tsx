@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 /**
  * app/admin/analytics/page.tsx
- * Folosește DOAR tabelele din sessions-schema.sql (pe care le ai deja):
+ * Folosește DOAR tabelele din sessions-schema.sql 
  * sessions, session_events, session_summaries. Nu depinde de web_vitals
  * sau page_views — acelea erau dintr-un fișier separat, nefolosit de tine.
  */
@@ -49,7 +49,7 @@ export default async function AnalyticsPage() {
         .select("*")
         .gte("started_at", since.toISOString())
         .order("started_at", { ascending: false })
-        .limit(200) as unknown as Promise<{ data: SessionSummary[] | null; error: unknown }>,
+        .limit(1000) as unknown as Promise<{ data: SessionSummary[] | null; error: unknown }>,
 
       supabase
         .from("session_events")
@@ -113,7 +113,7 @@ export default async function AnalyticsPage() {
       <div className="max-w-4xl mx-auto space-y-12">
         <header>
           <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-          <p className="text-sm text-zinc-500 mt-1">Ultimele 30 zile, din sessions + session_events.</p>
+          <p className="text-sm text-zinc-500 mt-1">Last 30 days, from sessions and session_events.</p>
         </header>
 
         {/* --- Sumar rapid --- */}
@@ -123,15 +123,15 @@ export default async function AnalyticsPage() {
             <div className="text-xl font-semibold mt-1">{totalViews30d.toLocaleString()}</div>
           </div>
           <div className="border border-zinc-100 rounded-xl p-4">
-            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Sesiuni</div>
+            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Sessions</div>
             <div className="text-xl font-semibold mt-1">{totalSessions.toLocaleString()}</div>
           </div>
           <div className="border border-zinc-100 rounded-xl p-4">
-            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Durată medie</div>
+            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Average duration</div>
             <div className="text-xl font-semibold mt-1">{formatDuration(avgDuration)}</div>
           </div>
           <div className="border border-zinc-100 rounded-xl p-4">
-            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Logați / Anonimi</div>
+            <div className="text-[10px] uppercase tracking-wider text-zinc-400">Logged in / Anonymous</div>
             <div className="text-xl font-semibold mt-1">
               {loggedInSessions} <span className="text-zinc-300">/</span> {anonymousSessions}
             </div>
@@ -141,7 +141,7 @@ export default async function AnalyticsPage() {
         {/* --- Trafic zilnic --- */}
         <section className="space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
-            Pageviews / zi
+            Pageviews / day
           </h2>
           <div className="flex items-end gap-1 h-24 border-b border-zinc-100 pb-1">
             {dailyEntries.map(([day, count]) => (
@@ -154,7 +154,7 @@ export default async function AnalyticsPage() {
             ))}
             {dailyEntries.length === 0 && (
               <p className="text-xs text-zinc-400">
-                Fără date încă — verifică dacă SessionTracker e activ în producție.
+                No data yet-the database is loading or is empty!
               </p>
             )}
           </div>
@@ -163,7 +163,7 @@ export default async function AnalyticsPage() {
         {/* --- Top pagini --- */}
         <section className="space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
-            Pagini cele mai vizitate
+            Most pages visited
           </h2>
           <div className="space-y-1.5">
             {topPaths.map(([path, count]) => (
@@ -172,14 +172,14 @@ export default async function AnalyticsPage() {
                 <span className="text-zinc-400 tabular-nums">{count}</span>
               </div>
             ))}
-            {topPaths.length === 0 && <p className="text-xs text-zinc-400">Fără date încă.</p>}
+            {topPaths.length === 0 && <p className="text-xs text-zinc-400">No data yet.</p>}
           </div>
         </section>
 
         {/* --- Țări --- */}
         <section className="space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
-            Sesiuni după țară
+            Sessions by country
           </h2>
           <div className="space-y-1.5">
             {countryCounts.map(([country, count]) => (
@@ -196,8 +196,8 @@ export default async function AnalyticsPage() {
             ))}
             {countryCounts.length === 0 && (
               <p className="text-xs text-zinc-400">
-                Fără date de țară încă — pe localhost header-ul x-vercel-ip-country lipsește,
-                apare doar în producție pe Vercel.
+                No country data yet — the x-vercel-ip-country header is missing on localhost,
+                it only appears in production on Vercel.
               </p>
             )}
           </div>
@@ -217,11 +217,11 @@ export default async function AnalyticsPage() {
             <table className="w-full text-sm">
               <thead className="bg-zinc-50 text-[11px] uppercase tracking-wider text-zinc-400">
                 <tr>
-                  <th className="text-left px-4 py-2">Vizitator</th>
-                  <th className="text-left px-4 py-2">Intrare</th>
-                  <th className="text-left px-4 py-2">Țară</th>
-                  <th className="text-right px-4 py-2">Durată</th>
-                  <th className="text-right px-4 py-2">Pagini</th>
+                  <th className="text-left px-4 py-2">Visitor</th>
+                  <th className="text-left px-4 py-2">Entry</th>
+                  <th className="text-left px-4 py-2">Country</th>
+                  <th className="text-right px-4 py-2">Duration</th>
+                  <th className="text-right px-4 py-2">Pages</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50">
@@ -245,7 +245,7 @@ export default async function AnalyticsPage() {
                 {(!summaries || summaries.length === 0) && (
                   <tr>
                     <td colSpan={5} className="px-4 py-8 text-center text-zinc-400 text-xs">
-                      Fără sesiuni încă.
+                      No sessions yet.
                     </td>
                   </tr>
                 )}
