@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 /**
  * app/admin/analytics/page.tsx
@@ -6,6 +8,42 @@ import { createClient } from "@supabase/supabase-js";
  * sessions, session_events, session_summaries. Nu depinde de web_vitals
  * sau page_views — acelea erau dintr-un fișier separat, nefolosit de tine.
  */
+
+// ────────────────────────────────────────────────────────────
+// Verificare de admin — redundantă cu middleware.ts (defense-in-depth).
+// Dacă cookie-ul admin_session lipsește/e invalid/expirat, redirect la login.
+// ────────────────────────────────────────────────────────────
+async function hmac(message: string, secret: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
+  return Buffer.from(sig).toString("hex");
+}
+
+async function requireAdmin() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("admin_session")?.value;
+  const secret = process.env.ADMIN_SESSION_SECRET;
+
+  let valid = false;
+  if (token && secret) {
+    const [expiryStr, signature] = token.split(".");
+    if (expiryStr && signature) {
+      const expected = await hmac(expiryStr, secret);
+      valid = expected === signature && Date.now() <= Number(expiryStr);
+    }
+  }
+
+  if (!valid) {
+    redirect("/admin/login?next=/admin/analytics");
+  }
+}
 
 function getSupabase() {
   return createClient(
@@ -37,6 +75,8 @@ function dayKey(iso: string) {
 }
 
 export default async function AnalyticsPage() {
+  await requireAdmin();
+
   const supabase = getSupabase();
 
   const since = new Date();
