@@ -39,11 +39,11 @@ function formatDuration(seconds: number) {
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "acum";
-  if (mins < 60) return `acum ${mins}m`;
+  if (mins < 1) return "ago";
+  if (mins < 60) return ` ${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `acum ${hrs}h`;
-  return `acum ${Math.floor(hrs / 24)}z`;
+  if (hrs < 24) return ` ${hrs}h ago`;
+  return `ago ${Math.floor(hrs / 24)}z`;
 }
 
 function deviceIcon(device: string | null) {
