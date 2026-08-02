@@ -144,7 +144,7 @@ export default function MyListingsPage() {
 
               <div className="flex items-center gap-2 w-fit">
                 <Link
-                  href="/admin/analytics"
+                  href="/dashboard/analytics"
                   className="h-10 px-4 bg-[#222222] hover:bg-[#2A2A2A] border border-[#2C2C2C] hover:border-zinc-700 active:scale-[0.97] text-zinc-300 hover:text-white text-xs font-bold uppercase tracking-widest rounded-xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
