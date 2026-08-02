@@ -91,6 +91,23 @@ export default async function AnalyticsPage() {
     return `${m}m ${s}s`;
   }
 
+
+//***************** flags country ************* */
+function getFlagEmoji(countryCode: string) {
+  if (!countryCode || countryCode === "necunoscut" || countryCode === "—") return "🏳️";
+  const codePoints = countryCode
+    .toUpperCase()
+    .split("")
+    .map((char) =>  127397 + char.charCodeAt(0));
+  try {
+    return String.fromCodePoint(...codePoints);
+  } catch {
+    return "🏳️";
+  }
+}
+
+
+
   const totalSessions = summaries?.length ?? 0;
   const avgDuration =
     totalSessions > 0
@@ -216,32 +233,65 @@ export default async function AnalyticsPage() {
         </section>
 
 
-        {/* --- Țări --- */}
-        <section className="space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">
-            Sessions by country
-          </h2>
-          <div className="space-y-1.5">
-            {countryCounts.map(([country, count]) => (
-              <div key={country} className="flex items-center gap-3">
-                <span className="text-sm text-zinc-700 w-10 shrink-0">{country}</span>
-                <div className="flex-1 h-2 bg-zinc-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-zinc-900"
-                    style={{ width: `${(count / maxCountry) * 100}%` }}
+        {/* --- Țări (Design UX Premium cu Drapele) --- */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              Sessions by country
+            </h2>
+            <span className="text-[10px] font-medium text-zinc-400">Sessions</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {countryCounts.map(([country, count]) => {
+              const percentage = (count / maxCountry) * 100;
+              const isUnknown = country === "necunoscut" || country === "—";
+
+              return (
+                <div 
+                  key={country} 
+                  className="group relative flex items-center justify-between p-3 rounded-xl border border-zinc-100 bg-white hover:border-[#FF7A1A]/20 hover:shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-200 overflow-hidden"
+                >
+                  {/* Bară de progres discretă pe fundal */}
+                  <div 
+                    className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-zinc-100/50 to-zinc-50/20 pointer-events-none transition-all duration-300 group-hover:from-[#FF7A1A]/5"
+                    style={{ width: `${percentage}%` }}
                   />
+
+                  {/* Numele țării și Drapelul */}
+                  <div className="flex items-center gap-3 z-10 min-w-0">
+                    <span className="text-lg shrink-0 filter drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)]">
+                      {getFlagEmoji(country)}
+                    </span>
+                    <span className="text-xs font-semibold uppercase text-zinc-700 tracking-wider">
+                      {isUnknown ? "Localhost / Unknown" : country}
+                    </span>
+                  </div>
+
+                  {/* Numărul de sesiuni + Procentaj */}
+                  <div className="flex items-center gap-2 z-10 shrink-0">
+                    <span className="text-[10px] text-zinc-400 font-medium bg-zinc-50 border border-zinc-100 group-hover:border-[#FF7A1A]/10 px-1.5 py-0.5 rounded-md transition-colors">
+                      {Math.round(percentage)}%
+                    </span>
+                    <span className="text-xs font-bold text-zinc-800 tabular-nums bg-zinc-900 text-white px-2 py-0.5 rounded-md group-hover:bg-[#FF7A1A] transition-colors">
+                      {count}
+                    </span>
+                  </div>
                 </div>
-                <span className="text-xs text-zinc-400 tabular-nums w-8 text-right">{count}</span>
-              </div>
-            ))}
+              );
+            })}
+
             {countryCounts.length === 0 && (
-              <p className="text-xs text-zinc-400">
-                No country data yet — the x-vercel-ip-country header is missing on localhost,
-                it only appears in production on Vercel.
-              </p>
+              <div className="col-span-full p-6 text-center border border-dashed border-zinc-200 rounded-xl bg-zinc-50/30">
+                <p className="text-xs text-zinc-400 font-medium">No country data yet.</p>
+                <p className="text-[11px] text-zinc-400 mt-1 max-w-sm mx-auto">
+                  The x-vercel-ip-country header is missing on localhost. It will light up automatically once deployed on Vercel.
+                </p>
+              </div>
             )}
           </div>
         </section>
+
 
         {/* --- Sesiuni recente --- */}
         <section className="space-y-3">
