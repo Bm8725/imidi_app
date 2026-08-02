@@ -210,7 +210,21 @@ export default async function SessionsPage() {
                 </span>
                 <span className="text-[10px] text-zinc-400 shrink-0">{timeAgo(s.started_at)}</span>
               </div>
-              <p className="text-xs text-zinc-500 truncate mb-3">{s.first_path}</p>
+              <td className="px-5 py-3.5 text-zinc-500 truncate max-w-[180px]">
+  {s.first_path ? (
+    <a 
+      href={s.first_path} 
+      target="_blank" 
+      rel="noopener noreferrer" 
+      className="text-[#FF7A1A] hover:underline font-medium"
+    >
+      {s.first_path}
+    </a>
+  ) : (
+    "—"
+  )}
+</td>
+
               <div className="flex items-center gap-4 text-[11px] text-zinc-500">
                 <span>{deviceIcon(s.device)} {s.device ?? "—"}</span>
                 <span>{s.country ?? "—"}</span>
