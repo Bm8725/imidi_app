@@ -186,8 +186,8 @@ function getFlagEmoji(countryName: string) {
           </div>
         </section>
 
-        {/* --- Trafic zilnic (Design Premium cu Bare Gradient și Detalii) --- */}
-        <section className="bg-white border border-zinc-200/60 rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-5">
+        {/* --- Trafic zilnic (Stripe Indigo-Purple Style) --- */}
+        <section className="bg-white border border-zinc-200/70 rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.01)] space-y-5">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
@@ -195,14 +195,15 @@ function getFlagEmoji(countryName: string) {
               </h2>
               <p className="text-xs text-zinc-500 mt-0.5">Evoluția traficului în ultimele 30 de zile</p>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-medium bg-zinc-50 border border-zinc-100 px-2 py-1 rounded-lg">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF7A1A]" />
-              Max: <span className="font-bold text-zinc-800">{maxDaily.toLocaleString()}</span>
+            {/* Badge în stil Stripe */}
+            <div className="flex items-center gap-1.5 text-xs text-zinc-600 font-semibold bg-indigo-50/50 border border-indigo-100/60 px-2.5 py-1 rounded-lg">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+              Peak: <span className="font-bold text-indigo-950">{maxDaily.toLocaleString()}</span>
             </div>
           </div>
 
           <div className="relative pt-4">
-            {/* Linii de ghidaj discrete pe fundal pentru valoarea maximă și medie */}
+            {/* Linii de ghidaj orizontale specifice dashboard-urilor financiare */}
             <div className="absolute inset-x-0 top-4 border-t border-dashed border-zinc-100 pointer-events-none" />
             <div className="absolute inset-x-0 bottom-7 border-t border-zinc-100 pointer-events-none" />
 
@@ -210,33 +211,32 @@ function getFlagEmoji(countryName: string) {
             <div className="flex items-end gap-1 sm:gap-1.5 h-28 pb-7">
               {dailyEntries.map(([day, count]) => {
                 const heightPercent = maxDaily > 0 ? (count / maxDaily) * 100 : 0;
-                // Formatăm data din YYYY-MM-DD în format mai scurt DD/MM pentru axă
                 const [, month, dateStr] = day.split("-");
                 const shortDate = `${dateStr}/${month}`;
 
                 return (
                   <div key={day} className="flex-1 flex flex-col items-center group h-full justify-end relative">
                     
-                    {/* Tooltip Premium Floating la hover peste bară */}
-                    <div className="absolute bottom-full mb-2 bg-zinc-950 text-white text-[10px] font-bold px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 transform translate-y-1 group-hover:translate-y-0 shadow-md z-30 whitespace-nowrap">
-                      <span className="text-[#FF7A1A]">{count}</span> vizualizări
-                      <div className="text-[8px] text-zinc-400 font-normal mt-0.5">{day}</div>
+                    {/* Tooltip Premium Floating (Stripe Dark Theme) */}
+                    <div className="absolute bottom-full mb-2 bg-zinc-900 text-white text-[10px] font-medium px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 transform translate-y-1 group-hover:translate-y-0 shadow-[0_4px_12px_rgba(0,0,0,0.15)] z-30 whitespace-nowrap border border-zinc-800">
+                      <span className="text-indigo-400 font-bold">{count}</span> vizualizări
+                      <div className="text-[9px] text-zinc-400 font-normal mt-0.5">{day}</div>
                       {/* Săgeata tooltip-ului */}
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-950" />
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900" />
                     </div>
 
-                    {/* Bara graficului cu Gradient */}
+                    {/* Bara graficului cu Gradient Stripe Indigo -> Violet */}
                     <div
-                      style={{ height: `${Math.max(4, heightPercent)}%` }} // Minim 4% înălțime ca să fie vizibilă bara chiar și la 0 vizualizări
+                      style={{ height: `${Math.max(4, heightPercent)}%` }} // Minim 4% pentru design continuu
                       className={`w-full rounded-t-[3px] transition-all duration-300 relative overflow-hidden ${
                         count > 0 
-                          ? "bg-gradient-to-t from-[#FF7A1A] to-[#ff9f54] group-hover:from-zinc-900 group-hover:to-zinc-800" 
+                          ? "bg-gradient-to-t from-indigo-600 via-indigo-500 to-purple-500 group-hover:from-indigo-700 group-hover:to-purple-600 group-hover:shadow-[0_0_12px_rgba(99,102,241,0.4)]" 
                           : "bg-zinc-100 group-hover:bg-zinc-200"
                       }`}
                     />
 
-                    {/* Axa X: Data sub bară, vizibilă doar din 4 în 4 zile pe mobil pentru a nu se suprapune textul */}
-                    <span className="absolute bottom-0 text-[8px] font-medium text-zinc-400 opacity-0 group-hover:opacity-100 sm:opacity-100 tracking-tighter mt-1 transition-opacity whitespace-nowrap">
+                    {/* Axa X: Data sub bară */}
+                    <span className="absolute bottom-0 text-[8px] font-semibold text-zinc-400 opacity-0 group-hover:opacity-100 sm:opacity-100 tracking-tighter mt-1 transition-opacity whitespace-nowrap group-hover:text-indigo-600">
                       {shortDate}
                     </span>
                   </div>
@@ -252,7 +252,6 @@ function getFlagEmoji(countryName: string) {
             </div>
           )}
         </section>
-
 
 
         {/* --- Top pagini (Design UX îmbunătățit cu Linkuri) --- */}
