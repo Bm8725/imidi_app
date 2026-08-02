@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -9,42 +7,6 @@ import Footer from "@/components/Footer";
  * app/dashboard/session/page.tsx
  * Folosește session_summaries (deja există în DB-ul tău).
  */
-
-// ────────────────────────────────────────────────────────────
-// Verificare de admin — fără middleware, deci fiecare pagină admin
-// trebuie să facă singură verificarea asta la început.
-// ────────────────────────────────────────────────────────────
-async function hmac(message: string, secret: string): Promise<string> {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
-  return Buffer.from(sig).toString("hex");
-}
-
-async function requireAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("admin_session")?.value;
-  const secret = process.env.ADMIN_SESSION_SECRET;
-
-  let valid = false;
-  if (token && secret) {
-    const [expiryStr, signature] = token.split(".");
-    if (expiryStr && signature) {
-      const expected = await hmac(expiryStr, secret);
-      valid = expected === signature && Date.now() <= Number(expiryStr);
-    }
-  }
-
-  if (!valid) {
-    redirect("/admin/login?next=/dashboard/session");
-  }
-}
 
 function getSupabase() {
   return createClient(
@@ -93,8 +55,6 @@ function deviceIcon(device: string | null) {
 }
 
 export default async function SessionsPage() {
-  await requireAdmin();
-
   const supabase = getSupabase();
 
   const since = new Date();
