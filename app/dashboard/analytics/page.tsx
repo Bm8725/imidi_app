@@ -234,9 +234,21 @@ export default async function AnalyticsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-zinc-600 truncate max-w-[200px]">
-                      {s.first_path}
-                    </td>
+                            <td className="px-5 py-3.5 text-zinc-500 truncate max-w-[180px]">
+                            {s.first_path ? (
+                                <a 
+                                href={s.first_path} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-[#FF7A1A] hover:underline font-medium"
+                                >
+                                {s.first_path}
+                                </a>
+                            ) : (
+                                "—"
+                            )}
+                            </td>
+
                     <td className="px-4 py-2.5 text-zinc-500">{s.country ?? "—"}</td>
                     <td className="px-4 py-2.5 text-right">{formatDuration(s.duration_seconds)}</td>
                     <td className="px-4 py-2.5 text-right">{s.pageview_count}</td>

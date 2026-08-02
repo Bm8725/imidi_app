@@ -101,7 +101,7 @@ export default async function SessionsPage() {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-8">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-zinc-900">
-              Sessions <span className="bg-gradient-to-r from-[#FF7A1A] to-[#ff9f54] bg-clip-text text-transparent">analyse advanced</span>
+              Sessions <span className="bg-gradient-to-r from-[#FF7A1A] to-[#ff9f54] bg-clip-text text-transparent">analyse imidi app</span>
             </h1>
             <p className="text-sm text-zinc-500 mt-1">Last 30 days · {total} sessions</p>
           </div>
