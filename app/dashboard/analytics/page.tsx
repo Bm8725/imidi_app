@@ -94,13 +94,18 @@ export default async function AnalyticsPage() {
 
 //***************** flags country ************* */
 function getCountryCode(countryName: string): string | null {
-  if (!countryName || countryName === "necunoscut" || countryName === "—") return null;
-  
-  const name = countryName.trim().toLowerCase();
+  if (!countryName) return null;
+
+  // Curățare text: litere mici, eliminare spații multiple
+  let name = countryName.trim().toLowerCase().replace(/\s+/g, ' ');
+
+  if (name === "necunoscut" || name === "—" || name === "-") return null;
+
+  // Elimină diacriticele (ex: "românia" devine "romania", "franța" devine "franta")
+  const normalizedName = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
   const countryMap: Record<string, string> = {
     "romania": "ro",
-    "românia": "ro",
     "ro": "ro",
     "united states": "us",
     "united states of america": "us",
@@ -115,7 +120,7 @@ function getCountryCode(countryName: string): string | null {
     "germania": "de",
     "de": "de",
     "france": "fr",
-    "franța": "fr",
+    "franta": "fr", // fără diacritice în mapare
     "fr": "fr",
     "italy": "it",
     "italia": "it",
@@ -133,8 +138,10 @@ function getCountryCode(countryName: string): string | null {
     "be": "be"
   };
 
-  return countryMap[name] || null;
+  // Căutăm mai întâi numele normalizat, iar dacă nu există, încercăm cu numele original
+  return countryMap[normalizedName] || countryMap[name] || null;
 }
+
 
 
   const totalSessions = summaries?.length ?? 0;
@@ -338,13 +345,13 @@ function getCountryCode(countryName: string): string | null {
                   <div className="flex items-center gap-3 z-10 min-w-0">
                     {!isUnknown ? (
                       /* Randeri steag HD din CDN */
-<img
-  src={`https://flagcdn.com{isoCode}.png`}
-  srcSet={`https://flagcdn.com{isoCode}.png 2x`}
-  width="20"
-  alt={country}
-  className="rounded-sm shadow-xs border border-zinc-200/60 object-cover aspect-[4/3] shrink-0"
-/>
+                        <img
+                        src={`https://flagcdn.com{isoCode}.png`}
+                        srcSet={`https://flagcdn.com{isoCode}.png 2x`}
+                        width="20"
+                        alt={country}
+                        className="rounded-sm shadow-xs border border-zinc-200/60 object-cover aspect-[4/3] shrink-0"
+                        />
 
                     ) : (
                       /* Iconiță de fallback dacă e localhost */
