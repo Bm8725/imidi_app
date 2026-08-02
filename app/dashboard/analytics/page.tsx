@@ -338,13 +338,14 @@ function getCountryCode(countryName: string): string | null {
                   <div className="flex items-center gap-3 z-10 min-w-0">
                     {!isUnknown ? (
                       /* Randeri steag HD din CDN */
-                      <img
-                        src={`https://flagcdn.com{isoCode}.png`}
-                        srcSet={`https://flagcdn.com{isoCode}.png 2x`}
-                        width="20"
-                        alt={country}
-                        className="rounded-sm shadow-xs border border-zinc-200/60 object-cover aspect-[4/3] shrink-0"
-                      />
+<img
+  src={`https://flagcdn.com{isoCode}.png`}
+  srcSet={`https://flagcdn.com{isoCode}.png 2x`}
+  width="20"
+  alt={country}
+  className="rounded-sm shadow-xs border border-zinc-200/60 object-cover aspect-[4/3] shrink-0"
+/>
+
                     ) : (
                       /* Iconiță de fallback dacă e localhost */
                       <span className="text-sm shrink-0">🌐</span>
