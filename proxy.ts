@@ -18,6 +18,7 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  
   // 2. Verifică prezența token-ului de sesiune (atât pe localhost, cât și securizat pe Vercel HTTPS)
   const sessionToken = request.cookies.get('next-auth.session-token')?.value || 
                        request.cookies.get('__Secure-next-auth.session-token')?.value
