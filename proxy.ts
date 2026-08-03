@@ -4,10 +4,15 @@ import type { NextRequest } from 'next/server'
 const protectedRoutes = ['/dashboard', '/profile', '/checkout', '/market/digital']
 const authRoutes = ['/login', '/register']
 
-// Am adăugat "default" pentru ca Next.js / Turbopack să recunoască funcția corect
 export default function proxy(request: NextRequest) {
-  const sessionToken = request.cookies.get('next-auth.session-token')?.value 
-  const pathname = request.nextUrl.pathname || '' 
+  const { pathname } = request.nextUrl
+  const sessionToken = request.cookies.get('next-auth.session-token')?.value || 
+                       request.cookies.get('__Secure-next-auth.session-token')?.value // Suport pentru HTTPS (Production)
+
+  // 🟩 PASUL CRITIC: Ignoră rutele API și apelurile de callback de la Facebook/Spotify
+  if (pathname.startsWith('/api/auth') || pathname.startsWith('/_next') || pathname.includes('.')) {
+    return NextResponse.next()
+  }
 
   // 1. Redirecționare dacă userul NU este logat și vrea pe o rută privată
   const isProtected = protectedRoutes.some(route => pathname.startsWith(route))
@@ -29,6 +34,7 @@ export default function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     '/dashboard/:path*',
+    '/profile/:path*',
     '/checkout/:path*',
     '/e-market/:path*',
     '/login',
