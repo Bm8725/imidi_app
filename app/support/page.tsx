@@ -67,10 +67,10 @@ export default async function SupportPage() {
         {/* Minimalist Clean Header */}
         <header className="space-y-2 border-b border-zinc-100 pb-8">
           <h1 className="text-3xl font-black tracking-tight text-zinc-950">
-            Support iMIDI app
+               Support iMIDI app
           </h1>
           <p className="text-xs text-zinc-500 font-medium">
-            Describe you problem that you meet!
+            Describe you problem that you meet! email: contact@imidi.ro
           </p>
         </header>
 

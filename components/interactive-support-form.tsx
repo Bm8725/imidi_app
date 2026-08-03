@@ -81,6 +81,8 @@ export default function InteractiveSupportForm() {
               <option value="general">General Inquiry</option>
               <option value="copyright">Copyright Shield</option>
               <option value="market">e-Market & Payments</option>
+              <option value="login">Login & Account Issues</option>
+
             </select>
           </div>
           <div className="space-y-1.5">
@@ -93,7 +95,7 @@ export default function InteractiveSupportForm() {
           <textarea required rows={5} value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Introdu detaliile complete aici..." className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-xs text-zinc-800 font-medium leading-relaxed focus:outline-none focus:border-indigo-500 transition-colors" />
         </div>
         <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm">
-          Launch AI support  →
+          ✦ Launch AI support  →
         </button>
       </form>
     );
@@ -104,7 +106,7 @@ export default function InteractiveSupportForm() {
       <div className="bg-zinc-950 px-4 py-3 flex items-center justify-between border-b border-zinc-800">
         <div className="flex items-center gap-2">
         
-          <span className="text-xs font-bold text-white uppercase tracking-wider">Asistent Suport 24/7 </span>
+          <span className="text-xs font-bold text-white uppercase tracking-wider"> ✦ Asistent Suport 24/7 </span>
         </div>
 
       </div>
@@ -126,9 +128,9 @@ export default function InteractiveSupportForm() {
 
       <div className="p-3 bg-white border-t border-zinc-100">
         {userMessageCount < 3 ? (
-          <form onSubmit={(e) => { e.preventDefault(); if(input.trim()) { askSmith(input); setInput(""); } }} className="flex items-center gap-2">
-            <input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder="Adaugă detalii suplimentare..." className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs text-zinc-800 focus:outline-none focus:border-indigo-500 focus:bg-white" />
-            <button type="submit" disabled={!input.trim() || loading} className="h-8 w-8 bg-zinc-950 text-white rounded-xl flex items-center justify-center font-bold">→</button>
+<form onSubmit={(e) => { e.preventDefault(); if(input.trim()) { askSmith(input); setInput(""); } }} className="flex items-center gap-2 w-full">
+            <input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder="Typing..." className="flex-1 min-w-0 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 sm:py-2 text-sm sm:text-xs text-zinc-800 focus:outline-none focus:border-pink-400 focus:bg-white transition-colors" />
+            <button type="submit" disabled={!input.trim() || loading} className="h-10 w-10 sm:h-8 sm:w-8 shrink-0 bg-gradient-to-r from-[#FF5CA1] to-[#ff4392] text-white rounded-xl flex items-center justify-center font-bold shadow-[0_2px_10px_rgba(255,92,161,0.35)] hover:scale-[1.05] active:scale-[0.95] disabled:opacity-40 disabled:hover:scale-100 transition-all">→</button>
           </form>
         ) : (
           <div className="p-2 bg-indigo-50/50 border border-indigo-100 rounded-xl text-center space-y-1">
