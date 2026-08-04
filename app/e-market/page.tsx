@@ -136,14 +136,13 @@ const generateWithAI = async () => {
 // getCountryCode, dacă tot ai una acolo).
 // ────────────────────────────────────────────────────────────
 
-// Prefixele internaționale pe care le căutăm la începutul numărului brut
-const AUTO_DIAL_CODES = ["373", "44", "49", "33", "39", "34", "1", "31", "43", "32", "36", "359", "30", "48"];
 
 
 /**
  * Detectează și formatează automat numărul pentru WhatsApp DOAR din cifre.
+ * Al doilea parametru este opțional pentru a nu crăpa apelurile vechi din pagini.
  */
-function buildWhatsAppNumber(rawPhone: string): string {
+function buildWhatsAppNumber(rawPhone: string, _countryDeprecated?: string | null): string {
   const original = rawPhone.trim();
   let digitsOnly = original.replace(/\D/g, ""); // elimină tot ce nu e cifră
 
@@ -154,7 +153,6 @@ function buildWhatsAppNumber(rawPhone: string): string {
   if (original.startsWith("00")) return digitsOnly.slice(2);
 
   // Pasul 2: Detecție automată NATIVĂ pentru ROMÂNIA (format local)
-  // Dacă are 10 cifre și începe cu 07 sau are 9 cifre și începe cu 7
   if (digitsOnly.startsWith("07") && digitsOnly.length === 10) {
     return "40" + digitsOnly.slice(1);
   }
@@ -163,7 +161,6 @@ function buildWhatsAppNumber(rawPhone: string): string {
   }
 
   // Pasul 3: Detecție automată NATIVĂ pentru REPUBLICA MOLDOVA (format local)
-  // Numerele de mobil din Moldova au 8 cifre și încep cu 6 sau 7 (ex: 069123456 sau 69123456)
   if (digitsOnly.startsWith("06") && digitsOnly.length === 9) {
     return "373" + digitsOnly.slice(1);
   }
@@ -172,28 +169,26 @@ function buildWhatsAppNumber(rawPhone: string): string {
   }
 
   // Pasul 4: Verifică dacă numărul are DEJA un prefix internațional introdus de utilizator
-  // Ex: Utilizatorul a scris direct "49151..." (Germania) sau "40722..." (România) fără "+"
   if (digitsOnly.startsWith("40") && digitsOnly.length === 11) {
-    return digitsOnly; // E deja număr complet de România (40 + 9 cifre)
+    return digitsOnly;
   }
 
+  const AUTO_DIAL_CODES = ["373", "44", "49", "33", "39", "34", "1", "31", "43", "32", "36", "359", "30", "48"];
   for (const code of AUTO_DIAL_CODES) {
     if (digitsOnly.startsWith(code)) {
-      // Regula de siguranță: un număr internațional valid are lungimea prefixului + minim 7 cifre
       if (digitsOnly.length >= code.length + 7) {
         return digitsOnly; 
       }
     }
   }
 
-  // Pasul 5: Fallback pentru numere scrise cu '0' în față din alte țări europene
-  // Dacă începe cu 0 și nu a fost prins de regulile de mai sus, eliminăm 0-ul de rețea.
   if (digitsOnly.startsWith("0")) {
     return digitsOnly.slice(1);
   }
 
   return digitsOnly;
 }
+
 
 
 
