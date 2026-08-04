@@ -136,62 +136,61 @@ const generateWithAI = async () => {
 // getCountryCode, dacă tot ai una acolo).
 // ────────────────────────────────────────────────────────────
 
-
+// Prefixele internaționale pe care le căutăm la începutul numărului brut
+const AUTO_DIAL_CODES = ["373", "44", "49", "33", "39", "34", "1", "31", "43", "32", "36", "359", "30", "48"];
 
 /**
  * Detectează și formatează automat numărul pentru WhatsApp DOAR din cifre.
- * Acceptă al doilea parametru opțional pentru a nu bloca build-ul în Vercel.
+ * Păstrează al doilea parametru opțional pentru a nu bloca build-ul în Vercel.
  */
 function buildWhatsAppNumber(rawPhone: string, _countryDeprecated?: string | null): string {
-  const original = rawPhone.trim();
-  let digitsOnly = original.replace(/\D/g, ""); // elimină tot ce nu e cifră (spații, paranteze, +)
+  if (!rawPhone) return "";
 
-  if (!digitsOnly) return "";
+  // Pasul 1: Elimină tot ce nu este cifră (spații, +, paranteze, crime de formatare)
+  let digits = rawPhone.trim().replace(/\D/g, "");
+  if (!digits) return "";
 
-  // Pasul 1: Tratare cazuri cu "+" sau "00" scrise explicit de utilizator
-  if (original.startsWith("+")) return digitsOnly;
-  if (original.startsWith("00")) return digitsOnly.slice(2);
-
-  // Pasul 2: Dacă numărul conține deja prefixul României (40) urmat de un număr valid (nouă cifre)
-  // Exemplu: 40722123456 (lungime totală 11 cifre, începe cu 407)
-  if (digitsOnly.startsWith("407") && digitsOnly.length === 11) {
-    return digitsOnly;
+  // Pasul 2: Curăță formatul internațional de tip "00" de la început (ex: 0040722... devine 40722...)
+  if (rawPhone.trim().startsWith("00")) {
+    digits = digits.slice(2);
   }
 
-  // Pasul 3: Detecție automată NATIVĂ pentru ROMÂNIA (când se introduc doar formate locale)
-  // Dacă are 10 cifre și începe cu 07... (ex: 0722123456)
-  if (digitsOnly.startsWith("07") && digitsOnly.length === 10) {
-    return "40" + digitsOnly.slice(1);
-  }
-  // Dacă are 9 cifre și începe direct cu 7... (ex: 722123456)
-  if (digitsOnly.startsWith("7") && digitsOnly.length === 9) {
-    return "40" + digitsOnly;
+  // Pasul 3: Dacă numărul este deja complet de România (are prefixul 40 în față și format valid)
+  // Exemplu: 40722123456 (lungime 11 cifre, începe cu 407)
+  if (digits.startsWith("407") && digits.length === 11) {
+    return digits;
   }
 
-  // Pasul 4: Detecție automată NATIVĂ pentru REPUBLICA MOLDOVA (format local)
-  if (digitsOnly.startsWith("06") && digitsOnly.length === 9) {
-    return "373" + digitsOnly.slice(1);
+  // Pasul 4: Detecție automată pentru ROMÂNIA (când se introduc doar formate locale)
+  // Format local standard cu 0 în față (ex: 0722123456 -> lungime 10 cifre)
+  if (digits.startsWith("07") && digits.length === 10) {
+    return "40" + digits.slice(1);
   }
-  if (digitsOnly.startsWith("6") && digitsOnly.length === 8) {
-    return "373" + digitsOnly;
-  }
-
-  // Pasul 5: Verificare restul țărilor europene din lista veche (dacă încep direct cu prefixul lor)
-  const AUTO_DIAL_CODES = ["373", "44", "49", "33", "39", "34", "1", "31", "43", "32", "36", "359", "30", "48"];
-  for (const code of AUTO_DIAL_CODES) {
-    if (digitsOnly.startsWith(code) && digitsOnly.length >= code.length + 7) {
-      return digitsOnly; 
-    }
+  // Format local scurt fără 0 în față (ex: 722123456 -> lungime 9 cifre)
+  if (digits.startsWith("7") && digits.length === 9) {
+    return "40" + digits;
   }
 
-  // Pasul 6: Îndepărtare '0' local doar dacă numărul nu se potrivește cu regulile de mai sus
-  if (digitsOnly.startsWith("0")) {
-    return digitsOnly.slice(1);
+  // Pasul 5: Detecție automată pentru REPUBLICA MOLDOVA (format local)
+  // Mobilele de Moldova încep cu 06 sau 07 și au 9 cifre în format local
+  if ((digits.startsWith("06") || digits.startsWith("07")) && digits.length === 9) {
+    return "373" + digits.slice(1);
+  }
+  // Format local scurt de Moldova (ex: 69123456 -> lungime 8 cifre)
+  if ((digits.startsWith("6") || digits.startsWith("7")) && digits.length === 8) {
+    return "373" + digits;
   }
 
-  return digitsOnly;
+  // Pasul 6: Fallback de siguranță pentru numere internaționale introduse direct corect
+  // Dacă începe deja cu prefixul Moldovei (373) și are o lungime plauzibilă de mobil (11 cifre)
+  if ((digits.startsWith("3736") || digits.startsWith("3737")) && digits.length === 11) {
+    return digits;
+  }
+
+  // Întoarce numărul exact așa cum este dacă nu a intrat pe nicio regulă locală.
+  // Nu mai tăiem "0" la întâmplare fără să punem un prefix în loc, altfel numărul devine garantat invalid pe WhatsApp.
+  return digits;
 }
-
 
 
 
