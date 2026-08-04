@@ -1461,13 +1461,11 @@ return (
                       
                      
                                     {/* Buton WhatsApp - REPARAT COMPLET CU SLASH ȘI PREFIX */}
-                                          <a
+<a
                                             href={
-                                              "https://wa.me/" + 
-                                              (selectedListing.phone.replace(/[^0-9]/g, "").startsWith("0") 
-                                                ? "40" + selectedListing.phone.replace(/[^0-9]/g, "").substring(1) 
-                                                : selectedListing.phone.replace(/[^0-9]/g, "")) + 
-                                              "?text=" + 
+                                              "https://wa.me/" +
+                                              buildWhatsAppNumber(selectedListing.phone, selectedListing.country) +
+                                              "?text=" +
                                               encodeURIComponent(
                                                 `Salut! Sunt interesat de anunțul tău: "${selectedListing.title || ''}"\n` +
                                                 `Preț: ${selectedListing.price || 'Nespecificat'}\n\n` +
