@@ -89,6 +89,27 @@ export default function LoginPage() {
     }
   };
 
+  // NOU: login cu google
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    setError("");
+    try {
+      const { error: googleError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard/cloud-db`,
+        },
+      });
+      if (googleError) throw googleError;
+    } catch (err: any) {
+      setError(err.message || "Nu am putut porni login-ul cu Google.");
+      setGoogleLoading(false);
+    }
+  };
+
+
 
   return (
    <div className="bg-gradient-to-tr from-[#E0E7FF] via-[#EEF2FF] to-[#F5F3FF] text-[#111111] min-h-screen flex flex-col antialiased selection:bg-[#4F46E5]/20 relative overflow-x-hidden">
@@ -127,6 +148,35 @@ export default function LoginPage() {
 
         {/* CONTAINERUL PREMIUM TIP GLASSMORPHISM */}
         <div className="w-full bg-white/60 backdrop-blur-xl border border-white/80 sm:border-[#EAEAEA] rounded-3xl p-6 sm:p-10 shadow-[0_8px_32px_rgba(0,0,0,0.02),0_1px_2px_rgba(0,0,0,0.01)] transition-all duration-300 hover:shadow-[0_20px_40px_rgba(0,0,0,0.04)]">
+
+
+                      <button
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={googleLoading}
+            className="w-full h-11 bg-white text-gray-700 text-xs font-bold rounded-xl border border-gray-200 hover:bg-gray-50 active:scale-[0.99] transition-all duration-200 shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {googleLoading ? (
+              <span className="corp-mono flex items-center gap-2">
+                <span className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                <span>Connecting...</span>
+              </span>
+            ) : (
+              <>
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l3.227-3.11C18.243 1.904 15.495 1 12.24 1 6.133 1 1.157 5.927 1.157 12s4.976 11 11.083 11c6.377 0 10.622-4.464 10.622-10.74 0-.724-.078-1.275-.173-1.685H12.24z"/>
+                </svg>
+                <span>Continue with Google</span>
+              </>
+            )}
+          </button>
+
+
+               <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-black/[0.08]" />
+              <span className="text-[10px] uppercase tracking-wider text-black/40 font-semibold"></span>
+              <div className="flex-1 h-px bg-black/[0.08]" />
+            </div>
 
             {/* NOU: buton login cu Facebook */}
             <button
