@@ -201,37 +201,34 @@ function normalizeCountryKey(country: string | null | undefined): string | null 
  */
 function buildWhatsAppNumber(rawPhone: string, country: string | null | undefined): string {
   const original = rawPhone.trim();
-  const digitsOnly = original.replace(/[^0-9]/g, "");
+  const digitsOnly = original.replace(/\D/g, "");
 
-  // Cazul 1: userul a scris deja cu + (ex: "+40712345678") — e deja
-  // internațional, doar scoatem semnele non-numerice.
+  if (!digitsOnly) return "";
+
+  // Cazul 1: Începe cu + (ex: +39339...)
   if (original.startsWith("+")) {
     return digitsOnly;
   }
 
-  // Cazul 2: format internațional cu prefix 00 (ex: "0040712345678")
+  // Cazul 2: Începe cu 00 (ex: 0039339...)
   if (digitsOnly.startsWith("00")) {
     return digitsOnly.slice(2);
   }
 
-  // Cazul 3: format local cu 0 la început (ex: "0712345678") — cel mai
-  // comun caz. Înlocuim 0-ul cu prefixul țării anunțului.
+  const key = normalizeCountryKey(country);
+  const dialCode = key ? DIAL_CODES[key] : null;
+
+  // Cazul 3: Format local care începe cu 0 (ex: 0712... în RO sau numere fixe)
   if (digitsOnly.startsWith("0")) {
-    const key = normalizeCountryKey(country);
-    const dialCode = key ? DIAL_CODES[key] : null;
-
-    if (dialCode) {
-      return dialCode + digitsOnly.substring(1);
-    }
-
-    // Țară necunoscută/nemapată — nu putem ghici prefixul corect.
-    // Fallback: lăsăm numărul așa cum e (fără 0), fără prefix. Nu e
-    // perfect, dar nu mai forțăm greșit prefixul românesc peste alte țări.
-    return digitsOnly.substring(1);
+    return dialCode ? dialCode + digitsOnly.slice(1) : digitsOnly.slice(1);
   }
 
-  // Cazul 4: nu începe cu 0 și nu are + — presupunem că userul a scris
-  // deja cu prefixul de țară inclus (ex: "40712345678"), îl lăsăm așa.
+  // Cazul 4: Numărul este introdus complet curat, fără prefix și fără 0 (ex: 3396574683 pentru Italia)
+  // Dacă avem prefixul țării și numărul NU începe deja cu acel prefix, îl adăugăm în față.
+  if (dialCode && !digitsOnly.startsWith(dialCode)) {
+    return dialCode + digitsOnly;
+  }
+
   return digitsOnly;
 }
 
