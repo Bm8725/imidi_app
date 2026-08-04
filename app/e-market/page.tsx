@@ -139,6 +139,7 @@ const generateWithAI = async () => {
 // Prefixele internaționale pe care le căutăm la începutul numărului brut
 const AUTO_DIAL_CODES = ["373", "44", "49", "33", "39", "34", "1", "31", "43", "32", "36", "359", "30", "48"];
 
+
 /**
  * Detectează și formatează automat numărul pentru WhatsApp DOAR din cifre.
  */
