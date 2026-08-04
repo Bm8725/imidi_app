@@ -130,9 +130,9 @@ const generateWithAI = async () => {
 ////////////////////////////////////////wapp by country//////////////////////////////////
 /**
  * Formatează automat numărul pentru WhatsApp analizând DOAR cifrele introduse.
- * Suportă RO, MD, ES, IT și fallback general pentru restul Europei.
+ * Parametrul _country este opțional și ignorat, adăugat doar pentru a preveni erorile de build în Vercel.
  */
-function buildWhatsAppNumber(rawPhone: string): string {
+function buildWhatsAppNumber(rawPhone: string, _country?: string | null): string {
   if (!rawPhone) return "";
 
   // Pasul 1: Curățare totală - păstrăm DOAR cifrele
@@ -145,7 +145,6 @@ function buildWhatsAppNumber(rawPhone: string): string {
   }
 
   // Pasul 3: DETECTARE DUPĂ PREFIX INTERNAȚIONAL EXISTENT
-  // Dacă a scris deja numărul complet cu prefix de țară, îl lăsăm așa.
   const KNOWN_PREFIXES = ["407", "373", "44", "49", "33", "39", "34", "1", "31", "43", "32", "36", "359", "30", "48"];
   
   if (digits.startsWith("407") && digits.length === 11) {
@@ -161,14 +160,11 @@ function buildWhatsAppNumber(rawPhone: string): string {
   // Pasul 4: DETECTARE ȘI CONVERSIE FORMATE LOCALE (Fără prefix)
 
   // ─── SPANIA (Prefix 34) ───
-  // Mobilele din Spania încep cu 6 sau 7 și au exact 9 cifre în format local
   if ((digits.startsWith("6") || digits.startsWith("7")) && digits.length === 9) {
     return "34" + digits;
   }
 
   // ─── ITALIA (Prefix 39) ───
-  // Mobilele din Italia încep cu 3 și au de obicei 10 cifre (uneori 9)
-  // Verificăm lungimea de 10 cifre ca să nu se bată în cap cu formatul scurt din RO (care are 9 cifre)
   if (digits.startsWith("3") && digits.length === 10) {
     return "39" + digits;
   }
@@ -190,12 +186,11 @@ function buildWhatsAppNumber(rawPhone: string): string {
   }
 
   // ─── FALLBACK PENTRU GERMANIA / UK / FRANȚA ───
-  // Dacă începe cu 0 și are lungime mare, scoatem doar 0-ul local ca să poată fi apelat pe WA
   if (digits.startsWith("0") && digits.length >= 10) {
     return digits.slice(1);
   }
 
-  // Pasul 5: Fallback final (întoarce cifrele brute curățate)
+  // Pasul 5: Fallback final
   return digits;
 }
 
