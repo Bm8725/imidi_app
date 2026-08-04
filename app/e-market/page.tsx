@@ -194,41 +194,42 @@ function normalizeCountryKey(country: string | null | undefined): string | null 
     .replace(/[\u0300-\u036f]/g, ""); // elimină diacritice
 }
 
-/**
- * Construiește numărul în format internațional (fără +, cum cere wa.me)
- * pornind de la un număr introdus de user în orice format local, folosind
- * țara anunțului ca sursă pentru prefix.
- */
 function buildWhatsAppNumber(rawPhone: string, country: string | null | undefined): string {
   const original = rawPhone.trim();
-  const digitsOnly = original.replace(/\D/g, "");
+  const digitsOnly = original.replace(/\D/g, ""); // elimină tot ce nu e cifră
 
   if (!digitsOnly) return "";
 
-  // Cazul 1: Începe cu + (ex: +39339...)
+  // Cazul 1: Începe cu + (deja internațional)
   if (original.startsWith("+")) {
     return digitsOnly;
   }
 
-  // Cazul 2: Începe cu 00 (ex: 0039339...)
+  // Cazul 2: Începe cu 00 (deja internațional)
   if (digitsOnly.startsWith("00")) {
     return digitsOnly.slice(2);
   }
 
+  // Normalizăm țara trimisă din baza de date
   const key = normalizeCountryKey(country);
   const dialCode = key ? DIAL_CODES[key] : null;
 
-  // Cazul 3: Format local care începe cu 0 (ex: 0712... în RO sau numere fixe)
+  // Cazul 3: Format local românesc sau similar care începe cu 0 (ex: 0729411747)
   if (digitsOnly.startsWith("0")) {
+    // Dacă e România sau avem dialCode, punem prefixul corect, altfel scoatem doar 0-ul
     return dialCode ? dialCode + digitsOnly.slice(1) : digitsOnly.slice(1);
   }
 
-  // Cazul 4: Numărul este introdus complet curat, fără prefix și fără 0 (ex: 3396574683 pentru Italia)
-  // Dacă avem prefixul țării și numărul NU începe deja cu acel prefix, îl adăugăm în față.
-  if (dialCode && !digitsOnly.startsWith(dialCode)) {
-    return dialCode + digitsOnly;
+  // Cazul 4: Număr curat fără 0 în față (ex: 3396574683 pentru Italia sau un număr de RO introdus fără 0)
+  if (dialCode) {
+    // Punem prefixul DOAR dacă numărul nu începe deja cu el
+    if (!digitsOnly.startsWith(dialCode)) {
+      return dialCode + digitsOnly;
+    }
+    return digitsOnly;
   }
 
+  // Fallback total: dacă nu avem țara definită, returnăm numărul exact așa cum l-a scris userul
   return digitsOnly;
 }
 
