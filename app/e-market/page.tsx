@@ -136,53 +136,23 @@ const generateWithAI = async () => {
 // getCountryCode, dacă tot ai una acolo).
 // ────────────────────────────────────────────────────────────
 
-// Prefixe telefonice pe țară — extinde lista dacă vinzi și în alte țări.
-// Cheile trebuie să corespundă cu ce ai deja stocat în `country`
-// (nume de țară, ex: "Romania") sau cu codul ISO (ex: "ro"), ambele
-// funcționează pentru că normalizăm mai jos.
+// Prefixe telefonice pe țară
 const DIAL_CODES: Record<string, string> = {
-  romania: "40",
-  ro: "40",
-  moldova: "373",
-  md: "373",
-  "united kingdom": "44",
-  uk: "44",
-  gb: "44",
-  germany: "49",
-  germania: "49",
-  de: "49",
-  france: "33",
-  franta: "33",
-  fr: "33",
-  italy: "39",
-  italia: "39",
-  it: "39",
-  spain: "34",
-  spania: "34",
-  es: "34",
-  "united states": "1",
-  "united states of america": "1",
-  usa: "1",
-  us: "1",
-  netherlands: "31",
-  olanda: "31",
-  nl: "31",
-  austria: "43",
-  at: "43",
-  belgium: "32",
-  belgia: "32",
-  be: "32",
-  hungary: "36",
-  ungaria: "36",
-  hu: "36",
-  bulgaria: "359",
-  bg: "359",
-  greece: "30",
-  grecia: "30",
-  gr: "30",
-  poland: "48",
-  polonia: "48",
-  pl: "48",
+  romania: "40", ro: "40",
+  moldova: "373", md: "373",
+  "united kingdom": "44", uk: "44", gb: "44",
+  germany: "49", germania: "49", de: "49",
+  france: "33", franta: "33", fr: "33",
+  italy: "39", italia: "39", it: "39",
+  spain: "34", spania: "34", es: "34",
+  "united states": "1", "united states of america": "1", usa: "1", us: "1",
+  netherlands: "31", olanda: "31", nl: "31",
+  austria: "43", at: "43",
+  belgium: "32", belgia: "32", be: "32",
+  hungary: "36", ungaria: "36", hu: "36",
+  bulgaria: "359", bg: "359",
+  greece: "30", grecia: "30", gr: "30",
+  poland: "48", polonia: "48", pl: "48",
 };
 
 function normalizeCountryKey(country: string | null | undefined): string | null {
@@ -194,43 +164,49 @@ function normalizeCountryKey(country: string | null | undefined): string | null 
     .replace(/[\u0300-\u036f]/g, ""); // elimină diacritice
 }
 
+/**
+ * Construiește numărul în format internațional pentru wa.me.
+ */
 function buildWhatsAppNumber(rawPhone: string, country: string | null | undefined): string {
   const original = rawPhone.trim();
   const digitsOnly = original.replace(/\D/g, ""); // elimină tot ce nu e cifră
 
   if (!digitsOnly) return "";
 
-  // Cazul 1: Începe cu + (deja internațional)
-  if (original.startsWith("+")) {
-    return digitsOnly;
-  }
+  // Pasul 1: Dacă are deja format internațional explicit (+ sau 00), curățăm și returnăm direct
+  if (original.startsWith("+")) return digitsOnly;
+  if (digitsOnly.startsWith("00")) return digitsOnly.slice(2);
 
-  // Cazul 2: Începe cu 00 (deja internațional)
-  if (digitsOnly.startsWith("00")) {
-    return digitsOnly.slice(2);
-  }
-
-  // Normalizăm țara trimisă din baza de date
+  // Pasul 2: Identificăm prefixul țării trimise ca parametru
   const key = normalizeCountryKey(country);
   const dialCode = key ? DIAL_CODES[key] : null;
 
-  // Cazul 3: Format local românesc sau similar care începe cu 0 (ex: 0729411747)
-  if (digitsOnly.startsWith("0")) {
-    // Dacă e România sau avem dialCode, punem prefixul corect, altfel scoatem doar 0-ul
-    return dialCode ? dialCode + digitsOnly.slice(1) : digitsOnly.slice(1);
+  // Pasul 3: Regulă de siguranță nativă pentru România (Preîntâmpină erorile din baza de date)
+  // Dacă numărul începe cu 07 sau are 9 cifre și începe cu 7, este clar număr de România.
+  if (digitsOnly.startsWith("07") && digitsOnly.length === 10) {
+    return "40" + digitsOnly.slice(1);
+  }
+  if (digitsOnly.startsWith("7") && digitsOnly.length === 9) {
+    return "40" + digitsOnly;
   }
 
-  // Cazul 4: Număr curat fără 0 în față (ex: 3396574683 pentru Italia sau un număr de RO introdus fără 0)
+  // Pasul 4: Aplicare prefix pe baza țării recunoscute
   if (dialCode) {
-    // Punem prefixul DOAR dacă numărul nu începe deja cu el
-    if (!digitsOnly.startsWith(dialCode)) {
-      return dialCode + digitsOnly;
+    // Dacă începe cu prefixul țării selectate deja (ex: userul a scris direct 39...), îl returnăm intact
+    if (digitsOnly.startsWith(dialCode)) {
+      return digitsOnly;
     }
-    return digitsOnly;
+    // Dacă începe cu 0 (format local standard), tăiem 0 și adăugăm prefixul țării
+    if (digitsOnly.startsWith("0")) {
+      return dialCode + digitsOnly.slice(1);
+    }
+    // Dacă e introdus simplu (ex: 3396574683 pentru Italia), punem direct prefixul în față
+    return dialCode + digitsOnly;
   }
 
-  // Fallback total: dacă nu avem țara definită, returnăm numărul exact așa cum l-a scris userul
-  return digitsOnly;
+  // Pasul 5: Fallback total dacă țara lipsește sau nu este recunoscută
+  // Returnează numărul curățat fără să inventeze un prefix la întâmplare
+  return digitsOnly.startsWith("0") ? digitsOnly.slice(1) : digitsOnly;
 }
 
 
