@@ -140,27 +140,35 @@ const generateWithAI = async () => {
 
 /**
  * Detectează și formatează automat numărul pentru WhatsApp DOAR din cifre.
- * Al doilea parametru este opțional pentru a nu crăpa apelurile vechi din pagini.
+ * Acceptă al doilea parametru opțional pentru a nu bloca build-ul în Vercel.
  */
 function buildWhatsAppNumber(rawPhone: string, _countryDeprecated?: string | null): string {
   const original = rawPhone.trim();
-  let digitsOnly = original.replace(/\D/g, ""); // elimină tot ce nu e cifră
+  let digitsOnly = original.replace(/\D/g, ""); // elimină tot ce nu e cifră (spații, paranteze, +)
 
   if (!digitsOnly) return "";
 
-  // Pasul 1: Dacă s-a introdus manual cu "+" în față, e clar internațional
+  // Pasul 1: Tratare cazuri cu "+" sau "00" scrise explicit de utilizator
   if (original.startsWith("+")) return digitsOnly;
   if (original.startsWith("00")) return digitsOnly.slice(2);
 
-  // Pasul 2: Detecție automată NATIVĂ pentru ROMÂNIA (format local)
+  // Pasul 2: Dacă numărul conține deja prefixul României (40) urmat de un număr valid (nouă cifre)
+  // Exemplu: 40722123456 (lungime totală 11 cifre, începe cu 407)
+  if (digitsOnly.startsWith("407") && digitsOnly.length === 11) {
+    return digitsOnly;
+  }
+
+  // Pasul 3: Detecție automată NATIVĂ pentru ROMÂNIA (când se introduc doar formate locale)
+  // Dacă are 10 cifre și începe cu 07... (ex: 0722123456)
   if (digitsOnly.startsWith("07") && digitsOnly.length === 10) {
     return "40" + digitsOnly.slice(1);
   }
+  // Dacă are 9 cifre și începe direct cu 7... (ex: 722123456)
   if (digitsOnly.startsWith("7") && digitsOnly.length === 9) {
     return "40" + digitsOnly;
   }
 
-  // Pasul 3: Detecție automată NATIVĂ pentru REPUBLICA MOLDOVA (format local)
+  // Pasul 4: Detecție automată NATIVĂ pentru REPUBLICA MOLDOVA (format local)
   if (digitsOnly.startsWith("06") && digitsOnly.length === 9) {
     return "373" + digitsOnly.slice(1);
   }
@@ -168,27 +176,21 @@ function buildWhatsAppNumber(rawPhone: string, _countryDeprecated?: string | nul
     return "373" + digitsOnly;
   }
 
-  // Pasul 4: Verifică dacă numărul are DEJA un prefix internațional introdus de utilizator
-  if (digitsOnly.startsWith("40") && digitsOnly.length === 11) {
-    return digitsOnly;
-  }
-
+  // Pasul 5: Verificare restul țărilor europene din lista veche (dacă încep direct cu prefixul lor)
   const AUTO_DIAL_CODES = ["373", "44", "49", "33", "39", "34", "1", "31", "43", "32", "36", "359", "30", "48"];
   for (const code of AUTO_DIAL_CODES) {
-    if (digitsOnly.startsWith(code)) {
-      if (digitsOnly.length >= code.length + 7) {
-        return digitsOnly; 
-      }
+    if (digitsOnly.startsWith(code) && digitsOnly.length >= code.length + 7) {
+      return digitsOnly; 
     }
   }
 
+  // Pasul 6: Îndepărtare '0' local doar dacă numărul nu se potrivește cu regulile de mai sus
   if (digitsOnly.startsWith("0")) {
     return digitsOnly.slice(1);
   }
 
   return digitsOnly;
 }
-
 
 
 
