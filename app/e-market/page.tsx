@@ -127,6 +127,119 @@ const generateWithAI = async () => {
   }
 };
 
+////////////////////////////////////////wapp by country//////////////////////////////////
+// ────────────────────────────────────────────────────────────
+// Helper: construiește numărul în format internațional pentru wa.me,
+// indiferent de țara anunțului (nu doar România, cum era înainte).
+//
+// Pune-l sus în fișier, lângă celelalte funcții helper (ex: lângă
+// getCountryCode, dacă tot ai una acolo).
+// ────────────────────────────────────────────────────────────
+
+// Prefixe telefonice pe țară — extinde lista dacă vinzi și în alte țări.
+// Cheile trebuie să corespundă cu ce ai deja stocat în `country`
+// (nume de țară, ex: "Romania") sau cu codul ISO (ex: "ro"), ambele
+// funcționează pentru că normalizăm mai jos.
+const DIAL_CODES: Record<string, string> = {
+  romania: "40",
+  ro: "40",
+  moldova: "373",
+  md: "373",
+  "united kingdom": "44",
+  uk: "44",
+  gb: "44",
+  germany: "49",
+  germania: "49",
+  de: "49",
+  france: "33",
+  franta: "33",
+  fr: "33",
+  italy: "39",
+  italia: "39",
+  it: "39",
+  spain: "34",
+  spania: "34",
+  es: "34",
+  "united states": "1",
+  "united states of america": "1",
+  usa: "1",
+  us: "1",
+  netherlands: "31",
+  olanda: "31",
+  nl: "31",
+  austria: "43",
+  at: "43",
+  belgium: "32",
+  belgia: "32",
+  be: "32",
+  hungary: "36",
+  ungaria: "36",
+  hu: "36",
+  bulgaria: "359",
+  bg: "359",
+  greece: "30",
+  grecia: "30",
+  gr: "30",
+  poland: "48",
+  polonia: "48",
+  pl: "48",
+};
+
+function normalizeCountryKey(country: string | null | undefined): string | null {
+  if (!country) return null;
+  return country
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, ""); // elimină diacritice
+}
+
+/**
+ * Construiește numărul în format internațional (fără +, cum cere wa.me)
+ * pornind de la un număr introdus de user în orice format local, folosind
+ * țara anunțului ca sursă pentru prefix.
+ */
+function buildWhatsAppNumber(rawPhone: string, country: string | null | undefined): string {
+  const original = rawPhone.trim();
+  const digitsOnly = original.replace(/[^0-9]/g, "");
+
+  // Cazul 1: userul a scris deja cu + (ex: "+40712345678") — e deja
+  // internațional, doar scoatem semnele non-numerice.
+  if (original.startsWith("+")) {
+    return digitsOnly;
+  }
+
+  // Cazul 2: format internațional cu prefix 00 (ex: "0040712345678")
+  if (digitsOnly.startsWith("00")) {
+    return digitsOnly.slice(2);
+  }
+
+  // Cazul 3: format local cu 0 la început (ex: "0712345678") — cel mai
+  // comun caz. Înlocuim 0-ul cu prefixul țării anunțului.
+  if (digitsOnly.startsWith("0")) {
+    const key = normalizeCountryKey(country);
+    const dialCode = key ? DIAL_CODES[key] : null;
+
+    if (dialCode) {
+      return dialCode + digitsOnly.substring(1);
+    }
+
+    // Țară necunoscută/nemapată — nu putem ghici prefixul corect.
+    // Fallback: lăsăm numărul așa cum e (fără 0), fără prefix. Nu e
+    // perfect, dar nu mai forțăm greșit prefixul românesc peste alte țări.
+    return digitsOnly.substring(1);
+  }
+
+  // Cazul 4: nu începe cu 0 și nu are + — presupunem că userul a scris
+  // deja cu prefixul de țară inclus (ex: "40712345678"), îl lăsăm așa.
+  return digitsOnly;
+}
+
+
+
+
+
+
 ///////////////////////////////////////////////   search AI smith ///////////////////////////////////
   // ---- AI SMITH SEARCH MOD (NOU) ----
     // ---- AI SMITH SEARCH MOD (NOU) ----
