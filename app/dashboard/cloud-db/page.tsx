@@ -114,57 +114,97 @@ export default function CloudWorkspacePage() {
     loadUser();
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
+useEffect(() => {
+  let isMounted = true;
 
-    const loadDashboardData = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        // REPARAȚIA: Dacă nu avem sesiune, îl trimitem imediat la login prin router
-        if (!session) {
-          if (isMounted) setError("Unauthorized. Please log in.");
-          router.push("/login");
-          return;
-        }
-
-        if (!isMounted) return;
-
-        setUser({ 
-          id: session.user.id, 
-          email: session.user.email, 
-          name: session.user.user_metadata?.full_name || "Operator", 
-          avatar: `https://dicebear.com{session.user.id}` 
-        });
-
-        // Citim limita reală a userului
-        const { plan: userPlan, limitMb } = await getUserStorageLimitMb(session.user.id);
+  const loadWorkspaceData = async (userId: string) => {
+    try {
+      // Citim limita reală de stocare
+      const { plan: userPlan, limitMb } = await getUserStorageLimitMb(userId);
+      if (isMounted) {
         setPlan(userPlan);
         setMaxMb(limitMb);
-
-        const { data: all } = await supabase.from("cloud_banks").select("size_mb").eq("user_id", session.user.id);
-        if (all) setTotalUsedMb(all.reduce((acc, c) => acc + Number(c.size_mb), 0));
-
-        let q = supabase.from("cloud_banks").select("*").eq("user_id", session.user.id);
-        if (activeTab !== "all") q = q.eq("type", { "audio banks": "Audio Bank", "midi packs": "MIDI Pack", "presets": "Presets" }[activeTab]);
-
-        const { data } = await q.order("created_at", { ascending: false }).range((page - 1) * lim, page * lim - 1);
-        if (data && isMounted) setBanks(data);
-      } catch (err: any) { 
-        if (isMounted) setError(err.message); 
-      } finally { 
-        if (isMounted) setLoading(false); 
       }
-    };
 
-    loadDashboardData();
+      // Citim spațiul ocupat
+      const { data: all } = await supabase.from("cloud_banks").select("size_mb").eq("user_id", userId);
+      if (all && isMounted) {
+        setTotalUsedMb(all.reduce((acc, c) => acc + Number(c.size_mb), 0));
+      }
+
+      // Încărcăm fișierele/băncile din cloud
+      let q = supabase.from("cloud_banks").select("*").eq("user_id", userId);
+      if (activeTab !== "all") {
+        q = q.eq("type", { "audio banks": "Audio Bank", "midi packs": "MIDI Pack", "presets": "Presets" }[activeTab]);
+      }
+
+      const { data } = await q.order("created_at", { ascending: false }).range((page - 1) * lim, page * lim - 1);
+      if (data && isMounted) setBanks(data);
+
+    } catch (err: any) {
+      if (isMounted) setError(err.message || "Eroare la încărcarea datelor.");
+    } finally {
+      if (isMounted) setLoading(false);
+    }
+  };
+
+  const checkAuthAndInit = async () => {
+    setLoading(true);
+    setError("");
+
+    // 1. Încercăm să luăm sesiunea instant
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session?.user) {
+      setUser({ 
+        id: session.user.id, 
+        email: session.user.email, 
+        name: session.user.user_metadata?.full_name || "Operator", 
+        avatar: `https://dicebear.com{session.user.id}` 
+      });
+      await loadWorkspaceData(session.user.id);
+      return;
+    }
+
+    // 2. Dacă nu e gata instant, ascultăm schimbarea din browser (exact ca la Navbar/Spotify)
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      if ((event === "SIGNED_IN" || event === "USER_UPDATED") && currentSession?.user) {
+        if (isMounted) {
+          setUser({
+            id: currentSession.user.id,
+            email: currentSession.user.email,
+            name: currentSession.user.user_metadata?.full_name || "Operator",
+            avatar: `https://dicebear.com{currentSession.user.id}`
+          });
+        }
+        await loadWorkspaceData(currentSession.user.id);
+        listener.subscription.unsubscribe();
+      }
+    });
+
+    // 3. Un timeout de siguranță de 3 secunde. Dacă chiar nu e logat deloc, abia atunci îl trimitem la login
+    const timeout = setTimeout(() => {
+      listener.subscription.unsubscribe();
+      supabase.auth.getSession().then(({ data }) => {
+        if (!data.session && isMounted) {
+          setError("Session expired. Please log in.");
+          router.push("/login");
+        }
+      });
+    }, 3000);
 
     return () => {
-      isMounted = false;
+      clearTimeout(timeout);
+      listener.subscription.unsubscribe();
     };
-  }, [page, activeTab, router]); // Adăugat router aici pentru siguranță
+  };
+
+  checkAuthAndInit();
+
+  return () => {
+    isMounted = false;
+  };
+}, [page, activeTab, router]);
 
 
   // NOU: cumpara 30GB — deschide plata Revolut, apoi (dupa confirmare) actualizeaza limita in DB
