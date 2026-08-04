@@ -99,7 +99,9 @@ export default function LoginPage() {
       const { error: googleError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/api/auth/callback?next=/dashboard/cloud-db`,
+          // Trimite utilizatorul DIRECT în dashboard. 
+          // Supabase din browser va citi singur token-ul din URL-ul cu '#' și va crea sesiunea.
+          redirectTo: `${window.location.origin}/dashboard/cloud-db`,
         },
       });
       if (googleError) throw googleError;
@@ -108,6 +110,7 @@ export default function LoginPage() {
       setGoogleLoading(false);
     }
   };
+
 
 
 
