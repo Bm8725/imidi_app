@@ -130,6 +130,7 @@ const generateWithAI = async () => {
 ////////////////////////////////////////wapp by country//////////////////////////////////
 /**
  * Formatează automat numărul pentru WhatsApp analizând DOAR cifrele introduse.
+ * Acceptă lungimi variabile de 9 sau 10 cifre pentru Italia și Spania.
  * Parametrul _country este opțional și ignorat, adăugat doar pentru a preveni erorile de build în Vercel.
  */
 function buildWhatsAppNumber(rawPhone: string, _country?: string | null): string {
@@ -139,7 +140,7 @@ function buildWhatsAppNumber(rawPhone: string, _country?: string | null): string
   let digits = rawPhone.trim().replace(/\D/g, "");
   if (!digits) return "";
 
-  // Pasul 2: Eliminăm prefixul de tip "00" (ex: 0034... -> 34...)
+  // Pasul 2: Eliminăm prefixul de tip "00" (ex: 0039... -> 39...)
   if (digits.startsWith("00")) {
     digits = digits.slice(2);
   }
@@ -152,21 +153,23 @@ function buildWhatsAppNumber(rawPhone: string, _country?: string | null): string
   }
   
   for (const prefix of KNOWN_PREFIXES) {
-    if (digits.startsWith(prefix) && digits.length >= prefix.length + 7) {
+    if (digits.startsWith(prefix) && digits.length >= prefix.length + 6) {
       return digits;
     }
   }
 
   // Pasul 4: DETECTARE ȘI CONVERSIE FORMATE LOCALE (Fără prefix)
 
-  // ─── SPANIA (Prefix 34) ───
-  if ((digits.startsWith("6") || digits.startsWith("7")) && digits.length === 9) {
-    return "34" + digits;
+  // ─── ITALIA (Prefix 39) ───
+  // Mobilele din Italia încep cu cifra 3 și pot avea o lungime variabilă de 9 sau 10 cifre.
+  if (digits.startsWith("3") && (digits.length === 9 || digits.length === 10)) {
+    return "39" + digits;
   }
 
-  // ─── ITALIA (Prefix 39) ───
-  if (digits.startsWith("3") && digits.length === 10) {
-    return "39" + digits;
+  // ─── SPANIA (Prefix 34) ───
+  // Mobilele din Spania încep cu 6 sau 7 și au în general 9 cifre.
+  if ((digits.startsWith("6") || digits.startsWith("7")) && digits.length === 9) {
+    return "34" + digits;
   }
 
   // ─── ROMÂNIA (Prefix 40) ───
