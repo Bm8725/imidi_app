@@ -115,16 +115,32 @@ export default function CloudWorkspacePage() {
   }, []);
 
   useEffect(() => {
-    (async () => {
+    let isMounted = true;
+
+    const loadDashboardData = async () => {
       setLoading(true);
+      setError("");
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error("Unauthorized. Please log in.");
-        setUser({ id: session.user.id, email: session.user.email, name: session.user.user_metadata?.full_name || "Operator", avatar: `https://dicebear.com{session.user.id}` });
+        
+        // REPARAȚIA: Dacă nu avem sesiune, îl trimitem imediat la login prin router
+        if (!session) {
+          if (isMounted) setError("Unauthorized. Please log in.");
+          router.push("/login");
+          return;
+        }
 
-        // NOU: citim limita reala a userului (Free 50MB sau Pro 30GB)
+        if (!isMounted) return;
+
+        setUser({ 
+          id: session.user.id, 
+          email: session.user.email, 
+          name: session.user.user_metadata?.full_name || "Operator", 
+          avatar: `https://dicebear.com{session.user.id}` 
+        });
+
+        // Citim limita reală a userului
         const { plan: userPlan, limitMb } = await getUserStorageLimitMb(session.user.id);
-        console.log("DEBUG plan citit din DB:", userPlan, "limitMb:", limitMb); // TEMPORAR - sterge dupa ce testezi
         setPlan(userPlan);
         setMaxMb(limitMb);
 
@@ -135,10 +151,21 @@ export default function CloudWorkspacePage() {
         if (activeTab !== "all") q = q.eq("type", { "audio banks": "Audio Bank", "midi packs": "MIDI Pack", "presets": "Presets" }[activeTab]);
 
         const { data } = await q.order("created_at", { ascending: false }).range((page - 1) * lim, page * lim - 1);
-        if (data) setBanks(data);
-      } catch (err: any) { setError(err.message); } finally { setLoading(false); }
-    })();
-  }, [page, activeTab]);
+        if (data && isMounted) setBanks(data);
+      } catch (err: any) { 
+        if (isMounted) setError(err.message); 
+      } finally { 
+        if (isMounted) setLoading(false); 
+      }
+    };
+
+    loadDashboardData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [page, activeTab, router]); // Adăugat router aici pentru siguranță
+
 
   // NOU: cumpara 30GB — deschide plata Revolut, apoi (dupa confirmare) actualizeaza limita in DB
   const handleBuyCloud = async () => {
