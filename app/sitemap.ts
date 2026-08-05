@@ -3,7 +3,6 @@
  * SEO GOOGLE, bots, automated, advanced SEO systems
  *  */ 
 
-
 import { MetadataRoute } from 'next';
 import { supabase } from '@/lib/supabase';
 
