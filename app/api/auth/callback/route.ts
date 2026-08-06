@@ -1,20 +1,41 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@supabase/ssr'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  
+
   if (code) {
-    // Schimbă codul de la Google într-o sesiune activă Supabase
+    const response = NextResponse.redirect(`${origin}/dashboard/cloud-db`)
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => {
+            // parsăm manual cookie-urile din request, pentru ca nu avem cookies() aici
+            const cookieHeader = request.headers.get('cookie') ?? ''
+            return cookieHeader.split(';').filter(Boolean).map((c) => {
+              const [name, ...rest] = c.trim().split('=')
+              return { name, value: rest.join('=') }
+            })
+          },
+          setAll: (cookiesToSet) => {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            )
+          },
+        },
+      }
+    )
+
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-    
+
     if (!error) {
-      // Dacă e cu succes, trimite userul pe dashboard
-      return NextResponse.redirect(`${origin}/dashboard/cloud-db`)
+      return response
     }
   }
 
-  // Dacă e eroare, trimite userul înapoi la login cu un mesaj
   return NextResponse.redirect(`${origin}/login?error=auth-failed`)
 }
