@@ -12,11 +12,11 @@ const OG_IMAGE = `${SITE_URL}/bass.jpg`;
 export const metadata: Metadata = {
   title: "i-VOLUTION MIDI System for Accordion | iMIDI app",
   description:
-    "Professional-grade MIDI integration for accordionists. Ultra-low latency, bellow real emulation, OLED display, compatible with KORG PA series and TS4X.",
+    "Professional MIDI integration for accordionists. Ultra-low latency, bellow real emulation, OLED display, compatible with KORG PA series and TS4X.",
   openGraph: {
     title: "i-VOLUTION MIDI System for Accordion",
     description:
-      "Professional-grade MIDI integration for accordionists. Ultra-low latency, bellow real emulation, compatible with KORG PA series and TS4X.",
+      "Professional MIDI integration for accordionists. Price 800 Euro. Ultra-low latency, bellow real emulation, compatible with KORG PA, Roland synth series and TS4X PRO Native",
     url: `${SITE_URL}/products`,
     siteName: "iMIDI",
     images: [
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "i-VOLUTION MIDI System for Accordion",
     description:
-      "Professional-grade MIDI integration for accordionists — ultra-low latency, OLED display, KORG PA & TS4X compatible.",
+      "Professional MIDI integration for accordionists — ultra-low latency, OLED display, KORG PA & TS4X compatible.",
     images: [OG_IMAGE],
   },
 };

@@ -10,7 +10,7 @@ import Footer from "@/components/Footer";
 import WhatsAppWidget from "@/components/WhatsAppWidget";
 
 // Contact real pentru comenzi — schimbă aici dacă vrei alt email/număr
-const ORDER_EMAIL = "contact@imidi.ro";
+const ORDER_EMAIL = "marius_service@yahoo.com";
 const ORDER_WHATSAPP_NUMBER = "40765354998"; // același număr ca în WhatsAppWidget
 
 // ============================================================================
@@ -67,6 +67,70 @@ function AnimatedAccordion({ variantId, bassIncluded, className = "" }: { varian
     <div key={variantId} className={`variant-switch-pop ${className}`}>
       <AccordionPhoto className="w-full" bassIncluded={bassIncluded} />
     </div>
+  );
+}
+
+// ============================================================================
+// Buton de share — folosește Web Share API nativ (deschide meniul de share
+// al telefonului: WhatsApp, Messages, Mail etc.), iar pe desktop / browsere
+// fără suport, cade automat pe "copiază linkul" cu feedback vizual.
+// ============================================================================
+function ShareButton({ className = "" }: { className?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    const shareData = {
+      title: "i-VOLUTION MIDI System for Accordion",
+      text: "Professional-grade MIDI integration for accordionists — check it out:",
+      url: typeof window !== "undefined" ? window.location.href : "",
+    };
+
+    // 1. incearca API-ul nativ de share (mobil, majoritatea browserelor moderne)
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch {
+        // userul a anulat sau a esuat — nu facem nimic, nu fortam fallback
+        return;
+      }
+    }
+
+    // 2. fallback: copiaza linkul in clipboard (desktop, browsere fara Web Share API)
+    try {
+      await navigator.clipboard.writeText(shareData.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback ultim: deschide un prompt cu linkul, ca userul sa-l copieze manual
+      window.prompt("Copiază linkul:", shareData.url);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleShare}
+      className={`inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full border border-[#D8D5C9] bg-white text-[#3A3F47] text-sm font-medium transition-all duration-300 hover:bg-[#F7F6F1] active:scale-[0.98] ${className}`}
+    >
+      {copied ? (
+        <>
+          <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Link copiat!</span>
+        </>
+      ) : (
+        <>
+          <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <path strokeLinecap="round" d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4" />
+          </svg>
+          <span>Share</span>
+        </>
+      )}
+    </button>
   );
 }
 
@@ -289,6 +353,7 @@ export default function ProductsClient() {
               >
                 View Specs
               </Link>
+              <ShareButton className="w-full sm:w-auto h-12" />
             </div>
           </div>
 
@@ -473,7 +538,7 @@ export default function ProductsClient() {
               <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current shrink-0"><path d="M2 5.5A2.5 2.5 0 0 1 4.5 3h15A2.5 2.5 0 0 1 22 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 2 18.5v-13Zm2.2.3 7.8 6.1 7.8-6.1H4.2ZM20 7.9l-7.4 5.8a1 1 0 0 1-1.2 0L4 7.9v10.6c0 .3.2.5.5.5h15c.3 0 .5-.2.5-.5V7.9Z"/></svg>
               <span className="truncate">Order {variant.name} — ${variant.price}</span>
             </a>
-
+            <ShareButton className="w-full sm:w-auto" />
           </div>
         </div>
 
