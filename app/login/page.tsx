@@ -249,7 +249,7 @@ export default function LoginPage() {
                   value={formData.email} 
                   onChange={handleChange} 
                   className="w-full h-11 bg-white/50 border border-black/[0.08] rounded-xl px-4 text-sm outline-none transition-all duration-200 focus:bg-white focus:border-[#0070F3] focus:ring-4 focus:ring-[#0070F3]/5 placeholder:text-neutral-400" 
-                  placeholder="name@domain.com" 
+                  placeholder="your@email.com" 
                 />
               </div>
             </div>

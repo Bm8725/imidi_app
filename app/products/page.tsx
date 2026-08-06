@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "i-VOLUTION MIDI System for Accordion",
+    title: "i-VOLUTION MIDI System for Accordion ",
     description:
       "Professional MIDI integration for accordionists price 800 Euro. Ultra-low latency, bellow real emulation, OLED display, compatible with KORG PA series and TS4X.",
     url: PAGE_URL,
