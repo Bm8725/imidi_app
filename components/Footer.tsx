@@ -32,8 +32,8 @@ export default function Footer() {
           </div>
           <span className="hidden sm:inline text-[#7E8FAD]/40">|</span>
           <span className="text-[#7E8FAD]/80 tracking-tight">
-            © {year} Copyright. Platform developed by{" "}
-            <span className="text-white font-semibold">BM</span>{" "}
+            © {year} Copyright. Platform developed with{" "}
+            <span className="text-white font-semibold">NI</span>{" "}
             <span className="inline-block px-1.5 py-0.5 ml-1 rounded bg-[#0B1528] text-pink-300 text-[9px] border border-pink-300/20 font-bold">
               {version}
             </span>
