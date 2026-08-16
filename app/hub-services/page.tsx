@@ -43,10 +43,8 @@ const PROCESS = ["Discovery", "Design", "Build", "Ship"];
 // TEAM — fill this in. name + role + skills only.
 // photo: optional path under /public (e.g. "/team/ana.jpg"). Leave undefined for a monogram.
 const TEAM: { name: string; role: string; skills: string[]; photo?: string }[] = [
-  { name: "Name Surname", role: "Lead Engineer", skills: ["React", "Node.js", "PostgreSQL"] },
-  { name: "Name Surname", role: "Engineer", skills: ["TypeScript", "AWS", "Docker"] },
-  { name: "Name Surname", role: "UI/UX Designer", skills: ["Figma", "Prototyping", "Design systems"] },
-  { name: "Name Surname", role: "Engineer", skills: ["Python", "APIs", "Hardware integration"] },
+  { name: "BM ", role: "Lead Engineer, full stack dev", skills: ["React", "Node.js", "PostgreSQL"] },
+
 ];
 
 const CODE_LINES = [

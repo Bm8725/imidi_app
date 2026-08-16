@@ -53,8 +53,8 @@ export default function Footer() {
             </span>
           </Link>
 
-               <Link href="/hub-services" className="text-[#7E8FAD] hover:text-red-300 transition-all duration-300 relative group py-1">
-            HUB services
+               <Link href="/hub-services" className="text-[#e91a1a] hover:text-red-300 transition-all duration-300 relative group py-1">
+            HUB development
             <span className="absolute bottom-0 left-0 w-0 h-[1px] bg-pink-300/50 transition-all duration-300 group-hover:w-full" />
           </Link>
 
