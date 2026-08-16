@@ -1,5 +1,5 @@
 "use client";
-
+import WhatsAppWidget from "@/components/WhatsAppWidget";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import {
@@ -414,7 +414,7 @@ export default function CreatorHubPage() {
           <ArrowUpRight className="h-5 w-5 transform text-[#E4002B] transition-transform duration-300 group-hover:-translate-y-1 group-hover:translate-x-1" />
         </a>
       </section>
-
+     <WhatsAppWidget />
       <Footer />
     </div>
   );
