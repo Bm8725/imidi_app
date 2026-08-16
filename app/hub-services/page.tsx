@@ -21,12 +21,12 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 const SERVICES = [
-  { tag: "01", name: "Web apps", icon: Globe, detail: "MVP to production-scale platforms.", stack: ["Next.js", "Edge", "CDN"] },
-  { tag: "02", name: "Mobile apps", icon: Globe, detail: "MVP to production-scale platforms for mobile app ios/android", stack: ["Next.js", "Edge", "CDN"] },
-  { tag: "03", name: "Custom software", icon: Boxes, detail: "Internal tools built around your workflow.", stack: ["Node", "Postgres", "Queues"] },
+  { tag: "01", name: "Web apps", icon: Globe, detail: "MVP to production-scale platforms. We work with the latest frameworks like next.js, Vite and more", stack: ["Next.js", "Edge", "CDN"] },
+  { tag: "02", name: "Mobile apps", icon: Globe, detail: "MVP to production-scale platforms for mobile app ios/android. Also, use the latest technologies combine react native with native app like c++/rust", stack: ["React Native ", "Edge", "CDN"] },
+  { tag: "03", name: "Custom software", icon: Boxes, detail: "Internal tools built around your workflow. We can use taur, capacitor or electron frmaework to build your professional app.", stack: ["Node", "Postgres", "Queues"] },
   { tag: "04", name: "Integrations", icon: Plug, detail: "Your systems, talking to each other.", stack: ["REST", "Webhooks", "OAuth"] },
-  { tag: "05", name: "Hardware-aware", icon: Cpu, detail: "Software built for the physical layer.", stack: ["TS4X", "i-volution", "MyCloud"] },
-  { tag: "06", name: "AI & automation", icon: Sparkles, detail: "LLM features and workflows that save time.", stack: ["LLMs", "RAG", "Agents"] },
+  { tag: "05", name: "Hardware-aware", icon: Cpu, detail: "Software built for the physical layer. CAD soft programs.", stack: ["TS4X", "i-volution", "MyCloud"] },
+  { tag: "06", name: "AI & automation", icon: Sparkles, detail: "LLM features and workflows that save time. Automation tasks using AI.  AI Smith it s an example of our platform", stack: ["LLMs", "RAG", "Agents"] },
 ] as const;
 
 const PORTFOLIO: { name: string; image?: string }[] = [
@@ -34,7 +34,7 @@ const PORTFOLIO: { name: string; image?: string }[] = [
   { name: "Dashboards & Internal Tools" },
   { name: "E-commerce" },
   { name: "APIs & Integrations" },
-  { name: "Design Systems" },
+  { name: "Design industrial Systems. Industrial dashboards" },
   { name: "Hardware-aware Software" },
 ];
 
