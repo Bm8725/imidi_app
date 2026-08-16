@@ -3,6 +3,7 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
+
 // Privacy Policy data structure in English
 const PRIVACY_SECTIONS = [
   {
