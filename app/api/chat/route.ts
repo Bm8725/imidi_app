@@ -11,9 +11,9 @@ STRUCTURA PLATFORMA & CONCEPT:
 - Conceptul MIDI 3.0: leaga controllerul fizic cu procesarea locala TS4X Core DSP si partajarea in cloud.
 
 PRODUSE SI LICENTE DE BAZA:
-1. PERPETUAL_CORE ($199.9/an): Licenta TS4X Synth Pro. Debloheaza complet motorul DSP pe viata, latenta garantata sub 1.8ms. Include optiunea de retur de 14 zile.
-2. CLOUD_EXPANSION ($49.9/an): Extinde spatiul MyCloud Preset Storage la 30 GB pentru sound bank-uri, preseturi si mapari (KORG si Genos).
-3. TS4X-BETA-LIVE-2026-X99: Cod licenta temporara gratuita (Beta) oferita comunitatii pentru testare live.
+
+1. CLOUD_EXPANSION ($49.9/an): Extinde spatiul MyCloud Preset Storage la 30 GB pentru sound bank-uri, preseturi si mapari (KORG si Genos).
+
 
 COMPONENTE TEHNICE:
 - TS4X Synth Engine: Motor audio cu latenta de 1.8ms (.apk si desktop). Dispune de un Web Sandbox pentru testare direct in browser (conectare USB-MIDI, mapare automata).
