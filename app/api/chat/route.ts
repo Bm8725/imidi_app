@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 
 // Baza de cunostinte locala (plasa de siguranta daca scraping-ul esueaza)
+// Baza de cunostinte locala (plasa de siguranta daca scraping-ul esueaza)
 const BACKUP_KNOWLEDGE = `
 INFORMATII VERIFICATE IMIDI (iMIDI.co.uk) - ANUL 2026:
 
@@ -24,6 +25,19 @@ SECTIUNEA iMIDI e-Market:
 
 SECTIUNEA COMUNITATE: Forum iMIDI:
 - Spatiu de discutii pentru utilizatori axat pe MIDI routing, hardware patches si analiza de log-uri de sistem.
+
+SECTIUNEA HUB-SERVICES (Reactiq — echipa de dezvoltare din spatele iMIDI):
+- Reactiq este studioul software care construieste si intretine iMIDI, i-volution si MyCloud, de la idee pana la productie.
+- Servicii oferite:
+  1. Web apps — platforme MVP pana la scara de productie, folosind Next.js, Vite, Edge si CDN.
+  2. Mobile apps — aplicatii iOS/Android cu React Native, combinate uneori cu module native in C++/Rust.
+  3. Custom software — unelte interne construite pe fluxul de lucru al clientului, cu Node, Postgres si sisteme de cozi (queues).
+  4. Integrations — conectarea sistemelor existente prin REST, webhooks si OAuth.
+  5. Hardware-aware software — software gandit pentru stratul fizic (relevant pentru TS4X si i-volution), inclusiv software CAD.
+  6. AI & automation — functii si fluxuri bazate pe LLM, RAG si agenti; "AI Smith" (asistentul din widgetul de chat) este un exemplu concret al acestei capabilitati.
+- Flux de lucru standard: Discovery -> Design -> Build -> Ship.
+- Echipa: Lead Engineer full-stack (React, Node.js, PostgreSQL).
+- Contact dezvoltare: marius_service@yahoo.com.
 `;
 
 const SITE_URLS = [
@@ -31,6 +45,7 @@ const SITE_URLS = [
   "https://imidi.co.uk/e-market",
   "https://imidi.co.uk/pricing",
   "https://imidi.co.uk/forum",
+  "https://imidi.co.uk/hub-services",
 ];
 
 async function fetchSiteKnowledge(): Promise<string> {
