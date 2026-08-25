@@ -193,15 +193,17 @@ export default function AIChatWidget() {
 
       {/* CHAT PANEL */}
       {isOpen && (
-        <div className="im-font fixed z-50 antialiased flex flex-col overflow-hidden transition-all duration-300 top-0 left-0 w-full h-[100dvh] bg-[#FFF3F7] sm:top-auto sm:left-auto sm:bottom-[33px] sm:right-6 sm:w-[380px] sm:h-[560px] sm:max-h-[85vh] sm:rounded-[22px] sm:shadow-[0_24px_60px_rgba(43,23,35,0.28)] sm:border sm:border-[#241521]/25">
+        <div className="im-font fixed z-50 antialiased flex flex-col overflow-hidden transition-all duration-300 top-0 left-0 w-full h-[100dvh] bg-[#619fe6] sm:top-auto sm:left-auto sm:bottom-[33px] sm:right-6 sm:w-[380px] sm:h-[560px] sm:max-h-[85vh] sm:rounded-[22px] sm:shadow-[0_24px_60px_rgba(43,23,35,0.28)] sm:border sm:border-[#241521]/25">
           {/* HEADER — full gradient banner */}
           <div
             className="relative z-10 flex items-center justify-between px-4 pt-16 pb-4 sm:pt-4"
-            style={{ background: "linear-gradient(120deg, #FF4C99, #FF8AC0 55%, #FFB56B)" }}
+          style={{ background: "linear-gradient(120deg, #3B82F6, #60A5FA 55%, #93C5FD)" }}
+
           >
             <div className="flex items-center gap-3">
               <div className="relative w-10 h-10 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.12)] overflow-hidden">
-                <span className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.35), transparent 55%)" }} />
+              <span className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 30% 20%, rgba(34,211,238,0.5), transparent 55%)" }} />
+
                 <svg className="relative z-10" width="18" height="18" viewBox="0 0 24 24" fill="none">
                   <path d="M2 12h3.2L7 6l3 13 2-10 1.8 6h3.4l1-3.5 1 3.5H22" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -310,26 +312,29 @@ export default function AIChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* INPUT */}
-          <form onSubmit={handleSendMessage} className="relative z-10 p-3 sm:pb-3 bg-white border-t border-[#241521]/25 shadow-[0_-4px_16px_rgba(43,23,35,0.06)] flex items-center gap-2">
+          {/* INPUT — Inspired by Comet iOS Off-White Palette */}
+          <form 
+            onSubmit={handleSendMessage} 
+            className="relative z-10 p-3 sm:pb-3 bg-[#F8F9FA] border-t border-gray-200/60 shadow-[0_-1px_3px_rgba(0,0,0,0.02)] flex items-center gap-2"
+          >
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask iMIDI AI..."
-              className="flex-1 h-11 px-4 text-sm bg-[#FFF3F7] border border-[#241521]/25 rounded-full outline-none text-[#241521] placeholder-[#B98CA0] font-medium focus:border-[#FF5CA1] focus:bg-white transition-colors"
+              className="flex-1 h-10 px-4 text-[13px] bg-white border border-gray-200 rounded-lg outline-none text-gray-900 placeholder-gray-400 font-medium focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all"
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="w-11 h-11 flex-shrink-0 flex items-center justify-center text-white rounded-full active:scale-95 disabled:opacity-25 disabled:active:scale-100 transition-all cursor-pointer shadow-[0_6px_18px_rgba(255,76,153,0.4)]"
-              style={{ background: "linear-gradient(135deg, #FF4C99, #FFB56B)" }}
+              className="w-10 h-10 flex-shrink-0 flex items-center justify-center text-white rounded-lg bg-[#1E40AF] hover:bg-[#1d4ed8] active:scale-95 disabled:opacity-30 disabled:hover:bg-[#1E40AF] disabled:active:scale-100 transition-all cursor-pointer shadow-sm"
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M2 8h11M8 3l5 5-5 5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <path d="M2 8h11M8 3l5 5-5 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           </form>
+
 
           {/* FOOTER */}
           <div className="relative z-10 flex items-center justify-center gap-1.5 py-2 pb-10 sm:pb-2 bg-white text-[10px] font-medium text-[#B98CA0]">
@@ -337,7 +342,7 @@ export default function AIChatWidget() {
               <path d="M2 12h3.2L7 6l3 13 2-10 1.8 6h3.4l1-3.5 1 3.5H22" stroke="#FF4C99" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span>
-              Powered by <span className="text-[#FF4C99] font-semibold">iMIDI App</span>
+              Powered by <span className="text-[#1b181a] font-semibold">iMIDI App</span>
             </span>
           </div>
         </div>
