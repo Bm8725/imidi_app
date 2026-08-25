@@ -74,7 +74,7 @@ export async function GET() {
     const groq = new Groq({ apiKey });
 
     const response = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "llama-3.3-70b-specdec",
       messages: [
         {
           role: "system",
