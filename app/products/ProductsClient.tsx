@@ -628,7 +628,7 @@ export default function ProductsClient() {
 
         <Footer />
       </div>
-       <AIChatWidget />
+      
       <WhatsAppWidget />
     </div>
   );
