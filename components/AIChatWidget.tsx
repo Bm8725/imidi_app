@@ -35,6 +35,7 @@ function extractImages(text: string): { cleanText: string; images: ChatImage[] }
 
 export default function AIChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showGreeting, setShowGreeting] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -112,6 +113,7 @@ export default function AIChatWidget() {
         @keyframes im-blob-b { 0%, 100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-16px,-6px) scale(1.1); } }
         @keyframes im-breathe { 0%, 100% { transform: scale(0.6); opacity: 0.5; } 50% { transform: scale(1); opacity: 1; } }
         @keyframes im-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes im-greet { from { opacity: 0; transform: translateY(6px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
         @keyframes im-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
         @keyframes im-fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes im-pop-in { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
@@ -124,6 +126,7 @@ export default function AIChatWidget() {
         .im-dot-2 { animation: im-breathe 1s ease-in-out infinite 0.15s; }
         .im-dot-3 { animation: im-breathe 1s ease-in-out infinite 0.3s; }
         .im-msg-in { animation: im-rise 0.22s ease-out; }
+        .im-greet-in { animation: im-greet 0.35s cubic-bezier(0.16,1,0.3,1) 0.5s both; }
         .im-launcher { animation: im-float 3.2s ease-in-out infinite; }
         .im-lightbox-bg { animation: im-fade-in 0.18s ease-out; }
         .im-lightbox-img { animation: im-pop-in 0.22s cubic-bezier(0.16,1,0.3,1); }
@@ -141,20 +144,49 @@ export default function AIChatWidget() {
 
       {/* FLOATING LAUNCH BUTTON */}
       {!isOpen && (
-        <div className="im-font fixed bottom-[170px] right-0 sm:right-5 z-50 antialiased">
+        <div className="im-font fixed bottom-[170px] right-0 sm:right-5 z-50 antialiased flex items-center gap-2.5">
+          {showGreeting && (
+            <div
+              onClick={() => {
+                setIsOpen(true);
+                setShowGreeting(false);
+              }}
+              className="im-greet-in relative max-w-[195px] bg-white border border-[#241521]/15 rounded-2xl rounded-br-md px-3.5 py-2.5 shadow-[0_10px_28px_rgba(43,23,35,0.16)] cursor-pointer"
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowGreeting(false);
+                }}
+                className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#241521] text-white flex items-center justify-center text-[10px] leading-none hover:bg-[#FF4C99] transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+              <p className="text-xs font-bold text-[#241521]">Hey, I'm Smith 👋</p>
+              <p className="text-[11px] text-[#9E6E85] mt-0.5 leading-snug">Ask me anything — let's talk.</p>
+            </div>
+          )}
           <button
-            onClick={() => setIsOpen(true)}
+            onClick={() => {
+              setIsOpen(true);
+              setShowGreeting(false);
+            }}
             className="im-launcher relative flex items-center justify-center w-16 h-16 cursor-pointer mr-6 sm:mr-0"
           >
+            {/* radar-sweep ring instead of a flat disc */}
             <span
-              className="im-ring absolute inset-0 rounded-full opacity-90"
-              style={{ background: "conic-gradient(from 0deg, #FF4C99, #FFB56B, #FF4C99)" }}
+              className="im-ring absolute inset-0 rounded-full"
+              style={{ background: "conic-gradient(from 0deg, #FF4C99 0%, #FFB56B 18%, transparent 40%, transparent 100%)" }}
             />
-            <span className="absolute inset-[3px] rounded-full shadow-[0_10px_28px_rgba(255,76,153,0.4)]" style={{ background: "linear-gradient(135deg, #FF4C99, #FF8AC0)" }} />
+            <span className="absolute inset-[3px] rounded-full shadow-[0_10px_28px_rgba(255,76,153,0.4)]" style={{ background: "linear-gradient(145deg, #FF4C99, #FF7FB0 60%, #FFB56B)" }} />
+            {/* glossy top highlight for depth */}
+            <span
+              className="absolute inset-[3px] rounded-full pointer-events-none"
+              style={{ background: "radial-gradient(circle at 32% 22%, rgba(255,255,255,0.45), transparent 55%)" }}
+            />
             <svg className="relative z-10" width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M4 13c2-6 4-6 4 0s2 6 4 0 2-6 4 0 2 6 4 0" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2 12h3.2L7 6l3 13 2-10 1.8 6h3.4l1-3.5 1 3.5H22" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#2CE6C4] border-2 border-white" />
           </button>
         </div>
       )}
@@ -168,11 +200,11 @@ export default function AIChatWidget() {
             style={{ background: "linear-gradient(120deg, #FF4C99, #FF8AC0 55%, #FFB56B)" }}
           >
             <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.12)]">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M4 13c2-6 4-6 4 0s2 6 4 0 2-6 4 0 2 6 4 0" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+              <div className="relative w-10 h-10 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.12)] overflow-hidden">
+                <span className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.35), transparent 55%)" }} />
+                <svg className="relative z-10" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M2 12h3.2L7 6l3 13 2-10 1.8 6h3.4l1-3.5 1 3.5H22" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-[#2CE6C4] border-2 border-white" />
               </div>
               <div className="leading-tight">
                 <p className="text-sm font-bold text-white">iMIDI Support</p>
@@ -204,9 +236,10 @@ export default function AIChatWidget() {
           >
             {messages.length === 0 && (
               <div className="text-center py-16 px-6 space-y-4">
-                <div className="relative w-16 h-16 mx-auto flex items-center justify-center rounded-2xl shadow-[0_8px_20px_rgba(255,92,161,0.3)]" style={{ background: "linear-gradient(135deg, #FF5CA1, #FFB56B)" }}>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                    <path d="M4 13c2-6 4-6 4 0s2 6 4 0 2-6 4 0 2 6 4 0" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <div className="relative w-16 h-16 mx-auto flex items-center justify-center rounded-2xl shadow-[0_8px_20px_rgba(255,92,161,0.3)] overflow-hidden" style={{ background: "linear-gradient(145deg, #FF4C99, #FF7FB0 60%, #FFB56B)" }}>
+                  <span className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.4), transparent 55%)" }} />
+                  <svg className="relative z-10" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <path d="M2 12h3.2L7 6l3 13 2-10 1.8 6h3.4l1-3.5 1 3.5H22" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </div>
                 <div className="space-y-1.5">
@@ -301,7 +334,7 @@ export default function AIChatWidget() {
           {/* FOOTER */}
           <div className="relative z-10 flex items-center justify-center gap-1.5 py-2 pb-10 sm:pb-2 bg-white text-[10px] font-medium text-[#B98CA0]">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-              <path d="M4 13c2-6 4-6 4 0s2 6 4 0 2-6 4 0 2 6 4 0" stroke="#FF4C99" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2 12h3.2L7 6l3 13 2-10 1.8 6h3.4l1-3.5 1 3.5H22" stroke="#FF4C99" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span>
               Powered by <span className="text-[#FF4C99] font-semibold">iMIDI App</span>
