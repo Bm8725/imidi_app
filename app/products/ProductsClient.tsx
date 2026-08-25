@@ -8,7 +8,7 @@ import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WhatsAppWidget from "@/components/WhatsAppWidget";
-
+import AIChatWidget from "@/components/AIChatWidget";
 // Contact real pentru comenzi — schimbă aici dacă vrei alt email/număr
 const ORDER_EMAIL = "marius_service@yahoo.com";
 const ORDER_WHATSAPP_NUMBER = "40765354998"; // același număr ca în WhatsAppWidget
@@ -628,7 +628,7 @@ export default function ProductsClient() {
 
         <Footer />
       </div>
-
+       <AIChatWidget />
       <WhatsAppWidget />
     </div>
   );
