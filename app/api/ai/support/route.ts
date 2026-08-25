@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     const groq = new Groq({ apiKey });
 
     const response = await groq.chat.completions.create({
-      model: "meta-llama/llama-prompt-guard-2-86m",
+      model: "openai/gpt-oss-120b",
       messages: [
         {
           role: "system",
