@@ -186,7 +186,7 @@ function LcdScreen({ line0, line1, flash }: { line0: string; line1: string; flas
       }`}
       style={{ 
         color: "#050b14", 
-        textShadow: "0px 1px 1px rgba(255, 255, 255, 0.2)",
+        textShadow: "0px 1px 1px rgb(255, 248, 248)",
         boxShadow: "inset 0 0 20px rgba(251, 255, 251, 0.94), 0 0 10px rgba(75, 150, 235, 0.3)" 
       }}
     >
