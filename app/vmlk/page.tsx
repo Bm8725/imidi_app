@@ -304,7 +304,7 @@ export default function VVMilkManualPage() {
           {/* Simulator interactiv */}
           <div className="bg-[#161616] border border-[#2a2a2a] rounded-xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.15)] space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider corp-mono text-[#8fe388]">// Simulator Panou</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider corp-mono text-[#8fe388]">// VMILK 1.13.2</h3>
               <span className="corp-mono text-[10px] text-[#777]">in_menu = {menuOpen ? 1 : 0}</span>
             </div>
 
@@ -325,7 +325,7 @@ export default function VVMilkManualPage() {
                 style={{ background: "#1f1f1f" }}
               >
                 <span
-                  className="absolute inset-0 bg-[#0070F3]/40 transition-[width] duration-75"
+                  className="absolute inset-0 bg-[#2563eb]/40 transition-[width] duration-75"
                   style={{ width: `${holdProgress}%` }}
                 />
                 <span className="relative">SET</span>
