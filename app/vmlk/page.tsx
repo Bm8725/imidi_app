@@ -184,7 +184,7 @@ function LcdScreen({ line0, line1, flash }: { line0: string; line1: string; flas
       className={`corp-mono select-none rounded-md px-4 py-3 text-[15px] leading-[1.7] tracking-wider transition-colors ${
         flash ? "bg-[#1a3a1a]" : "bg-[#0e1f0e]"
       }`}
-      style={{ color: "#8fe388", textShadow: "0 0 3px rgba(143,227,136,0.35)" }}
+      style={{ color: "#e0e9df", textShadow: "0 0 3px rgba(63, 170, 241, 0.35)" }}
     >
       <div className="whitespace-pre">{pad16(line0)}</div>
       <div className="whitespace-pre">{pad16(line1)}</div>
