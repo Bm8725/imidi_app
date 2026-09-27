@@ -295,6 +295,45 @@ export default function VVMilkManualPage() {
         </div>
       </div>
 
+{/* ── PARTAJARE MINIMALISTĂ ȘI DISCRETĂ (TIP LINK DE SISTEM) ── */}
+<div className="max-w-5xl mx-auto my-4 px-6 font-mono text-[11px] text-[#64748b]">
+  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-[#e2e8f0]/40 pt-4">
+    
+
+
+    {/* Dreapta: Buton tip link interactiv cu Toast rapid text-only */}
+    <div className="relative shrink-0">
+      <button
+        onClick={() => {
+          const url = typeof window !== "undefined" ? window.location.href : "https://vmilk.ro";
+          if (navigator.share) {
+            navigator.share({ title: "vMilk Core", text: "Fișă vMilk Vender", url }).catch(() => {});
+          } else {
+            navigator.clipboard.writeText(url);
+            const t = document.getElementById("link-toast");
+            if (t) {
+              t.style.display = "inline";
+              setTimeout(() => { t.style.display = "none"; }, 2000);
+            }
+          }
+        }}
+        className="text-[#0070F3] hover:text-[#0051a2] font-bold hover:underline bg-transparent border-0 p-0 cursor-pointer transition-colors"
+      >
+        Partajează fișa tehnică →
+      </button>
+
+      {/* Notificare text discretă, fără ferestre sau box-uri */}
+      <span 
+        id="link-toast" 
+        className="hidden absolute -top-6 right-0 text-emerald-600 font-bold tracking-tight bg-white px-2 py-0.5 rounded border border-emerald-100 shadow-sm whitespace-nowrap"
+      >
+        ✓ Copiat
+      </span>
+    </div>
+
+  </div>
+</div>
+
       {/* Main Layout Manual */}
       <main className="corp-sans flex-1 w-full max-w-5xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-3 gap-8">
 
@@ -422,6 +461,69 @@ export default function VVMilkManualPage() {
 
           </div>
 
+          {/* ── MONITORIZARE INTERFAȚĂ AVARII LIVE (ANIMATĂ PUR CSS - FĂRĂ ERORI) ── */}
+<section className="bg-[#0b0f19] border border-[#1e293b] rounded-2xl p-6 shadow-xl max-w-5xl mx-auto my-10 font-sans">
+  
+  {/* Stil injectat pentru logica de perindare a textelor (simulare switch C) */}
+  <style>{`
+    @keyframes errorLoop {
+      0%, 19%   { content: "ERR: Lipsa Flux!"; }
+      20%, 39%  { content: "ERR: Pompa Lapte"; }
+      40%, 59%  { content: "ERR: Vana Evac. "; }
+      60%, 79%  { content: "ERR: Lipsa lapte"; }
+      80%, 100% { content: "Call: 0765332178 "; }
+    }
+    .lcd-loop-line::after {
+      content: "ERR: Lipsa Flux!";
+      animation: errorLoop 10s infinite;
+    }
+  `}</style>
+
+  <div className="flex flex-col lg:flex-row gap-8 items-center justify-between">
+    
+    {/* Partea Stângă: Display-ul LCD */}
+    <div className="w-full lg:w-1/2 space-y-4">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+        <span className="corp-mono text-xs text-[#94a3b8] uppercase tracking-wider">
+          ERR-timeout param INDEX_03 "Timeout(s)"
+        </span>
+      </div>
+
+      {/* Structură complet statică în JS, dar animată din engine-ul grafic CSS */}
+      <div className="bg-[#1d4ed8] rounded-md px-4 py-3 text-[15px] leading-[1.7] tracking-wider border-2 border-slate-500 relative overflow-hidden shadow-[inset_0_0_15px_rgba(0,0,0,0.3)] font-mono">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1e40af] to-[#1d4ed8] opacity-100 pointer-events-none" />
+        
+        {/* Linia 1 preia textul din animația de mai sus */}
+        <div className="relative z-10 font-bold text-white text-shadow-[0px_0px_4px_rgba(255,255,255,0.75)] h-[25px] overflow-hidden">
+          <span className="lcd-loop-line block" />
+        </div>
+        
+        {/* Linia 2 fixă */}
+        <div className="whitespace-pre relative z-10 font-bold text-white text-sm tracking-wider mt-1 text-shadow-[0px_0px_4px_rgba(255,255,255,0.75)]">
+          {"Livrat: 0000 ml".padEnd(16).substring(0, 16)}
+        </div>
+      </div>
+    </div>
+
+    {/* Partea Dreaptă: Descrierea Tehnică */}
+    <div className="w-full lg:w-1/2 space-y-3">
+      <h3 className="text-sm font-bold text-black uppercase tracking-tight corp-mono text-slate-200">// Descriere Funcționare Matrice Avarii</h3>
+      <p className="text-xs text-[#64748b] leading-relaxed">
+        Codul din firmware implementează o variabilă statică locală <code className="corp-mono text-rose-400 bg-rose-950/40 px-1 rounded">static uint8_t tip_eroare</code>. La fiecare iterație sau întrerupere generată de senzor, registrul execută un salt incremental auto-mărginit.
+      </p>
+      <div className="bg-[#111827] border border-[#1e293b] rounded-lg p-3 space-y-1.5 font-mono text-[11px] text-slate-400">
+        <div><span className="text-[#38bdf8]">CASE 0:</span> Analiză debitmetru (Gripare rotor sau pierdere presiune)</div>
+        <div><span className="text-[#38bdf8]">CASE 1:</span> Suprasarcină circuit releu sau feedback electronic pompă</div>
+        <div><span className="text-[#38bdf8]">CASE 3:</span> Lipsa lapte in tank- Tanc complet gol</div>
+        <div><span className="text-[#38bdf8]">CASE 4:</span> Lipsa flux de lapte!!!</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
           {/* Alertă Tehnică de Securitate Memorie */}
           <div className="bg-[#FFF3CD] border border-[#FFEBA0] rounded-xl p-4 flex gap-3 text-left">
             <span className="text-sm">⚠️</span>
@@ -433,6 +535,10 @@ export default function VVMilkManualPage() {
             </div>
           </div>
         </div>
+
+
+
+        
 
       </main>
 
