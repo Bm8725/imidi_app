@@ -181,16 +181,18 @@ function pad16(text: string) {
 function LcdScreen({ line0, line1, flash }: { line0: string; line1: string; flash?: boolean }) {
   return (
     <div
-      className={`corp-mono select-none rounded-md px-4 py-3 text-[15px] leading-[1.7] tracking-wider transition-colors ${
-        flash ? "bg-[#1a3a1a]" : "bg-[#0e1f0e]"
+      className={`corp-mono select-none rounded-md px-4 py-3 text-[15px] leading-[1.7] tracking-wider border border-[#1e293b] relative overflow-hidden transition-all duration-150 ${
+        flash ? "bg-[#1e293b]" : "bg-[#0f172a]"
       }`}
-      style={{ color: "#e0e9df", textShadow: "0 0 3px rgba(63, 170, 241, 0.35)" }}
+      style={{ color: "#38bdf8", textShadow: "0 0 6px rgba(56, 189, 248, 0.65)" }}
     >
-      <div className="whitespace-pre">{pad16(line0)}</div>
-      <div className="whitespace-pre">{pad16(line1)}</div>
+      <div className="absolute inset-0 bg-[#38bdf8]/5 pointer-events-none" />
+      <div className="whitespace-pre relative z-10">{pad16(line0)}</div>
+      <div className="whitespace-pre relative z-10">{pad16(line1)}</div>
     </div>
   );
 }
+
 
 export default function VVMilkManualPage() {
   const [activeTab, setActiveTab] = useState(0);
