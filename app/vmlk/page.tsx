@@ -181,14 +181,21 @@ function pad16(text: string) {
 function LcdScreen({ line0, line1, flash }: { line0: string; line1: string; flash?: boolean }) {
   return (
     <div
-      className={`corp-mono select-none rounded-md px-4 py-3 text-[15px] leading-[1.7] tracking-wider border border-[#1e293b] relative overflow-hidden transition-all duration-150 ${
-        flash ? "bg-[#1e293b]" : "bg-[#0f172a]"
+      className={`corp-mono select-none rounded-md px-4 py-3 text-[15px] leading-[1.7] tracking-wider border-2 border-slate-400 relative overflow-hidden transition-all duration-150 ${
+        flash ? "bg-[#60a5fa]" : "bg-[#0070F3]"
       }`}
-      style={{ color: "#38bdf8", textShadow: "0 0 6px rgba(56, 189, 248, 0.65)" }}
+      style={{ 
+        color: "#050b14", 
+        textShadow: "0px 1px 1px rgba(255, 255, 255, 0.2)",
+        boxShadow: "inset 0 0 20px rgba(0, 0, 0, 0.4), 0 0 10px rgba(0, 112, 243, 0.3)" 
+      }}
     >
-      <div className="absolute inset-0 bg-[#38bdf8]/5 pointer-events-none" />
-      <div className="whitespace-pre relative z-10">{pad16(line0)}</div>
-      <div className="whitespace-pre relative z-10">{pad16(line1)}</div>
+      {/* Backlight puternic albastru dedesubt */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-[#0052b4] to-[#38bdf8] opacity-90 pointer-events-none" />
+      
+      {/* Conținutul text randat la nivel înalt cu contrast întunecat */}
+      <div className="whitespace-pre relative z-10 font-bold opacity-85">{pad16(line0)}</div>
+      <div className="whitespace-pre relative z-10 font-bold opacity-85">{pad16(line1)}</div>
     </div>
   );
 }
