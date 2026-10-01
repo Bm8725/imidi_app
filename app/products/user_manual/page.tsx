@@ -12,28 +12,28 @@ const pixel = Pixelify_Sans({ subsets: ["latin"] });
 type Param = { name: string; sub?: boolean; what: string; unit: string; v?: string; eeprom?: string; note?: string };
 type Page = { title: string; items: Param[] };
 
-// Variable names and EEPROM addresses come from the firmware. Menu-to-variable pairing for 1–12 is matched by name.
+// Everything below is taken from firmware V 5.3.13 (variable names, EEPROM addresses, ranges).
 const PAGES: Page[] = [
   { title: "Bass & Bellows", items: [
-    { name: "BASS_EN", what: "Enables or disables the left-hand (bass) section.", unit: "EN / DIS", v: "LH_EN", eeprom: "0x160" },
-    { name: "Bell_low_pull", what: "Lower-bellows setting for the pull direction.", unit: "value", v: "lower_bellows_pull", eeprom: "0x130" },
-    { name: "Bell_GAIN", what: "Gain of the bellows sensor. The firmware default is 1.", unit: "value", v: "bellows_gain", eeprom: "0x140" },
-    { name: "Bell_low_push", what: "Lower-bellows setting for the push direction.", unit: "value", v: "lower_bellows_push", eeprom: "0x120" } ] },
+    { name: "BASS_EN", what: "Turns the left-hand (bass) section on or off. The main screen shows BASS EN when on and SOLO when off.", unit: "EN / DIS", v: "LH_EN", eeprom: "0x160" },
+    { name: "Bell_low_pull", what: "Dead zone of the bellows sensor on the pull side. Expression (CC 11) starts only after the sensor moves this far from its centre.", unit: "0 – 64", v: "lower_bellows_pull", eeprom: "0x130" },
+    { name: "Bell_GAIN", what: "Multiplier applied to the treble expression coming from the bellows.", unit: "1 – 4", v: "bellows_gain", eeprom: "0x140" },
+    { name: "Bell_low_push", what: "Dead zone of the bellows sensor on the push side.", unit: "0 – 64", v: "lower_bellows_push", eeprom: "0x120" } ] },
   { title: "Channels & programs", items: [
-    { name: "TREB_CH", what: "MIDI channel used by the right hand (melody).", unit: "channel 1–16", v: "R_key_ch", eeprom: "0x150" },
-    { name: "BASS_CH", what: "MIDI channel used by the left hand (bass).", unit: "channel 1–16", v: "L_key_ch", eeprom: "0x151" },
-    { name: "TREB_PG", what: "Program Change setting for the melody.", unit: "value", v: "R_PG_ch", eeprom: "0x152" },
-    { name: "BASS_PG", what: "Program Change setting for the bass.", unit: "value", v: "L_PG_ch", eeprom: "0x153" } ] },
+    { name: "TREB_CH", what: "MIDI channel for the right-hand keys, and for the treble volume and expression.", unit: "channel 1–16", v: "R_key_ch", eeprom: "0x150" },
+    { name: "BASS_CH", what: "MIDI channel for the first 12 left-hand keys (and their volume and expression).", unit: "channel 1–16", v: "L_key_ch", eeprom: "0x151" },
+    { name: "TREB_PG", what: "MIDI channel on which Program Changes for the treble registers are sent.", unit: "channel 1–16", v: "R_PG_ch", eeprom: "0x152" },
+    { name: "BASS_PG", what: "MIDI channel for Program Changes in the left-hand bank (L).", unit: "channel 1–16", v: "L_PG_ch", eeprom: "0x153" } ] },
   { title: "Velocity & keys", items: [
-    { name: "Vel_treb", what: "Velocity (note strength) for the melody.", unit: "0–127", v: "Velocity_treble", eeprom: "0x170" },
-    { name: "Vel_bass", what: "Velocity (note strength) for the bass.", unit: "0–127", v: "Velocity_bass", eeprom: "0x171" },
-    { name: "Config_key", sub: true, what: "Opens a submenu for configuring the keys (marked “>>”).", unit: "submenu" },
-    { name: "bass_key", what: "Sets the base key/note for the bass.", unit: "value" } ] },
+    { name: "Vel_treb", what: "Velocity (note strength) for the right-hand keys.", unit: "0–127", v: "Velocity_treble", eeprom: "0x170" },
+    { name: "Vel_bass", what: "Velocity (note strength) for the left-hand keys.", unit: "0–127", v: "Velocity_bass", eeprom: "0x171" },
+    { name: "Config_key", sub: true, what: "Opens the treble key-assignment screen (CONFIG KEY, 48 keys). Turn the encoder to 5 or higher to enter.", unit: "submenu" },
+    { name: "bass_key", what: "Opens the bass key-assignment screen (BASS KEY, 24 keys). Turn the encoder to 5 or higher to enter.", unit: "submenu" } ] },
   { title: "Registers & chords", items: [
-    { name: "REG_ASSG_C", what: "Register assignment per instrument. Pick an instrument (1–15) and set its value; the screen shows “instrument -> value”. The value is written to EEPROM while the TR signal is inactive, and “saved” appears on screen.", unit: "instrument 1–15 → value", v: "shift_register1 … 15", eeprom: "0x000 – 0x00E" },
-    { name: "PG_REG", what: "Enables or disables the registers. The screen shows EN when the value is 1, otherwise DIS.", unit: "EN / DIS", v: "REG_EN", eeprom: "0x161", note: "Saved automatically on every change." },
-    { name: "offest_LH_BL", what: "Offset for the left hand. The value wraps back to 0 after 127.", unit: "0 – 127", v: "off_LH", eeprom: "0x172", note: "Saved automatically on every change." },
-    { name: "ACHORD_CH", what: "MIDI channel for chords (judging by the name). Stored as 0–15, shown on screen as 1–16.", unit: "channel 1–16", v: "L_key_ch2", eeprom: "0x154", note: "Saved automatically on every change." } ] },
+    { name: "REG_ASSG_C", what: "Gives each of the 15 registers a number, shown as S: on the main screen. Select a register, turn the encoder to the number, then press TR to save; “saved” appears.", unit: "register 1–15 → 0–16", v: "shift_register1 … 15", eeprom: "0x000 – 0x00E" },
+    { name: "PG_REG", what: "How registers are chosen. EN: with the register switches (15 combinations). DIS: with the encoder.", unit: "EN / DIS", v: "REG_EN", eeprom: "0x161" },
+    { name: "offest_LH_BL", what: "Offset added to the bellows expression: left-hand channels get +offset, the treble channel gets offset − 20 (before gain).", unit: "0 – 127", v: "off_LH", eeprom: "0x172" },
+    { name: "ACHORD_CH", what: "MIDI channel for the last 12 left-hand keys (chords) and their volume and expression.", unit: "channel 1–16", v: "L_key_ch2", eeprom: "0x154" } ] },
 ];
 const TOTAL = 16;
 const pad = (s: string) => s.padEnd(15, " ");
@@ -87,7 +87,7 @@ function BootDemo({ px }: { px: string }) {
         </>)}
         {stage === 2 && (
           <div className="absolute left-[3%] top-[5%] space-y-[3%] text-[clamp(.8rem,3.4vw,1.1rem)]">
-            <div>INFO</div><div className="pt-[6%]">&lt;hardware type&gt;</div><div>&lt;OS version&gt;</div>
+            <div>INFO</div><div className="pt-[6%]">REV 4.0</div><div>V 5.3.13</div>
           </div>
         )}
       </div>
@@ -97,39 +97,36 @@ function BootDemo({ px }: { px: string }) {
 }
 
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-type K = { note: number; ch: number };
-type KeyMap = { treble: K[]; bass: K[] };
-const mkKeys = (n: number, start: number, ch: number): K[] => Array.from({ length: n }, (_, i) => ({ note: Math.min(127, start + i), ch }));
+const COUNT = { treble: 48, bass: 24 } as const; // NUM_INPUTS and NUM_INPUT_LH in the firmware
+const START = { treble: 49, bass: 28 } as const; // first note shown by the on-device key screens
+type Hand = keyof typeof COUNT;
+type KeyMap = Record<Hand, number[]>;
+const fillNotes = (h: Hand, from: number) => Array.from({ length: COUNT[h] }, (_, i) => Math.min(127, from + i));
+const initialMap = (): KeyMap => ({ treble: fillNotes("treble", START.treble), bass: fillNotes("bass", START.bass) });
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, Math.round(v) || a));
 const noteName = (n: number) => NOTES[n % 12] + (Math.floor(n / 12) - 1);
+const hex = (n: number) => n.toString(16).toUpperCase().padStart(2, "0");
 const inputCls = "h-11 w-full rounded-lg border border-[#3a404a] bg-[#0f1116] px-3 text-[#f4f0e8] outline-none focus:border-[#bfe6ff]";
 
-// Preview of the future PC utility. Today it edits a draft key map and exports/imports JSON.
-// When the USB-USART link exists, plug the transport into sendToDevice() below.
+// Preview of the future PC utility: edits the key map in the browser and exports/imports JSON.
+// The USB link is not built yet; plug the transport into the disabled buttons when it exists.
 function KeyConfigurator({ px }: { px: string }) {
-  const [cfg, setCfg] = useState<KeyMap>({ treble: mkKeys(24, 48, 1), bass: mkKeys(24, 36, 2) });
-  const [hand, setHand] = useState<"treble" | "bass">("treble");
+  const [map, setMap] = useState<KeyMap>(initialMap);
+  const [hand, setHand] = useState<Hand>("treble");
   const [idx, setIdx] = useState(0);
-  const [serial, setSerial] = useState(false);
   const [msg, setMsg] = useState("");
-  useEffect(() => setSerial("serial" in navigator), []);
+  const [midiOk, setMidiOk] = useState(false);
+  const [serialOk, setSerialOk] = useState(false);
+  useEffect(() => { setMidiOk("requestMIDIAccess" in navigator); setSerialOk("serial" in navigator); }, []);
 
-  const keys = cfg[hand];
-  const i = Math.min(idx, keys.length - 1);
-  const k = keys[i];
-  const upd = (patch: Partial<K>) => setCfg((c) => ({ ...c, [hand]: c[hand].map((x, j) => (j === i ? { ...x, ...patch } : x)) }));
-  const fill = (start: number) => setCfg((c) => ({ ...c, [hand]: c[hand].map((x, j) => ({ ...x, note: Math.min(127, start + j) })) }));
-  const resize = (v: number) => {
-    const n = clamp(v, 1, 64);
-    setCfg((c) => {
-      const cur = c[hand];
-      const last = cur[cur.length - 1];
-      const next = n <= cur.length ? cur.slice(0, n) : [...cur, ...Array.from({ length: n - cur.length }, (_, j) => ({ note: Math.min(127, last.note + j + 1), ch: last.ch }))];
-      return { ...c, [hand]: next };
-    });
-  };
+  const notes = map[hand];
+  const note = notes[idx];
+  const setNote = (v: number) => setMap((m) => ({ ...m, [hand]: m[hand].map((x, j) => (j === idx ? clamp(v, 0, 127) : x)) }));
+  const fill = () => setMap((m) => ({ ...m, [hand]: fillNotes(hand, Math.max(0, note - idx)) }));
+  const channelFor = (h: Hand, i: number) => (h === "treble" ? "TREB_CH" : i < 12 ? "BASS_CH" : "ACHORD_CH");
+
   const exportJson = () => {
-    const blob = new Blob([JSON.stringify({ device: "i-VOLUTION TS4x", version: 1, ...cfg }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ device: "i-VOLUTION TS4x", firmware: "5.3.13", ...map }, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = "ivolution-keys.json"; a.click();
     URL.revokeObjectURL(a.href); setMsg("Exported ivolution-keys.json");
@@ -138,48 +135,53 @@ function KeyConfigurator({ px }: { px: string }) {
     if (!f) return;
     try {
       const d = JSON.parse(await f.text());
-      const ok = (a: unknown) => Array.isArray(a) && a.length >= 1 && a.length <= 64 &&
-        a.every((x) => Number.isInteger(x?.note) && x.note >= 0 && x.note <= 127 && Number.isInteger(x?.ch) && x.ch >= 1 && x.ch <= 16);
-      if (ok(d.treble) && ok(d.bass)) { setCfg({ treble: d.treble, bass: d.bass }); setIdx(0); setMsg("Imported."); }
-      else setMsg("That file is not a valid key map.");
-    } catch { setMsg("That file is not a valid key map."); }
+      const ok = (a: unknown, n: number) => Array.isArray(a) && a.length === n && a.every((x) => Number.isInteger(x) && x >= 0 && x <= 127);
+      if (ok(d.treble, COUNT.treble) && ok(d.bass, COUNT.bass)) { setMap({ treble: d.treble, bass: d.bass }); setMsg("Imported."); }
+      else setMsg("Not a valid key map: it needs 48 treble and 24 bass notes (0–127).");
+    } catch { setMsg("That file is not valid JSON."); }
   };
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-black/25 p-3">
-        <span className="inline-flex items-center gap-2 text-sm"><span className="h-2.5 w-2.5 rounded-full bg-[#c9a24a]" />USB-USART: not connected (planned)</span>
+        <span className="inline-flex items-center gap-2 text-sm"><span className="h-2.5 w-2.5 rounded-full bg-[#c9a24a]" />PC link: not connected (planned)</span>
         <button disabled className={`${btn} ml-auto cursor-not-allowed opacity-50`}>Connect to controller · coming soon</button>
-        <span className="w-full text-sm text-[#c9cdd5]">Browser serial support (Web Serial): {serial ? "available" : "not available — use Chrome or Edge"}.</span>
+        <span className="w-full text-sm text-[#c9cdd5]">
+          The controller talks MIDI at 31250 baud, so the link can be a USB-MIDI cable (Web MIDI: {midiOk ? "available" : "not available"}) or a USB-serial adapter set to 31250 baud (Web Serial: {serialOk ? "available" : "not available"}). Use Chrome or Edge.
+        </span>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {(["treble", "bass"] as const).map((h) => (
           <button key={h} aria-pressed={hand === h} onClick={() => { setHand(h); setIdx(0); }}
-            className={`${btn} ${hand === h ? "!border-[#f4f0e8] !bg-[#f4f0e8] !text-[#14161a]" : ""}`}>{h === "treble" ? "Treble (right hand)" : "Bass (left hand)"}</button>
+            className={`${btn} ${hand === h ? "!border-[#f4f0e8] !bg-[#f4f0e8] !text-[#14161a]" : ""}`}>
+            {h === "treble" ? "Treble · 48 keys" : "Bass · 24 keys"}
+          </button>
         ))}
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8" role="group" aria-label="Keys">
-          {keys.map((x, j) => (
-            <button key={j} onClick={() => setIdx(j)} aria-pressed={j === i} aria-label={`Key ${j + 1}, note ${noteName(x.note)}`}
-              className={`min-h-14 cursor-pointer rounded-lg border px-1 py-1.5 text-center transition-colors ${j === i ? "border-[#e0434c] bg-[#c8323b]/30" : "border-[#3a404a] bg-[#1b1e25] hover:border-[#c9cdd5]"}`}>
+          {notes.map((n, j) => (
+            <button key={j} onClick={() => setIdx(j)} aria-pressed={j === idx} aria-label={`Key ${j + 1}, note ${noteName(n)}`}
+              className={`min-h-14 cursor-pointer rounded-lg border px-1 py-1.5 text-center transition-colors ${j === idx ? "border-[#e0434c] bg-[#c8323b]/30" : "border-[#3a404a] bg-[#1b1e25] hover:border-[#c9cdd5]"}`}>
               <span className="block text-xs text-[#c9cdd5]">{j + 1}</span>
-              <span className={`${px} block text-base`}>{noteName(x.note)}</span>
+              <span className={`${px} block text-base`}>{noteName(n)}</span>
             </button>
           ))}
         </div>
 
         <div className="space-y-3 rounded-xl border border-white/10 bg-black/25 p-4">
-          <h3 className={`${px} text-xl text-[#cfeaff]`}>Key {i + 1} · {noteName(k.note)}</h3>
+          <h3 className={`${px} text-xl text-[#cfeaff]`}>Key {idx + 1} · {noteName(note)}</h3>
           <label className="block text-sm">MIDI note (0–127)
-            <input type="number" min={0} max={127} value={k.note} onChange={(e) => upd({ note: clamp(+e.target.value, 0, 127) })} className={`${inputCls} mt-1`} /></label>
-          <label className="block text-sm">MIDI channel (1–16)
-            <input type="number" min={1} max={16} value={k.ch} onChange={(e) => upd({ ch: clamp(+e.target.value, 1, 16) })} className={`${inputCls} mt-1`} /></label>
-          <label className="block text-sm">Number of keys (1–64)
-            <input type="number" min={1} max={64} value={keys.length} onChange={(e) => resize(+e.target.value)} className={`${inputCls} mt-1`} /></label>
-          <button className={`${btn} w-full`} onClick={() => fill(k.note - i)}>Fill chromatically from key 1 = {noteName(Math.max(0, k.note - i))}</button>
+            <input type="number" min={0} max={127} value={note} onChange={(e) => setNote(+e.target.value)} className={`${inputCls} mt-1`} /></label>
+          <p className="text-sm text-[#d5d9e0]">Sent on the <b>{channelFor(hand, idx)}</b> channel.</p>
+          <button className={`${btn} w-full`} onClick={fill}>Fill from key 1 = {noteName(Math.max(0, note - idx))}</button>
+          <button className={`${btn} w-full`} onClick={() => { setMap(initialMap()); setIdx(0); setMsg("Reset to the on-device starting notes."); }}>Reset both hands</button>
+          <div className="rounded-lg bg-[#0f1116] p-3 text-sm">
+            <div className="text-[#c9cdd5]">Proposed message for this key (not yet in the firmware):</div>
+            <code className={`${px} mt-1 block break-all text-[#cfeaff]`}>F0 7D 01 {hand === "treble" ? "03" : "04"} {hex(idx)} {hex(note)} F7</code>
+          </div>
         </div>
       </div>
 
@@ -325,58 +327,82 @@ export default function ManualPage() {
               </button>
             </section>
 
+            <section id="controls" className={`${panel} p-5 sm:p-8`}>
+              <h2 className={h2}>Playing controls</h2>
+              <p className={lead}>The main screen shows the register number (S:), the bank (BNK:), the transpose (T) and the volume (V:). The <b>TR</b> button chooses what the encoder controls; the marker “&gt;” shows the active one.</p>
+              <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[10rem_1fr]">
+                {[
+                  ["1 · Volume", "±7 per click, 0–127. Sent as CC 7 to the treble channel, and to both bass channels when BASS_EN is on. Remembered after power-off."],
+                  ["2 · Transpose", "−8 to +8 semitones, shown as >+03, >-05 and so on. Sent as a Master Coarse Tuning SysEx message. Not remembered."],
+                  ["3 · Bank", "Selects bank A, B, C or D, and L for the left hand (only when BASS_EN is on)."],
+                  ["4 · Register", "Only when PG_REG is DIS: pick the register with the encoder instead of the register switches."],
+                ].map(([k, v]) => (<div key={k} className="contents"><dt className="font-semibold text-[#cfeaff]">{k}</dt><dd className="mb-2 sm:mb-0">{v}</dd></div>))}
+              </dl>
+              <p className="mt-3 text-[#d5d9e0]">TR steps through 1–3, or 1–4 when PG_REG is DIS.</p>
+              <h3 className="mb-2 mt-6 text-lg font-semibold">Banks and program numbers</h3>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                {[["A", "1 – 15"], ["B", "16 – 30"], ["C", "33 – 47"], ["D", "48 – 62"], ["L", "80 – 94"]].map(([b, r]) => (
+                  <div key={b} className="rounded-lg border border-white/10 bg-black/25 p-3 text-center">
+                    <div className={`${px} text-2xl text-[#cfeaff]`}>{b}</div><div className="text-sm text-[#d5d9e0]">programs {r}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-[#d5d9e0]">Each register (1–15) sends a Program Change equal to the bank offset plus the register number, on the TREB_PG channel. Bank L sends on BASS_PG and ACHORD_CH.</p>
+            </section>
+
+            <section id="service" className={`${panel} p-5 sm:p-8`}>
+              <h2 className={h2}>Service mode</h2>
+              <ol className="max-w-[65ch] list-decimal space-y-3 pl-6 text-lg">
+                <li>Hold <b>TR</b> while powering on. After the splash screen the controller waits 2 seconds and shows <code className={px}>SERVICE</code>.</li>
+                <li>Press <b>TR</b> to go to the next position. The position (for example 5/16) shows at the top right.</li>
+                <li>Turn the encoder to change the value. It is saved at once, except <code className={px}>REG_ASSG_C</code>, where you press TR to save.</li>
+                <li>To assign key notes, go to <code className={px}>Config_key</code> or <code className={px}>bass_key</code> and turn the encoder to 5 or higher (see Key assignment).</li>
+                <li>There is no exit button. Power-cycle the controller to go back to playing.</li>
+              </ol>
+            </section>
+
+            <section id="keys" className={`${panel} p-5 sm:p-8`}>
+              <h2 className={h2}>Key assignment <span className="ml-2 align-middle rounded-full border border-[#c9a24a] px-3 py-0.5 text-sm font-normal text-[#f0dcb4]">PC utility · preview</span></h2>
+              <p className={lead}>On the controller, the CONFIG KEY screen (48 treble keys) and the BASS KEY screen (24 bass keys) work the same way: press TR to move to the next key, turn the encoder to set its note (0–127). Each change is saved immediately. The utility below prepares the same map on your PC; the link to the controller is still to come.</p>
+              <KeyConfigurator px={px} />
+            </section>
+
             <section id="boot" className={`${panel} p-5 sm:p-8`}>
               <h2 className={h2}>Boot sequence</h2>
-              <p className={lead}>When you power on, the display runs three short screens before the controller is ready. Replay it here:</p>
+              <p className={lead}>On power-up the display runs three short screens. Replay them here:</p>
               <div className="grid items-start gap-6 md:grid-cols-[minmax(0,28rem)_1fr]">
                 <BootDemo px={px} />
                 <ol className="list-decimal space-y-3 pl-6 text-lg">
-                  <li><b>Splash</b> — “i-VOLUTION / TS4x synth” and the web address, with a loading bar.</li>
+                  <li><b>Splash</b> — “i-VOLUTION / TS4x synth”, the web address and a loading bar.</li>
                   <li><b>Hello</b> — a short piano animation with “HI!”.</li>
-                  <li><b>Info</b> — the hardware type and the OS (firmware) version.</li>
+                  <li><b>Info</b> — hardware REV 4.0 and firmware V 5.3.13.</li>
                 </ol>
               </div>
+              <p className="mt-4 text-[#d5d9e0]">Holding TR during power-up enters Service mode after the splash screen.</p>
             </section>
 
             <section id="midi" className={`${panel} p-5 sm:p-8`}>
               <h2 className={h2}>MIDI messages</h2>
-              <p className={lead}>The firmware can send these standard MIDI messages:</p>
-              <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[13rem_1fr]">
+              <dl className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-[14rem_1fr]">
                 {[
-                  ["Note On / Note Off", "Status 0x9n and 0x8n, with note and velocity."],
-                  ["Program Change", "Status 0xCn, with one data byte (0–127)."],
-                  ["Control Change", "Status 0xBn. Volume uses CC 7, Expression uses CC 11."],
-                  ["Bank + program", "Bank MSB (CC 0), bank LSB (CC 32), then Program Change. Written for Korg PA-series keyboards."],
-                  ["Preset number", "A preset from 0 to 16383 is split into bank MSB (preset ÷ 128) and program (preset mod 128); bank LSB is 0."],
+                  ["Note On / Note Off", "0x9n and 0x8n. Treble keys use TREB_CH; the first 12 bass keys use BASS_CH, the last 12 use ACHORD_CH."],
+                  ["Control Change 11", "Expression from the bellows, using the dead zones, gain and offset set in Service mode."],
+                  ["Control Change 7", "Volume from the encoder."],
+                  ["Program Change", "0xCn: bank offset + register number, on TREB_PG (bank L: BASS_PG and ACHORD_CH)."],
+                  ["Transpose", "F0 7F 7F 04 04 00 xx F7, where xx runs from 0x38 (−8) to 0x48 (+8) and 0x40 means no transpose."],
+                  ["Bank + program (Korg PA)", "Available in the firmware but not used by the main screen: CC 0, CC 32, then Program Change. A preset 0–16383 splits into bank MSB (preset ÷ 128) and program (preset mod 128)."],
                 ].map(([k, v]) => (<div key={k} className="contents"><dt className="font-semibold text-[#cfeaff]">{k}</dt><dd className="mb-2 sm:mb-0">{v}</dd></div>))}
               </dl>
               <p className="mt-4 text-[#c9cdd5]">n is the MIDI channel (0–15 in the message, shown as 1–16 on screen).</p>
             </section>
 
-            <section id="keys" className={`${panel} p-5 sm:p-8`}>
-              <h2 className={h2}>Key configurator <span className="ml-2 align-middle rounded-full border border-[#c9a24a] px-3 py-0.5 text-sm font-normal text-[#f0dcb4]">preview</span></h2>
-              <p className={lead}>A PC utility for setting up the keys. For now it edits a draft key map and saves it as a file; the number of keys and the defaults are placeholders. A USB-USART link to the controller is planned, so the map can be sent straight from the PC.</p>
-              <KeyConfigurator px={px} />
-            </section>
-
-            <section id="start" className={`${panel} p-5 sm:p-8`}>
-              <h2 className={h2}>Getting started</h2>
-              <ol className="max-w-[65ch] list-decimal space-y-3 pl-6 text-lg">
-                <li>Power on the controller and wait for the boot sequence to finish.</li>
-                <li>Turn the encoder to move through the 16 positions. The active line is marked with <kbd className={`rounded border border-[#3a404a] bg-[#262a31] px-1.5 ${px}`}>&gt;</kbd>.</li>
-                <li>Set the MIDI channels (<code className={px}>TREB_CH</code>, <code className={px}>BASS_CH</code>) to match your instrument or software.</li>
-                <li>Choose the sounds with <code className={px}>TREB_PG</code> and <code className={px}>BASS_PG</code>.</li>
-                <li>Adjust playing strength with <code className={px}>Vel_treb</code> and <code className={px}>Vel_bass</code>.</li>
-              </ol>
-            </section>
-
             <section id="notes" className="rounded-2xl border border-[#6b5230] bg-[#2a2119]/95 p-5 text-[#f0dcb4] sm:p-8">
               <h2 className={h2}>Notes</h2>
               <div className="max-w-[65ch] space-y-3 text-lg">
-                <p>The settings menu is the SERVICE setup. At start-up the firmware loads every setting from EEPROM, so values persist after power-off.</p>
-                <p>The menu shown here is the <code className={px}>OLED_127x32</code> build; the boot screens are drawn for a 128×64 display. Parameter names are exactly as in the firmware, including <code className={px}>offest_LH_BL</code> as it appears on screen.</p>
-                <p>Settings at positions 14, 15 and 16 are written to EEPROM on every change. <code className={px}>REG_ASSG_C</code> (position 13) is written only while TR is inactive, and the screen confirms with “saved”.</p>
-                <p>One more stored value, <code className={px}>trans_type</code> (EEPROM 0x121), is not on the pages shown here. Descriptions of <code className={px}>Config_key</code>, <code className={px}>bass_key</code> and the exact meaning of the bellows values still need to be confirmed.</p>
+                <p>This manual describes firmware V 5.3.13 (04-09-2025) on hardware REV 4.0. At start-up the controller loads every setting from its internal EEPROM.</p>
+                <p>The code names the display option <code className={px}>OLED_127x32</code>, but the driver is set up for an SH1106 128×64 screen.</p>
+                <p>Not covered yet: where the key notes are stored and their default values (they are handled in <code className={px}>config.h</code>), the stored setting <code className={px}>trans_type</code> (EEPROM 0x121), and PC configuration over SysEx. The firmware has a disabled <code className={px}>SysEx_Config</code> block: a handshake (F0 7D 01 02 01 02 F7, answered with the same bytes and “PC&gt;” on screen) and command codes 03 and 04 for treble and bass keys, which are not handled yet.</p>
+                <p>MIDI for Accordions · www.imidi.ro · www.imidi.co.uk. Firmware © Balcangiu Marius Valentin, all rights reserved.</p>
               </div>
             </section>
           </>
