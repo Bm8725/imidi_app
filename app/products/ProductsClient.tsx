@@ -345,14 +345,21 @@ export default function ProductsClient() {
                 href="#pricing"
                 className="w-full sm:w-auto h-12 inline-flex items-center justify-center bg-[#E2861A] text-white font-medium text-sm px-8 rounded-full transition-all duration-300 hover:bg-[#C77313] hover:scale-[1.02] active:scale-[0.99]"
               >
-                Choose Your Version
+                Choose Version
               </Link>
               <Link
                 href="#specs"
                 className="w-full sm:w-auto h-12 inline-flex items-center justify-center border border-[#D8D5C9] bg-white text-[#3A3F47] font-medium text-sm px-8 rounded-full transition-all duration-300 hover:bg-[#F7F6F1]"
               >
-                View Specs
+                Specs
               </Link>
+                        <Link
+                href="/products/user_manual"
+                className="w-full sm:w-auto h-12 inline-flex items-center justify-center border border-[#D8D5C9] bg-white text-[#3A3F47] font-medium text-sm px-8 rounded-full transition-all duration-300 hover:bg-[#F7F6F1]"
+              >
+                User manual
+              </Link>
+
               <ShareButton className="w-full sm:w-auto h-12" />
             </div>
           </div>
