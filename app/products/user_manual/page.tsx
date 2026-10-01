@@ -538,8 +538,8 @@ export default function ManualPage() {
               <h2 className={h2}>Notes</h2>
               <div className="max-w-[65ch] space-y-3 text-lg">
                 <p>This manual describes firmware V 5.3.13 (04-09-2025) on hardware REV 4.0. At start-up the controller loads every setting from its internal EEPROM.</p>
-                <p>The code names the display option <code className={px}>OLED_127x32</code>, but the driver is set up for an SH1106 128×64 screen.</p>
-                <p>Not covered yet: where the key notes are stored and their default values (they are handled in <code className={px}>config.h</code>), the stored setting <code className={px}>trans_type</code> (EEPROM 0x121), and PC configuration over SysEx. The firmware has a disabled <code className={px}>SysEx_Config</code> block: a handshake (F0 7D 01 02 01 02 F7, answered with the same bytes and “PC&gt;” on screen) and command codes 03 and 04 for treble and bass keys, which are not handled yet.</p>
+                <p>The code names the display option <code className={px}>OLED_127x32</code>, but the driver is set up for an  128×64 screen.</p>
+                <p>Not covered yet: where the key notes are stored and their default values (they are handled in <code className={px}>config.h</code>), the stored setting <code className={px}>trans_type</code> (EEPROM 0x121), and PC configuration over SysEx. The firmware has a disabled <code className={px}>SysEx_Config</code> block: a handshake (F0 7D 01 02 01 02 F7, answered with the same bytes and "PC&gt;" on screen) and command codes 03 and 04 for treble and bass keys, which are not handled yet.</p>
                 <p>MIDI for Accordions · www.imidi.ro · www.imidi.co.uk. Firmware © Balcangiu Marius Valentin, all rights reserved.</p>
               </div>
             </section>
