@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bricolage_Grotesque, Pixelify_Sans } from "next/font/google";
 import Navbar from "@/components/Navbar";
@@ -27,7 +27,7 @@ const PAGES: Page[] = [
   { title: "Velocity & keys", items: [
     { name: "Vel_treb", what: "Velocity (note strength) for the right-hand keys.", unit: "0–127", v: "Velocity_treble", eeprom: "0x170" },
     { name: "Vel_bass", what: "Velocity (note strength) for the left-hand keys.", unit: "0–127", v: "Velocity_bass", eeprom: "0x171" },
-    { name: "Config_key", sub: true, what: "Opens the treble key-assignment screen (CONFIG KEY, 48 keys). Turn the encoder to 5 or higher to enter.", unit: "submenu" },
+    { name: "Config_key", sub: true, what: "Opens the treble key-assignment screen (CONFIG KEY screen). Turn the encoder to 5 or higher to enter.", unit: "submenu" },
     { name: "bass_key", what: "Opens the bass key-assignment screen (BASS KEY, 24 keys). Turn the encoder to 5 or higher to enter.", unit: "submenu" } ] },
   { title: "Registers & chords", items: [
     { name: "REG_ASSG_C", what: "Gives each of the 15 registers a number, shown as S: on the main screen. Select a register, turn the encoder to the number, then press TR to save; “saved” appears.", unit: "register 1–15 → 0–16", v: "shift_register1 … 15", eeprom: "0x000 – 0x00E" },
@@ -97,7 +97,8 @@ function BootDemo({ px }: { px: string }) {
 }
 
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-const COUNT = { treble: 48, bass: 24 } as const; // NUM_INPUTS and NUM_INPUT_LH in the firmware
+const COUNT = { treble: 45, bass: 24 } as const; // maximum number of keys per hand
+const DEFAULT_TREBLE = 41; // keys on the standard treble keyboard
 const START = { treble: 49, bass: 28 } as const; // first note shown by the on-device key screens
 type Hand = keyof typeof COUNT;
 type KeyMap = Record<Hand, number[]>;
@@ -108,25 +109,135 @@ const noteName = (n: number) => NOTES[n % 12] + (Math.floor(n / 12) - 1);
 const hex = (n: number) => n.toString(16).toUpperCase().padStart(2, "0");
 const inputCls = "h-11 w-full rounded-lg border border-[#3a404a] bg-[#0f1116] px-3 text-[#f4f0e8] outline-none focus:border-[#bfe6ff]";
 
-// Preview of the future PC utility: edits the key map in the browser and exports/imports JSON.
-// The USB link is not built yet; plug the transport into the disabled buttons when it exists.
+// ---- USB-serial link (Web Serial, 31250 baud = MIDI speed) ----
+type SerialPortLike = { open(o: { baudRate: number }): Promise<void>; close(): Promise<void>; readable: ReadableStream<Uint8Array> | null; writable: WritableStream<Uint8Array> | null };
+type SerialLike = { requestPort(): Promise<SerialPortLike>; addEventListener(t: "disconnect", f: () => void): void; removeEventListener(t: "disconnect", f: () => void): void };
+const BAUD = 31250;
+const HANDSHAKE = [0xf0, 0x7d, 0x01, 0x02, 0x01, 0x02, 0xf7]; // same bytes the firmware answers to (SysEx_Config)
+const LIVE_MS = 6000; // no bytes for this long = controller considered silent
+type Parser = { st: number; d: number[]; sys: number[] | null };
+const describeMsg = (st: number, d: number[]) => {
+  const k = st >> 4, ch = (st & 15) + 1;
+  if (k === 9) return d[1] === 0 ? `Note Off ${noteName(d[0])} ch ${ch}` : `Note On ${noteName(d[0])} vel ${d[1]} ch ${ch}`;
+  if (k === 8) return `Note Off ${noteName(d[0])} ch ${ch}`;
+  if (k === 11) return `CC ${d[0]} = ${d[1]} ch ${ch}${d[0] === 11 ? " (expression)" : d[0] === 7 ? " (volume)" : ""}`;
+  if (k === 12) return `Program ${d[0]} ch ${ch}`;
+  return [st, ...d].map(hex).join(" ");
+};
+const feedByte = (p: Parser, b: number, out: string[]) => {
+  if (b === 0xf0) { p.sys = [b]; return; }
+  if (p.sys) {
+    p.sys.push(b);
+    if (b === 0xf7) {
+      const m = p.sys; p.sys = null;
+      out.push(m.length === HANDSHAKE.length && m.every((x, i) => x === HANDSHAKE[i]) ? "Handshake reply from controller" : `SysEx ${m.map(hex).join(" ")}`);
+    } else if (p.sys.length > 32) p.sys = null;
+    return;
+  }
+  if (b >= 0xf8) return; // MIDI real-time bytes (clock etc.)
+  if (b & 0x80) { p.st = b; p.d = []; return; }
+  if (!p.st) return;
+  p.d.push(b);
+  const need = (p.st >> 4) === 0xc || (p.st >> 4) === 0xd ? 1 : 2;
+  if (p.d.length === need) { out.push(describeMsg(p.st, p.d)); p.d = []; }
+};
+
+// PC utility: edits the key map in the browser, exports/imports JSON, and watches the controller over USB-serial.
+// Sending the map is disabled until the firmware handles the key-config SysEx commands.
 function KeyConfigurator({ px }: { px: string }) {
   const [map, setMap] = useState<KeyMap>(initialMap);
   const [hand, setHand] = useState<Hand>("treble");
   const [idx, setIdx] = useState(0);
+  const [trebleKeys, setTrebleKeys] = useState(DEFAULT_TREBLE);
   const [msg, setMsg] = useState("");
-  const [midiOk, setMidiOk] = useState(false);
-  const [serialOk, setSerialOk] = useState(false);
-  useEffect(() => { setMidiOk("requestMIDIAccess" in navigator); setSerialOk("serial" in navigator); }, []);
+  const [open, setOpen] = useState(false);
+  const [live, setLive] = useState(false);
+  const [log, setLog] = useState<string[]>([]);
+  const [err, setErr] = useState("");
+  const portRef = useRef<SerialPortLike | null>(null);
+  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
+  const lastRx = useRef(0);
+  const serial = () => (navigator as unknown as { serial?: SerialLike }).serial;
 
-  const notes = map[hand];
+  const closePort = useCallback(async () => {
+    const port = portRef.current;
+    if (!port) return;
+    portRef.current = null;
+    try { await readerRef.current?.cancel(); } catch {}
+    try { readerRef.current?.releaseLock(); } catch {}
+    try { writerRef.current?.releaseLock(); } catch {}
+    try { await port.close(); } catch {}
+    readerRef.current = null; writerRef.current = null;
+    setOpen(false); setLive(false);
+  }, []);
+
+  const ping = () => { writerRef.current?.write(new Uint8Array(HANDSHAKE)).catch(() => {}); };
+
+  const connect = async () => {
+    setErr("");
+    const sp = serial();
+    if (!sp) { setErr("This browser has no Web Serial. Use Chrome or Edge on a PC."); return; }
+    try {
+      const port = await sp.requestPort();
+      await port.open({ baudRate: BAUD });
+      if (!port.readable || !port.writable) throw new Error("The port has no data streams.");
+      portRef.current = port; lastRx.current = 0; setLog([]); setOpen(true);
+      writerRef.current = port.writable.getWriter();
+      const reader = port.readable.getReader();
+      readerRef.current = reader;
+      ping();
+      const parser: Parser = { st: 0, d: [], sys: null };
+      (async () => {
+        try {
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            if (!value?.length) continue;
+            lastRx.current = Date.now();
+            const lines: string[] = [];
+            value.forEach((b) => feedByte(parser, b, lines));
+            if (lines.length) setLog((l) => [...lines.reverse(), ...l].slice(0, 8));
+          }
+        } catch {} finally { closePort(); }
+      })();
+    } catch (e) {
+      if (e instanceof Error && e.name !== "NotFoundError") setErr(e.message);
+    }
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const id = setInterval(() => {
+      const isLive = Date.now() - lastRx.current < LIVE_MS;
+      setLive(isLive);
+      if (!isLive) ping();
+    }, 1000);
+    return () => clearInterval(id);
+  }, [open]);
+
+  useEffect(() => {
+    const sp = serial();
+    const onGone = () => { closePort(); };
+    sp?.addEventListener("disconnect", onGone);
+    return () => { sp?.removeEventListener("disconnect", onGone); closePort(); };
+  }, [closePort]);
+
+  const status = !open
+    ? { c: "#e0434c", t: "Not connected", d: "No adapter selected." }
+    : live
+      ? { c: "#3ecf6e", t: "Controller connected", d: "Live MIDI is coming in from the controller." }
+      : { c: "#e8b73a", t: "Adapter connected, no controller detected", d: "The port is open but nothing is answering. Check power and cables, then play a key." };
+
+  const shown = hand === "treble" ? trebleKeys : COUNT.bass;
+  const notes = map[hand].slice(0, shown);
   const note = notes[idx];
   const setNote = (v: number) => setMap((m) => ({ ...m, [hand]: m[hand].map((x, j) => (j === idx ? clamp(v, 0, 127) : x)) }));
   const fill = () => setMap((m) => ({ ...m, [hand]: fillNotes(hand, Math.max(0, note - idx)) }));
   const channelFor = (h: Hand, i: number) => (h === "treble" ? "TREB_CH" : i < 12 ? "BASS_CH" : "ACHORD_CH");
 
   const exportJson = () => {
-    const blob = new Blob([JSON.stringify({ device: "i-VOLUTION TS4x", firmware: "5.3.13", ...map }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ device: "i-VOLUTION TS4x", firmware: "5.3.13", treble: map.treble.slice(0, trebleKeys), bass: map.bass }, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = "ivolution-keys.json"; a.click();
     URL.revokeObjectURL(a.href); setMsg("Exported ivolution-keys.json");
@@ -135,27 +246,49 @@ function KeyConfigurator({ px }: { px: string }) {
     if (!f) return;
     try {
       const d = JSON.parse(await f.text());
-      const ok = (a: unknown, n: number) => Array.isArray(a) && a.length === n && a.every((x) => Number.isInteger(x) && x >= 0 && x <= 127);
-      if (ok(d.treble, COUNT.treble) && ok(d.bass, COUNT.bass)) { setMap({ treble: d.treble, bass: d.bass }); setMsg("Imported."); }
-      else setMsg("Not a valid key map: it needs 48 treble and 24 bass notes (0–127).");
+      const ok = (a: unknown, min: number, max: number) => Array.isArray(a) && a.length >= min && a.length <= max && a.every((x) => Number.isInteger(x) && x >= 0 && x <= 127);
+      if (ok(d.treble, 1, COUNT.treble) && ok(d.bass, COUNT.bass, COUNT.bass)) {
+        const t: number[] = d.treble;
+        setMap({ treble: [...t, ...fillNotes("treble", Math.min(127, t[t.length - 1] + 1)).slice(0, COUNT.treble - t.length)], bass: d.bass });
+        setTrebleKeys(t.length); setIdx(0); setMsg("Imported.");
+      } else setMsg("Not a valid key map: it needs 1–45 treble notes and 24 bass notes (0–127).");
     } catch { setMsg("That file is not valid JSON."); }
   };
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-black/25 p-3">
-        <span className="inline-flex items-center gap-2 text-sm"><span className="h-2.5 w-2.5 rounded-full bg-[#c9a24a]" />PC link: not connected (planned)</span>
-        <button disabled className={`${btn} ml-auto cursor-not-allowed opacity-50`}>Connect to controller · coming soon</button>
-        <span className="w-full text-sm text-[#c9cdd5]">
-          The controller talks MIDI at 31250 baud, so the link can be a USB-MIDI cable (Web MIDI: {midiOk ? "available" : "not available"}) or a USB-serial adapter set to 31250 baud (Web Serial: {serialOk ? "available" : "not available"}). Use Chrome or Edge.
-        </span>
+      <div className="space-y-3 rounded-xl border border-white/10 bg-black/25 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <span role="status" className="inline-flex items-center gap-3 text-base font-semibold">
+            <span className="h-4 w-4 shrink-0 rounded-full" style={{ background: status.c, boxShadow: `0 0 12px ${status.c}` }} />
+            {status.t}
+          </span>
+          {open
+            ? <button className={`${btn} ml-auto`} onClick={closePort}>Disconnect</button>
+            : <button className={`${btnRed} ml-auto`} onClick={connect}>Connect USB adapter</button>}
+        </div>
+        <p className="text-sm text-[#d5d9e0]">{status.d} Port settings: {BAUD} baud, 8 data bits, no parity.</p>
+        {err && <p className="text-sm text-[#ff9aa0]">{err}</p>}
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-[#c9cdd5]">
+          <span><span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-[#3ecf6e]" />green: controller answers or sends MIDI</span>
+          <span><span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-[#e8b73a]" />yellow: adapter open, controller silent</span>
+          <span><span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-[#e0434c]" />red: not connected</span>
+        </div>
+        {open && (
+          <div className="rounded-lg bg-[#0f1116] p-3">
+            <div className="mb-1 text-sm text-[#c9cdd5]">Live monitor (last 8 messages)</div>
+            <ul className={`${px} min-h-[5.5rem] space-y-0.5 text-sm text-[#cfeaff]`}>
+              {log.length ? log.map((l, i) => <li key={i} className="break-all">{l}</li>) : <li className="text-[#c9cdd5]">Waiting for data…</li>}
+            </ul>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2">
         {(["treble", "bass"] as const).map((h) => (
           <button key={h} aria-pressed={hand === h} onClick={() => { setHand(h); setIdx(0); }}
             className={`${btn} ${hand === h ? "!border-[#f4f0e8] !bg-[#f4f0e8] !text-[#14161a]" : ""}`}>
-            {h === "treble" ? "Treble · 48 keys" : "Bass · 24 keys"}
+            {h === "treble" ? `Treble · ${trebleKeys} keys` : "Bass · 24 keys"}
           </button>
         ))}
       </div>
@@ -176,8 +309,13 @@ function KeyConfigurator({ px }: { px: string }) {
           <label className="block text-sm">MIDI note (0–127)
             <input type="number" min={0} max={127} value={note} onChange={(e) => setNote(+e.target.value)} className={`${inputCls} mt-1`} /></label>
           <p className="text-sm text-[#d5d9e0]">Sent on the <b>{channelFor(hand, idx)}</b> channel.</p>
+          {hand === "treble" && (
+            <label className="block text-sm">Number of treble keys (1–45)
+              <input type="number" min={1} max={COUNT.treble} value={trebleKeys}
+                onChange={(e) => { const n = clamp(+e.target.value, 1, COUNT.treble); setTrebleKeys(n); setIdx((i) => Math.min(i, n - 1)); }} className={`${inputCls} mt-1`} /></label>
+          )}
           <button className={`${btn} w-full`} onClick={fill}>Fill from key 1 = {noteName(Math.max(0, note - idx))}</button>
-          <button className={`${btn} w-full`} onClick={() => { setMap(initialMap()); setIdx(0); setMsg("Reset to the on-device starting notes."); }}>Reset both hands</button>
+          <button className={`${btn} w-full`} onClick={() => { setMap(initialMap()); setTrebleKeys(DEFAULT_TREBLE); setIdx(0); setMsg("Reset to the on-device starting notes."); }}>Reset both hands</button>
           <div className="rounded-lg bg-[#0f1116] p-3 text-sm">
             <div className="text-[#c9cdd5]">Proposed message for this key (not yet in the firmware):</div>
             <code className={`${px} mt-1 block break-all text-[#cfeaff]`}>F0 7D 01 {hand === "treble" ? "03" : "04"} {hex(idx)} {hex(note)} F7</code>
@@ -363,7 +501,7 @@ export default function ManualPage() {
 
             <section id="keys" className={`${panel} p-5 sm:p-8`}>
               <h2 className={h2}>Key assignment <span className="ml-2 align-middle rounded-full border border-[#c9a24a] px-3 py-0.5 text-sm font-normal text-[#f0dcb4]">PC utility · preview</span></h2>
-              <p className={lead}>On the controller, the CONFIG KEY screen (48 treble keys) and the BASS KEY screen (24 bass keys) work the same way: press TR to move to the next key, turn the encoder to set its note (0–127). Each change is saved immediately. The utility below prepares the same map on your PC; the link to the controller is still to come.</p>
+              <p className={lead}>On the controller, the CONFIG KEY screen (treble, up to 45 keys) and the BASS KEY screen (bass, 24 keys) work the same way: press TR to move to the next key, turn the encoder to set its note (0–127). Each change is saved immediately. The utility below prepares the same map on your PC. It can already connect to the controller through a USB-serial adapter and show live MIDI; sending the map needs a firmware update first.</p>
               <KeyConfigurator px={px} />
             </section>
 
