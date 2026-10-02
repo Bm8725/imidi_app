@@ -129,14 +129,41 @@ const describeMsg = (st: number, d: number[]) => {
   if (k === 12) return `Program ${d[0]} ch ${ch}`;
   return [st, ...d].map(hex).join(" ");
 };
-const feedByte = (p: Parser, b: number, out: string[]) => {
+// =====================================================================================================
+// USART PROTOCOL  ·  FILL IN WHEN THE MESSAGE FORMAT IS DECIDED
+// Everything the PC sends to / expects from the controller for setup goes through this one object.
+// While a function returns null the matching button shows "not defined yet" instead of sending anything.
+// Messages are plain byte arrays (for SysEx: include F0 … F7).
+// =====================================================================================================
+type ParsedConfig = { settings?: Record<string, number>; registers?: number[] };
+type ParsedKeys = { treble?: number[]; bass?: number[] }; // MIDI notes 0–127: 1–45 treble, 24 bass
+const PROTOCOL = {
+  // Bytes that ask the controller for its whole configuration.
+  buildReadRequest: (): number[] | null => null,
+  // Called with every complete message coming from the controller. If it is the configuration reply,
+  // return { settings: { TREB_CH: 1, BASS_CH: 2, … }, registers: [15 values, each 0–16] }; otherwise return null.
+  // Setting names are the Service-mode names (BASS_EN, Bell_low_pull, Bell_GAIN, Bell_low_push, TREB_CH, BASS_CH,
+  // TREB_PG, BASS_PG, Vel_treb, Vel_bass, PG_REG, offest_LH_BL, ACHORD_CH). BASS_EN and PG_REG: 1 = EN, 0 = DIS.
+  parseConfigReply: (msg: number[]): ParsedConfig | null => { void msg; return null; },
+  // Bytes that set one setting (same names and values as above).
+  buildWrite: (name: string, value: number): number[] | null => { void name; void value; return null; },
+  // Bytes that set register number `index` (1–15) to `value` (0–16).
+  buildRegisterWrite: (index: number, value: number): number[] | null => { void index; void value; return null; },
+  // Bytes that ask the controller for its key notes (treble and bass).
+  buildReadKeysRequest: (): number[] | null => null,
+  // If `msg` is the key-notes reply return { treble: [1–45 notes], bass: [24 notes] }, otherwise null.
+  parseKeysReply: (msg: number[]): ParsedKeys | null => { void msg; return null; },
+};
+
+const feedByte = (p: Parser, b: number, out: string[], raw: number[][]) => {
   if (b === 0xf0) { p.sys = [b]; return; }
   if (p.sys) {
     p.sys.push(b);
     if (b === 0xf7) {
       const m = p.sys; p.sys = null;
-      out.push(m.length === HANDSHAKE.length && m.every((x, i) => x === HANDSHAKE[i]) ? "Handshake reply from controller" : `SysEx ${m.map(hex).join(" ")}`);
-    } else if (p.sys.length > 32) p.sys = null;
+      raw.push(m);
+      out.push(m.length === HANDSHAKE.length && m.every((x, i) => x === HANDSHAKE[i]) ? "Handshake reply from controller" : `SysEx ${m.length} bytes: ${m.slice(0, 16).map(hex).join(" ")}${m.length > 16 ? " …" : ""}`);
+    } else if (p.sys.length > 512) p.sys = null;
     return;
   }
   if (b >= 0xf8) return; // MIDI real-time bytes (clock etc.)
@@ -144,8 +171,111 @@ const feedByte = (p: Parser, b: number, out: string[]) => {
   if (!p.st) return;
   p.d.push(b);
   const need = (p.st >> 4) === 0xc || (p.st >> 4) === 0xd ? 1 : 2;
-  if (p.d.length === need) { out.push(describeMsg(p.st, p.d)); p.d = []; }
+  if (p.d.length === need) { raw.push([p.st, ...p.d]); out.push(describeMsg(p.st, p.d)); p.d = []; }
 };
+
+// One shared USB-serial connection for the whole utility window.
+type Link = { open: boolean; live: boolean; log: string[]; err: string; connect: () => void; disconnect: () => void; send: (b: number[]) => boolean; subscribe: (f: (m: number[]) => void) => () => void };
+function useSerialLink(): Link {
+  const [open, setOpen] = useState(false);
+  const [live, setLive] = useState(false);
+  const [log, setLog] = useState<string[]>([]);
+  const [err, setErr] = useState("");
+  const portRef = useRef<SerialPortLike | null>(null);
+  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
+  const lastRx = useRef(0);
+  const subs = useRef(new Set<(m: number[]) => void>());
+  const serial = () => (navigator as unknown as { serial?: SerialLike }).serial;
+
+  const closePort = useCallback(async () => {
+    const port = portRef.current;
+    if (!port) return;
+    portRef.current = null;
+    try { await readerRef.current?.cancel(); } catch {}
+    try { readerRef.current?.releaseLock(); } catch {}
+    try { writerRef.current?.releaseLock(); } catch {}
+    try { await port.close(); } catch {}
+    readerRef.current = null; writerRef.current = null;
+    setOpen(false); setLive(false);
+  }, []);
+
+  const send = useCallback((b: number[]) => {
+    const w = writerRef.current;
+    if (!w) return false;
+    w.write(new Uint8Array(b)).catch(() => {});
+    return true;
+  }, []);
+  const subscribe = useCallback((f: (m: number[]) => void) => { subs.current.add(f); return () => { subs.current.delete(f); }; }, []);
+
+  const connect = useCallback(async () => {
+    setErr("");
+    const sp = serial();
+    if (!sp) { setErr("This browser has no Web Serial. Use Chrome or Edge on a PC."); return; }
+    try {
+      const port = await sp.requestPort();
+      await port.open({ baudRate: BAUD });
+      if (!port.readable || !port.writable) throw new Error("The port has no data streams.");
+      portRef.current = port; lastRx.current = 0; setLog([]); setOpen(true);
+      writerRef.current = port.writable.getWriter();
+      const reader = port.readable.getReader();
+      readerRef.current = reader;
+      send(HANDSHAKE);
+      const parser: Parser = { st: 0, d: [], sys: null };
+      (async () => {
+        try {
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            if (!value?.length) continue;
+            lastRx.current = Date.now();
+            const lines: string[] = [];
+            const raw: number[][] = [];
+            value.forEach((b) => feedByte(parser, b, lines, raw));
+            if (lines.length) setLog((l) => [...lines.reverse(), ...l].slice(0, 8));
+            raw.forEach((m) => subs.current.forEach((f) => f(m)));
+          }
+        } catch {} finally { closePort(); }
+      })();
+    } catch (e) {
+      if (e instanceof Error && e.name !== "NotFoundError") setErr(e.message);
+    }
+  }, [closePort, send]);
+
+  useEffect(() => {
+    if (!open) return;
+    const id = setInterval(() => {
+      const isLive = Date.now() - lastRx.current < LIVE_MS;
+      setLive(isLive);
+      if (!isLive) send(HANDSHAKE);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [open, send]);
+
+  useEffect(() => {
+    const sp = serial();
+    const onGone = () => { closePort(); };
+    sp?.addEventListener("disconnect", onGone);
+    return () => { sp?.removeEventListener("disconnect", onGone); closePort(); };
+  }, [closePort]);
+
+  return { open, live, log, err, connect, disconnect: closePort, send, subscribe };
+}
+
+// Sends `req`, waits up to 3 s for a message that `parse` accepts, then reports through `say`.
+function askController<T>(link: Link, req: number[] | null, fn: string, parse: (m: number[]) => T | null, done: (v: T) => string, say: (s: string) => void, setBusy: (b: boolean) => void) {
+  if (!link.open) { say("Connect the USB adapter first (bar above)."); return; }
+  if (!req) { say(`The read message is not defined yet. Fill in PROTOCOL.${fn} in the code.`); return; }
+  setBusy(true); say("Waiting for the controller…");
+  let fin = false;
+  const off = link.subscribe((m) => {
+    const v = parse(m);
+    if (v === null || fin) return;
+    fin = true; off(); clearTimeout(timer); setBusy(false); say(done(v));
+  });
+  const timer = setTimeout(() => { if (fin) return; fin = true; off(); setBusy(false); say("No reply from the controller (3 s)."); }, 3000);
+  link.send(req);
+}
 
 // ---- Accordion keyboards ----
 const BLACK = [1, 3, 6, 8, 10];
@@ -236,90 +366,26 @@ function BassButtons({ notes, idx, onPick, px }: { notes: number[]; idx: number;
 
 // PC utility: edits the key map in the browser, exports/imports JSON, and watches the controller over USB-serial.
 // Sending the map is disabled until the firmware handles the key-config SysEx commands.
-function KeyConfigurator({ px }: { px: string }) {
+function KeyConfigurator({ px, link }: { px: string; link: Link }) {
   const [map, setMap] = useState<KeyMap>(initialMap);
   const [hand, setHand] = useState<Hand>("treble");
   const [idx, setIdx] = useState(0);
   const [trebleKeys, setTrebleKeys] = useState(DEFAULT_TREBLE);
   const [msg, setMsg] = useState("");
-  const [open, setOpen] = useState(false);
-  const [live, setLive] = useState(false);
-  const [log, setLog] = useState<string[]>([]);
-  const [err, setErr] = useState("");
-  const portRef = useRef<SerialPortLike | null>(null);
-  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
-  const writerRef = useRef<WritableStreamDefaultWriter<Uint8Array> | null>(null);
-  const lastRx = useRef(0);
-  const serial = () => (navigator as unknown as { serial?: SerialLike }).serial;
-
-  const closePort = useCallback(async () => {
-    const port = portRef.current;
-    if (!port) return;
-    portRef.current = null;
-    try { await readerRef.current?.cancel(); } catch {}
-    try { readerRef.current?.releaseLock(); } catch {}
-    try { writerRef.current?.releaseLock(); } catch {}
-    try { await port.close(); } catch {}
-    readerRef.current = null; writerRef.current = null;
-    setOpen(false); setLive(false);
-  }, []);
-
-  const ping = () => { writerRef.current?.write(new Uint8Array(HANDSHAKE)).catch(() => {}); };
-
-  const connect = async () => {
-    setErr("");
-    const sp = serial();
-    if (!sp) { setErr("This browser has no Web Serial. Use Chrome or Edge on a PC."); return; }
-    try {
-      const port = await sp.requestPort();
-      await port.open({ baudRate: BAUD });
-      if (!port.readable || !port.writable) throw new Error("The port has no data streams.");
-      portRef.current = port; lastRx.current = 0; setLog([]); setOpen(true);
-      writerRef.current = port.writable.getWriter();
-      const reader = port.readable.getReader();
-      readerRef.current = reader;
-      ping();
-      const parser: Parser = { st: 0, d: [], sys: null };
-      (async () => {
-        try {
-          for (;;) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            if (!value?.length) continue;
-            lastRx.current = Date.now();
-            const lines: string[] = [];
-            value.forEach((b) => feedByte(parser, b, lines));
-            if (lines.length) setLog((l) => [...lines.reverse(), ...l].slice(0, 8));
-          }
-        } catch {} finally { closePort(); }
-      })();
-    } catch (e) {
-      if (e instanceof Error && e.name !== "NotFoundError") setErr(e.message);
+  const [readMsg, setReadMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const readKeys = () => askController(link, PROTOCOL.buildReadKeysRequest(), "buildReadKeysRequest", PROTOCOL.parseKeysReply, (k: ParsedKeys) => {
+    const ok = (a: unknown, min: number, max: number) => Array.isArray(a) && a.length >= min && a.length <= max && a.every((x) => Number.isInteger(x) && x >= 0 && x <= 127);
+    const parts: string[] = [];
+    if (ok(k.treble, 1, COUNT.treble)) {
+      const t = k.treble!;
+      setMap((m) => ({ ...m, treble: [...t, ...fillNotes("treble", Math.min(127, t[t.length - 1] + 1)).slice(0, COUNT.treble - t.length)] }));
+      setTrebleKeys(t.length); parts.push(`${t.length} treble keys`);
     }
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const id = setInterval(() => {
-      const isLive = Date.now() - lastRx.current < LIVE_MS;
-      setLive(isLive);
-      if (!isLive) ping();
-    }, 1000);
-    return () => clearInterval(id);
-  }, [open]);
-
-  useEffect(() => {
-    const sp = serial();
-    const onGone = () => { closePort(); };
-    sp?.addEventListener("disconnect", onGone);
-    return () => { sp?.removeEventListener("disconnect", onGone); closePort(); };
-  }, [closePort]);
-
-  const status = !open
-    ? { c: "#e0434c", t: "Not connected", d: "No adapter selected." }
-    : live
-      ? { c: "#3ecf6e", t: "Controller connected", d: "Live MIDI is coming in from the controller." }
-      : { c: "#e8b73a", t: "Adapter connected, no controller detected", d: "The port is open but nothing is answering. Check power and cables, then play a key." };
+    if (ok(k.bass, COUNT.bass, COUNT.bass)) { setMap((m) => ({ ...m, bass: k.bass! })); parts.push("24 bass keys"); }
+    setIdx(0);
+    return parts.length ? `Read from controller: ${parts.join(" and ")}.` : "The reply had no valid key notes.";
+  }, setReadMsg, setBusy);
 
   const shown = hand === "treble" ? trebleKeys : COUNT.bass;
   const notes = map[hand].slice(0, shown);
@@ -349,33 +415,6 @@ function KeyConfigurator({ px }: { px: string }) {
 
   return (
     <div className="space-y-5">
-      <div className="space-y-3 rounded-xl border border-white/10 bg-black/25 p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <span role="status" className="inline-flex items-center gap-3 text-base font-semibold">
-            <span className="h-4 w-4 shrink-0 rounded-full" style={{ background: status.c, boxShadow: `0 0 12px ${status.c}` }} />
-            {status.t}
-          </span>
-          {open
-            ? <button className={`${btn} ml-auto`} onClick={closePort}>Disconnect</button>
-            : <button className={`${btnRed} ml-auto`} onClick={connect}>Connect USB adapter</button>}
-        </div>
-        <p className="text-sm text-[#d5d9e0]">{status.d} Port settings: {BAUD} baud, 8 data bits, no parity.</p>
-        {err && <p className="text-sm text-[#ff9aa0]">{err}</p>}
-        <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-[#c9cdd5]">
-          <span><span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-[#3ecf6e]" />green: controller answers or sends MIDI</span>
-          <span><span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-[#e8b73a]" />yellow: adapter open, controller silent</span>
-          <span><span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-[#e0434c]" />red: not connected</span>
-        </div>
-        {open && (
-          <div className="rounded-lg bg-[#0f1116] p-3">
-            <div className="mb-1 text-sm text-[#c9cdd5]">Live monitor (last 8 messages)</div>
-            <ul className={`${px} min-h-[5.5rem] space-y-0.5 text-sm text-[#cfeaff]`}>
-              {log.length ? log.map((l, i) => <li key={i} className="break-all">{l}</li>) : <li className="text-[#c9cdd5]">Waiting for data…</li>}
-            </ul>
-          </div>
-        )}
-      </div>
-
       <div className="flex flex-wrap gap-2">
         {(["treble", "bass"] as const).map((h) => (
           <button key={h} aria-pressed={hand === h} onClick={() => { setHand(h); setIdx(0); }}
@@ -410,7 +449,9 @@ function KeyConfigurator({ px }: { px: string }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button className={btnRed} onClick={exportJson}>Export JSON</button>
+        <button className={`${btnRed} disabled:opacity-60`} onClick={readKeys} disabled={busy}>{busy ? "Reading…" : "⟲ Read keys from controller"}</button>
+        <span aria-live="polite" className="text-sm text-[#f4f0e8]">{readMsg}</span>
+        <button className={btn} onClick={exportJson}>Export JSON</button>
         <label className={`${btn} inline-flex cursor-pointer items-center`}>Import JSON
           <input type="file" accept="application/json" className="sr-only" onChange={(e) => { importJson(e.target.files?.[0]); e.target.value = ""; }} /></label>
         <button disabled className={`${btn} cursor-not-allowed opacity-50`}>Send to controller ·...</button>
@@ -440,11 +481,36 @@ const SPEC: Record<string, Spec> = {
 const initVals = () => Object.fromEntries(Object.entries(SPEC).map(([k, s]) => [k, s.init])) as Record<string, number>;
 const initRegs = () => Array.from({ length: 15 }, (_, i) => i + 1);
 
-function SetupPanel({ px, goKeys }: { px: string; goKeys: () => void }) {
+function SetupPanel({ px, goKeys, link }: { px: string; goKeys: () => void; link: Link }) {
   const [vals, setVals] = useState<Record<string, number>>(initVals);
   const [regs, setRegs] = useState<number[]>(initRegs);
   const [msg, setMsg] = useState("");
+  const [readMsg, setReadMsg] = useState("");
+  const [busy, setBusy] = useState(false);
   const set = (k: string, v: number) => setVals((o) => ({ ...o, [k]: clamp(v, SPEC[k].min, SPEC[k].max) }));
+
+  const apply = (c: ParsedConfig) => {
+    const acc: Record<string, number> = {};
+    for (const [k, v] of Object.entries(c.settings ?? {})) {
+      const sp = SPEC[k];
+      if (sp && Number.isInteger(v) && v >= sp.min && v <= sp.max) acc[k] = v;
+    }
+    setVals((o) => ({ ...o, ...acc }));
+    const okRegs = c.registers?.length === 15 && c.registers.every((x) => Number.isInteger(x) && x >= 0 && x <= 16);
+    if (okRegs) setRegs(c.registers!);
+    return `Read from controller: ${Object.keys(acc).length} settings${okRegs ? " and the 15 registers" : ""}.`;
+  };
+  const read = () => askController(link, PROTOCOL.buildReadRequest(), "buildReadRequest", PROTOCOL.parseConfigReply, apply, setReadMsg, setBusy);
+  const writeAll = () => {
+    if (!link.open) { setMsg("Connect the USB adapter first (bar above)."); return; }
+    const out = [
+      ...Object.entries(vals).map(([k, v]) => PROTOCOL.buildWrite(k, v)),
+      ...regs.map((v, i) => PROTOCOL.buildRegisterWrite(i + 1, v)),
+    ];
+    if (out.some((m) => !m)) { setMsg("The write message is not defined yet. Fill in PROTOCOL.buildWrite and PROTOCOL.buildRegisterWrite in the code."); return; }
+    out.forEach((m, i) => setTimeout(() => link.send(m!), i * 30)); // spaced out: MIDI speed is only 31250 baud
+    setMsg(`Sent ${out.length} messages.`);
+  };
 
   const exportJson = () => {
     const blob = new Blob([JSON.stringify({ device: "i-VOLUTION TS4x", firmware: "5.3.13", settings: vals, registers: regs }, null, 2)], { type: "application/json" });
@@ -468,8 +534,13 @@ function SetupPanel({ px, goKeys }: { px: string; goKeys: () => void }) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-[#6b5230] bg-[#2a2119]/95 p-4 text-sm text-[#f0dcb4]">
-        These are the same 16 positions as Service mode, in the same order. Values are edited here on your PC only: the starting values are placeholders (nothing is read from the controller) and sending needs a firmware update. Save a copy with Export.
+      <div className="space-y-3 rounded-xl border border-[#6b5230] bg-[#2a2119]/95 p-4 text-sm text-[#f0dcb4]">
+        <p>Same 16 positions as Service mode, in the same order. The starting values are placeholders until you press <b>Read from controller</b>.</p>
+        <p>USART message format: {PROTOCOL.buildReadRequest() ? "read message defined." : <>not defined yet. Fill in the <code className={px}>PROTOCOL</code> block near the top of the file.</>}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button className={`${btnRed} disabled:opacity-60`} onClick={read} disabled={busy}>{busy ? "Reading…" : "⟲ Read from controller"}</button>
+          <span aria-live="polite" className="text-[#f4f0e8]">{readMsg}</span>
+        </div>
       </div>
 
       {PAGES.map((pg, pi) => (
@@ -526,26 +597,80 @@ function SetupPanel({ px, goKeys }: { px: string; goKeys: () => void }) {
         <label className={`${btn} inline-flex cursor-pointer items-center`}>Import setup
           <input type="file" accept="application/json" className="sr-only" onChange={(e) => { importJson(e.target.files?.[0]); e.target.value = ""; }} /></label>
         <button className={btn} onClick={() => { setVals(initVals()); setRegs(initRegs()); setMsg("Reset to the placeholder values."); }}>Reset</button>
-        <button disabled className={`${btn} cursor-not-allowed opacity-50`}>Send to controller · coming soon</button>
+        <button className={btn} onClick={writeAll}>Send all to controller</button>
         <span aria-live="polite" className="text-sm text-[#c9cdd5]">{msg}</span>
       </div>
     </div>
   );
 }
 
-// Tabs inside the utility window. Both panels stay mounted so nothing is lost when switching.
-function UtilityApp({ px }: { px: string }) {
-  const [t, setT] = useState<"setup" | "keys">("setup");
+// Connection bar: always visible above the tabs, one USB link for the whole utility.
+function ConnectionBar({ link, px }: { link: Link; px: string }) {
+  const { open, live, err, log } = link;
+  const [mon, setMon] = useState(false);
+  const status = !open
+    ? { c: "#e0434c", t: "Not connected", d: "No adapter selected." }
+    : live
+      ? { c: "#3ecf6e", t: "Controller connected", d: "Live MIDI is coming in from the controller." }
+      : { c: "#e8b73a", t: "Adapter connected, no controller detected", d: "The port is open but nothing is answering. Check power and cables, then play a key." };
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Utility sections">
-        {([["setup", "Setup · Service mode"], ["keys", "Keys · note assignment"]] as const).map(([id, l]) => (
-          <button key={id} aria-pressed={t === id} onClick={() => setT(id)}
-            className={`${btn} ${t === id ? "!border-[#f4f0e8] !bg-[#f4f0e8] !text-[#14161a]" : ""}`}>{l}</button>
-        ))}
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span role="status" className="inline-flex items-center gap-2.5 text-base font-semibold">
+          <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ background: status.c, boxShadow: `0 0 12px ${status.c}` }} />
+          {status.t}
+        </span>
+        <div className="ml-auto flex gap-2">
+          {open && <button className={btn} aria-expanded={mon} onClick={() => setMon((m) => !m)}>{mon ? "Hide monitor" : "Monitor"}</button>}
+          {open
+            ? <button className={btn} onClick={link.disconnect}>Disconnect</button>
+            : <button className={btnRed} onClick={link.connect}>Connect USB adapter</button>}
+        </div>
       </div>
-      <div className={t === "setup" ? "" : "hidden"}><SetupPanel px={px} goKeys={() => setT("keys")} /></div>
-      <div className={t === "keys" ? "" : "hidden"}><KeyConfigurator px={px} /></div>
+      <p className="text-sm text-[#d5d9e0]">{status.d} Port settings: {BAUD} baud, 8 data bits, no parity. This one connection is used by Setup and Keys.</p>
+      {err && <p className="text-sm text-[#ff9aa0]">{err}</p>}
+      {mon && open && (
+        <div className="space-y-2 rounded-lg bg-[#0f1116] p-3">
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-[#c9cdd5]">
+            <span><span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-[#3ecf6e]" />green: controller answers or sends MIDI</span>
+            <span><span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-[#e8b73a]" />yellow: adapter open, controller silent</span>
+            <span><span className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full bg-[#e0434c]" />red: not connected</span>
+          </div>
+          <ul className={`${px} max-h-40 min-h-[4rem] space-y-0.5 overflow-y-auto text-sm text-[#cfeaff]`}>
+            {log.length ? log.map((l, i) => <li key={i} className="break-all">{l}</li>) : <li className="text-[#c9cdd5]">Waiting for data…</li>}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Tabs inside the utility window. Connection bar and tabs stay on top, only the panels scroll.
+// Both panels stay mounted so nothing is lost when switching.
+function UtilityApp({ px }: { px: string }) {
+  const link = useSerialLink();
+  const [t, setT] = useState<"setup" | "keys">("setup");
+  const scroller = useRef<HTMLDivElement>(null);
+  const go = (id: "setup" | "keys") => { setT(id); scroller.current?.scrollTo({ top: 0 }); };
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 border-b border-black/60 bg-[#171a20] px-4 py-3 sm:px-6">
+        <div className="mx-auto w-full max-w-6xl space-y-3">
+          <ConnectionBar link={link} px={px} />
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Utility sections">
+            {([["setup", "Setup · Service mode"], ["keys", "Keys · note assignment"]] as const).map(([id, l]) => (
+              <button key={id} aria-pressed={t === id} onClick={() => go(id)}
+                className={`${btn} ${t === id ? "!border-[#f4f0e8] !bg-[#f4f0e8] !text-[#14161a]" : ""}`}>{l}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="mx-auto w-full max-w-6xl">
+          <div className={t === "setup" ? "" : "hidden"}><SetupPanel px={px} goKeys={() => go("keys")} link={link} /></div>
+          <div className={t === "keys" ? "" : "hidden"}><KeyConfigurator px={px} link={link} /></div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -567,10 +692,8 @@ function UtilityWindow({ open, onClose, px, font, children }: { open: boolean; o
   if (!mounted) return null;
   return createPortal(
     <div className={`${font} text-[17px] leading-relaxed text-[#f4f0e8] ${open ? "" : "hidden"}`}>
-      <div className="scrim fixed inset-0 z-[100] flex items-stretch justify-center bg-black/75 backdrop-blur-md sm:items-center sm:p-6"
-        onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-        <div role="dialog" aria-modal="true" aria-label="i-VOLUTION Utility"
-          className="win flex h-full w-full max-w-6xl flex-col overflow-hidden border border-white/15 bg-[#14161a] shadow-[0_40px_120px_rgba(0,0,0,.85),0_0_0_1px_rgba(0,0,0,.6)] sm:h-[92vh] sm:rounded-2xl">
+      <div role="dialog" aria-modal="true" aria-label="i-VOLUTION Utility" className="win fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#14161a]">
+        <div className="flex min-h-0 flex-1 flex-col">
           <div className="flex h-12 shrink-0 items-center gap-3 border-b border-black/60 bg-gradient-to-b from-[#31353e] to-[#1d2026] px-4">
             <div className="flex gap-2" aria-hidden>
               <span className="h-3 w-3 rounded-full bg-[#e0434c]" /><span className="h-3 w-3 rounded-full bg-[#e8b73a]" /><span className="h-3 w-3 rounded-full bg-[#3ecf6e]" />
@@ -578,7 +701,7 @@ function UtilityWindow({ open, onClose, px, font, children }: { open: boolean; o
             <div className={`${px} flex-1 truncate text-center text-base text-[#cfeaff]`}>🎹 i-VOLUTION Utility v1.0.13</div>
             <button onClick={onClose} aria-label="Close the utility" className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-xl text-[#c9cdd5] transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-[#bfe6ff]">✕</button>
           </div>
-          <div className="flex-1 overflow-y-auto bg-[#12141a] p-4 sm:p-6">{children}</div>
+          <div className="min-h-0 flex-1 bg-[#12141a]">{children}</div>
           <div className="flex h-9 shrink-0 items-center justify-between border-t border-black/60 bg-[#1b1e25] px-4 text-xs text-[#c9cdd5]">
             <span>t-K22 (i-volution)· firmware 5.13.1 · up{BAUD} baud</span>
             <span>Esc to close</span>
@@ -773,7 +896,7 @@ export default function ManualPage() {
               <UtilityWindow open={util} onClose={closeUtil} px={px} font={sans.className}>
                 <UtilityApp px={px} />
               </UtilityWindow>
-            </section> 
+            </section>
 
             <section id="boot" className={`${panel} p-5 sm:p-8`}>
               <h2 className={h2}>Boot sequence</h2>
