@@ -751,8 +751,8 @@ export default function ManualPage() {
             <section id="service" className={`${panel} p-5 sm:p-8`}>
               <h2 className={h2}>Service mode</h2>
               <ol className="max-w-[65ch] list-decimal space-y-3 pl-6 text-lg">
-                <li>Hold <b>TR</b> while powering on. After the splash screen the controller waits 2 seconds and shows <code className={px}>SERVICE</code>.</li>
-                <li>Press <b>TR</b> to go to the next position. The position (for example 5/16) shows at the top right.</li>
+                <li>Hold <b>PUSH ENCODER</b> while powering on. After the splash screen the controller waits 5 seconds and go to <code className={px}>SERVICE</code>.</li>
+                <li>Press <b>PUSH ENCODER</b> to go to the next position. The position (for example 5/16) shows at the top right.</li>
                 <li>Turn the encoder to change the value. It is saved at once, except <code className={px}>REG_ASSG_C</code>, where you press TR to save.</li>
                 <li>To assign key notes, go to <code className={px}>Config_key</code> or <code className={px}>bass_key</code> and turn the encoder to 5 or higher (see Key assignment).</li>
                 <li>There is no exit button. Power-cycle the controller to go back to playing.</li>
