@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { Bricolage_Grotesque, Pixelify_Sans } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -420,7 +421,9 @@ function KeyConfigurator({ px }: { px: string }) {
 }
 
 // Native-app style window. Children stay mounted while it is closed, so the key map and the USB connection survive.
-function UtilityWindow({ open, onClose, px, children }: { open: boolean; onClose: () => void; px: string; children: React.ReactNode }) {
+function UtilityWindow({ open, onClose, px, font, children }: { open: boolean; onClose: () => void; px: string; font: string; children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -430,8 +433,10 @@ function UtilityWindow({ open, onClose, px, children }: { open: boolean; onClose
     return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
   }, [open, onClose]);
 
-  return (
-    <div className={open ? "" : "hidden"}>
+  // Rendered in <body>: an ancestor with backdrop-filter would otherwise become the containing block of "fixed".
+  if (!mounted) return null;
+  return createPortal(
+    <div className={`${font} text-[17px] leading-relaxed text-[#f4f0e8] ${open ? "" : "hidden"}`}>
       <div className="scrim fixed inset-0 z-[100] flex items-stretch justify-center bg-black/75 backdrop-blur-md sm:items-center sm:p-6"
         onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
         <div role="dialog" aria-modal="true" aria-label="i-VOLUTION Key Utility"
@@ -450,7 +455,8 @@ function UtilityWindow({ open, onClose, px, children }: { open: boolean; onClose
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -634,7 +640,7 @@ export default function ManualPage() {
                 </div>
                 <button className={`${btnRed} px-6 text-lg`} onClick={() => setUtil(true)}>Open utility</button>
               </div>
-              <UtilityWindow open={util} onClose={closeUtil} px={px}>
+              <UtilityWindow open={util} onClose={closeUtil} px={px} font={sans.className}>
                 <KeyConfigurator px={px} />
               </UtilityWindow>
             </section>
