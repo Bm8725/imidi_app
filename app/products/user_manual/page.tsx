@@ -142,6 +142,90 @@ const feedByte = (p: Parser, b: number, out: string[]) => {
   if (p.d.length === need) { out.push(describeMsg(p.st, p.d)); p.d = []; }
 };
 
+// ---- Accordion keyboards ----
+const BLACK = [1, 3, 6, 8, 10];
+
+// Right-hand keyboard: vertical, lowest note at the bottom, like on a piano accordion.
+function VerticalKeys({ notes, idx, onPick, px }: { notes: number[]; idx: number; onPick: (i: number) => void; px: string }) {
+  const H = 44, BH = 28, PAD = 22;
+  const box = useRef<HTMLDivElement>(null);
+  let w = 0;
+  const keys = notes.map((n, j) => {
+    const black = BLACK.includes(n % 12);
+    const bottom = black ? w * H - BH / 2 : w * H;
+    if (!black) w++;
+    return { n, j, black, bottom };
+  });
+  const total = Math.max(w, 1) * H + PAD * 2;
+
+  useEffect(() => { if (box.current) box.current.scrollTop = box.current.scrollHeight; }, []);
+  useEffect(() => {
+    const c = box.current; if (!c) return;
+    const k = keys[idx]; if (!k) return;
+    const top = total - PAD - k.bottom - (k.black ? BH : H);
+    if (top < c.scrollTop) c.scrollTop = top - 8;
+    else if (top + H > c.scrollTop + c.clientHeight) c.scrollTop = top + H - c.clientHeight + 8;
+  }, [idx]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/25 p-3">
+      <div className="mb-2 flex justify-between text-xs text-[#c9cdd5]"><span>↑ high notes</span><span>low notes ↓ (key 1 at the bottom)</span></div>
+      <div ref={box} className="max-h-[620px] overflow-y-auto rounded-lg bg-[#0b0d12] shadow-[inset_0_0_18px_rgba(0,0,0,.7)]">
+        <div className="relative mx-auto w-44 sm:w-56" style={{ height: total }}>
+          {keys.map(({ n, j, black, bottom }) => {
+            const on = j === idx;
+            return (
+              <button key={j} onClick={() => onPick(j)} aria-pressed={on} aria-label={`Key ${j + 1}, note ${noteName(n)}`}
+                className={`absolute flex cursor-pointer items-center justify-between rounded-md px-2 transition-all duration-100 ease-out ${black ? "right-0 z-[2] w-[55%] text-[#f4f0e8]" : "left-0 z-[1] w-full text-[#14161a]"}`}
+                style={{
+                  bottom: bottom + PAD, height: black ? BH : H - 2,
+                  background: on
+                    ? (black ? "linear-gradient(90deg,#8e1f26,#c8323b)" : "linear-gradient(90deg,#f0b4b8,#e8858b)")
+                    : (black ? "linear-gradient(90deg,#0c0d10,#2b2f37)" : "linear-gradient(90deg,#d9d6cd,#fbf8f0)"),
+                  transform: on ? "translateX(6px) scale(.985)" : "none",
+                  boxShadow: on
+                    ? "inset 0 3px 8px rgba(0,0,0,.55), 0 0 18px rgba(224,67,76,.7)"
+                    : (black ? "3px 3px 0 #000, 0 4px 6px rgba(0,0,0,.6)" : "4px 0 0 #9a968c, 0 2px 4px rgba(0,0,0,.4)"),
+                  border: on ? "1px solid #e0434c" : "1px solid rgba(0,0,0,.35)",
+                }}>
+                <span className={`${px} ${black ? "text-sm" : "text-lg"} font-bold`}>{j + 1}</span>
+                <span className={`${px} ${black ? "text-xs" : "text-sm"} opacity-80`}>{noteName(n)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Stradella bass: 2 columns of round buttons (12 bass + 12 chords), row 1 at the bottom.
+function BassButtons({ notes, idx, onPick, px }: { notes: number[]; idx: number; onPick: (i: number) => void; px: string }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/25 p-4">
+      <div className="mb-2 grid grid-cols-2 text-center text-xs text-[#c9cdd5]"><span>BASS_CH (1–12)</span><span>ACHORD_CH (13–24)</span></div>
+      <div className="mx-auto grid max-w-xs grid-cols-2 gap-x-6 gap-y-2">
+        {Array.from({ length: 12 }, (_, r) => 11 - r).flatMap((r) => [r, r + 12]).map((j) => {
+          const on = j === idx;
+          return (
+            <button key={j} onClick={() => onPick(j)} aria-pressed={on} aria-label={`Button ${j + 1}, note ${noteName(notes[j])}`}
+              className="mx-auto flex h-14 w-14 cursor-pointer flex-col items-center justify-center rounded-full transition-all duration-100"
+              style={{
+                background: on ? "radial-gradient(circle at 50% 60%,#c8323b,#7a1a20)" : "radial-gradient(circle at 35% 30%,#f4f0e8,#a9a59a)",
+                color: on ? "#fff" : "#14161a",
+                transform: on ? "translateY(4px) scale(.94)" : "none",
+                boxShadow: on ? "inset 0 4px 8px rgba(0,0,0,.6), 0 0 18px rgba(224,67,76,.7)" : "0 5px 0 #6d6a62, 0 7px 8px rgba(0,0,0,.5)",
+              }}>
+              <span className={`${px} text-base font-bold leading-none`}>{j + 1}</span>
+              <span className={`${px} text-[11px] leading-none opacity-80`}>{noteName(notes[j])}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // PC utility: edits the key map in the browser, exports/imports JSON, and watches the controller over USB-serial.
 // Sending the map is disabled until the firmware handles the key-config SysEx commands.
 function KeyConfigurator({ px }: { px: string }) {
@@ -293,16 +377,10 @@ function KeyConfigurator({ px }: { px: string }) {
         ))}
       </div>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8" role="group" aria-label="Keys">
-          {notes.map((n, j) => (
-            <button key={j} onClick={() => setIdx(j)} aria-pressed={j === idx} aria-label={`Key ${j + 1}, note ${noteName(n)}`}
-              className={`min-h-14 cursor-pointer rounded-lg border px-1 py-1.5 text-center transition-colors ${j === idx ? "border-[#e0434c] bg-[#c8323b]/30" : "border-[#3a404a] bg-[#1b1e25] hover:border-[#c9cdd5]"}`}>
-              <span className="block text-xs text-[#c9cdd5]">{j + 1}</span>
-              <span className={`${px} block text-base`}>{noteName(n)}</span>
-            </button>
-          ))}
-        </div>
+      <div className="grid items-start gap-6 lg:grid-cols-[1fr_1fr]">
+        {hand === "treble"
+          ? <VerticalKeys key="t" notes={notes} idx={idx} onPick={setIdx} px={px} />
+          : <BassButtons key="b" notes={notes} idx={idx} onPick={setIdx} px={px} />}
 
         <div className="space-y-3 rounded-xl border border-white/10 bg-black/25 p-4">
           <h3 className={`${px} text-xl text-[#cfeaff]`}>Key {idx + 1} · {noteName(note)}</h3>
@@ -353,6 +431,8 @@ export default function ManualPage() {
   useEffect(() => {
     if (auth !== "in") return;
     const h = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return; // don't hijack arrows while typing a value
       if (e.key === "ArrowDown" || e.key === "ArrowRight") { e.preventDefault(); move(1); }
       if (e.key === "ArrowUp" || e.key === "ArrowLeft") { e.preventDefault(); move(-1); }
     };
@@ -387,7 +467,7 @@ export default function ManualPage() {
           <div className={`${panel} mx-auto max-w-xl space-y-4 p-8 text-center`}>
             <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-[#c8323b]/20 text-lg">🔒</div>
             <h2 className="text-2xl font-semibold">Sign in to read the manual</h2>
-            <p className="text-[#d5d9e0]">The i-olution manual is available to registered users.</p>
+            <p className="text-[#d5d9e0]">The i-VOLUTION manual is available to registered users.</p>
             <div className="flex flex-wrap justify-center gap-3 pt-1">
               <Link href="/login" className={`${btnRed} inline-flex items-center`}>Sign in</Link>
               <Link href="/register" className={`${btn} inline-flex items-center`}>Create an account</Link>
@@ -538,9 +618,9 @@ export default function ManualPage() {
               <h2 className={h2}>Notes</h2>
               <div className="max-w-[65ch] space-y-3 text-lg">
                 <p>This manual describes firmware V 5.3.13 (04-09-2025) on hardware REV 4.0. At start-up the controller loads every setting from its internal EEPROM.</p>
-                <p>The code names the display option <code className={px}>OLED_127x32</code>, but the driver is set up for an  128×64 screen.</p>
+                <p>The code names the display option <code className={px}>OLED_127x32</code>, but the driver is set up for an 128×64 screen.</p>
                 <p>Not covered yet: where the key notes are stored and their default values (they are handled in <code className={px}>config.h</code>), the stored setting <code className={px}>trans_type</code> (EEPROM 0x121), and PC configuration over SysEx. The firmware has a disabled <code className={px}>SysEx_Config</code> block: a handshake (F0 7D 01 02 01 02 F7, answered with the same bytes and "PC&gt;" on screen) and command codes 03 and 04 for treble and bass keys, which are not handled yet.</p>
-                <p>MIDI for Accordions  · www.imidi.co.uk. Firmware © BM, all rights reserved.</p>
+                <p>MIDI for Accordions · www.imidi.co.uk. Firmware © BM, all rights reserved.</p>
               </div>
             </section>
           </>
