@@ -420,6 +420,136 @@ function KeyConfigurator({ px }: { px: string }) {
   );
 }
 
+// ---- Setup: the 16 Service-mode positions, edited on the PC (not sent to the controller yet) ----
+type Spec = { kind: "bool" | "num"; min: number; max: number; init: number };
+const SPEC: Record<string, Spec> = {
+  BASS_EN: { kind: "bool", min: 0, max: 1, init: 1 },
+  Bell_low_pull: { kind: "num", min: 0, max: 64, init: 10 },
+  Bell_GAIN: { kind: "num", min: 1, max: 4, init: 1 },
+  Bell_low_push: { kind: "num", min: 0, max: 64, init: 10 },
+  TREB_CH: { kind: "num", min: 1, max: 16, init: 1 },
+  BASS_CH: { kind: "num", min: 1, max: 16, init: 2 },
+  TREB_PG: { kind: "num", min: 1, max: 16, init: 1 },
+  BASS_PG: { kind: "num", min: 1, max: 16, init: 2 },
+  Vel_treb: { kind: "num", min: 0, max: 127, init: 100 },
+  Vel_bass: { kind: "num", min: 0, max: 127, init: 100 },
+  PG_REG: { kind: "bool", min: 0, max: 1, init: 1 },
+  offest_LH_BL: { kind: "num", min: 0, max: 127, init: 20 },
+  ACHORD_CH: { kind: "num", min: 1, max: 16, init: 3 },
+};
+const initVals = () => Object.fromEntries(Object.entries(SPEC).map(([k, s]) => [k, s.init])) as Record<string, number>;
+const initRegs = () => Array.from({ length: 15 }, (_, i) => i + 1);
+
+function SetupPanel({ px, goKeys }: { px: string; goKeys: () => void }) {
+  const [vals, setVals] = useState<Record<string, number>>(initVals);
+  const [regs, setRegs] = useState<number[]>(initRegs);
+  const [msg, setMsg] = useState("");
+  const set = (k: string, v: number) => setVals((o) => ({ ...o, [k]: clamp(v, SPEC[k].min, SPEC[k].max) }));
+
+  const exportJson = () => {
+    const blob = new Blob([JSON.stringify({ device: "i-VOLUTION TS4x", firmware: "5.3.13", settings: vals, registers: regs }, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "ivolution-setup.json"; a.click();
+    URL.revokeObjectURL(a.href); setMsg("Exported ivolution-setup.json");
+  };
+  const importJson = async (f?: File) => {
+    if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      const nv = { ...vals };
+      let ok = !!d && typeof d.settings === "object" && Array.isArray(d.registers) && d.registers.length === 15 && d.registers.every((x: unknown) => Number.isInteger(x) && (x as number) >= 0 && (x as number) <= 16);
+      for (const [k, s] of Object.entries(SPEC)) {
+        const v = d?.settings?.[k];
+        if (!Number.isInteger(v) || v < s.min || v > s.max) ok = false; else nv[k] = v;
+      }
+      if (ok) { setVals(nv); setRegs(d.registers); setMsg("Imported."); } else setMsg("Not a valid setup file (a value is missing or out of range).");
+    } catch { setMsg("That file is not valid JSON."); }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-[#6b5230] bg-[#2a2119]/95 p-4 text-sm text-[#f0dcb4]">
+        These are the same 16 positions as Service mode, in the same order. Values are edited here on your PC only: the starting values are placeholders (nothing is read from the controller) and sending needs a firmware update. Save a copy with Export.
+      </div>
+
+      {PAGES.map((pg, pi) => (
+        <section key={pg.title} className="space-y-3">
+          <h3 className={`${px} text-xl text-[#cfeaff]`}>Page {pi + 1} · {pg.title}</h3>
+          {pg.items.map((p, i) => {
+            const s = SPEC[p.name];
+            const isReg = p.name === "REG_ASSG_C";
+            return (
+              <div key={p.name} className="grid gap-3 rounded-xl border border-white/10 bg-black/25 p-4 md:grid-cols-[1fr_17rem]">
+                <div>
+                  <div className="flex flex-wrap items-baseline gap-x-3">
+                    <span className={`${px} text-lg text-[#cfeaff]`}>{p.name}</span>
+                    <span className="text-sm text-[#c9cdd5]">position {pi * 4 + i + 1} · {p.unit}{p.eeprom ? ` · EEPROM ${p.eeprom}` : ""}</span>
+                  </div>
+                  <p className="mt-1 text-sm text-[#d5d9e0]">{p.what}</p>
+                </div>
+                <div className="self-center">
+                  {s?.kind === "bool" && (
+                    <div className="flex gap-2" role="group" aria-label={p.name}>
+                      {([["EN", 1], ["DIS", 0]] as const).map(([l, v]) => (
+                        <button key={l} aria-pressed={vals[p.name] === v} onClick={() => set(p.name, v)}
+                          className={`${btn} flex-1 ${vals[p.name] === v ? "!border-[#f4f0e8] !bg-[#f4f0e8] !text-[#14161a]" : ""}`}>{l}</button>
+                      ))}
+                    </div>
+                  )}
+                  {s?.kind === "num" && (
+                    <div className="flex items-center gap-3">
+                      <input type="range" min={s.min} max={s.max} value={vals[p.name]} onChange={(e) => set(p.name, +e.target.value)} aria-label={p.name} className="h-11 min-w-0 flex-1 accent-[#e0434c]" />
+                      <input type="number" min={s.min} max={s.max} value={vals[p.name]} onChange={(e) => set(p.name, +e.target.value)} aria-label={`${p.name} value`} className={`${inputCls} !w-20 shrink-0`} />
+                    </div>
+                  )}
+                  {p.sub !== undefined || p.name === "bass_key" ? (
+                    <button className={`${btn} w-full`} onClick={goKeys}>Assign keys →</button>
+                  ) : null}
+                </div>
+                {isReg && (
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:col-span-2">
+                    {regs.map((r, j) => (
+                      <label key={j} className="block text-xs text-[#c9cdd5]">Register {j + 1}
+                        <input type="number" min={0} max={16} value={r} aria-label={`Register ${j + 1} number`}
+                          onChange={(e) => setRegs((a) => a.map((x, k) => (k === j ? clamp(+e.target.value, 0, 16) : x)))} className={`${inputCls} mt-1`} /></label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </section>
+      ))}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <button className={btnRed} onClick={exportJson}>Export setup</button>
+        <label className={`${btn} inline-flex cursor-pointer items-center`}>Import setup
+          <input type="file" accept="application/json" className="sr-only" onChange={(e) => { importJson(e.target.files?.[0]); e.target.value = ""; }} /></label>
+        <button className={btn} onClick={() => { setVals(initVals()); setRegs(initRegs()); setMsg("Reset to the placeholder values."); }}>Reset</button>
+        <button disabled className={`${btn} cursor-not-allowed opacity-50`}>Send to controller · coming soon</button>
+        <span aria-live="polite" className="text-sm text-[#c9cdd5]">{msg}</span>
+      </div>
+    </div>
+  );
+}
+
+// Tabs inside the utility window. Both panels stay mounted so nothing is lost when switching.
+function UtilityApp({ px }: { px: string }) {
+  const [t, setT] = useState<"setup" | "keys">("setup");
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Utility sections">
+        {([["setup", "Setup · Service mode"], ["keys", "Keys · note assignment"]] as const).map(([id, l]) => (
+          <button key={id} aria-pressed={t === id} onClick={() => setT(id)}
+            className={`${btn} ${t === id ? "!border-[#f4f0e8] !bg-[#f4f0e8] !text-[#14161a]" : ""}`}>{l}</button>
+        ))}
+      </div>
+      <div className={t === "setup" ? "" : "hidden"}><SetupPanel px={px} goKeys={() => setT("keys")} /></div>
+      <div className={t === "keys" ? "" : "hidden"}><KeyConfigurator px={px} /></div>
+    </div>
+  );
+}
+
 // Native-app style window. Children stay mounted while it is closed, so the key map and the USB connection survive.
 function UtilityWindow({ open, onClose, px, font, children }: { open: boolean; onClose: () => void; px: string; font: string; children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -439,13 +569,13 @@ function UtilityWindow({ open, onClose, px, font, children }: { open: boolean; o
     <div className={`${font} text-[17px] leading-relaxed text-[#f4f0e8] ${open ? "" : "hidden"}`}>
       <div className="scrim fixed inset-0 z-[100] flex items-stretch justify-center bg-black/75 backdrop-blur-md sm:items-center sm:p-6"
         onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-        <div role="dialog" aria-modal="true" aria-label="i-VOLUTION Key Utility"
+        <div role="dialog" aria-modal="true" aria-label="i-VOLUTION Utility"
           className="win flex h-full w-full max-w-6xl flex-col overflow-hidden border border-white/15 bg-[#14161a] shadow-[0_40px_120px_rgba(0,0,0,.85),0_0_0_1px_rgba(0,0,0,.6)] sm:h-[92vh] sm:rounded-2xl">
           <div className="flex h-12 shrink-0 items-center gap-3 border-b border-black/60 bg-gradient-to-b from-[#31353e] to-[#1d2026] px-4">
             <div className="flex gap-2" aria-hidden>
               <span className="h-3 w-3 rounded-full bg-[#e0434c]" /><span className="h-3 w-3 rounded-full bg-[#e8b73a]" /><span className="h-3 w-3 rounded-full bg-[#3ecf6e]" />
             </div>
-            <div className={`${px} flex-1 truncate text-center text-base text-[#cfeaff]`}>🎹 i-VOLUTION Key Utility</div>
+            <div className={`${px} flex-1 truncate text-center text-base text-[#cfeaff]`}>🎹 i-VOLUTION Utility</div>
             <button onClick={onClose} aria-label="Close the utility" className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-xl text-[#c9cdd5] transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-[#bfe6ff]">✕</button>
           </div>
           <div className="flex-1 overflow-y-auto bg-[#12141a] p-4 sm:p-6">{children}</div>
@@ -635,13 +765,13 @@ export default function ManualPage() {
               <div className="flex flex-wrap items-center gap-5 rounded-xl border border-white/10 bg-gradient-to-br from-[#1d2026] to-[#14161a] p-5 shadow-[0_10px_40px_rgba(0,0,0,.4)]">
                 <div aria-hidden className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#e0434c] to-[#7a1a20] text-3xl shadow-[0_6px_20px_rgba(200,50,59,.45)]">🎹</div>
                 <div className="min-w-[14rem] flex-1">
-                  <div className={`${px} text-xl text-[#cfeaff]`}>i-VOLUTION Key Utility</div>
-                  <p className="text-sm text-[#d5d9e0]">Accordion keyboard, bass buttons, USB link and live MIDI monitor, in its own window.</p>
+                  <div className={`${px} text-xl text-[#cfeaff]`}>i-VOLUTION Utility</div>
+                  <p className="text-sm text-[#d5d9e0]">Full setup (channels, velocity, bellows, registers) and key assignment, with USB link and live MIDI monitor, in its own window.</p>
                 </div>
                 <button className={`${btnRed} px-6 text-lg`} onClick={() => setUtil(true)}>Open utility</button>
               </div>
               <UtilityWindow open={util} onClose={closeUtil} px={px} font={sans.className}>
-                <KeyConfigurator px={px} />
+                <UtilityApp px={px} />
               </UtilityWindow>
             </section>
 
