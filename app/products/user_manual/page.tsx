@@ -413,7 +413,7 @@ function KeyConfigurator({ px }: { px: string }) {
         <button className={btnRed} onClick={exportJson}>Export JSON</button>
         <label className={`${btn} inline-flex cursor-pointer items-center`}>Import JSON
           <input type="file" accept="application/json" className="sr-only" onChange={(e) => { importJson(e.target.files?.[0]); e.target.value = ""; }} /></label>
-        <button disabled className={`${btn} cursor-not-allowed opacity-50`}>Send to controller · coming soon</button>
+        <button disabled className={`${btn} cursor-not-allowed opacity-50`}>Send to controller ·...</button>
         <span aria-live="polite" className="text-sm text-[#c9cdd5]">{msg}</span>
       </div>
     </div>
@@ -637,7 +637,7 @@ export default function ManualPage() {
         <header className={`${panel} p-6 sm:p-10`}>
           <h1 className="sheen text-[clamp(2.2rem,8vw,4.2rem)] font-bold leading-[1.05]">i-VOLUTION user manual</h1>
           <p className="mt-3 max-w-[60ch] text-lg text-[#d5d9e0]">
-            TS4x synth · configurable MIDI controller for accordion · www.imidi.co.uk. Turn the encoder in the simulator to see how the menu looks on the OLED screen and what each setting does.
+            T=K22 midi controller (i-volution)· configurable MIDI controller for accordion · www.imidi.co.uk. Turn the encoder in the simulator to see how the menu looks on the OLED screen and what each setting does.
           </p>
         </header>
 
