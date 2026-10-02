@@ -575,12 +575,12 @@ function UtilityWindow({ open, onClose, px, font, children }: { open: boolean; o
             <div className="flex gap-2" aria-hidden>
               <span className="h-3 w-3 rounded-full bg-[#e0434c]" /><span className="h-3 w-3 rounded-full bg-[#e8b73a]" /><span className="h-3 w-3 rounded-full bg-[#3ecf6e]" />
             </div>
-            <div className={`${px} flex-1 truncate text-center text-base text-[#cfeaff]`}>🎹 i-VOLUTION Utility</div>
+            <div className={`${px} flex-1 truncate text-center text-base text-[#cfeaff]`}>🎹 i-VOLUTION Utility v1.0.13</div>
             <button onClick={onClose} aria-label="Close the utility" className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-xl text-[#c9cdd5] transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-[#bfe6ff]">✕</button>
           </div>
           <div className="flex-1 overflow-y-auto bg-[#12141a] p-4 sm:p-6">{children}</div>
           <div className="flex h-9 shrink-0 items-center justify-between border-t border-black/60 bg-[#1b1e25] px-4 text-xs text-[#c9cdd5]">
-            <span>TS4x · firmware 5.3.13 · {BAUD} baud</span>
+            <span>t-K22 (i-volution)· firmware 5.13.1 · up{BAUD} baud</span>
             <span>Esc to close</span>
           </div>
         </div>
@@ -765,7 +765,7 @@ export default function ManualPage() {
               <div className="flex flex-wrap items-center gap-5 rounded-xl border border-white/10 bg-gradient-to-br from-[#1d2026] to-[#14161a] p-5 shadow-[0_10px_40px_rgba(0,0,0,.4)]">
                 <div aria-hidden className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#e0434c] to-[#7a1a20] text-3xl shadow-[0_6px_20px_rgba(200,50,59,.45)]">🎹</div>
                 <div className="min-w-[14rem] flex-1">
-                  <div className={`${px} text-xl text-[#cfeaff]`}>i-VOLUTION Utility</div>
+                  <div className={`${px} text-xl text-[#cfeaff]`}>i-VOLUTION Utility v1.0.13</div>
                   <p className="text-sm text-[#d5d9e0]">Full setup (channels, velocity, bellows, registers) and key assignment, with USB link and live MIDI monitor, in its own window.</p>
                 </div>
                 <button className={`${btnRed} px-6 text-lg`} onClick={() => setUtil(true)}>Open utility</button>
@@ -773,7 +773,7 @@ export default function ManualPage() {
               <UtilityWindow open={util} onClose={closeUtil} px={px} font={sans.className}>
                 <UtilityApp px={px} />
               </UtilityWindow>
-            </section>
+            </section> 
 
             <section id="boot" className={`${panel} p-5 sm:p-8`}>
               <h2 className={h2}>Boot sequence</h2>
@@ -783,7 +783,7 @@ export default function ManualPage() {
                 <ol className="list-decimal space-y-3 pl-6 text-lg">
                   <li><b>Splash</b> — “i-VOLUTION / TS4x synth”, the web address and a loading bar.</li>
                   <li><b>Hello</b> — a short piano animation with “HI!”.</li>
-                  <li><b>Info</b> — hardware REV 4.0 and firmware V 5.3.13.</li>
+                  <li><b>Info</b> — hardware REV 4.0 and firmware V 5.13.1. up</li>
                 </ol>
               </div>
               <p className="mt-4 text-[#d5d9e0]">Holding TR during power-up enters Service mode after the splash screen.</p>
