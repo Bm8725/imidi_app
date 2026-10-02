@@ -49,9 +49,13 @@ const CSS = `
 .glow{animation:glow 3s ease-in-out infinite}
 .orow{animation:line .4s both}.orow:nth-child(2){animation-delay:.07s}.orow:nth-child(3){animation-delay:.14s}.orow:nth-child(4){animation-delay:.21s}
 .pop{animation:pop .35s both}
+@keyframes winin{from{opacity:0;transform:translateY(16px) scale(.96)}}
+@keyframes fadein{from{opacity:0}}
+.win{animation:winin .28s cubic-bezier(.2,.9,.3,1) both}
+.scrim{animation:fadein .2s both}
 .knob{background:conic-gradient(#2a2e36,#3f4651,#2a2e36,#3f4651,#2a2e36);transition:transform .5s cubic-bezier(.3,1.6,.5,1)}
 html{scroll-behavior:smooth}
-@media(prefers-reduced-motion:reduce){.sheen,.glow,.orow,.pop,.bgfx{animation:none}.knob{transition:none}html{scroll-behavior:auto}}
+@media(prefers-reduced-motion:reduce){.sheen,.glow,.orow,.pop,.bgfx,.win,.scrim{animation:none}.knob{transition:none}html{scroll-behavior:auto}}
 `;
 
 const panel = "rounded-2xl border border-white/10 bg-[#12141a]/90 backdrop-blur-md";
@@ -144,6 +148,9 @@ const feedByte = (p: Parser, b: number, out: string[]) => {
 
 // ---- Accordion keyboards ----
 const BLACK = [1, 3, 6, 8, 10];
+// Physical layout of the treble keyboard: key 1 sits on F (pitch class 5), so 41 keys run F..A like a standard
+// piano accordion. White/black pattern follows the key NUMBER only; the MIDI note you assign never moves a key.
+const LAYOUT_PC = 5;
 
 // Right-hand keyboard: vertical, lowest note at the bottom, like on a piano accordion.
 function VerticalKeys({ notes, idx, onPick, px }: { notes: number[]; idx: number; onPick: (i: number) => void; px: string }) {
@@ -151,7 +158,7 @@ function VerticalKeys({ notes, idx, onPick, px }: { notes: number[]; idx: number
   const box = useRef<HTMLDivElement>(null);
   let w = 0;
   const keys = notes.map((n, j) => {
-    const black = BLACK.includes(n % 12);
+    const black = BLACK.includes((LAYOUT_PC + j) % 12); // fixed physical layout, independent of the assigned MIDI note
     const bottom = black ? w * H - BH / 2 : w * H;
     if (!black) w++;
     return { n, j, black, bottom };
@@ -412,6 +419,41 @@ function KeyConfigurator({ px }: { px: string }) {
   );
 }
 
+// Native-app style window. Children stay mounted while it is closed, so the key map and the USB connection survive.
+function UtilityWindow({ open, onClose, px, children }: { open: boolean; onClose: () => void; px: string; children: React.ReactNode }) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
+  }, [open, onClose]);
+
+  return (
+    <div className={open ? "" : "hidden"}>
+      <div className="scrim fixed inset-0 z-[100] flex items-stretch justify-center bg-black/75 backdrop-blur-md sm:items-center sm:p-6"
+        onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div role="dialog" aria-modal="true" aria-label="i-VOLUTION Key Utility"
+          className="win flex h-full w-full max-w-6xl flex-col overflow-hidden border border-white/15 bg-[#14161a] shadow-[0_40px_120px_rgba(0,0,0,.85),0_0_0_1px_rgba(0,0,0,.6)] sm:h-[92vh] sm:rounded-2xl">
+          <div className="flex h-12 shrink-0 items-center gap-3 border-b border-black/60 bg-gradient-to-b from-[#31353e] to-[#1d2026] px-4">
+            <div className="flex gap-2" aria-hidden>
+              <span className="h-3 w-3 rounded-full bg-[#e0434c]" /><span className="h-3 w-3 rounded-full bg-[#e8b73a]" /><span className="h-3 w-3 rounded-full bg-[#3ecf6e]" />
+            </div>
+            <div className={`${px} flex-1 truncate text-center text-base text-[#cfeaff]`}>🎹 i-VOLUTION Key Utility</div>
+            <button onClick={onClose} aria-label="Close the utility" className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-xl text-[#c9cdd5] transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-[#bfe6ff]">✕</button>
+          </div>
+          <div className="flex-1 overflow-y-auto bg-[#12141a] p-4 sm:p-6">{children}</div>
+          <div className="flex h-9 shrink-0 items-center justify-between border-t border-black/60 bg-[#1b1e25] px-4 text-xs text-[#c9cdd5]">
+            <span>TS4x · firmware 5.3.13 · {BAUD} baud</span>
+            <span>Esc to close</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const h2 = "mb-2 text-2xl font-semibold sm:text-3xl";
 const lead = "mb-6 max-w-[62ch] text-lg text-[#d5d9e0]";
 
@@ -419,6 +461,8 @@ export default function ManualPage() {
   const [auth, setAuth] = useState<"loading" | "in" | "out">("loading");
   const [sel, setSel] = useState(1);
   const [tab, setTab] = useState(0);
+  const [util, setUtil] = useState(false);
+  const closeUtil = useCallback(() => setUtil(false), []);
   const move = useCallback((d: number) => setSel((s) => ((s - 1 + d + TOTAL) % TOTAL) + 1), []);
 
   // Show the manual only to signed-in users.
@@ -429,7 +473,7 @@ export default function ManualPage() {
   }, []);
 
   useEffect(() => {
-    if (auth !== "in") return;
+    if (auth !== "in" || util) return;
     const h = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return; // don't hijack arrows while typing a value
@@ -438,7 +482,7 @@ export default function ManualPage() {
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [move, auth]);
+  }, [move, auth, util]);
 
   const pageIdx = Math.floor((sel - 1) / 4);
   const line = (sel - 1) % 4;
@@ -582,7 +626,17 @@ export default function ManualPage() {
             <section id="keys" className={`${panel} p-5 sm:p-8`}>
               <h2 className={h2}>Key assignment <span className="ml-2 align-middle rounded-full border border-[#c9a24a] px-3 py-0.5 text-sm font-normal text-[#f0dcb4]">PC utility · preview</span></h2>
               <p className={lead}>On the controller, the CONFIG KEY screen (treble, up to 45 keys) and the BASS KEY screen (bass, 24 keys) work the same way: press TR to move to the next key, turn the encoder to set its note (0–127). Each change is saved immediately. The utility below prepares the same map on your PC. It can already connect to the controller through a USB-serial adapter and show live MIDI; sending the map needs a firmware update first.</p>
-              <KeyConfigurator px={px} />
+              <div className="flex flex-wrap items-center gap-5 rounded-xl border border-white/10 bg-gradient-to-br from-[#1d2026] to-[#14161a] p-5 shadow-[0_10px_40px_rgba(0,0,0,.4)]">
+                <div aria-hidden className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#e0434c] to-[#7a1a20] text-3xl shadow-[0_6px_20px_rgba(200,50,59,.45)]">🎹</div>
+                <div className="min-w-[14rem] flex-1">
+                  <div className={`${px} text-xl text-[#cfeaff]`}>i-VOLUTION Key Utility</div>
+                  <p className="text-sm text-[#d5d9e0]">Accordion keyboard, bass buttons, USB link and live MIDI monitor, in its own window.</p>
+                </div>
+                <button className={`${btnRed} px-6 text-lg`} onClick={() => setUtil(true)}>Open utility</button>
+              </div>
+              <UtilityWindow open={util} onClose={closeUtil} px={px}>
+                <KeyConfigurator px={px} />
+              </UtilityWindow>
             </section>
 
             <section id="boot" className={`${panel} p-5 sm:p-8`}>
