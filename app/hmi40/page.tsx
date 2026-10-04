@@ -13,6 +13,13 @@ const AF_EF = 75;                   // kg CO2 / GJ (RDF, fracția fosilă)
 const AF_BIO = 0.4;                 // fracția biogenă a combustibilului alternativ (0 emisii)
 const GRID_EF = 0.27;               // kg CO2 / kWh (mix rețea, valoare orientativă)
 const ELEC = { kiln: 32, raw: 26, cem: 45, aux: 10 }; // kWh / t clincher
+// ---- Mori (valori orientative) ----
+const CEM_MIX = { clk: 0.80, lst: 0.15, gyp: 0.05 };  // rețetă ciment: clincher / calcar / gips (fracții din t ciment)
+const RAW_MIX = [                                     // rețetă făină crudă (fracții din t făină)
+  { l: "Calcar", p: 0.78 },
+  { l: "Argilă / marnă", p: 0.18 },
+  { l: "Corecție (fier / nisip)", p: 0.04 },
+];
 
 type Sim = {
   temp: number; vib: number; risc: number;
@@ -22,12 +29,14 @@ type Sim = {
   co2T: number;           // kg CO2 / t clincher
   pKw: number;            // kW putere electrică
   cumClk: number; cumGJ: number; cumMWh: number; cumCO2: number;
+  cumRaw: number; cumCem: number;   // t făină crudă / t ciment produse
+  tick: number;                     // secunde reale scurse (pentru mici variații la mori)
   histCO2: number[]; histQ: number[];
 };
 
 const init: Sim = {
   temp: 1420, vib: 2.4, risc: 12, clk: 76, qTh: 3450, kWhT: 113, co2T: 880, pKw: 8600,
-  cumClk: 0, cumGJ: 0, cumMWh: 0, cumCO2: 0, histCO2: [], histQ: [],
+  cumClk: 0, cumGJ: 0, cumMWh: 0, cumCO2: 0, cumRaw: 0, cumCem: 0, tick: 0, histCO2: [], histQ: [],
 };
 
 function Spark({ data, color, min, max }: { data: number[]; color: string; min: number; max: number }) {
@@ -53,7 +62,7 @@ export default function SiemensUnifiedHMI() {
   const [speed, setSpeed] = useState(60);      // 1 s real = X s simulate
   const [v, setV] = useState<Sim>(init);
   const [fs, setFs] = useState(false);
-  const [tab, setTab] = useState<"core" | "kiln" | "ai">("core");
+  const [tab, setTab] = useState<"core" | "kiln" | "mills" | "ai">("core");
   const [ets, setEts] = useState(70);          // €/t CO2
   const [target, setTarget] = useState(850);   // kg CO2/t clincher
   const p = useRef({ isAnomalie, feed, af, speed });
@@ -85,6 +94,9 @@ export default function SiemensUnifiedHMI() {
           cumGJ: o.cumGJ + gj * tClk,
           cumMWh: o.cumMWh + (kWhT * tClk) / 1000,
           cumCO2: o.cumCO2 + (co2T * tClk) / 1000,
+          cumRaw: o.cumRaw + effFeed * dtH,
+          cumCem: o.cumCem + (clk / CEM_MIX.clk) * dtH,
+          tick: o.tick + 1,
           histCO2: hc, histQ: hq,
         };
       });
@@ -126,6 +138,38 @@ export default function SiemensUnifiedHMI() {
     { l: "Aer evacuat răcitor", mj: loss * 0.25, c: "#2E75B6" },
     { l: "Radiație manta", mj: loss * 0.14, c: "#7F7F7F" },
     { l: "Praf și alte pierderi", mj: loss * 0.19, c: "#A0A0A0" },
+  ];
+  // ---- Mori: valori derivate (mici variații din v.tick, fără Math.random în randare) ----
+  const wob = (a: number, f: number, ph = 0) => Math.sin(v.tick / f + ph) * a;
+  // Moară făină crudă (moară verticală cu rulouri) – produce exact cât consumă cuptorul
+  const rawFeed = isAnomalie ? feed * 0.35 : feed;                                  // t/h
+  const rawKwhT = (ELEC.raw / RAW_PER_CLINKER) * (isAnomalie ? 1.25 : 1);           // kWh / t făină
+  const rawKw = rawKwhT * rawFeed;
+  const rawDp = 62 + (rawFeed - 80) * 0.35 + wob(1.2, 6);                           // mbar
+  const rawOutT = 92 + wob(1, 9) + (isAnomalie ? 9 : 0);                            // °C
+  const rawVib = 2.1 + wob(0.15, 4) + (isAnomalie ? 1.5 : 0);                       // mm/s
+  const rawPress = 95 + wob(0.8, 10);                                               // bar
+  const sepRpm = 1100 + wob(8, 5);                                                  // rot/min
+  const res90 = 12 + wob(0.25, 8) + (isAnomalie ? 2.5 : 0);                         // % rest pe sita 90 µm
+  const lsf = 97.4 + wob(0.2, 12);                                                  // grad de saturație în var
+  const siloRaw = 68 + wob(1.5, 40);                                                // % nivel siloz
+  const rawMix = RAW_MIX.map(m => ({ ...m, t: rawFeed * m.p }));
+  // Moară ciment (moară cu bile, circuit închis cu separator)
+  const cemTph = v.clk / CEM_MIX.clk;                                               // t/h ciment
+  const cemKwhT = ELEC.cem * CEM_MIX.clk * (isAnomalie ? 1.25 : 1);                 // kWh / t ciment
+  const cemKw = cemKwhT * cemTph;
+  const blaine = 3800 + wob(30, 9) - (isAnomalie ? 60 : 0);                         // cm²/g
+  const cemOutT = 104 + wob(1.5, 6) + (isAnomalie ? 6 : 0);                         // °C
+  const cemSep = 920 + wob(6, 5);                                                   // rot/min
+  const cemElev = 118 * (cemTph / 95) + wob(2, 7);                                  // A
+  const cemWater = Math.max(0, 40 + (cemOutT - 100) * 8);                           // l/min
+  const res45 = 11 + wob(0.2, 8) + (isAnomalie ? 1.5 : 0);                          // % rest pe sita 45 µm
+  const siloClk = 71 + wob(1.2, 50);                                                // % nivel siloz clincher
+  const siloCem = 58 + wob(1.5, 45);                                                // % nivel siloz ciment
+  const cemMix = [
+    { l: "Clincher", t: v.clk, p: CEM_MIX.clk },
+    { l: "Calcar", t: cemTph * CEM_MIX.lst, p: CEM_MIX.lst },
+    { l: "Gips", t: cemTph * CEM_MIX.gyp, p: CEM_MIX.gyp },
   ];
   const kpiBg = isAnomalie ? "bg-[#FFD2D2] border-[#FF0000]" : "bg-[#E2F0D9] border-[#70AD47]";
   const co2Fuel = (v.qTh / 1000) * (1 - af / 100) * FOSSIL_EF + (v.qTh / 1000) * (af / 100) * (1 - AF_BIO) * AF_EF;
@@ -173,6 +217,7 @@ export default function SiemensUnifiedHMI() {
           <div className="flex flex-row lg:flex-col gap-1">
             <button onClick={() => setTab("core")} className={`flex-1 text-xs p-2 font-bold text-left whitespace-nowrap ${tab === "core" ? "bg-[#B8B8B8] border-b-2 border-r-2 border-[#808080]" : "bg-[#CECECE] border border-[#A0A0A0]"}`}>📂 CORE OVERVIEW</button>
             <button onClick={() => setTab("kiln")} className={`flex-1 text-xs p-2 font-bold text-left whitespace-nowrap ${tab === "kiln" ? "bg-[#B8B8B8] border-b-2 border-r-2 border-[#808080]" : "bg-[#CECECE] border border-[#A0A0A0]"}`}>⚙ KILN DRIVE</button>
+            <button onClick={() => setTab("mills")} className={`flex-1 text-xs p-2 font-bold text-left whitespace-nowrap ${tab === "mills" ? "bg-[#B8B8B8] border-b-2 border-r-2 border-[#808080]" : "bg-[#CECECE] border border-[#A0A0A0]"}`}>🏭 GRINDING MILLS</button>
             <button onClick={() => setTab("ai")} className={`flex-1 text-xs p-2 font-bold text-left whitespace-nowrap ${tab === "ai" ? "bg-[#B8B8B8] border-b-2 border-r-2 border-[#808080]" : "bg-[#CECECE] border border-[#A0A0A0]"}`}>🧠 AI ANALYTICS</button>
           </div>
           <div className="font-bold border-b border-[#A0A0A0] pb-1">PARAMETRI SIMULARE</div>
@@ -381,6 +426,224 @@ export default function SiemensUnifiedHMI() {
                 ))}
               </div>
             </div>
+          </>) : tab === "mills" ? (
+          <>
+            {/* MOARĂ FĂINĂ CRUDĂ */}
+            <div className="bg-[#F0F0F0] border border-[#B0B0B0] p-3">
+              <div className="flex justify-between items-center border-b pb-1 text-[11px] font-bold">
+                <span className="text-[#1C2630]">MOARĂ FĂINĂ CRUDĂ • MOARĂ VERTICALĂ CU RULOURI</span>
+                <span className="text-[9px] bg-[#2D3C4C] px-1.5 py-0.5 text-white">{fmt(rawFeed, 1)} t/h</span>
+              </div>
+              <svg viewBox="0 0 700 216" className="w-full h-auto mt-2" fontFamily="monospace">
+                <defs>
+                  <linearGradient id="hg" x1="0" x2="1">
+                    <stop offset="0" stopColor="#ff9900" /><stop offset="1" stopColor="#ffd24d" />
+                  </linearGradient>
+                </defs>
+                {/* dozatoare materii prime */}
+                {rawMix.map((m, i) => (
+                  <g key={m.l}>
+                    <rect x="20" y={14 + i * 44} width="96" height="36" rx="3" fill="#DCE3EA" stroke="#4A5A6A" />
+                    <text x="26" y={29 + i * 44} fontSize="9" fill="#1C2630">{m.l}</text>
+                    <text x="26" y={42 + i * 44} fontSize="10" fill="#2E75B6">{fmt(m.t, 1)} t/h</text>
+                    <path d={`M116 ${32 + i * 44} H150`} stroke="#4A5A6A" strokeWidth="2" />
+                  </g>
+                ))}
+                <path d="M150 32 V150 H258" fill="none" stroke="#4A5A6A" strokeWidth="2" />
+                {/* gaze calde de la preîncălzitor */}
+                <path d="M20 196 H262 V182" fill="none" stroke="url(#hg)" strokeWidth="4" />
+                <text x="24" y="190" fontSize="9" fill="#C55A11">Gaze calde preîncălzitor ≈ 280 °C</text>
+                {/* corp moară + separator */}
+                <rect x="258" y="84" width="100" height="100" fill="#DCE3EA" stroke="#2D2D2D" />
+                <rect x="270" y="30" width="76" height="54" rx="4" fill="#C6D2DD" stroke="#2D2D2D" />
+                <rect x="278" y="38" width="60" height="38" fill="none" stroke="#2D3C4C" strokeWidth="2" strokeDasharray="4 4">
+                  <animate attributeName="stroke-dashoffset" from="0" to="-16" dur={`${(2.4 / Math.max(0.3, sepRpm / 1100)).toFixed(2)}s`} repeatCount="indefinite" />
+                </rect>
+                <text x="308" y="61" fontSize="9" fill="#1C2630" textAnchor="middle">SEPARATOR</text>
+                {/* masă de măcinare + rulouri */}
+                <rect x="266" y="172" width="84" height="8" fill="#4A5A6A" />
+                {[284, 332].map(cx => (
+                  <g key={cx} transform={`translate(${cx} 158)`}>
+                    <circle r="13" fill="#7F8C99" stroke="#1C2630" />
+                    <line x1="-13" y1="0" x2="13" y2="0" stroke="#1C2630" strokeWidth="2">
+                      <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur={isAnomalie ? "4s" : "1.8s"} repeatCount="indefinite" />
+                    </line>
+                  </g>
+                ))}
+                <text x="308" y="118" fontSize="10" fill="#1C2630" textAnchor="middle">ΔP {fmt(rawDp)} mbar</text>
+                <text x="308" y="132" fontSize="9" fill="#4A5A6A" textAnchor="middle">{fmt(rawPress)} bar măcinare</text>
+                {/* filtru, ventilator, siloz */}
+                <path d="M346 56 H430" fill="none" stroke="#4A5A6A" strokeWidth="3" />
+                <rect x="430" y="30" width="82" height="52" rx="4" fill="#DCE3EA" stroke="#4A5A6A" />
+                <text x="471" y="51" fontSize="10" fill="#1C2630" textAnchor="middle">Filtru cu saci</text>
+                <text x="471" y="68" fontSize="10" fill={rawOutT > 100 ? "#C00000" : "#2E75B6"} textAnchor="middle">{fmt(rawOutT)} °C</text>
+                <path d="M512 56 H540" fill="none" stroke="#4A5A6A" strokeWidth="3" />
+                <g transform="translate(556 56)">
+                  <circle r="16" fill="#DCE3EA" stroke="#4A5A6A" />
+                  <path d="M-10 0 H10 M0 -10 V10" stroke="#1C2630" strokeWidth="3">
+                    <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur={isAnomalie ? "3s" : "1.2s"} repeatCount="indefinite" />
+                  </path>
+                </g>
+                <text x="556" y="88" fontSize="9" fill="#4A5A6A" textAnchor="middle">Ventilator</text>
+                <path d="M572 56 H600" fill="none" stroke="#4A5A6A" strokeWidth="3" />
+                <rect x="600" y="24" width="84" height="150" rx="4" fill="#EEF1F4" stroke="#4A5A6A" />
+                <rect x="602" y={172 - 146 * (siloRaw / 100)} width="80" height={146 * (siloRaw / 100)} fill="#C8B79A" />
+                <text x="642" y="44" fontSize="10" fill="#1C2630" textAnchor="middle">Siloz făină</text>
+                <text x="642" y="100" fontSize="12" fill="#1C2630" textAnchor="middle" fontWeight="bold">{fmt(siloRaw)} %</text>
+                <path d="M642 174 V200" fill="none" stroke="#4A5A6A" strokeWidth="3" />
+                <text x="642" y="212" fontSize="9" fill="#4A5A6A" textAnchor="middle">spre cuptor</text>
+                <text x="350" y="212" fontSize="9" fill="#4A5A6A" textAnchor="middle">{fmt(rawFeed, 1)} t/h făină • rest 90 µm {fmt(res90, 1)} %</text>
+              </svg>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+              {[
+                ["PRODUCȚIE FĂINĂ", `${fmt(rawFeed, 1)} t/h`, false],
+                ["PUTERE MOTOR MOARĂ", `${fmt(rawKw / 1000, 2)} MW`, false],
+                ["CONSUM SPECIFIC", `${fmt(rawKwhT, 1)} kWh/t`, false],
+                ["REZIDUU 90 µm", `${fmt(res90, 1)} %`, res90 > 14],
+              ].map(([a, b, bad]) => (
+                <div key={a as string} className={`p-3 border shadow-inner ${bad ? "bg-[#FFD2D2] border-[#FF0000]" : "bg-[#F0F0F0] border-[#B0B0B0]"}`}>
+                  <span className="text-slate-500 block font-bold text-[9px] border-b pb-1 border-slate-300">{a}</span>
+                  <span className="font-bold text-[#1C2630] text-lg block mt-1">{b}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[10px]">
+              <div className="bg-[#F0F0F0] border border-[#B0B0B0] p-3">
+                <h2 className="font-bold text-[#1C2630] mb-2">PARAMETRI MOARĂ FĂINĂ</h2>
+                {[
+                  ["Presiune diferențială (ΔP)", `${fmt(rawDp)} mbar`, false],
+                  ["Temperatură ieșire moară", `${fmt(rawOutT)} °C`, rawOutT > 100],
+                  ["Vibrații moară", `${rawVib.toFixed(1)} mm/s`, rawVib > 4],
+                  ["Presiune de măcinare", `${fmt(rawPress)} bar`, false],
+                  ["Turație separator", `${fmt(sepRpm)} rot/min`, false],
+                  ["LSF făină", `${lsf.toFixed(1)} %`, false],
+                ].map(([a, b, bad]) => (
+                  <div key={a as string} className={`flex justify-between py-1 border-b border-slate-300 ${bad ? "text-[#9C0006] font-bold" : ""}`}>
+                    <span>{a}</span><span>{b}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-[#F0F0F0] border border-[#B0B0B0] p-3">
+                <h2 className="font-bold text-[#1C2630] mb-2">REȚETĂ FĂINĂ CRUDĂ (t / h)</h2>
+                {rawMix.map(m => (
+                  <div key={m.l} className="mb-1">
+                    <div className="flex justify-between"><span>{m.l}</span><b>{fmt(m.t, 1)}</b></div>
+                    <div className="h-1.5 bg-[#CECECE]"><div className="h-full bg-[#C55A11]" style={{ width: `${m.p * 100}%` }} /></div>
+                  </div>
+                ))}
+                <div className="flex justify-between border-t mt-1 pt-1 font-bold"><span>Total făină</span><span>{fmt(rawFeed, 1)}</span></div>
+              </div>
+            </div>
+
+            {/* MOARĂ CIMENT */}
+            <div className="bg-[#F0F0F0] border border-[#B0B0B0] p-3">
+              <div className="flex justify-between items-center border-b pb-1 text-[11px] font-bold">
+                <span className="text-[#1C2630]">MOARĂ CIMENT • MOARĂ CU BILE, CIRCUIT ÎNCHIS CU SEPARATOR</span>
+                <span className="text-[9px] bg-[#2D3C4C] px-1.5 py-0.5 text-white">{fmt(cemTph, 1)} t/h</span>
+              </div>
+              <svg viewBox="0 0 700 216" className="w-full h-auto mt-2" fontFamily="monospace">
+                <defs>
+                  <pattern id="cr" width="250" height="12" patternUnits="userSpaceOnUse">
+                    <rect width="250" height="4" fill="rgba(0,0,0,0.22)" />
+                    <animateTransform attributeName="patternTransform" type="translate" from="0 0" to="0 12" dur={isAnomalie ? "3.2s" : "1.6s"} repeatCount="indefinite" />
+                  </pattern>
+                </defs>
+                {/* dozatoare clincher / calcar / gips */}
+                {cemMix.map((m, i) => (
+                  <g key={m.l}>
+                    <rect x="20" y={14 + i * 44} width="96" height="36" rx="3" fill="#DCE3EA" stroke="#4A5A6A" />
+                    <text x="26" y={29 + i * 44} fontSize="9" fill="#1C2630">{m.l}</text>
+                    <text x="26" y={42 + i * 44} fontSize="10" fill="#2E75B6">{fmt(m.t, 1)} t/h</text>
+                    <path d={`M116 ${32 + i * 44} H150`} stroke="#4A5A6A" strokeWidth="2" />
+                  </g>
+                ))}
+                <path d="M150 32 V150 H214" fill="none" stroke="#4A5A6A" strokeWidth="2" />
+                {/* moară cu bile */}
+                <rect x="204" y="136" width="10" height="22" fill="#4A5A6A" stroke="#1C2630" />
+                <rect x="464" y="136" width="10" height="22" fill="#4A5A6A" stroke="#1C2630" />
+                <rect x="214" y="112" width="250" height="70" rx="12" fill="#B7C0CA" stroke="#2D2D2D" />
+                <rect x="214" y="112" width="250" height="70" rx="12" fill="url(#cr)" />
+                <line x1="340" y1="112" x2="340" y2="182" stroke="#2D2D2D" strokeDasharray="4 3" />
+                <text x="277" y="134" fontSize="9" fill="#1C2630" textAnchor="middle">Camera 1</text>
+                <text x="425" y="134" fontSize="9" fill="#1C2630" textAnchor="middle">Camera 2</text>
+                <text x="277" y="170" fontSize="10" fill="#1C2630" textAnchor="middle">{fmt(cemKw)} kW</text>
+                <rect x="388" y="106" width="14" height="82" fill="#2D3C4C" stroke="#0E1318" />
+                <rect x="376" y="188" width="38" height="18" fill="#2D3C4C" stroke="#0E1318" />
+                <text x="395" y="201" fontSize="10" fill="#fff" textAnchor="middle">M</text>
+                {/* elevator + separator */}
+                <path d="M474 150 H509" fill="none" stroke="#4A5A6A" strokeWidth="3" />
+                <rect x="500" y="44" width="18" height="140" fill="#DCE3EA" stroke="#4A5A6A" />
+                <line x1="509" y1="48" x2="509" y2="180" stroke="#2D3C4C" strokeWidth="3" strokeDasharray="6 6">
+                  <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="0.8s" repeatCount="indefinite" />
+                </line>
+                <rect x="476" y="8" width="66" height="36" rx="6" fill="#C6D2DD" stroke="#2D2D2D" />
+                <text x="509" y="23" fontSize="9" fill="#1C2630" textAnchor="middle">Separator</text>
+                <text x="509" y="37" fontSize="9" fill="#2E75B6" textAnchor="middle">{fmt(cemSep)} rpm</text>
+                {/* refuz înapoi în moară */}
+                <path d="M484 44 V72 H192 V150 H214" fill="none" stroke="#7F8C99" strokeWidth="2" strokeDasharray="5 4" />
+                <text x="338" y="68" fontSize="9" fill="#4A5A6A" textAnchor="middle">refuz → înapoi în moară</text>
+                {/* ciment fin spre siloz */}
+                <path d="M542 26 H610" fill="none" stroke="#4A5A6A" strokeWidth="3" />
+                <rect x="610" y="8" width="72" height="160" rx="4" fill="#EEF1F4" stroke="#4A5A6A" />
+                <rect x="612" y={166 - 156 * (siloCem / 100)} width="68" height={156 * (siloCem / 100)} fill="#B8BCC2" />
+                <text x="646" y="26" fontSize="10" fill="#1C2630" textAnchor="middle">Siloz ciment</text>
+                <text x="646" y="92" fontSize="12" fill="#1C2630" textAnchor="middle" fontWeight="bold">{fmt(siloCem)} %</text>
+                <text x="350" y="212" fontSize="9" fill="#4A5A6A" textAnchor="middle">{fmt(cemTph, 1)} t/h ciment • Blaine {fmt(blaine)} cm²/g • ieșire moară {fmt(cemOutT)} °C</text>
+              </svg>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+              {[
+                ["PRODUCȚIE CIMENT", `${fmt(cemTph, 1)} t/h`, false],
+                ["PUTERE MOTOR MOARĂ", `${fmt(cemKw / 1000, 2)} MW`, false],
+                ["CONSUM SPECIFIC", `${fmt(cemKwhT, 1)} kWh/t`, false],
+                ["FINEȚE BLAINE", `${fmt(blaine)} cm²/g`, blaine < 3600],
+              ].map(([a, b, bad]) => (
+                <div key={a as string} className={`p-3 border shadow-inner ${bad ? "bg-[#FFD2D2] border-[#FF0000]" : "bg-[#F0F0F0] border-[#B0B0B0]"}`}>
+                  <span className="text-slate-500 block font-bold text-[9px] border-b pb-1 border-slate-300">{a}</span>
+                  <span className="font-bold text-[#1C2630] text-lg block mt-1">{b}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[10px]">
+              <div className="bg-[#F0F0F0] border border-[#B0B0B0] p-3">
+                <h2 className="font-bold text-[#1C2630] mb-2">PARAMETRI MOARĂ CIMENT</h2>
+                {[
+                  ["Temperatură ieșire moară", `${fmt(cemOutT)} °C`, cemOutT > 108],
+                  ["Injecție apă (răcire)", `${fmt(cemWater)} l/min`, false],
+                  ["Turație separator", `${fmt(cemSep)} rot/min`, false],
+                  ["Curent elevator", `${fmt(cemElev)} A`, false],
+                  ["Reziduu 45 µm", `${fmt(res45, 1)} %`, res45 > 12],
+                  ["Nivel siloz clincher", `${fmt(siloClk)} %`, siloClk < 30],
+                ].map(([a, b, bad]) => (
+                  <div key={a as string} className={`flex justify-between py-1 border-b border-slate-300 ${bad ? "text-[#9C0006] font-bold" : ""}`}>
+                    <span>{a}</span><span>{b}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-[#F0F0F0] border border-[#B0B0B0] p-3">
+                <h2 className="font-bold text-[#1C2630] mb-2">REȚETĂ CIMENT (t / h)</h2>
+                {cemMix.map(m => (
+                  <div key={m.l} className="mb-1">
+                    <div className="flex justify-between"><span>{m.l} ({fmt(m.p * 100)} %)</span><b>{fmt(m.t, 1)}</b></div>
+                    <div className="h-1.5 bg-[#CECECE]"><div className="h-full bg-[#2E75B6]" style={{ width: `${m.p * 100}%` }} /></div>
+                  </div>
+                ))}
+                <div className="flex justify-between border-t mt-1 pt-1 font-bold"><span>Total ciment</span><span>{fmt(cemTph, 1)}</span></div>
+              </div>
+            </div>
+
+            <div className="bg-[#1C2630] text-white border border-[#0E1318] p-3 grid grid-cols-2 gap-3 text-[11px]">
+              <div>Făină crudă produsă<b className="block text-base text-[#00FFCC]">{fmt(v.cumRaw, 1)} t</b></div>
+              <div>Ciment produs<b className="block text-base text-[#00FFCC]">{fmt(v.cumCem, 1)} t</b></div>
+            </div>
+            <div className="text-[9px] text-slate-600 leading-relaxed">
+              Ipoteze mori: ciment {fmt(CEM_MIX.clk * 100)} % clincher / {fmt(CEM_MIX.lst * 100)} % calcar / {fmt(CEM_MIX.gyp * 100)} % gips; consum specific preluat din ELEC (crudă {ELEC.raw} kWh/t clincher, ciment {ELEC.cem} kWh/t clincher). Valori orientative, nu date reale de fabrică.
+            </div>
           </>) : (
           <>
             {/* AI ANALYTICS */}
@@ -465,6 +728,8 @@ export default function SiemensUnifiedHMI() {
                   <div className="text-[#9C6500]">[WARN] ⚠ ENERGY: SPECIFIC HEAT +18% / CO₂ ABOVE TARGET</div>
                   <div className="text-[#9C0006]">[CRIT] ❌ KILN DRIVE: TORQUE {fmt(torque)}% / SHELL {fmt(shellT)} °C</div>
                   {noxHigh && <div className="text-[#9C6500]">[WARN] ⚠ STACK: NOx {nox} mg/Nm³ OVER LIMIT</div>}
+                  <div className="text-[#9C6500]">[WARN] ⚠ RAW MILL: FEED {fmt(rawFeed)} t/h / RESIDUE 90 µm {fmt(res90, 1)} % / OUTLET {fmt(rawOutT)} °C</div>
+                  <div className="text-[#9C6500]">[WARN] ⚠ CEMENT MILL: OUTLET {fmt(cemOutT)} °C / BLAINE {fmt(blaine)} cm²/g</div>
                 </div>
               ) : co2Fuel + PROCESS_CO2 + co2Elec > 900 ? (
                 <div className="text-[#9C6500]">[INFO] CO₂ specific peste 900 kg/t – crește combustibilul alternativ sau alimentarea.</div>
