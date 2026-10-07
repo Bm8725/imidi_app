@@ -46,11 +46,15 @@ export default function MilkKiosk() {
     tick(); const t = setInterval(tick, 1000); return () => clearInterval(t);
   }, []);
 
-  const triggerFullscreen = () => {
+  const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen?.()
         .then(() => setIsFullscreen(true))
-        .catch(() => {});
+        .catch((err) => console.log(err));
+    } else {
+      document.exitFullscreen?.()
+        .then(() => setIsFullscreen(false))
+        .catch((err) => console.log(err));
     }
   };
 
@@ -58,7 +62,7 @@ export default function MilkKiosk() {
     const onKey = (e: KeyboardEvent) => { 
       if (e.key === 'ArrowRight') go(1); 
       if (e.key === 'ArrowLeft') go(-1); 
-      if (e.key === 'f' || e.key === 'F') triggerFullscreen();
+      if (e.key === 'f' || e.key === 'F') toggleFullscreen();
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   }, [go]);
@@ -79,8 +83,8 @@ export default function MilkKiosk() {
 
   return (
     <div 
-      onClick={triggerFullscreen}
-      className="relative w-screen h-screen overflow-hidden bg-[#FBFBF9] text-[#1C1612] font-sans flex flex-col justify-between p-4 md:p-6 lg:p-10 select-none cursor-none"
+      onClick={toggleFullscreen}
+      className="relative w-screen h-screen overflow-hidden bg-[#FBFBF9] text-[#1C1612] font-sans flex flex-col justify-between p-4 md:p-6 lg:p-10 select-none group"
     >
       {/* Indicator Mod Complet (Apare doar dacă nu e activat) */}
       {!isFullscreen && (
@@ -92,23 +96,39 @@ export default function MilkKiosk() {
       {/* FUNDAL DECORATIV */}
       <div className="absolute top-0 right-0 w-[35vw] h-[35vw] bg-[#607855]/5 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* HEADER FIX (Înălțime stabilă, perfect aliniat pe Landscape) */}
-      <header className="h-[12vh] max-h-[80px] w-full flex justify-between items-center z-30 pointer-events-none">
-        <div className="flex items-center gap-3">
+      {/* HEADER FIX */}
+      <header className="h-[12vh] max-h-[80px] w-full flex justify-between items-center z-30">
+        <div className="flex items-center gap-3 pointer-events-none">
           <span className="w-2.5 h-2.5 rounded-full bg-[#607855] animate-pulse" />
           <div className="text-[10px] sm:text-xs font-black tracking-[0.25em] text-[#607855] uppercase">
             FERMA NOASTRĂ ZILNIC
           </div>
         </div>
-        <div className="bg-white border border-black/5 px-3 py-1.5 md:px-4 md:py-2 rounded-2xl text-base md:text-xl lg:text-2xl font-black tabular-nums shadow-xs text-[#111]">
-          {time}
+        
+        {/* ZONĂ CONTROL: Conține ceasul și butonul fin ascuns la hover */}
+        <div className="flex items-center gap-3 relative">
+          {/* BUTONUL ASCUNS (Apare fin doar când pui mouse-ul în zona de sus-dreapta) */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // Oprește declanșarea toggle-ului de pe fundal
+              toggleFullscreen();
+            }}
+            className="opacity-0 group-hover:opacity-100 focus:opacity-100 bg-black/10 hover:bg-black/20 backdrop-blur-md text-[#111] text-[11px] font-bold px-3 py-1.5 rounded-xl border border-black/5 transition-all duration-300 flex items-center gap-1.5 active:scale-95"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-black/50" />
+            {isFullscreen ? 'Ieșire Ecran Complet' : 'Mod Kiosk'}
+          </button>
+
+          <div className="bg-white border border-black/5 px-3 py-1.5 md:px-4 md:py-2 rounded-2xl text-base md:text-xl lg:text-2xl font-black tabular-nums shadow-xs text-[#111] pointer-events-none">
+            {time}
+          </div>
         </div>
       </header>
 
-      {/* MAIN CONTAINER: Structură pe 2 coloane forțată de la ecrane mici (sm) */}
+      {/* MAIN CONTAINER */}
       <main className={`flex-1 h-[70vh] grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-10 lg:gap-16 items-center justify-center w-full max-w-7xl mx-auto pointer-events-none transition-all duration-300 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.995]'}`}>
         
-        {/* COLOANA STÂNGA: TEXT (Aliniat la stânga pe landscape pentru citire naturală) */}
+        {/* COLOANA STÂNGA: TEXT */}
         <section className="w-full flex flex-col justify-center text-left z-10 max-h-full overflow-hidden">
           <div className="mb-2 md:mb-3">
             <span className="text-[9px] md:text-xs font-bold tracking-widest text-[#607855] bg-[#607855]/10 px-2.5 py-1 rounded-lg uppercase">
@@ -116,7 +136,6 @@ export default function MilkKiosk() {
             </span>
           </div>
           
-          {/* text-2xl crescător până la text-5xl în funcție de ecran */}
           <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black tracking-tight text-[#111] leading-[1.15] whitespace-pre-line mb-2 md:mb-3">
             {s.title}
           </h1>
@@ -132,7 +151,7 @@ export default function MilkKiosk() {
           </div>
         </section>
 
-        {/* COLOANA DREAPTA: MEDIA (Blocat la o înălțime maximă de 55% din ecran pentru siguranță landscape) */}
+        {/* COLOANA DREAPTA: MEDIA */}
         <section className="w-full h-full flex items-center justify-center max-h-[40vh] sm:max-h-[55vh]">
           <div className="w-full h-full max-w-[40vh] sm:max-w-none aspect-square relative rounded-2xl lg:rounded-[32px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.04)] bg-black">
             {s.isVideo ? (
@@ -155,7 +174,7 @@ export default function MilkKiosk() {
         </section>
       </main>
 
-      {/* FOOTER FIX (Poziționat jos, textul nu va fi tăiat niciodată pe landscape) */}
+      {/* FOOTER FIX */}
       <footer className="h-[10vh] max-h-[60px] w-full flex items-end justify-center z-30 pointer-events-none">
         <p className="text-[10px] sm:text-xs md:text-sm font-bold text-red-600 bg-red-50 px-4 py-2 rounded-xl border border-red-100 uppercase tracking-wider animate-pulse max-w-full text-center truncate">
           {s.info}
