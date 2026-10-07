@@ -79,11 +79,11 @@ export default function MilkKiosk() {
       className={`relative w-full min-h-screen lg:h-screen lg:overflow-hidden bg-[#FBFBF9] text-[#1C1612] font-sans flex flex-col justify-between p-4 sm:p-6 lg:p-12 select-none ${hideCursor ? 'lg:cursor-none' : 'cursor-default'}`}
       onClick={(e) => go(e.clientX / window.innerWidth > 0.5 ? 1 : -1)}
     >
-      {/* BACKGROUND GRAPHIC (Subtil, doar pentru design premium) */}
+      {/* BACKGROUND GRAPHIC */}
       <div className="absolute top-0 right-0 w-[40vw] h-[40vw] bg-[#607855]/5 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* FIXED HEADER: Stabil pe Kiosk, scalat corect pe mobil */}
-      <header className="w-full flex justify-between items-center z-30 pointer-events-none mb-6 lg:mb-0">
+      {/* FIXED HEADER */}
+      <header className="w-full flex justify-between items-center z-30 pointer-events-none mb-4 lg:mb-0">
         <div className="flex items-center gap-2 lg:gap-3">
           <span className="w-2 h-2 rounded-full bg-[#607855] animate-pulse" />
           <div className="text-[10px] sm:text-xs font-black tracking-[0.25em] text-[#607855] uppercase">
@@ -97,51 +97,60 @@ export default function MilkKiosk() {
           >
             {full ? 'ECRAN RESTRÂNS' : 'ECRAN COMPLET'}
           </button>
-          <div className="bg-white border border-black/5 px-4 py-1.5 rounded-xl text-base lg:text-2xl font-black tabular-nums shadow-sm text-[#111]">
+          <div className="bg-white border border-black/5 px-3 py-1 sm:px-4 sm:py-1.5 rounded-xl text-sm sm:text-base lg:text-2xl font-black tabular-nums shadow-sm text-[#111]">
             {time}
           </div>
         </div>
       </header>
 
-      {/* MAIN CONTAINER: Pe mobil curge fluid în jos, pe Kiosk este blocat 50% / 50% perfect fix */}
-      <main className={`flex-1 flex flex-col-reverse lg:grid lg:grid-cols-2 gap-6 lg:gap-12 items-center justify-center w-full my-auto transition-all duration-300 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.995]'}`}>
+      {/* MAIN CONTAINER */}
+      <main className={`flex-1 flex flex-col-reverse lg:grid lg:grid-cols-2 gap-6 lg:gap-12 items-center justify-center w-full max-w-7xl mx-auto transition-all duration-300 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.995]'}`}>
         
-        {/* COLOANA TEXT: Nu mai sare, nu mai modifică dimensiunile layout-ului */}
+        {/* COLOANA TEXT */}
         <section className="w-full flex flex-col justify-center text-center lg:text-left z-10 px-2 sm:px-6 lg:px-0">
-          <span className="text-[10px] lg:text-xs font-bold tracking-widest text-[#607855] bg-[#607855]/10 px-2.5 py-1 rounded-md uppercase inline-block mb-3 lg:mb-6 w-fit mx-auto lg:mx-0">
-            {s.label}
-          </span>
-          <h1 className="text-xl sm:text-3xl lg:text-5xl xl:text-6xl font-black tracking-tight text-[#111] leading-[1.15] whitespace-pre-line mb-4 min-h-hidden lg:min-h-[2.4em] flex items-center justify-center lg:justify-start">
-            {s.title}
-          </h1>
-          <p className="text-sm sm:text-base lg:text-lg leading-relaxed text-[#111]/60 max-w-xl mx-auto lg:mx-0 whitespace-pre-line mb-6 min-h-hidden lg:min-h-[4.5em]">
-            {s.desc}
-          </p>
-          <div className="flex justify-center lg:justify-start gap-2">
+          <div className="min-h-[28px] lg:min-h-[36px] flex items-center justify-center lg:justify-start mb-2 lg:mb-4">
+            <span className="text-[10px] lg:text-xs font-bold tracking-widest text-[#607855] bg-[#607855]/10 px-2.5 py-1 rounded-md uppercase">
+              {s.label}
+            </span>
+          </div>
+          
+          {/* h1 are acum o înălțime minimă fixă bazată pe unități flexibile (lh / ch / rem) ca să nu mai miște restul layout-ului */}
+          <div className="min-h-[3.52rem] sm:min-h-[5.1rem] lg:min-h-[11rem] flex items-center justify-center lg:justify-start mb-3 lg:mb-6">
+            <h1 className="text-xl sm:text-3xl lg:text-5xl xl:text-6xl font-black tracking-tight text-[#111] leading-[1.15] whitespace-pre-line">
+              {s.title}
+            </h1>
+          </div>
+
+          <div className="min-h-[4.5rem] sm:min-h-[3.5rem] lg:min-h-[6rem] flex items-center justify-center lg:justify-start mb-4 lg:mb-8">
+            <p className="text-xs sm:text-base lg:text-lg leading-relaxed text-[#111]/60 max-w-xl whitespace-pre-line">
+              {s.desc}
+            </p>
+          </div>
+
+          <div className="flex justify-center lg:justify-start">
             <div className="bg-[#607855] text-white font-bold text-xs lg:text-sm px-4 py-2 rounded-xl shadow-xs">
               {s.price}
             </div>
           </div>
         </section>
 
-        {/* COLOANA MEDIA: Matematic perfectă pe Kiosk, fluidă și vizibilă pe ecran de telefon */}
+        {/* COLOANA MEDIA */}
         <section className="w-full flex items-center justify-center px-2 sm:px-6 lg:px-0">
-          <div className="w-full aspect-[4/3] sm:aspect-video lg:aspect-square xl:aspect-[1.1] max-h-[35vh] sm:max-h-[45vh] lg:max-h-[60vh] xl:max-h-[65vh] relative rounded-2xl lg:rounded-[40px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.06)] bg-black">
+          <div className="w-full aspect-[4/3] sm:aspect-video lg:aspect-square xl:aspect-[1.1] max-h-[30vh] sm:max-h-[40vh] lg:max-h-[55vh] xl:max-h-[60vh] relative rounded-2xl lg:rounded-[40px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.06)] bg-black">
             {s.isVideo ? (
               <video 
                 src={s.src} 
                 autoPlay 
                 muted 
-                playsInline 
                 loop 
-                onEnded={() => go(1)} 
-                className="w-full h-full object-cover opacity-95" 
+                playsInline
+                className="w-full h-full object-cover"
               />
             ) : (
               <img 
                 src={s.img} 
-                alt={s.label} 
-                className="w-full h-full object-cover" 
+                alt={s.title}
+                className="w-full h-full object-cover"
               />
             )}
           </div>
@@ -149,15 +158,9 @@ export default function MilkKiosk() {
 
       </main>
 
-      {/* FIXED FOOTER: Caseta critică pentru chioșcuri comercial (Informații plată/rest) */}
-      <footer className="w-full mt-6 lg:mt-0 pt-4 lg:pt-6 border-t border-black/5 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs z-30">
-        <div className="text-amber-800 bg-amber-50 border border-amber-200/60 px-4 py-2 rounded-xl font-semibold max-w-full text-center sm:text-left">
-          <span className="font-bold uppercase tracking-wider text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded mr-2">IMPORTANT</span> 
-          {s.info}
-        </div>
-        <div className="text-black/40 font-bold tracking-widest uppercase text-[9px] shrink-0 pointer-events-none">
-          Atingeți ecranul pentru a naviga
-        </div>
+      {/* FOOTER PENTRU KIOSK (Info text stabil) */}
+      <footer className="w-full text-center mt-4 lg:mt-0 text-[10px] sm:text-xs text-[#111]/40 tracking-wider pointer-events-none">
+        {s.info}
       </footer>
     </div>
   );
