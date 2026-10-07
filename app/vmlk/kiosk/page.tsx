@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 /* ───────────── CONFIGURARE (schimbi aici, nu prin cod) ───────────── */
 
 const CONFIG = {
-  servicePhone: '0765 332 178',
+  servicePhone: '+40 765 332 178',
   // Completează ca să apară slide-ul „Producător”. Câmpurile goale nu se afișează.
   producer: { name: '', farm: '', authorization: '' },
   // Mențiune permanentă în subsol. Lasă '' ca s-o ascunzi. VERIFICĂ formularea legală!
