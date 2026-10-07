@@ -16,6 +16,7 @@ export default function MilkKiosk() {
   const [time, setTime] = useState('');
   const [ready, setReady] = useState(false);
   const [visible, setVisible] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const go = useCallback((d: number) => {
     setVisible(false);
@@ -30,32 +31,46 @@ export default function MilkKiosk() {
     return () => clearTimeout(timeout);
   }, []);
 
-  // Schimbare complet automată strict bazată pe milisecundele fiecărui ecran
+  // Monitorizare stare Fullscreen nativă
+  useEffect(() => {
+    const checkFs = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', checkFs);
+    return () => document.removeEventListener('fullscreenchange', checkFs);
+  }, []);
+
+  // Auto-advance slide-uri bazat pe ms
   useEffect(() => {
     if (!ready) return;
     const interval = setTimeout(() => go(1), SCREENS[index]?.ms || 8000);
     return () => clearTimeout(interval);
   }, [go, ready, index]);
 
-  // Ceasul digital pentru monitorizare
+  // Ceasul digital local
   useEffect(() => {
     const tick = () => setTime(new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }));
     tick(); const t = setInterval(tick, 1000); return () => clearInterval(t);
   }, []);
 
-  // Păstrat doar pentru depanare tehnică la instalare (Săgeți din tastatură ascunsă + tasta F)
+  // Funcție tehnică care forțează ecranul complet la atingere
+  const triggerFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.()
+        .then(() => setIsFullscreen(true))
+        .catch(() => {});
+    }
+  };
+
+  // Suport pentru tastatură ascunsă/depanare (Săgeți și Tasta F)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { 
       if (e.key === 'ArrowRight') go(1); 
       if (e.key === 'ArrowLeft') go(-1); 
-      if ((e.key === 'f' || e.key === 'F') && !document.fullscreenElement) {
-        document.documentElement.requestFullscreen?.().catch(() => {});
-      }
+      if (e.key === 'f' || e.key === 'F') triggerFullscreen();
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   }, [go]);
 
-  // WakeLock blochează stingerea automată a monitorului industrial
+  // WakeLock: Menține ecranul pornit 24/7
   useEffect(() => {
     let lock: WakeLockSentinel | null = null; let alive = true;
     const acquire = async () => { 
@@ -71,57 +86,62 @@ export default function MilkKiosk() {
   const s = SCREENS[index];
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-[#FBFBF9] text-[#1C1612] font-sans flex flex-col justify-between p-12 select-none cursor-none pointer-events-none">
+    <div 
+      onClick={triggerFullscreen}
+      className="relative w-screen h-screen overflow-hidden bg-[#FBFBF9] text-[#1C1612] font-sans flex flex-col justify-between p-6 md:p-8 lg:p-12 select-none cursor-none"
+    >
+      {/* Indicator Tehnic discret dacă NU este în Fullscreen (Dispare când e complet) */}
+      {!isFullscreen && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-yellow-500 text-black text-[10px] font-bold px-3 py-1 rounded-full z-50 animate-bounce pointer-events-none">
+          ATINGEȚI ECRANUL PENTRU MODUL COMPLET KIOSK
+        </div>
+      )}
       
       {/* BACKGROUND DECORATION */}
-      <div className="absolute top-0 right-0 w-[40vw] h-[40vw] bg-[#607855]/5 rounded-full blur-[120px]" />
+      <div className="absolute top-0 right-0 w-[40vw] h-[40vw] bg-[#607855]/5 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* HEADER COMPACT KIOSK */}
-      <header className="w-full flex justify-between items-center z-30 mb-0">
+      {/* HEADER KIOSK ADAPTIV */}
+      <header className="w-full flex justify-between items-center z-30 pointer-events-none">
         <div className="flex items-center gap-3">
           <span className="w-2.5 h-2.5 rounded-full bg-[#607855] animate-pulse" />
-          <div className="text-xs font-black tracking-[0.25em] text-[#607855] uppercase">
+          <div className="text-[10px] sm:text-xs font-black tracking-[0.25em] text-[#607855] uppercase">
             FERMA NOASTRĂ ZILNIC
           </div>
         </div>
-        <div className="bg-white border border-black/5 px-4 py-2 rounded-2xl text-3xl font-black tabular-nums shadow-xs text-[#111]">
+        <div className="bg-white border border-black/5 px-3 py-1.5 md:px-4 md:py-2 rounded-2xl text-xl md:text-2xl lg:text-3xl font-black tabular-nums shadow-xs text-[#111]">
           {time}
         </div>
       </header>
 
-      {/* CONTAINER PRINCIPAL GRID FIX 50/50 - REZOLVĂ RESPONSIVITATEA PE MONITOR */}
-      <main className={`flex-1 grid grid-cols-2 gap-16 items-center justify-center w-full max-w-7xl mx-auto transition-all duration-300 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.995]'}`}>
+      {/* MAIN CONTAINER ADAPTIV (Ajustat cu unități flexibile pentru orice rezoluție) */}
+      <main className={`flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10 lg:gap-16 items-center justify-center w-full max-w-7xl mx-auto pointer-events-none transition-all duration-300 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.995]'}`}>
         
-        {/* COLOANA STÂNGA: TEXTĂRI FIXATE PRIN BANDOURI MIN-H */}
-        <section className="w-full flex flex-col justify-center text-left z-10">
-          <div className="min-h-[36px] flex items-center mb-4">
-            <span className="text-xs font-bold tracking-widest text-[#607855] bg-[#607855]/10 px-3 py-1.5 rounded-lg uppercase">
+        {/* COLOANA TEXT - Ajustare automată a textului pe ecrane mici/mari */}
+        <section className="w-full flex flex-col justify-center text-center lg:text-left z-10">
+          <div className="mb-2 md:mb-4">
+            <span className="text-[10px] md:text-xs font-bold tracking-widest text-[#607855] bg-[#607855]/10 px-3 py-1.5 rounded-lg uppercase">
               {s.label}
             </span>
           </div>
           
-          <div className="min-h-[11rem] flex items-center mb-4">
-            <h1 className="text-5xl xl:text-6xl font-black tracking-tight text-[#111] leading-[1.15] whitespace-pre-line">
-              {s.title}
-            </h1>
-          </div>
+          <h1 className="text-2xl sm:text-4xl md:text-5xl xl:text-6xl font-black tracking-tight text-[#111] leading-[1.15] whitespace-pre-line mb-2 md:mb-4">
+            {s.title}
+          </h1>
 
-          <div className="min-h-[6rem] flex items-center mb-6">
-            <p className="text-lg leading-relaxed text-[#111]/60 max-w-xl whitespace-pre-line">
-              {s.desc}
-            </p>
-          </div>
+          <p className="text-sm md:text-base lg:text-lg leading-relaxed text-[#111]/60 max-w-xl mx-auto lg:mx-0 whitespace-pre-line mb-4 md:mb-6">
+            {s.desc}
+          </p>
 
-          <div className="flex justify-start">
-            <div className="bg-[#607855] text-white font-black tracking-wide text-sm px-5 py-2.5 rounded-xl shadow-xs">
+          <div className="flex justify-center lg:justify-start">
+            <div className="bg-[#607855] text-white font-black tracking-wide text-xs md:text-sm px-5 py-2.5 rounded-xl shadow-xs">
               {s.price}
             </div>
           </div>
         </section>
 
-        {/* COLOANA DREAPTA: CONTROLLER MEDIA ULTRA-STABIL */}
+        {/* COLOANA MEDIA - Păstrează proporția corectă indiferent dacă ecranul e pătrat sau lat */}
         <section className="w-full flex items-center justify-center">
-          <div className="w-full aspect-[1.05] max-h-[56vh] relative rounded-[40px] overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.07)] bg-black">
+          <div className="w-full aspect-[4/3] sm:aspect-video lg:aspect-square xl:aspect-[1.05] max-h-[35vh] lg:max-h-[52vh] xl:max-h-[56vh] relative rounded-3xl lg:rounded-[40px] overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.07)] bg-black">
             {s.isVideo ? (
               <video 
                 src={s.src} 
@@ -143,9 +163,9 @@ export default function MilkKiosk() {
 
       </main>
 
-      {/* FOOTER CRITIC: AVERTISMENT DE PLATĂ MASIV PENTRU CLIENȚI */}
-      <footer className="w-full text-center mt-0 z-30">
-        <span className="bg-red-500 text-white border border-red-600 px-6 py-2.5 rounded-full inline-block font-extrabold text-sm tracking-wide shadow-md animate-pulse">
+      {/* FOOTER NOTĂ AVERTISMENT PENTRU CLIENT */}
+      <footer className="w-full text-center z-30 pointer-events-none">
+        <span className="bg-red-500 text-white border border-red-600 px-5 py-2 md:px-6 md:py-2.5 rounded-full inline-block font-extrabold text-xs md:text-sm tracking-wide shadow-md animate-pulse">
           {s.info}
         </span>
       </footer>
