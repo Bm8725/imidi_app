@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 const SCREENS = [
   { id: 'video', label: 'PREZENTARE VIDEO', title: 'De la ferma noastră,\ndirect la tine', desc: 'Urmărește drumul laptelui proaspăt în fiecare zi.', price: 'Puritate 100%', info: 'Aparatul NU dă rest! Introduceți suma exactă.', isVideo: true, src: '/milk.mp4', ms: 12000 },
   { id: '1', label: 'PROASPĂT ZILNIC', title: 'Lapte de la fermă.\nPur și rece.', desc: 'Colectat în fiecare dimineață din ferma locală și menținut constant la temperatura optimă de 4°C.', price: 'Direct de la fermă', info: 'Aparatul NU dă rest! Introduceți suma exactă.', img: '/milk1.jpeg', ms: 9000 },
-  { id: '2', label: 'GHID DE CUMPĂRARE', title: 'Cum cumperi în\ndoar 3 pași:', desc: '1. Deschide ușa și introdu sticla sub dozator.\n2. Introdu banii cash (fise sau bancnote).\n3. Apasă butonul mare START.', price: 'Plată exclusiv CASH', info: 'Atenție: NU se acceptă plata cu card bancar.', img: '/milk2.webp', ms: 14000 },
+  { id: '2', label: 'GHID DE CUMPĂRARE', title: 'Cum cumperi în\ndoar 3 pași:', desc: '1. Deschide ușa și introdu sticla sub dozator.\n2. Introdu banii cash (doar bancnote).\n3. Apasă butonul mare START.', price: 'Plată exclusiv CASH', info: 'Atenție: NU se acceptă plata cu card bancar.', img: '/milk2.webp', ms: 14000 },
   { id: '3', label: 'SĂNĂTATE CURATĂ', title: '100% Natural.\nDirect de la sursă.', desc: 'Lapte crud neprocesat, fără aditivi sau conservanți. Produs local pur, testat și certificat zilnic.', price: 'Certificat Zilnic', info: 'Gustul autentic și proaspăt în fiecare zi.', img: '/milk3.jpg', ms: 9000 }
 ];
 
@@ -21,6 +21,7 @@ export default function MilkKiosk() {
   
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const animTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const wakeLockRef = useRef<any>(null); // Referință pentru funcția anti-sleep
 
   const go = useCallback((d: number) => {
     setVisible(false);
@@ -32,6 +33,46 @@ export default function MilkKiosk() {
       setVisible(true); 
     }, 200);
   }, []);
+
+  // --- LOGICĂ ANTISLEEP (SCREEN WAKE LOCK) ---
+  useEffect(() => {
+    async function requestWakeLock() {
+      if (!('wakeLock' in navigator)) {
+        console.warn('Screen Wake Lock API nu este suportat de acest browser.');
+        return;
+      }
+      try {
+        // Solicită blocarea stingerii ecranului
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+      } catch (err: any) {
+        console.error(`Eroare Wake Lock: ${err.name}, ${err.message}`);
+      }
+    }
+
+    // Activare la pornire dacă sistemul este gata
+    if (ready) {
+      requestWakeLock();
+    }
+
+    // Re-activare automată când utilizatorul revine la tab/aplicație
+    const handleVisibilityChange = () => {
+      if (wakeLockRef.current !== null && document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().then(() => {
+          wakeLockRef.current = null;
+        });
+      }
+    };
+  }, [ready]);
+  // -------------------------------------------
 
   // Pornire sistem
   useEffect(() => {
@@ -98,7 +139,7 @@ export default function MilkKiosk() {
     return (
       <div className="flex h-screen w-screen flex-col items-center justify-center bg-white text-slate-900 font-sans antialiased gap-3">
         <span className="w-10 h-10 rounded-full border-4 border-emerald-100 border-t-emerald-600 animate-spin" />
-        <div className="text-xs tracking-[0.25em] font-bold text-emerald-700 uppercase">SISTEM ÎN PORNIRE...</div>
+        <div className="text-xs tracking-[0.25em] font-bold text-emerald-700 uppercase">Vmlk loading...</div>
       </div>
     );
   }
@@ -122,21 +163,33 @@ export default function MilkKiosk() {
       <div className="absolute bottom-0 left-0 w-[35vw] h-[35vw] bg-green-50/50 rounded-full blur-[100px] pointer-events-none" />
 
       {/* HEADER */}
-      <header className="h-[10vh] max-h-[80px] w-full flex justify-between items-center z-30 pointer-events-none border-b border-slate-100 pb-4">
-        <div className="flex items-center gap-3.5">
-          <div className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-600"></span>
-          </div>
-          <div>
-            <div className="text-sm font-black tracking-[0.2em] text-emerald-700 uppercase">FERMA NOASTRĂ</div>
-            <div className="text-[10px] text-slate-400 tracking-wider font-semibold uppercase">Produs Natural Zilnic</div>
+      <header className="h-[10vh] max-h-[80px] w-full flex justify-between items-center z-30 pointer-events-none border-b border-slate-200/60 pb-5">
+        {/* Brand & Corporate ID */}
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-1">
+            <div className="text-lg font-black tracking-wider text-slate-900 uppercase">
+              VENDER<span className="text-emerald-600 font-semibold">MILK</span> <span className="text-xs font-medium tracking-normal text-slate-400 lowercase">v1.13.2</span>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] text-slate-500 font-semibold tracking-wide uppercase">
+              <span>STAȚIE AUTOMATIZATĂ</span>
+       
+            </div>
           </div>
         </div>
-        <div className="bg-slate-50 border border-slate-100 px-6 py-2 rounded-2xl text-xl md:text-3xl font-extrabold tabular-nums text-slate-900 tracking-tight shadow-sm">
-          {time}
+
+        {/* System Diagnostics & Time */}
+        <div className="flex items-center gap-6">
+
+
+          {/* Enterprise Clock Badge */}
+          <div className="bg-slate-100 border border-slate-200/80 px-5 py-2.5 rounded-xl flex items-center shadow-sm">
+            <div className="text-lg md:text-xl font-bold tabular-nums tracking-tight text-slate-900">
+              {time}
+            </div>
+          </div>
         </div>
       </header>
+
 
       {/* MAIN CONTENT ZONE */}
       <main className={`flex-1 grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 lg:gap-16 items-center justify-center w-full max-w-7xl mx-auto pointer-events-none transition-all duration-300 ${visible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-1 scale-[0.99]'}`}>
@@ -164,40 +217,15 @@ export default function MilkKiosk() {
           </div>
         </section>
 
-        {/* MEDIA DREAPTA (IMAGINE SAU VIDEO) */}
-        <section className="w-full md:col-span-5 flex items-center justify-center h-[40vh] md:h-[60vh] max-h-[500px] relative z-10">
-          <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl border border-slate-100 bg-slate-50 relative">
-            {s.isVideo ? (
-              <video
-                key={s.src}
-                src={s.src}
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={s.img}
-                alt={s.label}
-                className="w-full h-full object-cover"
-              />
-            )}
-          </div>
+        {/* REZOLVARE ERROARE DE TAIERE COD (Sectiunea Media terminata corect) */}
+        <section className="w-full md:col-span-5 flex items-center justify-center">
+          {s.isVideo ? (
+            <video src={s.src} autoPlay loop muted playsInline className="w-full h-auto rounded-3xl shadow-2xl object-cover max-h-[50vh] md:max-h-[60vh]" />
+          ) : (
+            <img src={s.img} alt={s.label} className="w-full h-auto rounded-3xl shadow-2xl object-cover max-h-[50vh] md:max-h-[60vh]" />
+          )}
         </section>
       </main>
-
-      {/* FOOTER - Indicatori Progres */}
-      <footer className="h-[5vh] max-h-[40px] w-full flex justify-center items-center gap-2.5 z-30 pointer-events-none">
-        {SCREENS.map((screen, idx) => (
-          <div
-            key={screen.id}
-            className={`h-2 rounded-full transition-all duration-500 ${idx === index ? 'w-8 bg-emerald-600' : 'w-2 bg-slate-200'}`}
-          />
-        ))}
-      </footer>
     </div>
   );
 }
