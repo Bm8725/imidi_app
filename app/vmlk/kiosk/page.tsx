@@ -14,8 +14,6 @@ const SCREENS = [
 export default function MilkKiosk() {
   const [index, setIndex] = useState(0);
   const [time, setTime] = useState('');
-  const [full, setFull] = useState(false);
-  const [hideCursor, setHideCursor] = useState(false);
   const [ready, setReady] = useState(false);
   const [visible, setVisible] = useState(true);
 
@@ -28,38 +26,36 @@ export default function MilkKiosk() {
   }, []);
 
   useEffect(() => {
-    const onChange = () => setFull(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', onChange);
     const timeout = setTimeout(() => setReady(true), 500);
-    return () => { document.removeEventListener('fullscreenchange', onChange); clearTimeout(timeout); };
+    return () => clearTimeout(timeout);
   }, []);
 
+  // Auto-advance slide-uri
   useEffect(() => {
     if (!ready) return;
     const interval = setTimeout(() => go(1), SCREENS[index]?.ms || 8000);
     return () => clearTimeout(interval);
   }, [go, ready, index]);
 
+  // Ceasul digital local
   useEffect(() => {
     const tick = () => setTime(new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }));
     tick(); const t = setInterval(tick, 1000); return () => clearInterval(t);
   }, []);
 
+  // Suport pentru tastatură ascunsă/teste (Săgeți și Tasta F pentru Fullscreen în spate)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { 
-      if (e.key === 'ArrowRight') go(1); if (e.key === 'ArrowLeft') go(-1); 
-      if ((e.key === 'f' || e.key === 'F') && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+      if (e.key === 'ArrowRight') go(1); 
+      if (e.key === 'ArrowLeft') go(-1); 
+      if ((e.key === 'f' || e.key === 'F') && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen?.().catch(() => {});
+      }
     };
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   }, [go]);
 
-  useEffect(() => {
-    let t = 0;
-    const onTouchOrMove = () => { setHideCursor(false); clearTimeout(t); t = window.setTimeout(() => setHideCursor(true), 3000); };
-    window.addEventListener('pointermove', onTouchOrMove); window.addEventListener('pointerdown', onTouchOrMove);
-    return () => { window.removeEventListener('pointermove', onTouchOrMove); window.removeEventListener('pointerdown', onTouchOrMove); clearTimeout(t); };
-  }, []);
-
+  // WakeLock: previne stingerea ecranului la Kiosk
   useEffect(() => {
     let lock: WakeLockSentinel | null = null; let alive = true;
     const acquire = async () => { 
@@ -75,68 +71,80 @@ export default function MilkKiosk() {
   const s = SCREENS[index];
 
   return (
-    <div 
-      className={`relative w-full min-h-screen lg:h-screen lg:overflow-hidden bg-[#FBFBF9] text-[#1C1612] font-sans flex flex-col justify-between p-4 sm:p-6 lg:p-12 select-none ${hideCursor ? 'lg:cursor-none' : 'cursor-default'}`}
-      onClick={(e) => go(e.clientX / window.innerWidth > 0.5 ? 1 : -1)}
-    >
+    <div className="relative w-full min-h-screen lg:h-screen lg:overflow-hidden bg-[#FBFBF9] text-[#1C1612] font-sans flex flex-col justify-between p-6 lg:p-12 select-none cursor-none">
+      
       {/* BACKGROUND GRAPHIC */}
       <div className="absolute top-0 right-0 w-[40vw] h-[40vw] bg-[#607855]/5 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* FIXED HEADER */}
+      {/* HEADER COMPACT (Fără buton de fullscreen, doar branding și ceas masiv) */}
       <header className="w-full flex justify-between items-center z-30 pointer-events-none mb-4 lg:mb-0">
         <div className="flex items-center gap-2 lg:gap-3">
-          <span className="w-2 h-2 rounded-full bg-[#607855] animate-pulse" />
-          <div className="text-[10px] sm:text-xs font-black tracking-[0.25em] text-[#607855] uppercase">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#607855] animate-pulse" />
+          <div className="text-xs font-black tracking-[0.25em] text-[#607855] uppercase">
             FERMA NOASTRĂ ZILNIC
           </div>
         </div>
-        <div className="flex items-center gap-3 lg:gap-6 pointer-events-auto">
-          <button 
-            onClick={(e) => { e.stopPropagation(); document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.().catch(() => {}); }} 
-            className={`hidden sm:block bg-black/5 hover:bg-black/10 text-[#111] px-4 py-2 rounded-xl text-xs font-bold tracking-wider transition-all ${hideCursor ? 'lg:opacity-0 lg:scale-95' : 'opacity-100 scale-100'}`}
-          >
-            {full ? 'ECRAN RESTRÂNS' : 'ECRAN COMPLET'}
-          </button>
-          <div className="bg-white border border-black/5 px-3 py-1 sm:px-4 sm:py-1.5 rounded-xl text-sm sm:text-base lg:text-2xl font-black tabular-nums shadow-sm text-[#111]">
-            {time}
-          </div>
+        <div className="bg-white border border-black/5 px-4 py-2 rounded-2xl text-lg lg:text-3xl font-black tabular-nums shadow-xs text-[#111]">
+          {time}
         </div>
       </header>
 
-      {/* MAIN CONTAINER */}
-      <main className={`flex-1 flex flex-col-reverse lg:grid lg:grid-cols-2 gap-6 lg:gap-12 items-center justify-center w-full max-w-7xl mx-auto transition-all duration-300 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.995]'}`}>
+      {/* ZONE / BUTOANE DE NAVIGARE GENERATION TACTILĂ (Vizibile, dar elegante) */}
+      <div className="absolute inset-y-0 left-0 w-20 flex items-center justify-start pl-4 z-40">
+        <button 
+          onClick={() => go(-1)}
+          className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-md shadow-md border border-black/5 flex items-center justify-center text-[#607855] hover:bg-white active:scale-95 transition-all"
+        >
+          <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="absolute inset-y-0 right-0 w-20 flex items-center justify-end pr-4 z-40">
+        <button 
+          onClick={() => go(1)}
+          className="w-12 h-12 rounded-full bg-white/80 backdrop-blur-md shadow-md border border-black/5 flex items-center justify-center text-[#607855] hover:bg-white active:scale-95 transition-all"
+        >
+          <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </button>
+      </div>
+
+      {/* CONTAINER PRINCIPAL STRUCTURAT FLUID */}
+      <main className={`flex-1 flex flex-col-reverse lg:grid lg:grid-cols-2 gap-6 lg:gap-16 items-center justify-center w-full max-w-6xl mx-auto transition-all duration-300 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.995]'}`}>
         
         {/* COLOANA TEXT */}
-        <section className="w-full flex flex-col justify-center text-center lg:text-left z-10 px-2 sm:px-6 lg:px-0">
-          <div className="min-h-[28px] lg:min-h-[36px] flex items-center justify-center lg:justify-start mb-2 lg:mb-4">
-            <span className="text-[10px] lg:text-xs font-bold tracking-widest text-[#607855] bg-[#607855]/10 px-2.5 py-1 rounded-md uppercase">
+        <section className="w-full flex flex-col justify-center text-center lg:text-left z-10 px-6 lg:px-0">
+          <div className="min-h-[36px] flex items-center justify-center lg:justify-start mb-4">
+            <span className="text-[10px] lg:text-xs font-bold tracking-widest text-[#607855] bg-[#607855]/10 px-3 py-1.5 rounded-lg uppercase">
               {s.label}
             </span>
           </div>
           
-          {/* h1 are acum o înălțime minimă fixă bazată pe unități flexibile (lh / ch / rem) ca să nu mai miște restul layout-ului */}
-          <div className="min-h-[3.52rem] sm:min-h-[5.1rem] lg:min-h-[11rem] flex items-center justify-center lg:justify-start mb-3 lg:mb-6">
-            <h1 className="text-xl sm:text-3xl lg:text-5xl xl:text-6xl font-black tracking-tight text-[#111] leading-[1.15] whitespace-pre-line">
+          <div className="min-h-[3.52rem] sm:min-h-[5.1rem] lg:min-h-[11rem] flex items-center justify-center lg:justify-start mb-4">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl xl:text-6xl font-black tracking-tight text-[#111] leading-[1.15] whitespace-pre-line">
               {s.title}
             </h1>
           </div>
 
-          <div className="min-h-[4.5rem] sm:min-h-[3.5rem] lg:min-h-[6rem] flex items-center justify-center lg:justify-start mb-4 lg:mb-8">
-            <p className="text-xs sm:text-base lg:text-lg leading-relaxed text-[#111]/60 max-w-xl whitespace-pre-line">
+          <div className="min-h-[4.5rem] sm:min-h-[3.5rem] lg:min-h-[6rem] flex items-center justify-center lg:justify-start mb-6">
+            <p className="text-sm sm:text-base lg:text-lg leading-relaxed text-[#111]/60 max-w-xl whitespace-pre-line">
               {s.desc}
             </p>
           </div>
 
           <div className="flex justify-center lg:justify-start">
-            <div className="bg-[#607855] text-white font-bold text-xs lg:text-sm px-4 py-2 rounded-xl shadow-xs">
+            <div className="bg-[#607855] text-white font-black tracking-wide text-xs lg:text-sm px-5 py-2.5 rounded-xl shadow-xs">
               {s.price}
             </div>
           </div>
         </section>
 
-        {/* COLOANA MEDIA */}
-        <section className="w-full flex items-center justify-center px-2 sm:px-6 lg:px-0">
-          <div className="w-full aspect-[4/3] sm:aspect-video lg:aspect-square xl:aspect-[1.1] max-h-[30vh] sm:max-h-[40vh] lg:max-h-[55vh] xl:max-h-[60vh] relative rounded-2xl lg:rounded-[40px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.06)] bg-black">
+        {/* COLOANA MEDIA (Video / Foto) */}
+        <section className="w-full flex items-center justify-center px-6 lg:px-0">
+          <div className="w-full aspect-[4/3] sm:aspect-video lg:aspect-square xl:aspect-[1.05] max-h-[30vh] sm:max-h-[38vh] lg:max-h-[52vh] xl:max-h-[56vh] relative rounded-3xl lg:rounded-[40px] overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.07)] bg-black">
             {s.isVideo ? (
               <video 
                 src={s.src} 
@@ -158,9 +166,11 @@ export default function MilkKiosk() {
 
       </main>
 
-      {/* FOOTER PENTRU KIOSK (Info text stabil) */}
-      <footer className="w-full text-center mt-4 lg:mt-0 text-[10px] sm:text-xs text-[#111]/40 tracking-wider pointer-events-none">
-        {s.info}
+      {/* FOOTER NOTĂ AVERTISMENT (Foarte importantă pe Kiosk-uri de plată) */}
+      <footer className="w-full text-center mt-4 lg:mt-0 text-xs font-medium text-[#111]/50 tracking-wider pointer-events-none z-30">
+        <span className="bg-white/60 border border-black/5 px-4 py-1.5 rounded-full inline-block backdrop-blur-xs">
+          {s.info}
+        </span>
       </footer>
     </div>
   );
