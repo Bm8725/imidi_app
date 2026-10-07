@@ -1,7 +1,5 @@
 'use client';
 
-export const dynamic = 'force-static';
-
 import { useCallback, useEffect, useState } from 'react';
 
 const SCREENS = [
@@ -31,27 +29,23 @@ export default function MilkKiosk() {
     return () => clearTimeout(timeout);
   }, []);
 
-  // Monitorizare stare Fullscreen nativă
   useEffect(() => {
     const checkFs = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', checkFs);
     return () => document.removeEventListener('fullscreenchange', checkFs);
   }, []);
 
-  // Auto-advance slide-uri bazat pe ms
   useEffect(() => {
     if (!ready) return;
     const interval = setTimeout(() => go(1), SCREENS[index]?.ms || 8000);
     return () => clearTimeout(interval);
   }, [go, ready, index]);
 
-  // Ceasul digital local
   useEffect(() => {
     const tick = () => setTime(new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }));
     tick(); const t = setInterval(tick, 1000); return () => clearInterval(t);
   }, []);
 
-  // Funcție tehnică care forțează ecranul complet la atingere
   const triggerFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen?.()
@@ -60,7 +54,6 @@ export default function MilkKiosk() {
     }
   };
 
-  // Suport pentru tastatură ascunsă/depanare (Săgeți și Tasta F)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { 
       if (e.key === 'ArrowRight') go(1); 
@@ -70,7 +63,6 @@ export default function MilkKiosk() {
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
   }, [go]);
 
-  // WakeLock: Menține ecranul pornit 24/7
   useEffect(() => {
     let lock: WakeLockSentinel | null = null; let alive = true;
     const acquire = async () => { 
@@ -88,60 +80,61 @@ export default function MilkKiosk() {
   return (
     <div 
       onClick={triggerFullscreen}
-      className="relative w-screen h-screen overflow-hidden bg-[#FBFBF9] text-[#1C1612] font-sans flex flex-col justify-between p-6 md:p-8 lg:p-12 select-none cursor-none"
+      className="relative w-screen h-screen overflow-hidden bg-[#FBFBF9] text-[#1C1612] font-sans flex flex-col justify-between p-4 md:p-6 lg:p-10 select-none cursor-none"
     >
-      {/* Indicator Tehnic discret dacă NU este în Fullscreen (Dispare când e complet) */}
+      {/* Indicator Mod Complet (Apare doar dacă nu e activat) */}
       {!isFullscreen && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-yellow-500 text-black text-[10px] font-bold px-3 py-1 rounded-full z-50 animate-bounce pointer-events-none">
           ATINGEȚI ECRANUL PENTRU MODUL COMPLET KIOSK
         </div>
       )}
       
-      {/* BACKGROUND DECORATION */}
-      <div className="absolute top-0 right-0 w-[40vw] h-[40vw] bg-[#607855]/5 rounded-full blur-[120px] pointer-events-none" />
+      {/* FUNDAL DECORATIV */}
+      <div className="absolute top-0 right-0 w-[35vw] h-[35vw] bg-[#607855]/5 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* HEADER KIOSK ADAPTIV */}
-      <header className="w-full flex justify-between items-center z-30 pointer-events-none">
+      {/* HEADER FIX (Înălțime stabilă, perfect aliniat pe Landscape) */}
+      <header className="h-[12vh] max-h-[80px] w-full flex justify-between items-center z-30 pointer-events-none">
         <div className="flex items-center gap-3">
           <span className="w-2.5 h-2.5 rounded-full bg-[#607855] animate-pulse" />
           <div className="text-[10px] sm:text-xs font-black tracking-[0.25em] text-[#607855] uppercase">
             FERMA NOASTRĂ ZILNIC
           </div>
         </div>
-        <div className="bg-white border border-black/5 px-3 py-1.5 md:px-4 md:py-2 rounded-2xl text-xl md:text-2xl lg:text-3xl font-black tabular-nums shadow-xs text-[#111]">
+        <div className="bg-white border border-black/5 px-3 py-1.5 md:px-4 md:py-2 rounded-2xl text-base md:text-xl lg:text-2xl font-black tabular-nums shadow-xs text-[#111]">
           {time}
         </div>
       </header>
 
-      {/* MAIN CONTAINER ADAPTIV (Ajustat cu unități flexibile pentru orice rezoluție) */}
-      <main className={`flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10 lg:gap-16 items-center justify-center w-full max-w-7xl mx-auto pointer-events-none transition-all duration-300 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.995]'}`}>
+      {/* MAIN CONTAINER: Structură pe 2 coloane forțată de la ecrane mici (sm) */}
+      <main className={`flex-1 h-[70vh] grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-10 lg:gap-16 items-center justify-center w-full max-w-7xl mx-auto pointer-events-none transition-all duration-300 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.995]'}`}>
         
-        {/* COLOANA TEXT - Ajustare automată a textului pe ecrane mici/mari */}
-        <section className="w-full flex flex-col justify-center text-center lg:text-left z-10">
-          <div className="mb-2 md:mb-4">
-            <span className="text-[10px] md:text-xs font-bold tracking-widest text-[#607855] bg-[#607855]/10 px-3 py-1.5 rounded-lg uppercase">
+        {/* COLOANA STÂNGA: TEXT (Aliniat la stânga pe landscape pentru citire naturală) */}
+        <section className="w-full flex flex-col justify-center text-left z-10 max-h-full overflow-hidden">
+          <div className="mb-2 md:mb-3">
+            <span className="text-[9px] md:text-xs font-bold tracking-widest text-[#607855] bg-[#607855]/10 px-2.5 py-1 rounded-lg uppercase">
               {s.label}
             </span>
           </div>
           
-          <h1 className="text-2xl sm:text-4xl md:text-5xl xl:text-6xl font-black tracking-tight text-[#111] leading-[1.15] whitespace-pre-line mb-2 md:mb-4">
+          {/* text-2xl crescător până la text-5xl în funcție de ecran */}
+          <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black tracking-tight text-[#111] leading-[1.15] whitespace-pre-line mb-2 md:mb-3">
             {s.title}
           </h1>
 
-          <p className="text-sm md:text-base lg:text-lg leading-relaxed text-[#111]/60 max-w-xl mx-auto lg:mx-0 whitespace-pre-line mb-4 md:mb-6">
+          <p className="text-xs md:text-sm lg:text-base xl:text-lg leading-relaxed text-[#111]/60 max-w-xl whitespace-pre-line mb-3 md:mb-5">
             {s.desc}
           </p>
 
-          <div className="flex justify-center lg:justify-start">
-            <div className="bg-[#607855] text-white font-black tracking-wide text-xs md:text-sm px-5 py-2.5 rounded-xl shadow-xs">
+          <div className="flex justify-start">
+            <div className="bg-[#607855] text-white font-black tracking-wide text-[10px] md:text-xs px-4 py-2 rounded-xl shadow-xs">
               {s.price}
             </div>
           </div>
         </section>
 
-        {/* COLOANA MEDIA - Păstrează proporția corectă indiferent dacă ecranul e pătrat sau lat */}
-        <section className="w-full flex items-center justify-center">
-          <div className="w-full aspect-[4/3] sm:aspect-video lg:aspect-square xl:aspect-[1.05] max-h-[35vh] lg:max-h-[52vh] xl:max-h-[56vh] relative rounded-3xl lg:rounded-[40px] overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.07)] bg-black">
+        {/* COLOANA DREAPTA: MEDIA (Blocat la o înălțime maximă de 55% din ecran pentru siguranță landscape) */}
+        <section className="w-full h-full flex items-center justify-center max-h-[40vh] sm:max-h-[55vh]">
+          <div className="w-full h-full max-w-[40vh] sm:max-w-none aspect-square relative rounded-2xl lg:rounded-[32px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.04)] bg-black">
             {s.isVideo ? (
               <video 
                 src={s.src} 
@@ -160,14 +153,13 @@ export default function MilkKiosk() {
             )}
           </div>
         </section>
-
       </main>
 
-      {/* FOOTER NOTĂ AVERTISMENT PENTRU CLIENT */}
-      <footer className="w-full text-center z-30 pointer-events-none">
-        <span className="bg-red-500 text-white border border-red-600 px-5 py-2 md:px-6 md:py-2.5 rounded-full inline-block font-extrabold text-xs md:text-sm tracking-wide shadow-md animate-pulse">
+      {/* FOOTER FIX (Poziționat jos, textul nu va fi tăiat niciodată pe landscape) */}
+      <footer className="h-[10vh] max-h-[60px] w-full flex items-end justify-center z-30 pointer-events-none">
+        <p className="text-[10px] sm:text-xs md:text-sm font-bold text-red-600 bg-red-50 px-4 py-2 rounded-xl border border-red-100 uppercase tracking-wider animate-pulse max-w-full text-center truncate">
           {s.info}
-        </span>
+        </p>
       </footer>
     </div>
   );
