@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 
 const SCREENS = [
   { id: 'video', label: 'PREZENTARE VIDEO', title: 'De la ferma noastră,\ndirect la tine', desc: 'Urmărește drumul laptelui proaspăt în fiecare zi.', price: 'Puritate 100%', info: 'Aparatul NU dă rest! Introduceți suma exactă.', isVideo: true, src: '/milk.mp4', ms: 12000 },
@@ -15,158 +15,173 @@ export default function MilkKiosk() {
   const [ready, setReady] = useState(false);
   const [visible, setVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Contor ascuns pentru cele 5 apăsări de mentenanță
+  const [secretClicks, setSecretClicks] = useState(0);
+  
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const animTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const go = useCallback((d: number) => {
     setVisible(false);
-    setTimeout(() => { 
+    
+    if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current);
+    
+    animTimeoutRef.current = setTimeout(() => { 
       setIndex((v) => (v + d + SCREENS.length) % SCREENS.length); 
       setVisible(true); 
     }, 200);
   }, []);
 
+  // Pornire sistem
   useEffect(() => {
     const timeout = setTimeout(() => setReady(true), 500);
     return () => clearTimeout(timeout);
   }, []);
 
+  // Sincronizare stare Fullscreen
   useEffect(() => {
     const checkFs = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', checkFs);
     return () => document.removeEventListener('fullscreenchange', checkFs);
   }, []);
 
+  // Auto-advance pentru slide-uri
   useEffect(() => {
     if (!ready) return;
-    const interval = setTimeout(() => go(1), SCREENS[index]?.ms || 8000);
-    return () => clearTimeout(interval);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    
+    timeoutRef.current = setTimeout(() => go(1), SCREENS[index]?.ms || 8000);
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, [go, ready, index]);
 
+  // Ceasul din colț (ro-RO)
   useEffect(() => {
     const tick = () => setTime(new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }));
-    tick(); const t = setInterval(tick, 1000); return () => clearInterval(t);
+    tick(); 
+    const t = setInterval(tick, 1000); 
+    return () => clearInterval(t);
   }, []);
 
-  const toggleFullscreen = () => {
+  // Resetare contor secret dacă trece mai mult de 2 secunde între apăsări
+  useEffect(() => {
+    if (secretClicks === 0) return;
+    const t = setTimeout(() => setSecretClicks(0), 2000);
+    return () => clearTimeout(t);
+  }, [secretClicks]);
+
+  // Logica de control la atingere pe ecran
+  const handleScreenTouch = () => {
+    // Dacă nu este în Fullscreen, prima atingere îl blochează în Kiosk
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen?.()
         .then(() => setIsFullscreen(true))
-        .catch((err) => console.log(err));
-    } else {
-      document.exitFullscreen?.()
-        .then(() => setIsFullscreen(false))
-        .catch((err) => console.log(err));
+        .catch((err) => console.error(err));
+      setSecretClicks(0);
+      return;
     }
+
+    // Dacă este deja Fullscreen, numărăm apăsările rapide pentru mentenanță
+    setSecretClicks((prev) => {
+      const next = prev + 1;
+      if (next >= 5) {
+        document.exitFullscreen?.(); // Ieșire secretă din chioșc
+        return 0;
+      }
+      return next;
+    });
   };
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { 
-      if (e.key === 'ArrowRight') go(1); 
-      if (e.key === 'ArrowLeft') go(-1); 
-      if (e.key === 'f' || e.key === 'F') toggleFullscreen();
-    };
-    window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey);
-  }, [go]);
-
-  useEffect(() => {
-    let lock: WakeLockSentinel | null = null; let alive = true;
-    const acquire = async () => { 
-      if (!('wakeLock' in navigator) || document.visibilityState !== 'visible' || (lock && !lock.released)) return; 
-      try { const l = await navigator.wakeLock.request('screen'); if (alive) lock = l; else l.release(); } catch {} 
-    };
-    acquire(); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') acquire(); });
-    const t = setInterval(acquire, 60000); return () => { alive = false; clearInterval(t); lock?.release().catch(() => {}); };
-  }, []);
-
-  if (!ready) return <div className="flex h-screen w-screen items-center justify-center bg-[#FBFBF9] text-[#111] font-sans text-sm tracking-widest font-light">PORNIRE SISTEM...</div>;
+  if (!ready) {
+    return (
+      <div className="flex h-screen w-screen flex-col items-center justify-center bg-white text-slate-900 font-sans antialiased gap-3">
+        <span className="w-10 h-10 rounded-full border-4 border-emerald-100 border-t-emerald-600 animate-spin" />
+        <div className="text-xs tracking-[0.25em] font-bold text-emerald-700 uppercase">SISTEM ÎN PORNIRE...</div>
+      </div>
+    );
+  }
 
   const s = SCREENS[index];
 
   return (
     <div 
-      onClick={toggleFullscreen}
-      className="relative w-screen h-screen overflow-hidden bg-[#FBFBF9] text-[#1C1612] font-sans flex flex-col justify-between p-4 md:p-6 lg:p-10 select-none group"
+      onClick={handleScreenTouch}
+      className="relative w-screen h-screen overflow-hidden bg-white text-slate-800 font-sans flex flex-col justify-between p-6 md:p-10 lg:p-12 select-none cursor-none antialiased"
     >
-      {/* Indicator Mod Complet (Apare doar dacă nu e activat) */}
+      {/* Banner avertizare când NU este în modul complet */}
       {!isFullscreen && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-yellow-500 text-black text-[10px] font-bold px-3 py-1 rounded-full z-50 animate-bounce pointer-events-none">
-          ATINGEȚI ECRANUL PENTRU MODUL COMPLET KIOSK
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[11px] font-bold px-6 py-2 rounded-full z-50 animate-bounce pointer-events-none tracking-widest shadow-xl uppercase">
+          Atingeți ecranul pentru Modul Chioșc Securizat
         </div>
       )}
       
-      {/* FUNDAL DECORATIV */}
-      <div className="absolute top-0 right-0 w-[35vw] h-[35vw] bg-[#607855]/5 rounded-full blur-[100px] pointer-events-none" />
+      {/* Background Gradients */}
+      <div className="absolute top-0 right-0 w-[45vw] h-[45vw] bg-emerald-50/40 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[35vw] h-[35vw] bg-green-50/50 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* HEADER FIX */}
-      <header className="h-[12vh] max-h-[80px] w-full flex justify-between items-center z-30">
-        <div className="flex items-center gap-3 pointer-events-none">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#607855] animate-pulse" />
-          <div className="text-[10px] sm:text-xs font-black tracking-[0.25em] text-[#607855] uppercase">
-            FERMA NOASTRĂ ZILNIC
+      {/* HEADER */}
+      <header className="h-[10vh] max-h-[80px] w-full flex justify-between items-center z-30 pointer-events-none border-b border-slate-100 pb-4">
+        <div className="flex items-center gap-3.5">
+          <div className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-600"></span>
+          </div>
+          <div>
+            <div className="text-sm font-black tracking-[0.2em] text-emerald-700 uppercase">FERMA NOASTRĂ</div>
+            <div className="text-[10px] text-slate-400 tracking-wider font-semibold uppercase">Produs Natural Zilnic</div>
           </div>
         </div>
-        
-        {/* ZONĂ CONTROL: Conține ceasul și butonul fin ascuns la hover */}
-        <div className="flex items-center gap-3 relative">
-          {/* BUTONUL ASCUNS (Apare fin doar când pui mouse-ul în zona de sus-dreapta) */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation(); // Oprește declanșarea toggle-ului de pe fundal
-              toggleFullscreen();
-            }}
-            className="opacity-0 group-hover:opacity-100 focus:opacity-100 bg-black/10 hover:bg-black/20 backdrop-blur-md text-[#111] text-[11px] font-bold px-3 py-1.5 rounded-xl border border-black/5 transition-all duration-300 flex items-center gap-1.5 active:scale-95"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-black/50" />
-            {isFullscreen ? 'Ieșire Ecran Complet' : 'Mod Kiosk'}
-          </button>
-
-          <div className="bg-white border border-black/5 px-3 py-1.5 md:px-4 md:py-2 rounded-2xl text-base md:text-xl lg:text-2xl font-black tabular-nums shadow-xs text-[#111] pointer-events-none">
-            {time}
-          </div>
+        <div className="bg-slate-50 border border-slate-100 px-6 py-2 rounded-2xl text-xl md:text-3xl font-extrabold tabular-nums text-slate-900 tracking-tight shadow-sm">
+          {time}
         </div>
       </header>
 
-      {/* MAIN CONTAINER */}
-      <main className={`flex-1 h-[70vh] grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-10 lg:gap-16 items-center justify-center w-full max-w-7xl mx-auto pointer-events-none transition-all duration-300 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.995]'}`}>
+      {/* MAIN CONTENT ZONE */}
+      <main className={`flex-1 grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 lg:gap-16 items-center justify-center w-full max-w-7xl mx-auto pointer-events-none transition-all duration-300 ${visible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-1 scale-[0.99]'}`}>
         
-        {/* COLOANA STÂNGA: TEXT */}
-        <section className="w-full flex flex-col justify-center text-left z-10 max-h-full overflow-hidden">
-          <div className="mb-2 md:mb-3">
-            <span className="text-[9px] md:text-xs font-bold tracking-widest text-[#607855] bg-[#607855]/10 px-2.5 py-1 rounded-lg uppercase">
+        {/* TEXT STÂNGA */}
+        <section className="w-full md:col-span-7 flex flex-col justify-center text-left z-10 max-h-full">
+          <div className="mb-4">
+            <span className="text-[10px] md:text-xs font-extrabold tracking-[0.15em] text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-lg uppercase">
               {s.label}
             </span>
           </div>
-          
-          <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black tracking-tight text-[#111] leading-[1.15] whitespace-pre-line mb-2 md:mb-3">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-black tracking-tight text-slate-950 leading-[1.12] whitespace-pre-line mb-4">
             {s.title}
           </h1>
-
-          <p className="text-xs md:text-sm lg:text-base xl:text-lg leading-relaxed text-[#111]/60 max-w-xl whitespace-pre-line mb-3 md:mb-5">
+          <p className="text-sm md:text-base lg:text-lg xl:text-xl leading-relaxed text-slate-600 max-w-2xl whitespace-pre-line mb-6 font-medium">
             {s.desc}
           </p>
-
-          <div className="flex justify-start">
-            <div className="bg-[#607855] text-white font-black tracking-wide text-[10px] md:text-xs px-4 py-2 rounded-xl shadow-xs">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="bg-emerald-600 text-white font-extrabold tracking-wide text-xs md:text-sm px-6 py-3 rounded-xl shadow-md shadow-emerald-600/10 uppercase">
               {s.price}
+            </div>
+            <div className="text-[11px] md:text-xs text-slate-400 font-semibold tracking-wide bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+              {s.info}
             </div>
           </div>
         </section>
 
-        {/* COLOANA DREAPTA: MEDIA */}
-        <section className="w-full h-full flex items-center justify-center max-h-[40vh] sm:max-h-[55vh]">
-          <div className="w-full h-full max-w-[40vh] sm:max-w-none aspect-square relative rounded-2xl lg:rounded-[32px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.04)] bg-black">
+        {/* MEDIA DREAPTA (IMAGINE SAU VIDEO) */}
+        <section className="w-full md:col-span-5 flex items-center justify-center h-[40vh] md:h-[60vh] max-h-[500px] relative z-10">
+          <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl border border-slate-100 bg-slate-50 relative">
             {s.isVideo ? (
-              <video 
-                src={s.src} 
-                autoPlay 
-                muted 
-                loop 
+              <video
+                key={s.src}
+                src={s.src}
+                autoPlay
+                muted
+                loop
                 playsInline
                 className="w-full h-full object-cover"
               />
             ) : (
-              <img 
-                src={s.img} 
-                alt={s.title}
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={s.img}
+                alt={s.label}
                 className="w-full h-full object-cover"
               />
             )}
@@ -174,11 +189,14 @@ export default function MilkKiosk() {
         </section>
       </main>
 
-      {/* FOOTER FIX */}
-      <footer className="h-[10vh] max-h-[60px] w-full flex items-end justify-center z-30 pointer-events-none">
-        <p className="text-[10px] sm:text-xs md:text-sm font-bold text-red-600 bg-red-50 px-4 py-2 rounded-xl border border-red-100 uppercase tracking-wider animate-pulse max-w-full text-center truncate">
-          {s.info}
-        </p>
+      {/* FOOTER - Indicatori Progres */}
+      <footer className="h-[5vh] max-h-[40px] w-full flex justify-center items-center gap-2.5 z-30 pointer-events-none">
+        {SCREENS.map((screen, idx) => (
+          <div
+            key={screen.id}
+            className={`h-2 rounded-full transition-all duration-500 ${idx === index ? 'w-8 bg-emerald-600' : 'w-2 bg-slate-200'}`}
+          />
+        ))}
       </footer>
     </div>
   );
