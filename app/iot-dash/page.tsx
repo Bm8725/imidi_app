@@ -20,7 +20,7 @@ export default function IotDashboard() {
     async function fetchIotData() {
       try {
         // Interogăm API-ul serverless în C++ din Vercel
-        const response = await fetch('/api/cpp/iot');
+        const response = await fetch('app/api/cpp/iot');
         if (!response.ok) {
           throw new Error('Eroare la comunicarea cu serverul C++');
         }
