@@ -1,13 +1,1 @@
-{
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/cpp/iot.cpp",
-      "use": "vercel-cpp"
-    },
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ]
-}
+{}
