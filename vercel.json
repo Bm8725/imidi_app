@@ -1,8 +1,13 @@
 {
   "version": 2,
-  "functions": {
-    "app/api/cpp/iot.cpp": {
-      "runtime": "vercel-cpp@0.6.0"
+  "builds": [
+    {
+      "src": "api/cpp/iot.cpp",
+      "use": "vercel-cpp"
+    },
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
     }
-  }
+  ]
 }
