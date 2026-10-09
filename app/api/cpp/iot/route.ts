@@ -29,6 +29,7 @@ export async function GET(): Promise<Response> {
       } catch (parseError) {
         resolve(NextResponse.json({ status: "parse_error", raw: stdout }, { status: 500 }));
       }
+      
     });
   });
 }
