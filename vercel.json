@@ -1,7 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "api/cpp/*.cpp": {
+    "api/cpp/iot.cpp": {
       "runtime": "vercel-cpp@0.6.0"
     }
   }
