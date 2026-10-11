@@ -59,13 +59,8 @@ export default function AirLinkLauncher() {
         >
           <div className="px-5 pt-5 pb-4 bg-gradient-to-br from-indigo-50 via-violet-50 to-white border-b border-zinc-100">
             <div className="flex items-start justify-between">
-              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/30">
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12a7 7 0 0 1 14 0M8.5 12a3.5 3.5 0 0 1 7 0" />
-                  <circle cx="12" cy="12" r="1" fill="currentColor" />
-                  <path d="M12 14v6" />
-                </svg>
-              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/airlink-icon.png" alt="" width={40} height={40} className="w-10 h-10 rounded-xl shadow-md shadow-indigo-500/30" draggable={false} />
               <button
                 onClick={() => setOpen(false)}
                 className="text-zinc-400 hover:text-zinc-700 transition-colors text-sm"
@@ -113,20 +108,19 @@ export default function AirLinkLauncher() {
         onClick={() => setOpen((v) => !v)}
         aria-label="Open AirLink"
         aria-expanded={open}
-        className="relative w-14 h-14 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-transform duration-200 flex items-center justify-center"
+        className={`relative w-14 h-14 rounded-full shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-transform duration-200 flex items-center justify-center ${
+          open ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white" : ""
+        }`}
       >
         {!open && <span className="absolute inset-0 rounded-full bg-indigo-500/40 al-ring" />}
-        <svg className="relative w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          {open ? (
+        {open ? (
+          <svg className="relative w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 6l12 12M18 6L6 18" />
-          ) : (
-            <>
-              <path d="M5 12a7 7 0 0 1 14 0M8.5 12a3.5 3.5 0 0 1 7 0" />
-              <circle cx="12" cy="12" r="1" fill="currentColor" />
-              <path d="M12 14v6" />
-            </>
-          )}
-        </svg>
+          </svg>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src="/airlink-icon.png" alt="AirLink" width={56} height={56} className="relative w-14 h-14 rounded-full select-none" draggable={false} />
+        )}
       </button>
     </div>
   );
