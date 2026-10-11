@@ -80,9 +80,16 @@ const formatElapsed = (s: number) =>
 /* ---------------------------------------------------------------------- */
 /* Small UI pieces                                                         */
 /* ---------------------------------------------------------------------- */
+const Check = () => (
+  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 13l4 4L19 7" />
+  </svg>
+);
+
+// Horizontal stepper (mobile / tablet)
 function Stepper({ steps, current }: { steps: string[]; current: number }) {
   return (
-    <ol className="flex items-center w-full mb-8">
+    <ol className="flex items-center w-full mb-8 lg:hidden">
       {steps.map((label, i) => {
         const done = i < current;
         const active = i === current;
@@ -98,13 +105,7 @@ function Stepper({ steps, current }: { steps: string[]; current: number }) {
                     : "bg-white text-zinc-400 border border-zinc-300"
                 }`}
               >
-                {done ? (
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  i + 1
-                )}
+                {done ? <Check /> : i + 1}
                 {active && <span className="absolute inset-0 rounded-full bg-indigo-500/30 am-ring" />}
               </span>
               <span className={`hidden sm:block text-[11px] font-semibold transition-colors ${done || active ? "text-zinc-900" : "text-zinc-400"}`}>
@@ -123,6 +124,43 @@ function Stepper({ steps, current }: { steps: string[]; current: number }) {
   );
 }
 
+// Vertical workflow (desktop left rail)
+function VerticalSteps({ steps, current }: { steps: string[]; current: number }) {
+  return (
+    <ol>
+      {steps.map((label, i) => {
+        const done = i < current;
+        const active = i === current;
+        return (
+          <li key={label} className="relative flex gap-3 pb-6 last:pb-0">
+            {i < steps.length - 1 && (
+              <span className="absolute left-[13px] top-8 bottom-0 w-px bg-zinc-200 overflow-hidden">
+                <span className={`absolute inset-x-0 top-0 bg-indigo-600 transition-all duration-700 ${done ? "h-full" : "h-0"}`} />
+              </span>
+            )}
+            <span
+              className={`relative shrink-0 flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-bold transition-all duration-500 ${
+                done
+                  ? "bg-indigo-600 text-white"
+                  : active
+                  ? "bg-white text-indigo-600 border-2 border-indigo-600"
+                  : "bg-white text-zinc-400 border border-zinc-300"
+              }`}
+            >
+              {done ? <Check /> : i + 1}
+              {active && <span className="absolute inset-0 rounded-full bg-indigo-500/30 am-ring" />}
+            </span>
+            <div className="pt-0.5">
+              <p className={`text-xs font-bold transition-colors ${done || active ? "text-zinc-900" : "text-zinc-400"}`}>{label}</p>
+              <p className="text-[10px] text-zinc-400 mt-0.5">{done ? "Completed" : active ? "In progress" : "Pending"}</p>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function ScanBar({ label }: { label: string }) {
   return (
     <div className="space-y-3 py-2">
@@ -131,6 +169,15 @@ function ScanBar({ label }: { label: string }) {
       </div>
       <p className="text-xs text-zinc-500 text-center">{label}</p>
     </div>
+  );
+}
+
+function Panel({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
+  return (
+    <section className={`bg-white/80 backdrop-blur-xl border border-white/80 lg:border-[#EAEAEA] rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.03)] ${className}`}>
+      <h2 className="text-[10px] uppercase tracking-[0.14em] font-bold text-zinc-400 mb-4">{title}</h2>
+      {children}
+    </section>
   );
 }
 
@@ -158,7 +205,7 @@ export default function AirMidiPage() {
 
   // log + live stats
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [showLog, setShowLog] = useState(false);
+  const [showLog, setShowLog] = useState(false); // mobile only: on desktop the log is always visible
   const [logMidi, setLogMidi] = useState(true);
   const [stats, setStats] = useState({ count: 0, last: "—" });
   const [channels, setChannels] = useState<number[]>(Array(16).fill(0));
@@ -298,12 +345,12 @@ export default function AirMidiPage() {
     return () => clearInterval(t);
   }, [status]);
 
-  /* ---- log auto-scroll ---- */
+  /* ---- log auto-scroll (box is always in the DOM) ---- */
   useEffect(() => {
-    if (showLog && logBoxRef.current) {
+    if (logBoxRef.current) {
       logBoxRef.current.scrollTop = logBoxRef.current.scrollHeight;
     }
-  }, [logs, showLog]);
+  }, [logs, showLog, isLoggedIn]);
 
   /* ---------------------------------------------------------------------- */
   /* Handlers                                                                */
@@ -430,12 +477,20 @@ export default function AirMidiPage() {
   else if (mode === "sender") currentStep = roomCode ? 2 : 1;
   else if (mode === "receiver") currentStep = loading ? 2 : 1;
 
+  const roleLabel = mode === "sender" ? "Sender" : mode === "receiver" ? "Receiver" : "—";
+
   return (
-    <div className="bg-gradient-to-tr from-[#E0E7FF] via-[#EEF2FF] to-[#F5F3FF] text-[#111111] min-h-screen flex flex-col antialiased relative overflow-x-hidden corp-sans">
+    <div className="am-grid bg-gradient-to-tr from-[#E0E7FF] via-[#EEF2FF] to-[#F5F3FF] text-[#111111] min-h-screen flex flex-col antialiased relative overflow-x-hidden corp-sans">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
         .corp-sans { font-family: 'Inter', system-ui, sans-serif; }
         .corp-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+        .am-grid {
+          background-image:
+            linear-gradient(rgba(79,70,229,.045) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(79,70,229,.045) 1px, transparent 1px);
+          background-size: 44px 44px;
+        }
         @keyframes am-fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         .am-fade-up { animation: am-fade-up .5s cubic-bezier(.2,.8,.2,1) both; }
         @keyframes am-ring { 0% { transform: scale(.7); opacity: .55; } 100% { transform: scale(2); opacity: 0; } }
@@ -448,6 +503,8 @@ export default function AirMidiPage() {
         .am-float { animation: am-float 3.2s ease-in-out infinite; }
         @keyframes am-dot { 0%,80%,100% { opacity: .25; transform: scale(.8); } 40% { opacity: 1; transform: scale(1.1); } }
         .am-dot { animation: am-dot 1.2s ease-in-out infinite; }
+        .am-scroll::-webkit-scrollbar { width: 8px; }
+        .am-scroll::-webkit-scrollbar-thumb { background: rgba(120,120,140,.35); border-radius: 8px; }
         @media (prefers-reduced-motion: reduce) {
           .am-fade-up, .am-ring, .am-scan, .am-digit, .am-float, .am-dot { animation: none; }
         }
@@ -458,39 +515,52 @@ export default function AirMidiPage() {
 
       <Navbar />
 
-      {/* HEADER */}
-      <div className="bg-white/70 backdrop-blur-md border-b border-[#EAEAEA] pt-32 pb-8 relative z-10">
-        <div className="max-w-2xl mx-auto px-6 flex flex-wrap justify-between items-center gap-4">
-          <div className="am-fade-up">
-            <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent py-1">
-              AirMIDI Link 
-            </h1>
-            <p className="text-xs text-zinc-500">
-              Encrypted  MIDI transport over AirMIDI-Link V 0.1.13  concept MIDI 3.0
-            </p>
-            {userEmail && (
-              <p className="text-[11px] text-zinc-400 mt-1 corp-mono">Signed in as {userEmail}</p>
-            )}
+      {/* WORKSPACE: fills the whole viewport on desktop */}
+      <main className="relative z-10 flex-1 w-full max-w-[1800px] mx-auto px-4 lg:px-8 pt-24 pb-6 flex flex-col lg:h-screen">
+        {/* TOOLBAR */}
+        <header className="shrink-0 mb-5 bg-white/75 backdrop-blur-xl border border-white/80 lg:border-[#EAEAEA] rounded-2xl px-5 py-4 flex flex-wrap items-center justify-between gap-4 shadow-[0_8px_32px_rgba(0,0,0,0.03)]">
+          <div className="flex items-center gap-4 am-fade-up">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/airlink-icon.png" alt="" width={44} height={44} className="w-11 h-11 rounded-full shadow-md shadow-indigo-500/30" draggable={false} />
+            <div>
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent leading-tight">
+                AirMIDI Link
+              </h1>
+              <p className="text-[11px] sm:text-xs text-zinc-500">
+                Encrypted MIDI transport over AirMIDI-Link V 0.1.13 concept MIDI 3.0
+              </p>
+            </div>
           </div>
 
-          <span
-            className={`inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border transition-colors duration-500 ${meta.pill}`}
-          >
-            <span className="relative flex w-2 h-2">
-              {meta.pulse && (
-                <span className={`absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping ${meta.dot}`} />
-              )}
-              <span className={`relative inline-flex w-2 h-2 rounded-full ${meta.dot}`} />
+          <div className="flex flex-wrap items-center gap-3">
+            {connected && (
+              <span className="hidden sm:inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border border-zinc-200 bg-white text-zinc-700 corp-mono">
+                ⏱ {formatElapsed(elapsed)}
+              </span>
+            )}
+            {userEmail && (
+              <span className="hidden md:inline-flex items-center gap-2 text-[11px] font-medium px-3 py-1.5 rounded-full border border-zinc-200 bg-white text-zinc-500 corp-mono max-w-[240px] truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span className="truncate">{userEmail}</span>
+              </span>
+            )}
+            <span
+              className={`inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border transition-colors duration-500 ${meta.pill}`}
+            >
+              <span className="relative flex w-2 h-2">
+                {meta.pulse && (
+                  <span className={`absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping ${meta.dot}`} />
+                )}
+                <span className={`relative inline-flex w-2 h-2 rounded-full ${meta.dot}`} />
+              </span>
+              {meta.label}
             </span>
-            {meta.label}
-          </span>
-        </div>
-      </div>
+          </div>
+        </header>
 
-      <main className="flex-1 w-full max-w-2xl mx-auto px-6 py-10 relative z-10">
         {/* ERROR */}
         {error && (
-          <div className="am-fade-up mb-6 p-4 bg-red-50/90 border border-red-200 rounded-2xl text-xs text-red-700 flex items-start gap-3">
+          <div className="am-fade-up shrink-0 mb-5 p-4 bg-red-50/90 border border-red-200 rounded-2xl text-xs text-red-700 flex items-start gap-3">
             <svg className="w-4 h-4 mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
             </svg>
@@ -501,303 +571,365 @@ export default function AirMidiPage() {
           </div>
         )}
 
-        {/* MAIN CARD */}
-        <div className="bg-white/80 backdrop-blur-xl border border-white/80 sm:border-[#EAEAEA] rounded-3xl p-6 sm:p-10 shadow-[0_8px_32px_rgba(0,0,0,0.04)]">
-          <Stepper steps={steps} current={currentStep} />
+        {/* DASHBOARD GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-[270px_minmax(0,1fr)_390px] gap-5 lg:flex-1 lg:min-h-0">
+          {/* ---------------- LEFT RAIL (desktop) ---------------- */}
+          <aside className="hidden lg:flex flex-col gap-5 min-h-0 overflow-y-auto am-scroll pr-1">
+            <Panel title="Workflow">
+              <VerticalSteps steps={steps} current={currentStep} />
+            </Panel>
 
-          {/* CHOOSE ROLE */}
-          {mode === "choose" && (
-            <div key="choose" className="am-fade-up grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button
-                onClick={handleChooseSender}
-                disabled={loading || scanning}
-                className="group text-left p-5 rounded-2xl border border-zinc-200 bg-white hover:border-indigo-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50"
-              >
-                <span className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 20V10m0 0l-4 4m4-4l4 4M5 5h14" />
-                  </svg>
-                </span>
-                <span className="block text-sm font-bold text-zinc-900">Sender</span>
-                <span className="block text-xs text-zinc-500 mt-1 leading-relaxed">
-                  Stream MIDI from a USB adapter connected to this device.
-                </span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setError("");
-                  setMode("receiver");
-                }}
-                className="group text-left p-5 rounded-2xl border border-zinc-200 bg-white hover:border-sky-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
-              >
-                <span className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center mb-4 group-hover:bg-sky-600 group-hover:text-white transition-colors duration-300">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 4v10m0 0l-4-4m4 4l4-4M5 19h14" />
-                  </svg>
-                </span>
-                <span className="block text-sm font-bold text-zinc-900">Receiver</span>
-                <span className="block text-xs text-zinc-500 mt-1 leading-relaxed">
-                  Join with a code and play incoming MIDI on this device.
-                </span>
-              </button>
-            </div>
-          )}
-
-          {/* SENDER */}
-          {mode === "sender" && !connected && (
-            <div key={`sender-${roomCode ? "code" : "setup"}`} className="am-fade-up text-center space-y-5">
-              {scanning && <ScanBar label="Scanning for USB MIDI adapters…" />}
-
-              {!scanning && !roomCode && detectedDevices.length === 0 && (
-                <>
-                  <div className="text-xs bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 font-medium leading-relaxed text-left">
-                    No USB MIDI adapter detected. Plug it into this device and allow MIDI access in your browser.
-                  </div>
-                  <button
-                    onClick={scanAdapters}
-                    className="h-10 px-5 bg-black text-white text-xs font-semibold rounded-xl hover:bg-neutral-800 active:scale-[0.98] transition-all"
-                  >
-                    Scan again
-                  </button>
-                </>
-              )}
-
-              {!scanning && !roomCode && detectedDevices.length > 0 && (
-                <>
-                  <div className="text-left space-y-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                      Detected adapters
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {detectedDevices.map((d, i) => (
-                        <span
-                          key={d + i}
-                          style={{ animationDelay: `${i * 80}ms` }}
-                          className="am-digit inline-flex items-center gap-2 text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-full"
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          {d}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleStartBroadcasting}
-                    disabled={loading}
-                    className="w-full h-11 bg-black text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-neutral-800 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      <>
-                        <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Generating…
-                      </>
-                    ) : (
-                      <>Generate code →</>
-                    )}
-                  </button>
-                </>
-              )}
-
-              {roomCode && (
-                <>
-                  <p className="text-xs text-zinc-500">Share this code with the receiver</p>
-                  <div className="flex justify-center gap-2 sm:gap-3">
-                    {roomCode.split("").map((d, i) => (
-                      <span
-                        key={i}
-                        style={{ animationDelay: `${i * 70}ms` }}
-                        className="am-digit w-11 h-14 sm:w-14 sm:h-[4.5rem] flex items-center justify-center rounded-xl bg-white border border-zinc-200 shadow-sm text-2xl sm:text-3xl font-extrabold text-zinc-900 corp-mono"
-                      >
-                        {d}
-                      </span>
-                    ))}
-                  </div>
-                  <button
-                    onClick={copyCode}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
-                  >
-                    {copied ? "✓ Copied" : "Copy code"}
-                  </button>
-                  <div className="flex items-center justify-center gap-2 text-xs text-zinc-500">
-                    <span className="flex gap-1">
-                      {[0, 1, 2].map((i) => (
-                        <span key={i} style={{ animationDelay: `${i * 0.2}s` }} className="am-dot w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                      ))}
-                    </span>
-                    Waiting for the receiver to join… (code valid for 15 min)
-                  </div>
-                </>
-              )}
-
-              <button
-                onClick={handleReset}
-                className="text-xs font-semibold text-zinc-500 hover:text-black transition-colors pt-1 block mx-auto"
-              >
-                ← {roomCode ? "Stop session" : "Back"}
-              </button>
-            </div>
-          )}
-
-          {/* RECEIVER */}
-          {mode === "receiver" && !connected && (
-            <form key="receiver" onSubmit={handleConnectAsReceiver} className="am-fade-up space-y-5">
-              <div className="text-center space-y-1">
-                <p className="text-sm font-bold text-zinc-900">Join a session</p>
-                <p className="text-xs text-zinc-500">Enter the 6-digit code shown on the sender device.</p>
-              </div>
-              <input
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                required
-                value={inputCode}
-                onChange={(e) => setInputCode(e.target.value.replace(/\D/g, ""))}
-                className="w-full h-16 bg-white border border-zinc-200 rounded-2xl px-4 text-3xl font-extrabold corp-mono text-center tracking-[0.5em] outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 placeholder:text-zinc-300 placeholder:tracking-[0.5em] disabled:opacity-60"
-                placeholder="000000"
-                disabled={loading}
-              />
-              {loading && <ScanBar label="Negotiating secure connection…" />}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="h-11 px-5 bg-zinc-100 hover:bg-zinc-200 text-xs font-semibold rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading || inputCode.length < 6}
-                  className="flex-1 h-11 bg-black text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-neutral-800 active:scale-[0.99] transition-all disabled:opacity-50"
-                >
-                  {loading ? "Connecting…" : "Connect →"}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* CONNECTED */}
-          {connected && (
-            <div key="connected" className="am-fade-up space-y-6">
-              <div className="text-center space-y-3">
-                <div className="relative w-20 h-20 mx-auto am-float">
-                  <span className="absolute inset-0 rounded-full bg-emerald-400/30 am-ring" />
-                  <span className="absolute inset-0 rounded-full bg-emerald-400/20 am-ring" style={{ animationDelay: "1.1s" }} />
-                  <span
-                    className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-150 ${
-                      isActive
-                        ? "bg-amber-400 text-black scale-110 shadow-lg shadow-amber-400/40"
-                        : "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                    }`}
-                  >
-                    <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      {isActive ? <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /> : <path d="M5 13l4 4L19 7" />}
-                    </svg>
-                  </span>
-                </div>
-                <h3 className="text-base font-bold text-zinc-900">Link active</h3>
-                <p className="text-xs text-zinc-500 max-w-sm mx-auto leading-relaxed">
-                  {mode === "receiver"
-                    ? "Incoming MIDI is being played on this device's MIDI output."
-                    : "MIDI from your USB adapter is being streamed directly to the receiver."}
-                </p>
-              </div>
-
-              {/* stats */}
-              <div className="grid grid-cols-3 gap-3">
+            <Panel title="Session">
+              <dl className="space-y-3 text-xs">
                 {[
-                  { label: "Messages", value: stats.count.toLocaleString("en-US") },
-                  { label: "Session", value: formatElapsed(elapsed) },
-                  { label: "Role", value: mode === "receiver" ? "Receiver" : "Sender" },
-                ].map((s) => (
-                  <div key={s.label} className="bg-zinc-50 border border-zinc-100 rounded-xl p-3 text-center">
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">{s.label}</p>
-                    <p className="text-sm font-bold text-zinc-900 corp-mono mt-0.5">{s.value}</p>
+                  { k: "Role", v: roleLabel },
+                  { k: "Room", v: roomCode || "—", mono: true },
+                  { k: "State", v: meta.label },
+                  { k: "Uptime", v: connected ? formatElapsed(elapsed) : "—", mono: true },
+                  { k: "Messages", v: stats.count.toLocaleString("en-US"), mono: true },
+                  { k: mode === "receiver" ? "Outputs" : "Inputs", v: String(detectedDevices.length), mono: true },
+                ].map((r) => (
+                  <div key={r.k} className="flex items-center justify-between gap-3">
+                    <dt className="text-zinc-400 font-medium">{r.k}</dt>
+                    <dd className={`font-semibold text-zinc-900 truncate ${r.mono ? "corp-mono" : ""}`}>{r.v}</dd>
                   </div>
                 ))}
-              </div>
+              </dl>
+            </Panel>
 
-              {/* last message */}
-              <div className="bg-zinc-50 border border-zinc-100 rounded-xl px-4 py-3">
-                <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 mb-1">Last message</p>
-                <p className="text-xs corp-mono text-zinc-800 truncate">{stats.last}</p>
-              </div>
-
-              {/* channel meters */}
-              <div>
-                <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 mb-2">Channel activity</p>
-                <div className="flex items-end gap-1 h-12">
-                  {channels.map((v, i) => (
-                    <div key={i} className="flex-1 h-full flex items-end">
-                      <div
-                        className="w-full rounded-sm bg-gradient-to-t from-indigo-600 to-violet-400 transition-[height,opacity] duration-150"
-                        style={{ height: `${8 + v * 92}%`, opacity: 0.3 + v * 0.7 }}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-1 mt-1">
-                  {channels.map((_, i) => (
-                    <span key={i} className="flex-1 text-center text-[8px] text-zinc-400 corp-mono">
-                      {i + 1}
+            <Panel title="Security">
+              <ul className="space-y-2.5 text-xs text-zinc-600">
+                {[
+                  "Signed-in access only",
+                  "DTLS-encrypted data channel",
+                  "Pairing code expires in 15 min",
+                ].map((t) => (
+                  <li key={t} className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                      <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 13l4 4L19 7" />
+                      </svg>
                     </span>
-                  ))}
-                </div>
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          </aside>
+
+          {/* ---------------- CENTER STAGE ---------------- */}
+          <section className="bg-white/80 backdrop-blur-xl border border-white/80 lg:border-[#EAEAEA] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col min-h-[420px] lg:min-h-0 lg:h-full overflow-hidden">
+            <div className="flex-1 overflow-y-auto am-scroll p-6 sm:p-10">
+              <div className="min-h-full flex flex-col justify-center">
+                <Stepper steps={steps} current={currentStep} />
+
+                {/* CHOOSE ROLE */}
+                {mode === "choose" && (
+                  <div key="choose" className="am-fade-up w-full max-w-3xl mx-auto space-y-8">
+                    <div className="text-center space-y-2">
+                      <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900">Start a session</h2>
+                      <p className="text-sm text-zinc-500 max-w-md mx-auto">
+                        Choose how this device takes part in the link.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <button
+                        onClick={handleChooseSender}
+                        disabled={loading || scanning}
+                        className="group text-left p-6 sm:p-7 rounded-2xl border border-zinc-200 bg-white hover:border-indigo-400 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 disabled:opacity-50"
+                      >
+                        <span className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-5 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
+                          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20V10m0 0l-4 4m4-4l4 4M5 5h14" />
+                          </svg>
+                        </span>
+                        <span className="block text-base font-bold text-zinc-900">Sender</span>
+                        <span className="block text-xs text-zinc-500 mt-1.5 leading-relaxed">
+                          Stream MIDI from a USB adapter connected to this device.
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 mt-4">
+                          Continue <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setError("");
+                          setMode("receiver");
+                        }}
+                        className="group text-left p-6 sm:p-7 rounded-2xl border border-zinc-200 bg-white hover:border-sky-400 hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+                      >
+                        <span className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center mb-5 group-hover:bg-sky-600 group-hover:text-white transition-colors duration-300">
+                          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 4v10m0 0l-4-4m4 4l4-4M5 19h14" />
+                          </svg>
+                        </span>
+                        <span className="block text-base font-bold text-zinc-900">Receiver</span>
+                        <span className="block text-xs text-zinc-500 mt-1.5 leading-relaxed">
+                          Join with a code and play incoming MIDI on this device.
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 mt-4">
+                          Continue <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* SENDER */}
+                {mode === "sender" && !connected && (
+                  <div key={`sender-${roomCode ? "code" : "setup"}`} className="am-fade-up w-full max-w-xl mx-auto text-center space-y-6">
+                    {scanning && <ScanBar label="Scanning for USB MIDI adapters…" />}
+
+                    {!scanning && !roomCode && detectedDevices.length === 0 && (
+                      <>
+                        <h2 className="text-xl font-extrabold text-zinc-900">Detect your adapter</h2>
+                        <div className="text-xs bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 font-medium leading-relaxed text-left">
+                          No USB MIDI adapter detected. Plug it into this device and allow MIDI access in your browser.
+                        </div>
+                        <button
+                          onClick={scanAdapters}
+                          className="h-11 px-6 bg-black text-white text-xs font-semibold rounded-xl hover:bg-neutral-800 active:scale-[0.98] transition-all"
+                        >
+                          Scan again
+                        </button>
+                      </>
+                    )}
+
+                    {!scanning && !roomCode && detectedDevices.length > 0 && (
+                      <>
+                        <h2 className="text-xl font-extrabold text-zinc-900">Adapter ready</h2>
+                        <div className="text-left space-y-2">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Detected adapters</p>
+                          <div className="flex flex-wrap gap-2">
+                            {detectedDevices.map((d, i) => (
+                              <span
+                                key={d + i}
+                                style={{ animationDelay: `${i * 80}ms` }}
+                                className="am-digit inline-flex items-center gap-2 text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-full"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                {d}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleStartBroadcasting}
+                          disabled={loading}
+                          className="w-full h-12 bg-black text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-neutral-800 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {loading ? (
+                            <>
+                              <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              Generating…
+                            </>
+                          ) : (
+                            <>Generate code →</>
+                          )}
+                        </button>
+                      </>
+                    )}
+
+                    {roomCode && (
+                      <>
+                        <h2 className="text-xl font-extrabold text-zinc-900">Share this code</h2>
+                        <p className="text-xs text-zinc-500">Enter it on the receiver device to pair.</p>
+                        <div className="flex justify-center gap-2 sm:gap-3">
+                          {roomCode.split("").map((d, i) => (
+                            <span
+                              key={i}
+                              style={{ animationDelay: `${i * 70}ms` }}
+                              className="am-digit w-11 h-14 sm:w-16 sm:h-20 flex items-center justify-center rounded-xl bg-white border border-zinc-200 shadow-sm text-2xl sm:text-4xl font-extrabold text-zinc-900 corp-mono"
+                            >
+                              {d}
+                            </span>
+                          ))}
+                        </div>
+                        <button onClick={copyCode} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+                          {copied ? "✓ Copied" : "Copy code"}
+                        </button>
+                        <div className="flex items-center justify-center gap-2 text-xs text-zinc-500">
+                          <span className="flex gap-1">
+                            {[0, 1, 2].map((i) => (
+                              <span key={i} style={{ animationDelay: `${i * 0.2}s` }} className="am-dot w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                            ))}
+                          </span>
+                          Waiting for the receiver to join… (code valid for 15 min)
+                        </div>
+                      </>
+                    )}
+
+                    <button
+                      onClick={handleReset}
+                      className="text-xs font-semibold text-zinc-500 hover:text-black transition-colors pt-1 block mx-auto"
+                    >
+                      ← {roomCode ? "Stop session" : "Back"}
+                    </button>
+                  </div>
+                )}
+
+                {/* RECEIVER */}
+                {mode === "receiver" && !connected && (
+                  <form key="receiver" onSubmit={handleConnectAsReceiver} className="am-fade-up w-full max-w-md mx-auto space-y-6">
+                    <div className="text-center space-y-1">
+                      <h2 className="text-xl font-extrabold text-zinc-900">Join a session</h2>
+                      <p className="text-xs text-zinc-500">Enter the 6-digit code shown on the sender device.</p>
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      required
+                      value={inputCode}
+                      onChange={(e) => setInputCode(e.target.value.replace(/\D/g, ""))}
+                      className="w-full h-20 bg-white border border-zinc-200 rounded-2xl px-4 text-4xl font-extrabold corp-mono text-center tracking-[0.5em] outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 placeholder:text-zinc-300 placeholder:tracking-[0.5em] disabled:opacity-60"
+                      placeholder="000000"
+                      disabled={loading}
+                    />
+                    {loading && <ScanBar label="Negotiating secure connection…" />}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleReset}
+                        className="h-12 px-6 bg-zinc-100 hover:bg-zinc-200 text-xs font-semibold rounded-xl transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={loading || inputCode.length < 6}
+                        className="flex-1 h-12 bg-black text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-neutral-800 active:scale-[0.99] transition-all disabled:opacity-50"
+                      >
+                        {loading ? "Connecting…" : "Connect →"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* CONNECTED */}
+                {connected && (
+                  <div key="connected" className="am-fade-up w-full max-w-3xl mx-auto space-y-7">
+                    <div className="text-center space-y-3">
+                      <div className="relative w-24 h-24 mx-auto am-float">
+                        <span className="absolute inset-0 rounded-full bg-emerald-400/30 am-ring" />
+                        <span className="absolute inset-0 rounded-full bg-emerald-400/20 am-ring" style={{ animationDelay: "1.1s" }} />
+                        <span
+                          className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-150 ${
+                            isActive
+                              ? "bg-amber-400 text-black scale-110 shadow-lg shadow-amber-400/40"
+                              : "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
+                          }`}
+                        >
+                          <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            {isActive ? <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /> : <path d="M5 13l4 4L19 7" />}
+                          </svg>
+                        </span>
+                      </div>
+                      <h2 className="text-2xl font-extrabold tracking-tight text-zinc-900">Link active</h2>
+                      <p className="text-sm text-zinc-500 max-w-md mx-auto leading-relaxed">
+                        {mode === "receiver"
+                          ? "Incoming MIDI is being played on this device's MIDI output."
+                          : "MIDI from your USB adapter is being streamed directly to the receiver."}
+                      </p>
+                    </div>
+
+                    {/* stats */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {[
+                        { label: "Messages", value: stats.count.toLocaleString("en-US") },
+                        { label: "Session", value: formatElapsed(elapsed) },
+                        { label: "Role", value: roleLabel },
+                        { label: mode === "receiver" ? "Outputs" : "Inputs", value: String(detectedDevices.length) },
+                      ].map((s) => (
+                        <div key={s.label} className="bg-zinc-50 border border-zinc-100 rounded-xl p-4 text-center">
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">{s.label}</p>
+                          <p className="text-base font-bold text-zinc-900 corp-mono mt-1">{s.value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* last message */}
+                    <div className="bg-zinc-50 border border-zinc-100 rounded-xl px-5 py-4">
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 mb-1">Last message</p>
+                      <p className="text-sm corp-mono text-zinc-800 truncate">{stats.last}</p>
+                    </div>
+
+                    {/* channel meters */}
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 mb-2">Channel activity</p>
+                      <div className="flex items-end gap-1.5 h-24">
+                        {channels.map((v, i) => (
+                          <div key={i} className="flex-1 h-full flex items-end">
+                            <div
+                              className="w-full rounded-sm bg-gradient-to-t from-indigo-600 to-violet-400 transition-[height,opacity] duration-150"
+                              style={{ height: `${6 + v * 94}%`, opacity: 0.3 + v * 0.7 }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-1.5 mt-1">
+                        {channels.map((_, i) => (
+                          <span key={i} className="flex-1 text-center text-[9px] text-zinc-400 corp-mono">
+                            {i + 1}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* devices */}
+                    {detectedDevices.length > 0 ? (
+                      <div className="text-xs bg-zinc-50 border border-zinc-100 p-4 rounded-xl text-zinc-500 font-medium">
+                        {mode === "receiver" ? "MIDI outputs: " : "MIDI inputs: "}
+                        <span className="text-zinc-900 corp-mono">{detectedDevices.join(", ")}</span>
+                      </div>
+                    ) : (
+                      <div className="text-xs bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 font-medium leading-relaxed">
+                        {mode === "receiver"
+                          ? "No MIDI output found. Incoming data cannot be played here. Connect a USB MIDI adapter or use a browser that supports Web MIDI (Chrome / Edge / Opera)."
+                          : "No MIDI input found. Plug in your USB adapter and allow MIDI access."}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={handleReset}
+                      className="w-full h-11 rounded-xl text-xs font-semibold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                )}
               </div>
-
-              {/* devices */}
-              {detectedDevices.length > 0 ? (
-                <div className="text-xs bg-zinc-50 border border-zinc-100 p-3 rounded-xl text-zinc-500 font-medium">
-                  {mode === "receiver" ? "MIDI outputs: " : "MIDI inputs: "}
-                  <span className="text-zinc-900 corp-mono">{detectedDevices.join(", ")}</span>
-                </div>
-              ) : (
-                <div className="text-xs bg-amber-50 border border-amber-200 p-3 rounded-xl text-amber-800 font-medium leading-relaxed">
-                  {mode === "receiver"
-                    ? "No MIDI output found. Incoming data cannot be played here. Connect a USB MIDI adapter or use a browser that supports Web MIDI (Chrome / Edge / Opera)."
-                    : "No MIDI input found. Plug in your USB adapter and allow MIDI access."}
-                </div>
-              )}
-
-              <button
-                onClick={handleReset}
-                className="w-full h-10 rounded-xl text-xs font-semibold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors"
-              >
-                Disconnect
-              </button>
             </div>
-          )}
-        </div>
+          </section>
 
-        {/* ACTIVITY LOG */}
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white/80 backdrop-blur overflow-hidden">
-          <button
-            onClick={() => setShowLog((v) => !v)}
-            className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-zinc-50/70 transition-colors"
-          >
-            <span className="flex items-center gap-2 text-xs font-bold text-zinc-800">
-              <svg className="w-4 h-4 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 17l6-6-6-6M12 19h8" />
-              </svg>
-              Activity log
-              <span className="text-[10px] font-semibold bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full corp-mono">
-                {logs.length}
-              </span>
-              {hasError && <span className="w-2 h-2 rounded-full bg-red-500" />}
-            </span>
-            <svg
-              className={`w-4 h-4 text-zinc-400 transition-transform duration-300 ${showLog ? "rotate-180" : ""}`}
-              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          {/* ---------------- ACTIVITY LOG (always open on desktop) ---------------- */}
+          <section className="rounded-2xl border border-zinc-200 bg-white/80 backdrop-blur overflow-hidden flex flex-col lg:min-h-0 lg:h-full">
+            <button
+              onClick={() => setShowLog((v) => !v)}
+              className="shrink-0 w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-zinc-50/70 transition-colors lg:cursor-default lg:hover:bg-transparent"
             >
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
+              <span className="flex items-center gap-2 text-xs font-bold text-zinc-800">
+                <svg className="w-4 h-4 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 17l6-6-6-6M12 19h8" />
+                </svg>
+                Activity log
+                <span className="text-[10px] font-semibold bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full corp-mono">
+                  {logs.length}
+                </span>
+                {hasError && <span className="w-2 h-2 rounded-full bg-red-500" />}
+              </span>
+              <svg
+                className={`lg:hidden w-4 h-4 text-zinc-400 transition-transform duration-300 ${showLog ? "rotate-180" : ""}`}
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
 
-          {showLog && (
-            <div className="am-fade-up border-t border-zinc-200">
-              <div className="flex flex-wrap items-center gap-3 px-4 py-2 bg-zinc-50 border-b border-zinc-200">
+            <div className={`${showLog ? "flex" : "hidden"} lg:flex flex-col flex-1 min-h-0 border-t border-zinc-200`}>
+              <div className="shrink-0 flex flex-wrap items-center gap-3 px-4 py-2 bg-zinc-50 border-b border-zinc-200">
                 <label className="flex items-center gap-1.5 text-[11px] text-zinc-600 font-medium cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -824,7 +956,7 @@ export default function AirMidiPage() {
 
               <div
                 ref={logBoxRef}
-                className="h-60 overflow-y-auto bg-[#0B1020] px-4 py-3 corp-mono text-[11px] leading-relaxed"
+                className="am-scroll h-72 lg:h-auto lg:flex-1 lg:min-h-0 overflow-y-auto bg-[#0B1020] px-4 py-3 corp-mono text-[11px] leading-relaxed"
               >
                 {logs.length === 0 ? (
                   <p className="text-zinc-500">No events yet.</p>
@@ -841,7 +973,7 @@ export default function AirMidiPage() {
                 )}
               </div>
             </div>
-          )}
+          </section>
         </div>
       </main>
 

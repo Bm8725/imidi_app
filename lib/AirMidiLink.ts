@@ -21,6 +21,8 @@ export class AirMidiLink {
   private pendingIce: RTCIceCandidateInit[] = []
   private hasRemoteDescription = false
   private connectTimer: ReturnType<typeof setTimeout> | null = null
+  private hasTurn = false
+  private relaySeen = false
 
   public role: AirMidiRole | null = null
   public roomCode: string | null = null
@@ -69,7 +71,7 @@ export class AirMidiLink {
     this.clearConnectTimer()
     this.connectTimer = setTimeout(() => {
       if (this.status !== 'connected' && this.status !== 'idle') {
-        const hasTurn = !!process.env.NEXT_PUBLIC_TURN_URLS
+        const hasTurn = this.hasTurn
         this.log('error', 'Connection timed out after 15 seconds.')
         this.disconnect()
         this.onError(
@@ -78,7 +80,7 @@ export class AirMidiLink {
             : 'Direct connection failed (mobile network or strict NAT). A TURN server is required.'
         )
       }
-    }, 35000)
+    }, 15000)
   }
 
   private clearConnectTimer() {
@@ -176,31 +178,78 @@ export class AirMidiLink {
   /* ------------------------------------------------------------------ */
   /* WEBRTC                                                              */
   /* ------------------------------------------------------------------ */
-  private initPeerConnection() {
-    this.pendingIce = []
-    this.hasRemoteDescription = false
-
-    const iceServers: RTCIceServer[] = [
+  // Loads STUN + short-lived TURN credentials from our own /api/turn route
+  private async loadIceServers(): Promise<RTCIceServer[]> {
+    const servers: RTCIceServer[] = [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
     ]
+    this.hasTurn = false
 
-    // TURN: required for mobile data / different networks / strict NAT
+    const isTurn = (s: RTCIceServer) =>
+      (Array.isArray(s.urls) ? s.urls : [s.urls]).some((u) => String(u).startsWith('turn'))
+
+    // 1) credentials minted by the server (Cloudflare Realtime TURN)
+    try {
+      const {
+        data: { session },
+      } = await this.supabase.auth.getSession()
+      const res = await fetch('/api/turn', {
+        headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
+        cache: 'no-store',
+      })
+      const json = await res.json().catch(() => ({}))
+      const list: RTCIceServer[] = Array.isArray(json.iceServers) ? json.iceServers : []
+      if (res.ok && list.length > 0) {
+        servers.push(...list)
+        this.hasTurn = list.some(isTurn)
+        this.log(this.hasTurn ? 'success' : 'warn', this.hasTurn ? 'TURN relay credentials loaded.' : 'Server returned no TURN servers.')
+      } else {
+        this.log('warn', json.message || 'Could not load TURN credentials from the server.')
+      }
+    } catch {
+      this.log('warn', 'TURN credentials request failed.')
+    }
+
+    // 2) optional static fallback from env
     const turnUrls = process.env.NEXT_PUBLIC_TURN_URLS
-    if (turnUrls) {
-      iceServers.push({
+    if (!this.hasTurn && turnUrls) {
+      servers.push({
         urls: turnUrls.split(',').map((u) => u.trim()),
         username: process.env.NEXT_PUBLIC_TURN_USERNAME,
         credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
       })
-      this.log('info', 'TURN relay configured.')
-    } else {
-      this.log('warn', 'No TURN relay configured. Connections across mobile networks may fail.')
+      this.hasTurn = true
+      this.log('info', 'Using static TURN relay from environment.')
     }
 
+    if (!this.hasTurn) {
+      this.log('warn', 'No TURN relay available. Connections across mobile networks (4G/5G) will fail.')
+    }
+    return servers
+  }
+
+  private async initPeerConnection() {
+    this.pendingIce = []
+    this.hasRemoteDescription = false
+    this.relaySeen = false
+
+    const iceServers = await this.loadIceServers()
     this.peerConnection = new RTCPeerConnection({ iceServers })
 
+    this.peerConnection.onicegatheringstatechange = () => {
+      const st = this.peerConnection?.iceGatheringState
+      this.log('info', `ICE gathering: ${st}`)
+      if (st === 'complete' && this.hasTurn && !this.relaySeen) {
+        this.log('error', 'No relay candidate was gathered. TURN credentials may be invalid or blocked by the network.')
+      }
+    }
+
     this.peerConnection.onicecandidate = (event) => {
+      if (event.candidate?.type === 'relay' && !this.relaySeen) {
+        this.relaySeen = true
+        this.log('success', 'TURN relay candidate gathered.')
+      }
       if (event.candidate && this.channel) {
         this.channel.send({
           type: 'broadcast',
@@ -339,7 +388,7 @@ export class AirMidiLink {
     if (error) throw new Error(error.message)
     this.log('success', `Room ${code} created (valid for 15 minutes).`)
 
-    this.initPeerConnection()
+    await this.initPeerConnection()
 
     // The receiver creates the data channel, the sender receives it
     this.peerConnection!.ondatachannel = (event) => {
@@ -380,7 +429,7 @@ export class AirMidiLink {
       .update({ status: 'connected', receiver_device_info: deviceInfo })
       .eq('room_code', code)
 
-    this.initPeerConnection()
+    await this.initPeerConnection()
 
     // Reliable and ordered channel: no lost note-off messages
     this.dataChannel = this.peerConnection!.createDataChannel('midi-data', { ordered: true })
