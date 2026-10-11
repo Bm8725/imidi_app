@@ -42,10 +42,10 @@ export default function AirLinkLauncher() {
   if (pathname?.startsWith("/airmidi-link")) return null;
 
   return (
-    <div ref={wrapRef} className="fixed right-4 top-1/2 -translate-y-1/2 z-[60] flex flex-row items-center gap-3">
+    <div ref={wrapRef} className="fixed bottom-5 left-5 z-[60] flex flex-col items-start gap-3">
       <style>{`
         @keyframes al-pop { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
-        .al-pop { animation: al-pop .28s cubic-bezier(.2,.8,.2,1) both; transform-origin: center right; }
+        .al-pop { animation: al-pop .28s cubic-bezier(.2,.8,.2,1) both; transform-origin: bottom left; }
         @keyframes al-ring { 0% { transform: scale(.9); opacity: .5; } 100% { transform: scale(1.8); opacity: 0; } }
         .al-ring { animation: al-ring 2.4s ease-out infinite; }
         @media (prefers-reduced-motion: reduce) { .al-pop, .al-ring { animation: none; } }
@@ -55,7 +55,7 @@ export default function AirLinkLauncher() {
         <div
           role="dialog"
           aria-label="AirLink"
-          className="al-pop w-[min(300px,calc(100vw-6rem))] bg-white/95 backdrop-blur-xl border border-zinc-200 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden"
+          className="al-pop w-[min(300px,calc(100vw-2.5rem))] bg-white/95 backdrop-blur-xl border border-zinc-200 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden"
         >
           <div className="px-5 pt-5 pb-4 bg-gradient-to-br from-indigo-50 via-violet-50 to-white border-b border-zinc-100">
             <div className="flex items-start justify-between">
