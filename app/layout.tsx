@@ -22,7 +22,7 @@ import CookieBanner from "@/components/CookieBanner";
  import MetaAuthListener from "@/components/MetaAuthListener";
 import { Analytics } from '@vercel/analytics/react';
 import { SessionTracker } from "@/lib/session-tracker";
-
+import AirLinkLauncher from "@/components/AirLinkLauncher";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -90,6 +90,7 @@ export default function RootLayout({
         <CookieBanner/>
           <MetaAuthListener />
           <Analytics/>
+           <AirLinkLauncher />
         {/* Script nativ Next.js pentru înregistrarea silențioasă a sw.js în Production */}
         <Script id="register-pwa-sw" strategy="afterInteractive">
           {`
