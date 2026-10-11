@@ -78,7 +78,7 @@ export class AirMidiLink {
             : 'Direct connection failed (mobile network or strict NAT). A TURN server is required.'
         )
       }
-    }, 15000)
+    }, 35000)
   }
 
   private clearConnectTimer() {
