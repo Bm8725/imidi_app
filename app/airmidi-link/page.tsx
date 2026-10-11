@@ -463,10 +463,10 @@ export default function AirMidiPage() {
         <div className="max-w-2xl mx-auto px-6 flex flex-wrap justify-between items-center gap-4">
           <div className="am-fade-up">
             <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent py-1">
-              AirMIDI Link
+              AirMIDI Link V 0.1.13
             </h1>
             <p className="text-xs text-zinc-500">
-              Encrypted peer-to-peer MIDI transport over WebRTC.
+              Encrypted peer-to-peer MIDI transport over AirMIDI-Link technology
             </p>
             {userEmail && (
               <p className="text-[11px] text-zinc-400 mt-1 corp-mono">Signed in as {userEmail}</p>
