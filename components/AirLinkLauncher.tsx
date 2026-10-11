@@ -101,7 +101,7 @@ export default function AirLinkLauncher() {
   if (pathname?.startsWith("/airmidi-link")) return null;
 
   return (
-    <div ref={wrapRef} className="fixed bottom-5 left-5 z-[60] flex flex-col items-start gap-3">
+    <div ref={wrapRef} className="fixed left-4 md:left-5 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-5 z-[60] flex flex-col items-start gap-3">
       <style>{`
         @keyframes al-pop { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
         .al-pop { animation: al-pop .28s cubic-bezier(.2,.8,.2,1) both; transform-origin: bottom left; }
