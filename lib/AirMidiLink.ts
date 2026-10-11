@@ -31,6 +31,50 @@ export class AirMidiLink {
     this.onStatusChange(newStatus)
   }
 
+  // Blochează orice acțiune dacă utilizatorul nu e autentificat
+  private async requireUser() {
+    const {
+      data: { user },
+      error,
+    } = await this.supabase.auth.getUser()
+    if (error || !user) {
+      throw new Error('Trebuie să fii autentificat pentru a folosi AirMIDI Link.')
+    }
+    return user
+  }
+
+  private async ensureMidiAccess(): Promise<MIDIAccess> {
+    if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) {
+      throw new Error('Browserul nu suportă Web MIDI. Folosește Chrome, Edge sau Opera.')
+    }
+    if (!this.midiAccess) {
+      this.midiAccess = await navigator.requestMIDIAccess()
+      // reacționează live la adaptoare conectate / deconectate
+      this.midiAccess.onstatechange = () => {
+        if (this.status === 'connected') this.bindMidiPorts()
+        else this.onDevicesChange(this.getInputNames())
+      }
+    }
+    return this.midiAccess
+  }
+
+  private getInputNames(): string[] {
+    const names: string[] = []
+    this.midiAccess?.inputs.forEach((input) => {
+      names.push(input.name || 'Adaptor MIDI necunoscut')
+    })
+    return names
+  }
+
+  /**
+   * PAS 2 (după login): caută adaptoarele USB MIDI conectate.
+   */
+  public async scanInputs(): Promise<string[]> {
+    await this.requireUser()
+    await this.ensureMidiAccess()
+    return this.getInputNames()
+  }
+
   /* ------------------------------------------------------------------ */
   /* HARDWARE MIDI                                                       */
   /* ------------------------------------------------------------------ */
@@ -64,11 +108,7 @@ export class AirMidiLink {
       return
     }
     try {
-      if (!this.midiAccess) {
-        this.midiAccess = await navigator.requestMIDIAccess()
-        // reacționează la dispozitive conectate / deconectate
-        this.midiAccess.onstatechange = () => this.bindMidiPorts()
-      }
+      await this.ensureMidiAccess()
       this.bindMidiPorts()
     } catch (err) {
       console.error('Eroare acces MIDI hardware:', err)
@@ -196,20 +236,24 @@ export class AirMidiLink {
   /* SENDER                                                              */
   /* ------------------------------------------------------------------ */
   async startBroadcasting(deviceInfo: any = {}): Promise<string> {
+    // 1) logat?  2) adaptor USB MIDI conectat?  3) abia apoi se generează codul
+    const user = await this.requireUser()
+
+    const inputs = await this.scanInputs()
+    if (inputs.length === 0) {
+      throw new Error('Niciun adaptor USB MIDI detectat. Conectează-l și încearcă din nou.')
+    }
+
     this.role = 'sender'
     this.updateStatus('initializing')
 
     const code = Math.floor(100000 + Math.random() * 900000).toString()
     this.roomCode = code
 
-    const {
-      data: { user },
-    } = await this.supabase.auth.getUser().catch(() => ({ data: { user: null } }))
-
     const { error } = await this.supabase.from('airmidi_links').insert([
       {
         room_code: code,
-        created_by: user?.id || null,
+        created_by: user.id,
         sender_device_info: deviceInfo,
         status: 'waiting',
       },
@@ -234,6 +278,8 @@ export class AirMidiLink {
   /* RECEIVER                                                            */
   /* ------------------------------------------------------------------ */
   async connect(code: string, deviceInfo: any = {}): Promise<void> {
+    await this.requireUser()
+
     this.role = 'receiver'
     this.roomCode = code
     this.updateStatus('connecting')

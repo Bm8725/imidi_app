@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
@@ -15,9 +16,45 @@ export default function AirMidiPage() {
   const [loading, setLoading] = useState(false);
   const [detectedDevices, setDetectedDevices] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [scanning, setScanning] = useState(false);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const airMidiRef = useRef<AirMidiLink | null>(null);
   const ledTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Acces permis doar utilizatorilor autentificați
+  useEffect(() => {
+    let active = true;
+
+    const redirectToLogin = () =>
+      router.replace(`/login?next=${encodeURIComponent(pathname || "/")}`);
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!active) return;
+      if (!user) return redirectToLogin();
+      setIsLoggedIn(true);
+      setCheckingAuth(false);
+    });
+
+    // dacă se face logout în alt tab / expiră sesiunea
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        airMidiRef.current?.disconnect();
+        setIsLoggedIn(false);
+        redirectToLogin();
+      }
+    });
+
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const link = new AirMidiLink(supabase);
@@ -49,16 +86,34 @@ export default function AirMidiPage() {
     };
   }, []);
 
+  // PAS 2: caută adaptorul USB MIDI (utilizatorul e deja logat)
+  const scanAdapters = async () => {
+    setError("");
+    setScanning(true);
+    try {
+      const names = await airMidiRef.current?.scanInputs();
+      setDetectedDevices(names || []);
+    } catch (err: any) {
+      setError(err.message);
+      setMode("choose");
+    }
+    setScanning(false);
+  };
+
+  const handleChooseSender = async () => {
+    setMode("sender");
+    await scanAdapters();
+  };
+
+  // PAS 3: generează codul (doar dacă există adaptor)
   const handleStartBroadcasting = async () => {
     setError("");
     setLoading(true);
-    setMode("sender");
     try {
       const code = await airMidiRef.current?.startBroadcasting({ device: "Web iMIDI Hub" });
       if (code) setRoomCode(code);
     } catch (err: any) {
       setError(err.message);
-      setMode("choose");
     }
     setLoading(false);
   };
@@ -86,6 +141,14 @@ export default function AirMidiPage() {
     setLoading(false);
     setDetectedDevices([]);
   };
+
+  if (checkingAuth || !isLoggedIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#EEF2FF]">
+        <span className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gradient-to-tr from-[#E0E7FF] via-[#EEF2FF] to-[#F5F3FF] text-[#111111] min-h-screen flex flex-col antialiased relative overflow-x-hidden corp-sans">
@@ -120,8 +183,8 @@ export default function AirMidiPage() {
           {mode === "choose" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
-                onClick={handleStartBroadcasting}
-                disabled={loading}
+                onClick={handleChooseSender}
+                disabled={loading || scanning}
                 className="p-6 bg-[#FAFAFA] border border-[#EAEAEA] hover:border-[#4F46E5] rounded-xl text-center space-y-1 transition-all"
               >
                 <span className="text-xl block">🔌</span>
@@ -142,16 +205,60 @@ export default function AirMidiPage() {
 
           {mode === "sender" && status !== "connected" && (
             <div className="text-center space-y-4">
-              <p className="text-xs text-[#666666]">Codul tău de rețea AirMIDI Link:</p>
-              <div className="text-4xl font-mono font-extrabold tracking-widest text-black bg-[#FAFAFA] p-4 rounded-xl border border-[#EAEAEA] shadow-inner">
-                {loading ? "..." : roomCode}
-              </div>
-              <p className="text-[11px] text-zinc-400">Se așteaptă receptorul...</p>
+              {/* PAS 2: se caută adaptorul */}
+              {scanning && (
+                <p className="text-xs text-[#666666]">Se caută adaptorul USB MIDI...</p>
+              )}
+
+              {/* adaptor lipsă */}
+              {!scanning && !roomCode && detectedDevices.length === 0 && (
+                <>
+                  <div className="text-[11px] bg-amber-50 border border-amber-100 p-3 rounded-lg text-amber-700 font-medium">
+                    Niciun adaptor USB MIDI detectat. Conectează-l la dispozitiv și permite accesul MIDI în
+                    browser.
+                  </div>
+                  <button
+                    onClick={scanAdapters}
+                    className="h-10 px-4 bg-black text-white text-xs font-semibold rounded-lg"
+                  >
+                    Caută din nou
+                  </button>
+                </>
+              )}
+
+              {/* adaptor găsit, cod încă negenerat */}
+              {!scanning && !roomCode && detectedDevices.length > 0 && (
+                <>
+                  <div className="text-[11px] bg-emerald-50 border border-emerald-100 p-3 rounded-lg text-emerald-700 font-medium">
+                    Adaptor detectat:{" "}
+                    <span className="text-black corp-mono">{detectedDevices.join(", ")}</span>
+                  </div>
+                  <button
+                    onClick={handleStartBroadcasting}
+                    disabled={loading}
+                    className="w-full h-10 bg-black text-white text-xs font-semibold rounded-lg disabled:opacity-50"
+                  >
+                    {loading ? "Se generează..." : "Generează cod →"}
+                  </button>
+                </>
+              )}
+
+              {/* PAS 3: cod generat */}
+              {roomCode && (
+                <>
+                  <p className="text-xs text-[#666666]">Codul tău de rețea AirMIDI Link:</p>
+                  <div className="text-4xl font-mono font-extrabold tracking-widest text-black bg-[#FAFAFA] p-4 rounded-xl border border-[#EAEAEA] shadow-inner">
+                    {roomCode}
+                  </div>
+                  <p className="text-[11px] text-zinc-400">Se așteaptă receptorul...</p>
+                </>
+              )}
+
               <button
                 onClick={handleReset}
-                className="text-xs font-semibold text-zinc-500 hover:text-black transition-all pt-2"
+                className="text-xs font-semibold text-zinc-500 hover:text-black transition-all pt-2 block mx-auto"
               >
-                ← Oprește
+                ← {roomCode ? "Oprește" : "Înapoi"}
               </button>
             </div>
           )}
