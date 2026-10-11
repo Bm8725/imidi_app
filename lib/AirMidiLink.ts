@@ -62,15 +62,12 @@ export class AirMidiLink {
     return user
   }
 
-  /* ------------------------------------------------------------------ */
-  /* CONNECT TIMEOUT                                                     */
-  /* ------------------------------------------------------------------ */
   private startConnectTimer() {
     this.clearConnectTimer()
     this.connectTimer = setTimeout(() => {
       if (this.status !== 'connected' && this.status !== 'idle') {
         const hasTurn = !!process.env.NEXT_PUBLIC_TURN_URLS
-        this.log('error', 'Connection timed out after 15 seconds.')
+        this.log('error', 'Connection timed out after 35 seconds.') // Transmitem timpul real în log
         this.disconnect()
         this.onError(
           hasTurn
@@ -80,6 +77,7 @@ export class AirMidiLink {
       }
     }, 35000)
   }
+
 
   private clearConnectTimer() {
     if (this.connectTimer) clearTimeout(this.connectTimer)
