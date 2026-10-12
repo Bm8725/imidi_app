@@ -518,7 +518,6 @@ export class AirMidiLink {
       this.midiAccess.inputs.forEach((i) => (i.onmidimessage = null))
       this.midiAccess.onstatechange = null
     }
-
     
     this.dataChannel = null
     this.peerConnection = null
