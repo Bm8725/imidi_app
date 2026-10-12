@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
-import { AirMidiLink, AirMidiStatus, AirMidiLogLevel } from "@/lib/AirMidiLink";
+import { AirMidiLink, AirMidiStatus, AirMidiLogLevel, AirMidiPeer, peerFromUser } from "@/lib/AirMidiLink";
 
 /* ---------------------------------------------------------------------- */
 /* Types & helpers                                                         */
@@ -172,6 +172,118 @@ function ScanBar({ label }: { label: string }) {
   );
 }
 
+const AVATAR_GRADIENTS = [
+  "from-indigo-500 to-violet-500",
+  "from-sky-500 to-indigo-500",
+  "from-fuchsia-500 to-pink-500",
+  "from-emerald-500 to-teal-500",
+  "from-amber-500 to-orange-500",
+];
+
+function Avatar({ name, src, size = 56 }: { name: string; src?: string; size?: number }) {
+  const [broken, setBroken] = useState(false);
+  const initial = (name.trim()[0] || "?").toUpperCase();
+  const g = AVATAR_GRADIENTS[name.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_GRADIENTS.length];
+  const style = { width: size, height: size };
+  if (src && !broken) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        referrerPolicy="no-referrer"
+        onError={() => setBroken(true)}
+        style={style}
+        className="rounded-full object-cover"
+        draggable={false}
+      />
+    );
+  }
+  return (
+    <span
+      style={{ ...style, fontSize: size * 0.4 }}
+      className={`rounded-full bg-gradient-to-br ${g} text-white font-bold flex items-center justify-center`}
+    >
+      {initial}
+    </span>
+  );
+}
+
+function PeerSide({ p, label, isMe }: { p: AirMidiPeer | null; label: string; isMe: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-2 min-w-0 w-[5.5rem] sm:w-36">
+      <div className="relative">
+        {p && <span className="absolute inset-0 rounded-full bg-emerald-400/30 am-ring" />}
+        <div
+          className={`relative rounded-full p-[3px] bg-gradient-to-br ${
+            p ? "from-indigo-500 via-violet-500 to-fuchsia-500" : "from-zinc-200 to-zinc-300"
+          }`}
+        >
+          <div className="rounded-full bg-white p-0.5">
+            {p ? (
+              <Avatar name={p.name} src={p.avatar} />
+            ) : (
+              <span className="w-14 h-14 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-300 text-xl font-bold am-dot">
+                ?
+              </span>
+            )}
+          </div>
+        </div>
+        {p && (
+          <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+        )}
+      </div>
+      <div className="text-center min-w-0 w-full">
+        <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">
+          {label}
+          {isMe ? " · You" : ""}
+        </p>
+        <p key={p?.name || "none"} className="am-fade-up text-sm font-bold text-zinc-900 truncate">
+          {p ? p.name : "Identifying…"}
+        </p>
+        {p?.email && <p className="text-[10px] text-zinc-400 corp-mono truncate">{p.email}</p>}
+      </div>
+    </div>
+  );
+}
+
+// You <-> the other user, with data packets flowing sender -> receiver
+function PeerLink({
+  me,
+  peer,
+  myRole,
+  active,
+}: {
+  me: AirMidiPeer | null;
+  peer: AirMidiPeer | null;
+  myRole: "sender" | "receiver";
+  active: boolean;
+}) {
+  const left = myRole === "sender" ? me : peer;
+  const right = myRole === "sender" ? peer : me;
+  return (
+    <div className="bg-white border border-zinc-200 rounded-2xl p-4 sm:p-6 shadow-sm">
+      <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 text-center mb-5">
+        {peer ? (myRole === "receiver" ? "Receiving from" : "Streaming to") : "Establishing link"}
+      </p>
+      <div className="flex items-center justify-center gap-1 sm:gap-4">
+        <PeerSide p={left} label="Sender" isMe={myRole === "sender"} />
+        <div className="relative flex-1 h-10 min-w-[40px] max-w-[220px]">
+          <span className="absolute left-0 right-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-indigo-200" />
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              style={{ animationDelay: `${i * 0.6}s`, animationDuration: active ? "0.9s" : "1.9s" }}
+              className="am-flow absolute top-1/2 -translate-y-1/2 left-0 w-2.5 h-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 shadow shadow-indigo-400/60"
+            />
+          ))}
+        </div>
+        <PeerSide p={right} label="Receiver" isMe={myRole === "receiver"} />
+      </div>
+    </div>
+  );
+}
+
 function Panel({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
     <section className={`bg-white/80 backdrop-blur-xl border border-white/80 lg:border-[#EAEAEA] rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.03)] ${className}`}>
@@ -191,6 +303,10 @@ export default function AirMidiPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [me, setMe] = useState<AirMidiPeer | null>(null);
+  const [peer, setPeer] = useState<AirMidiPeer | null>(null);
+  const [isFs, setIsFs] = useState(false); // real browser fullscreen
+  const [pseudoFs, setPseudoFs] = useState(false); // fallback "app mode" (e.g. iPhone)
 
   const [mode, setMode] = useState<"choose" | "sender" | "receiver">("choose");
   const [status, setStatus] = useState<AirMidiStatus>("idle");
@@ -239,6 +355,7 @@ export default function AirMidiPage() {
       if (!active) return;
       if (!user) return redirectToLogin();
       setUserEmail(user.email || "");
+      setMe(peerFromUser(user, "sender"));
       pushLog("success", `Signed in as ${user.email || user.id}`);
       setIsLoggedIn(true);
       setCheckingAuth(false);
@@ -278,12 +395,15 @@ export default function AirMidiPage() {
 
     link.onDevicesChange = (names) => setDetectedDevices(names);
 
+    link.onPeerInfo = (p) => setPeer(p);
+
     link.onError = (msg) => {
       setError(msg);
       setLoading(false);
       setMode("choose");
       setRoomCode("");
       setInputCode("");
+      setPeer(null);
     };
 
     link.onLog = (level, message) => pushLog(level, message);
@@ -343,6 +463,47 @@ export default function AirMidiPage() {
     const start = Date.now();
     const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
     return () => clearInterval(t);
+  }, [status]);
+
+  /* ---- fullscreen state ---- */
+  useEffect(() => {
+    const onChange = () => setIsFs(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  useEffect(() => {
+    if (!pseudoFs) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPseudoFs(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [pseudoFs]);
+
+  /* ---- keep the screen awake while the link is live (phones) ---- */
+  useEffect(() => {
+    if (status !== "connected") return;
+    let lock: any = null;
+    let cancelled = false;
+    const request = async () => {
+      try {
+        lock = await (navigator as any).wakeLock?.request("screen");
+        if (cancelled && lock) lock.release();
+      } catch {
+        /* not supported or denied */
+      }
+    };
+    request();
+    const onVisible = () => document.visibilityState === "visible" && request();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      try {
+        lock?.release();
+      } catch {
+        /* ignore */
+      }
+    };
   }, [status]);
 
   /* ---- log auto-scroll (box is always in the DOM) ---- */
@@ -411,11 +572,32 @@ export default function AirMidiPage() {
     setLoading(false);
     setScanning(false);
     setDetectedDevices([]);
+    setPeer(null);
     countRef.current = 0;
     lastMsgRef.current = "—";
     chRef.current = Array(16).fill(0);
     setStats({ count: 0, last: "—" });
     setChannels(Array(16).fill(0));
+  };
+
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+      if (pseudoFs) {
+        setPseudoFs(false);
+        return;
+      }
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        setPseudoFs(true); // browsers without the Fullscreen API
+      }
+    } catch {
+      setPseudoFs(true);
+    }
   };
 
   const copyCode = async () => {
@@ -463,6 +645,7 @@ export default function AirMidiPage() {
 
   const meta = STATUS_META[status];
   const connected = status === "connected";
+  const appMode = isFs || pseudoFs;
   const hasError = logs.some((l) => l.level === "error");
 
   const steps =
@@ -480,7 +663,7 @@ export default function AirMidiPage() {
   const roleLabel = mode === "sender" ? "Sender" : mode === "receiver" ? "Receiver" : "—";
 
   return (
-    <div className="am-grid bg-gradient-to-tr from-[#E0E7FF] via-[#EEF2FF] to-[#F5F3FF] text-[#111111] min-h-screen flex flex-col antialiased relative overflow-x-hidden corp-sans">
+    <div className="am-grid bg-gradient-to-tr from-[#E0E7FF] via-[#EEF2FF] to-[#F5F3FF] text-[#111111] am-app flex flex-col antialiased relative overflow-x-hidden corp-sans">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
         .corp-sans { font-family: 'Inter', system-ui, sans-serif; }
@@ -503,20 +686,32 @@ export default function AirMidiPage() {
         .am-float { animation: am-float 3.2s ease-in-out infinite; }
         @keyframes am-dot { 0%,80%,100% { opacity: .25; transform: scale(.8); } 40% { opacity: 1; transform: scale(1.1); } }
         .am-dot { animation: am-dot 1.2s ease-in-out infinite; }
+        .am-app { min-height: 100vh; min-height: 100dvh; }
+        @media (min-width: 1024px) { .am-main { height: 100vh; height: 100dvh; } }
+        @keyframes am-flow { 0% { left: 0; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { left: calc(100% - 10px); opacity: 0; } }
+        .am-flow { animation: am-flow 1.9s linear infinite; }
         .am-scroll::-webkit-scrollbar { width: 8px; }
         .am-scroll::-webkit-scrollbar-thumb { background: rgba(120,120,140,.35); border-radius: 8px; }
         @media (prefers-reduced-motion: reduce) {
-          .am-fade-up, .am-ring, .am-scan, .am-digit, .am-float, .am-dot { animation: none; }
+          .am-fade-up, .am-ring, .am-scan, .am-digit, .am-float, .am-dot, .am-flow { animation: none; }
         }
       `}</style>
 
       <div className="absolute top-[-10%] right-[-5%] w-[400px] sm:w-[800px] h-[400px] sm:h-[800px] bg-gradient-to-br from-[#4F46E5]/35 via-[#8B5CF6]/30 to-transparent rounded-full blur-[70px] sm:blur-[110px] pointer-events-none z-0 animate-pulse duration-[5000ms]" />
       <div className="absolute bottom-[5%] left-[-10%] w-[350px] sm:w-[700px] h-[350px] sm:h-[700px] bg-gradient-to-tr from-[#6366F1]/25 via-[#EC4899]/10 to-transparent rounded-full blur-[80px] sm:blur-[120px] pointer-events-none z-0" />
 
-      <Navbar />
+      {!appMode && <Navbar />}
 
       {/* WORKSPACE: fills the whole viewport on desktop */}
-      <main className="relative z-10 flex-1 w-full max-w-[1800px] mx-auto px-4 lg:px-8 pt-24 pb-6 flex flex-col lg:h-screen">
+      <main
+        className={`am-main relative z-10 flex-1 w-full max-w-[1800px] mx-auto px-3 sm:px-4 lg:px-8 flex flex-col ${
+          appMode ? "" : "pt-24"
+        }`}
+        style={{
+          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
+          paddingTop: appMode ? "max(1rem, env(safe-area-inset-top))" : undefined,
+        }}
+      >
         {/* TOOLBAR */}
         <header className="shrink-0 mb-5 bg-white/75 backdrop-blur-xl border border-white/80 lg:border-[#EAEAEA] rounded-2xl px-5 py-4 flex flex-wrap items-center justify-between gap-4 shadow-[0_8px_32px_rgba(0,0,0,0.03)]">
           <div className="flex items-center gap-4 am-fade-up">
@@ -526,7 +721,7 @@ export default function AirMidiPage() {
               <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent leading-tight">
                 AirMIDI Link
               </h1>
-              <p className="text-[11px] sm:text-xs text-zinc-500">
+              <p className="text-[11px] sm:text-xs text-zinc-500 max-w-[14rem] sm:max-w-none truncate sm:whitespace-normal">
                 Encrypted MIDI transport over AirMIDI-Link V 0.1.13 concept MIDI 3.0
               </p>
             </div>
@@ -555,6 +750,20 @@ export default function AirMidiPage() {
               </span>
               {meta.label}
             </span>
+            <button
+              onClick={toggleFullscreen}
+              aria-label={appMode ? "Exit full screen" : "Enter full screen"}
+              title={appMode ? "Exit full screen" : "Full screen"}
+              className="w-9 h-9 rounded-full border border-zinc-200 bg-white text-zinc-600 hover:text-indigo-600 hover:border-indigo-300 hover:shadow-md active:scale-95 transition-all flex items-center justify-center"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {appMode ? (
+                  <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                ) : (
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                )}
+              </svg>
+            </button>
           </div>
         </header>
 
@@ -583,6 +792,7 @@ export default function AirMidiPage() {
               <dl className="space-y-3 text-xs">
                 {[
                   { k: "Role", v: roleLabel },
+                  { k: "Peer", v: peer?.name || "—" },
                   { k: "Room", v: roomCode || "—", mono: true },
                   { k: "State", v: meta.label },
                   { k: "Uptime", v: connected ? formatElapsed(elapsed) : "—", mono: true },
@@ -619,7 +829,7 @@ export default function AirMidiPage() {
 
           {/* ---------------- CENTER STAGE ---------------- */}
           <section className="bg-white/80 backdrop-blur-xl border border-white/80 lg:border-[#EAEAEA] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col min-h-[420px] lg:min-h-0 lg:h-full overflow-hidden">
-            <div className="flex-1 overflow-y-auto am-scroll p-6 sm:p-10">
+            <div className="flex-1 overflow-y-auto am-scroll p-4 sm:p-10">
               <div className="min-h-full flex flex-col justify-center">
                 <Stepper steps={steps} current={currentStep} />
 
@@ -740,7 +950,7 @@ export default function AirMidiPage() {
                             <span
                               key={i}
                               style={{ animationDelay: `${i * 70}ms` }}
-                              className="am-digit w-11 h-14 sm:w-16 sm:h-20 flex items-center justify-center rounded-xl bg-white border border-zinc-200 shadow-sm text-2xl sm:text-4xl font-extrabold text-zinc-900 corp-mono"
+                              className="am-digit w-10 h-14 sm:w-16 sm:h-20 flex items-center justify-center rounded-xl bg-white border border-zinc-200 shadow-sm text-2xl sm:text-4xl font-extrabold text-zinc-900 corp-mono"
                             >
                               {d}
                             </span>
@@ -835,6 +1045,9 @@ export default function AirMidiPage() {
                       </p>
                     </div>
 
+                    {/* who am I connected with */}
+                    <PeerLink me={me} peer={peer} myRole={mode === "receiver" ? "receiver" : "sender"} active={isActive} />
+
                     {/* stats */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {[
@@ -859,7 +1072,7 @@ export default function AirMidiPage() {
                     {/* channel meters */}
                     <div>
                       <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 mb-2">Channel activity</p>
-                      <div className="flex items-end gap-1.5 h-24">
+                      <div className="flex items-end gap-1 sm:gap-1.5 h-24">
                         {channels.map((v, i) => (
                           <div key={i} className="flex-1 h-full flex items-end">
                             <div
@@ -977,7 +1190,7 @@ export default function AirMidiPage() {
         </div>
       </main>
 
-      <Footer />
+      {!appMode && <Footer />}
     </div>
   );
 }

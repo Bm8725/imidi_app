@@ -12,6 +12,25 @@ export type AirMidiStatus =
 export type AirMidiLogLevel = 'info' | 'success' | 'warn' | 'error'
 export type MidiDirection = 'in' | 'out'
 
+// Public identity shown to the other side (email is masked on purpose)
+export type AirMidiPeer = {
+  name: string
+  email: string
+  avatar?: string
+  role: AirMidiRole
+}
+
+export function peerFromUser(user: any, role: AirMidiRole): AirMidiPeer {
+  const meta = user?.user_metadata || {}
+  const email: string = user?.email || ''
+  const [local = '', domain = ''] = email.split('@')
+  const masked = email ? `${local.slice(0, 2)}***@${domain}` : ''
+  const name = String(meta.full_name || meta.name || meta.user_name || local || 'User')
+  const avatar =
+    typeof meta.avatar_url === 'string' ? meta.avatar_url : typeof meta.picture === 'string' ? meta.picture : undefined
+  return { name, email: masked, avatar, role }
+}
+
 export class AirMidiLink {
   private supabase: SupabaseClient
   private peerConnection: RTCPeerConnection | null = null
@@ -34,6 +53,8 @@ export class AirMidiLink {
   public onDevicesChange: (names: string[]) => void = () => {}
   public onError: (message: string) => void = () => {}
   public onLog: (level: AirMidiLogLevel, message: string) => void = () => {}
+  public onPeerInfo: (peer: AirMidiPeer) => void = () => {}
+  private localPeer: AirMidiPeer | null = null
 
   constructor(supabaseClient: SupabaseClient) {
     this.supabase = supabaseClient
@@ -297,6 +318,23 @@ export class AirMidiLink {
     }
   }
 
+  // Data from the other user is untrusted: validate and trim it
+  private handlePeerInfo(raw: any) {
+    if (!raw || typeof raw !== 'object') return
+    const avatar =
+      typeof raw.avatar === 'string' && raw.avatar.startsWith('https://') && raw.avatar.length < 500
+        ? raw.avatar
+        : undefined
+    const peer: AirMidiPeer = {
+      name: String(raw.name ?? 'User').slice(0, 60),
+      email: String(raw.email ?? '').slice(0, 80),
+      avatar,
+      role: raw.role === 'sender' ? 'sender' : 'receiver',
+    }
+    this.log('info', `Peer identified: ${peer.name}`)
+    this.onPeerInfo(peer)
+  }
+
   private async flushPendingIce() {
     if (!this.peerConnection) return
     for (const c of this.pendingIce) {
@@ -319,6 +357,7 @@ export class AirMidiLink {
         .on('broadcast', { event: 'airmidi-signal' }, async ({ payload }) => {
           if (!this.peerConnection) return
           try {
+            if (payload.peer) this.handlePeerInfo(payload.peer)
             if (payload.sdp) {
               this.log('info', `Received ${payload.sdp.type} from peer.`)
               await this.peerConnection.setRemoteDescription(payload.sdp)
@@ -331,7 +370,7 @@ export class AirMidiLink {
                 this.channel?.send({
                   type: 'broadcast',
                   event: 'airmidi-signal',
-                  payload: { sdp: this.peerConnection.localDescription },
+                  payload: { sdp: this.peerConnection.localDescription, peer: this.localPeer },
                 })
                 this.log('info', 'Answer sent to peer.')
               }
@@ -372,6 +411,7 @@ export class AirMidiLink {
     }
 
     this.role = 'sender'
+    this.localPeer = peerFromUser(user, 'sender')
     this.updateStatus('initializing')
 
     const code = Math.floor(100000 + Math.random() * 900000).toString()
@@ -407,9 +447,10 @@ export class AirMidiLink {
   /* RECEIVER                                                            */
   /* ------------------------------------------------------------------ */
   async connect(code: string, deviceInfo: any = {}): Promise<void> {
-    await this.requireUser()
+    const user = await this.requireUser()
 
     this.role = 'receiver'
+    this.localPeer = peerFromUser(user, 'receiver')
     this.roomCode = code
     this.updateStatus('connecting')
     this.log('info', `Looking up room ${code}...`)
@@ -442,7 +483,7 @@ export class AirMidiLink {
     this.channel?.send({
       type: 'broadcast',
       event: 'airmidi-signal',
-      payload: { sdp: this.peerConnection!.localDescription },
+      payload: { sdp: this.peerConnection!.localDescription, peer: this.localPeer },
     })
     this.log('info', 'Offer sent. Waiting for the sender to answer...')
     this.startConnectTimer()
@@ -482,6 +523,7 @@ export class AirMidiLink {
     this.peerConnection = null
     this.channel = null
     this.midiAccess = null
+    this.localPeer = null
     this.pendingIce = []
     this.hasRemoteDescription = false
     this.updateStatus('idle')
