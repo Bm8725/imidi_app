@@ -519,6 +519,7 @@ export class AirMidiLink {
       this.midiAccess.onstatechange = null
     }
 
+    
     this.dataChannel = null
     this.peerConnection = null
     this.channel = null
