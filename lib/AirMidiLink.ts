@@ -51,6 +51,11 @@ export class AirMidiLink {
   private videoTransceiver: RTCRtpTransceiver | null = null
   private localStream: MediaStream | null = null
   private remoteStream: MediaStream | null = null
+
+  // microphone (optional, bidirectional)
+  private audioTransceiver: RTCRtpTransceiver | null = null
+  private micStream: MediaStream | null = null
+  private remoteAudioStream: MediaStream | null = null
   private hasRemoteDescription = false
   private connectTimer: ReturnType<typeof setTimeout> | null = null
   private hasTurn = false
@@ -72,6 +77,9 @@ export class AirMidiLink {
   public onLocalVideo: (stream: MediaStream | null) => void = () => {}
   public onRemoteStream: (stream: MediaStream | null) => void = () => {}
   public onRemoteVideoState: (on: boolean) => void = () => {}
+  public onLocalAudio: (stream: MediaStream | null) => void = () => {}
+  public onRemoteAudioStream: (stream: MediaStream | null) => void = () => {}
+  public onRemoteAudioState: (on: boolean) => void = () => {}
   private localPeer: AirMidiPeer | null = null
 
   constructor(supabaseClient: SupabaseClient) {
@@ -281,10 +289,15 @@ export class AirMidiLink {
 
     // Remote video track (the track stays silent until the other side starts a camera)
     this.peerConnection.ontrack = (event) => {
-      if (event.track.kind !== 'video') return
-      this.remoteStream = new MediaStream([event.track])
-      this.log('info', 'Remote video channel ready.')
-      this.onRemoteStream(this.remoteStream)
+      if (event.track.kind === 'video') {
+        this.remoteStream = new MediaStream([event.track])
+        this.log('info', 'Remote video channel ready.')
+        this.onRemoteStream(this.remoteStream)
+      } else if (event.track.kind === 'audio') {
+        this.remoteAudioStream = new MediaStream([event.track])
+        this.log('info', 'Remote audio channel ready.')
+        this.onRemoteAudioStream(this.remoteAudioStream)
+      }
     }
 
     this.peerConnection.onicegatheringstatechange = () => {
@@ -460,6 +473,10 @@ export class AirMidiLink {
             this.log('info', `Remote camera ${payload.video ? 'on' : 'off'}.`)
             this.onRemoteVideoState(payload.video)
           }
+          if (typeof payload.audio === 'boolean') {
+            this.log('info', `Remote microphone ${payload.audio ? 'on' : 'off'}.`)
+            this.onRemoteAudioState(payload.audio)
+          }
         })
         .subscribe((s) => {
           if (s === 'SUBSCRIBED') {
@@ -555,6 +572,7 @@ export class AirMidiLink {
     // Video m-line negotiated once, up front. The camera is attached later with replaceTrack(),
     // so turning it on/off never needs a new negotiation.
     this.videoTransceiver = this.peerConnection!.addTransceiver('video', { direction: 'sendrecv' })
+    this.audioTransceiver = this.peerConnection!.addTransceiver('audio', { direction: 'sendrecv' })
 
     await this.setupSignalingChannel(code)
 
@@ -594,10 +612,15 @@ export class AirMidiLink {
 
     if (sdp.type === 'offer' && this.role === 'sender') {
       // Make the negotiated video m-line send + receive, so our camera can start later without renegotiating
-      const t = pc.getTransceivers().find((x) => x.receiver.track?.kind === 'video')
-      if (t) {
-        t.direction = 'sendrecv'
-        this.videoTransceiver = t
+      for (const t of pc.getTransceivers()) {
+        const kind = t.receiver.track?.kind
+        if (kind === 'video') {
+          t.direction = 'sendrecv'
+          this.videoTransceiver = t
+        } else if (kind === 'audio') {
+          t.direction = 'sendrecv'
+          this.audioTransceiver = t
+        }
       }
       const answer = await pc.createAnswer()
       await pc.setLocalDescription(answer)
@@ -721,6 +744,84 @@ export class AirMidiLink {
   }
 
   /* ------------------------------------------------------------------ */
+  /* OPTIONAL MICROPHONE (bidirectional)                                 */
+  /* ------------------------------------------------------------------ */
+  public get audioActive(): boolean {
+    return !!this.micStream
+  }
+
+  private stopMicTracks() {
+    this.micStream?.getTracks().forEach((t) => {
+      t.onended = null
+      t.stop()
+    })
+    this.micStream = null
+  }
+
+  public async startAudio() {
+    if (this.status !== 'connected' || !this.audioTransceiver) {
+      throw new Error('Connect first, then start the microphone.')
+    }
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      throw new Error('This browser does not support microphone access.')
+    }
+
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+        video: false,
+      })
+    } catch (err: any) {
+      const name = err?.name
+      throw new Error(
+        name === 'NotAllowedError' || name === 'SecurityError'
+          ? 'Microphone permission was denied.'
+          : name === 'NotFoundError'
+          ? 'No microphone found on this device.'
+          : 'Could not start the microphone.'
+      )
+    }
+
+    this.stopMicTracks()
+    this.micStream = stream
+    const track = stream.getAudioTracks()[0]
+    track.onended = () => {
+      this.log('warn', 'Microphone stopped by the system.')
+      this.stopAudio()
+    }
+
+    await this.audioTransceiver.sender.replaceTrack(track)
+
+    try {
+      const sender = this.audioTransceiver.sender
+      const params = sender.getParameters()
+      if (!params.encodings || params.encodings.length === 0) params.encodings = [{}]
+      params.encodings[0].maxBitrate = 40_000 // voice-quality Opus, very cheap
+      await sender.setParameters(params)
+    } catch {
+      this.log('warn', 'Could not apply the audio bitrate limit.')
+    }
+
+    this.sendControl({ audio: true })
+    this.log('success', 'Microphone started.')
+    this.onLocalAudio(stream)
+  }
+
+  public async stopAudio() {
+    if (!this.micStream) return
+    this.stopMicTracks()
+    try {
+      await this.audioTransceiver?.sender.replaceTrack(null)
+    } catch {
+      /* ignore */
+    }
+    this.sendControl({ audio: false })
+    this.log('info', 'Microphone stopped.')
+    this.onLocalAudio(null)
+  }
+
+  /* ------------------------------------------------------------------ */
   public sendMidi(midiMessage: Uint8Array) {
     if (this.dataChannel && this.dataChannel.readyState === 'open') {
       this.dataChannel.send(midiMessage as any)
@@ -760,7 +861,10 @@ export class AirMidiLink {
 
     // video + join approval state
     this.stopLocalTracks()
+    this.stopMicTracks()
     this.videoTransceiver = null
+    this.audioTransceiver = null
+    this.remoteAudioStream = null
     this.remoteStream = null
     this.peerId = null
     this.pendingOffer = null
@@ -769,6 +873,9 @@ export class AirMidiLink {
     this.onLocalVideo(null)
     this.onRemoteStream(null)
     this.onRemoteVideoState(false)
+    this.onLocalAudio(null)
+    this.onRemoteAudioStream(null)
+    this.onRemoteAudioState(false)
 
     this.updateStatus('idle')
   }

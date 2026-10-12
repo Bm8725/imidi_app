@@ -317,6 +317,13 @@ export default function AirMidiPage() {
   const [quality, setQuality] = useState<VideoQuality>("360p");
   const [cameraBusy, setCameraBusy] = useState(false);
   const cameraOn = !!localStream;
+  const [localAudio, setLocalAudio] = useState<MediaStream | null>(null);
+  const [remoteAudioStream, setRemoteAudioStream] = useState<MediaStream | null>(null);
+  const [remoteMicOn, setRemoteMicOn] = useState(false);
+  const [micBusy, setMicBusy] = useState(false);
+  const [audioBlocked, setAudioBlocked] = useState(false);
+  const [speakerMuted, setSpeakerMuted] = useState(false);
+  const micOn = !!localAudio;
 
   const [mode, setMode] = useState<"choose" | "sender" | "receiver">("choose");
   const [status, setStatus] = useState<AirMidiStatus>("idle");
@@ -342,6 +349,7 @@ export default function AirMidiPage() {
   const logBoxRef = useRef<HTMLDivElement | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const logIdRef = useRef(0);
   const logBufferRef = useRef<LogEntry[]>([]);
@@ -413,6 +421,9 @@ export default function AirMidiPage() {
     link.onLocalVideo = (st) => setLocalStream(st);
     link.onRemoteStream = (st) => setRemoteStream(st);
     link.onRemoteVideoState = (on) => setRemoteVideoOn(on);
+    link.onLocalAudio = (st) => setLocalAudio(st);
+    link.onRemoteAudioStream = (st) => setRemoteAudioStream(st);
+    link.onRemoteAudioState = (on) => setRemoteMicOn(on);
 
     link.onError = (msg) => {
       setError(msg);
@@ -496,6 +507,23 @@ export default function AirMidiPage() {
     el.srcObject = remoteStream;
     if (remoteStream) el.play().catch(() => {});
   }, [remoteStream, status, remoteVideoOn]);
+
+  /* ---- play the other user's voice ---- */
+  useEffect(() => {
+    const el = remoteAudioRef.current;
+    if (!el) return;
+    el.srcObject = remoteAudioStream;
+    el.muted = speakerMuted;
+    if (remoteAudioStream) {
+      el.play().then(() => setAudioBlocked(false)).catch(() => setAudioBlocked(true));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remoteAudioStream, status]);
+
+  useEffect(() => {
+    const el = remoteAudioRef.current;
+    if (el) el.muted = speakerMuted;
+  }, [speakerMuted]);
 
   /* ---- fullscreen state ---- */
   useEffect(() => {
@@ -607,11 +635,34 @@ export default function AirMidiPage() {
     setPeer(null);
     setJoinRequest(null);
     setWaitingApproval(false);
+    setAudioBlocked(false);
     countRef.current = 0;
     lastMsgRef.current = "—";
     chRef.current = Array(16).fill(0);
     setStats({ count: 0, last: "—" });
     setChannels(Array(16).fill(0));
+  };
+
+  const toggleMic = async () => {
+    setError("");
+    setMicBusy(true);
+    try {
+      if (micOn) await airMidiRef.current?.stopAudio();
+      else await airMidiRef.current?.startAudio();
+    } catch (err: any) {
+      setError(err.message);
+    }
+    setMicBusy(false);
+  };
+
+  // browsers (especially iOS) may block autoplay: this runs inside a tap
+  const enableSound = async () => {
+    try {
+      await remoteAudioRef.current?.play();
+      setAudioBlocked(false);
+    } catch {
+      /* still blocked */
+    }
   };
 
   const toggleCamera = async () => {
@@ -840,13 +891,13 @@ export default function AirMidiPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {cameraOn && (
+            {(cameraOn || micOn) && (
               <span className="inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border border-red-200 bg-red-50 text-red-700">
                 <span className="relative flex w-2 h-2">
                   <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-60 animate-ping" />
                   <span className="relative inline-flex w-2 h-2 rounded-full bg-red-500" />
                 </span>
-                Camera live
+                {cameraOn && micOn ? "Camera & mic live" : cameraOn ? "Camera live" : "Mic live"}
               </span>
             )}
             {connected && (
@@ -915,6 +966,7 @@ export default function AirMidiPage() {
                   { k: "Role", v: roleLabel },
                   { k: "Peer", v: peer?.name || "—" },
                   { k: "Camera", v: cameraOn ? "On" : "Off" },
+                  { k: "Mic", v: micOn ? "On" : "Off" },
                   { k: "Room", v: roomCode || "—", mono: true },
                   { k: "State", v: meta.label },
                   { k: "Uptime", v: connected ? formatElapsed(elapsed) : "—", mono: true },
@@ -1170,8 +1222,17 @@ export default function AirMidiPage() {
                     {/* who am I connected with */}
                     <PeerLink me={me} peer={peer} myRole={mode === "receiver" ? "receiver" : "sender"} active={isActive} />
 
-                    {/* optional video (bidirectional, no audio) */}
+                    {/* optional video + voice (bidirectional) */}
                     <div className="bg-white border border-zinc-200 rounded-2xl p-3 sm:p-4 shadow-sm space-y-3">
+                      <audio ref={remoteAudioRef} autoPlay playsInline />
+                      {audioBlocked && (
+                        <button
+                          onClick={enableSound}
+                          className="am-fade-up w-full h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold hover:bg-amber-100 transition-colors"
+                        >
+                          🔊 Tap to enable sound
+                        </button>
+                      )}
                       <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-[#0B1020]">
                         <video
                           ref={remoteVideoRef}
@@ -1196,6 +1257,15 @@ export default function AirMidiPage() {
                         {remoteVideoOn && peer && (
                           <span className="absolute left-3 bottom-3 text-[11px] font-semibold text-white bg-black/50 backdrop-blur px-2.5 py-1 rounded-full">
                             {peer.name}
+                          </span>
+                        )}
+                        {remoteMicOn && (
+                          <span className="absolute left-3 top-3 flex items-center gap-1.5 text-[11px] font-semibold text-white bg-black/50 backdrop-blur px-2.5 py-1 rounded-full">
+                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                            </svg>
+                            {peer ? peer.name : "Remote"} is talking
                           </span>
                         )}
                         {cameraOn && (
@@ -1225,6 +1295,43 @@ export default function AirMidiPage() {
                           </svg>
                           {cameraBusy ? "…" : cameraOn ? "Stop camera" : "Start camera"}
                         </button>
+                        <button
+                          onClick={toggleMic}
+                          disabled={micBusy}
+                          className={`h-10 px-4 rounded-xl text-xs font-bold transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-2 ${
+                            micOn
+                              ? "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100"
+                              : "bg-zinc-900 text-white hover:bg-black"
+                          }`}
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                            <line x1="12" y1="19" x2="12" y2="23" />
+                            <line x1="8" y1="23" x2="16" y2="23" />
+                          </svg>
+                          {micBusy ? "…" : micOn ? "Stop mic" : "Start mic"}
+                        </button>
+                        <button
+                          onClick={() => setSpeakerMuted((v) => !v)}
+                          aria-label={speakerMuted ? "Unmute speaker" : "Mute speaker"}
+                          title={speakerMuted ? "Unmute their voice" : "Mute their voice"}
+                          className={`h-10 w-10 rounded-xl border bg-white flex items-center justify-center transition-colors ${
+                            speakerMuted ? "border-red-200 text-red-500" : "border-zinc-200 text-zinc-600 hover:text-indigo-600"
+                          }`}
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                            {speakerMuted ? (
+                              <>
+                                <line x1="23" y1="9" x2="17" y2="15" />
+                                <line x1="17" y1="9" x2="23" y2="15" />
+                              </>
+                            ) : (
+                              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                            )}
+                          </svg>
+                        </button>
                         <select
                           value={quality}
                           onChange={(e) => changeQuality(e.target.value as VideoQuality)}
@@ -1235,7 +1342,7 @@ export default function AirMidiPage() {
                           <option value="720p">720p · sharper</option>
                         </select>
                         <p className="text-[11px] text-zinc-400 w-full sm:w-auto sm:ml-auto">
-                          Video only, no audio. Your camera stays off until you start it.
+                          Camera and microphone stay off until you start them. Use headphones to avoid echo.
                         </p>
                       </div>
                     </div>
