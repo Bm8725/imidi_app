@@ -68,6 +68,10 @@ function decodeMidi(d: Uint8Array): string {
 const toHex = (d: Uint8Array) =>
   Array.from(d).map((b) => b.toString(16).padStart(2, "0").toUpperCase()).join(" ");
 
+// long messages (SysEx dumps) are shortened in the log
+const toHexShort = (d: Uint8Array, max = 24) =>
+  d.length <= max ? toHex(d) : `${toHex(d.subarray(0, max))} … (+${d.length - max} bytes)`;
+
 const nowStamp = () => {
   const d = new Date();
   const p = (n: number, l = 2) => String(n).padStart(l, "0");
@@ -324,6 +328,7 @@ export default function AirMidiPage() {
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [speakerMuted, setSpeakerMuted] = useState(false);
   const micOn = !!localAudio;
+  const [sysexOn, setSysexOn] = useState<boolean | null>(null);
 
   const [mode, setMode] = useState<"choose" | "sender" | "receiver">("choose");
   const [status, setStatus] = useState<AirMidiStatus>("idle");
@@ -424,6 +429,7 @@ export default function AirMidiPage() {
     link.onLocalAudio = (st) => setLocalAudio(st);
     link.onRemoteAudioStream = (st) => setRemoteAudioStream(st);
     link.onRemoteAudioState = (on) => setRemoteMicOn(on);
+    link.onSysexState = (on) => setSysexOn(on);
 
     link.onError = (msg) => {
       setError(msg);
@@ -452,7 +458,7 @@ export default function AirMidiPage() {
       statsDirtyRef.current = true;
       if (s < 0xf0) chRef.current[s & 0x0f] = 1;
 
-      pushLog("midi", `${dir === "out" ? "TX" : "RX"}  ${text}   [${toHex(data)}]`);
+      pushLog("midi", `${dir === "out" ? "TX" : "RX"}  ${text}   [${toHexShort(data)}]`);
     };
 
     return () => {
@@ -636,6 +642,7 @@ export default function AirMidiPage() {
     setJoinRequest(null);
     setWaitingApproval(false);
     setAudioBlocked(false);
+    setSysexOn(null);
     countRef.current = 0;
     lastMsgRef.current = "—";
     chRef.current = Array(16).fill(0);
@@ -967,6 +974,7 @@ export default function AirMidiPage() {
                   { k: "Peer", v: peer?.name || "—" },
                   { k: "Camera", v: cameraOn ? "On" : "Off" },
                   { k: "Mic", v: micOn ? "On" : "Off" },
+                  { k: "SysEx", v: sysexOn === null ? "—" : sysexOn ? "Enabled" : "Blocked" },
                   { k: "Room", v: roomCode || "—", mono: true },
                   { k: "State", v: meta.label },
                   { k: "Uptime", v: connected ? formatElapsed(elapsed) : "—", mono: true },
@@ -1402,6 +1410,14 @@ export default function AirMidiPage() {
                         {mode === "receiver"
                           ? "No MIDI output found. Incoming data cannot be played here. Connect a USB MIDI adapter or use a browser that supports Web MIDI (Chrome / Edge / Opera)."
                           : "No MIDI input found. Plug in your USB adapter and allow MIDI access."}
+                      </div>
+                    )}
+
+                    {sysexOn === false && (
+                      <div className="text-xs bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 font-medium leading-relaxed">
+                        SysEx is blocked on this device: you did not allow full MIDI access in the browser. Notes and
+                        controllers still pass. To allow SysEx, enable MIDI permission for this site in the browser
+                        settings and reconnect.
                       </div>
                     )}
 

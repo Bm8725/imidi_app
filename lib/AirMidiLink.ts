@@ -71,6 +71,9 @@ export class AirMidiLink {
   public onDevicesChange: (names: string[]) => void = () => {}
   public onError: (message: string) => void = () => {}
   public onLog: (level: AirMidiLogLevel, message: string) => void = () => {}
+  public onSysexState: (enabled: boolean) => void = () => {}
+  public sysexEnabled = false
+  private outputErrorLogged = false
   public onPeerInfo: (peer: AirMidiPeer) => void = () => {}
   public onJoinRequest: (peer: AirMidiPeer) => void = () => {}
   public onWaitingApproval: () => void = () => {}
@@ -146,8 +149,17 @@ export class AirMidiLink {
       throw new Error('This browser does not support Web MIDI. Use Chrome, Edge or Opera.')
     }
     if (!this.midiAccess) {
-      this.midiAccess = await navigator.requestMIDIAccess()
-      this.log('info', 'MIDI access granted.')
+      try {
+        this.midiAccess = await navigator.requestMIDIAccess({ sysex: true })
+        this.sysexEnabled = true
+        this.log('success', 'MIDI access granted (SysEx enabled).')
+      } catch {
+        // SysEx prompt refused: fall back to normal MIDI so notes and controllers still pass
+        this.midiAccess = await navigator.requestMIDIAccess()
+        this.sysexEnabled = false
+        this.log('warn', 'SysEx permission was not granted. Notes and controllers still pass, but SysEx messages are blocked.')
+      }
+      this.onSysexState(this.sysexEnabled)
       // React live to adapters being plugged in / removed
       this.midiAccess.onstatechange = () => {
         if (this.status === 'connected') this.bindMidiPorts()
@@ -207,7 +219,16 @@ export class AirMidiLink {
   // Receiver: forward incoming messages to every available MIDI output
   private forwardToMidiOutput(data: Uint8Array) {
     if (!this.midiAccess) return
-    this.midiAccess.outputs.forEach((o) => o.send(data))
+    this.midiAccess.outputs.forEach((o) => {
+      try {
+        o.send(data)
+      } catch (err: any) {
+        if (!this.outputErrorLogged) {
+          this.outputErrorLogged = true
+          this.log('warn', `Could not send to MIDI output "${o.name}": ${err?.message || err}`)
+        }
+      }
+    })
   }
 
   /**
@@ -824,6 +845,11 @@ export class AirMidiLink {
   /* ------------------------------------------------------------------ */
   public sendMidi(midiMessage: Uint8Array) {
     if (this.dataChannel && this.dataChannel.readyState === 'open') {
+      const max = this.peerConnection?.sctp?.maxMessageSize
+      if (max && midiMessage.length > max) {
+        this.log('error', `MIDI message too large to send (${midiMessage.length} bytes, limit ${max}).`)
+        return
+      }
       this.dataChannel.send(midiMessage as any)
     }
   }
@@ -858,6 +884,7 @@ export class AirMidiLink {
     this.localPeer = null
     this.pendingIce = []
     this.hasRemoteDescription = false
+    this.outputErrorLogged = false
 
     // video + join approval state
     this.stopLocalTracks()
