@@ -953,7 +953,7 @@ export default function AirMidiPage() {
         )}
 
         {/* DASHBOARD GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-[270px_minmax(0,1fr)_390px] gap-5 lg:flex-1 lg:min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-[270px_minmax(0,1fr)] gap-5 lg:flex-1 lg:min-h-0">
           {/* ---------------- LEFT RAIL (desktop) ---------------- */}
           <aside className="hidden lg:flex flex-col gap-5 min-h-0 overflow-y-auto am-scroll pr-1">
             <Panel title="Workflow">
@@ -1001,8 +1001,9 @@ export default function AirMidiPage() {
             </Panel>
           </aside>
 
-          {/* ---------------- CENTER STAGE ---------------- */}
-          <section className="bg-white/80 backdrop-blur-xl border border-white/80 lg:border-[#EAEAEA] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col min-h-[420px] lg:min-h-0 lg:h-full overflow-hidden">
+          {/* ---------------- CENTER COLUMN: stage + compact log ---------------- */}
+          <div className="flex flex-col gap-3 min-w-0 lg:min-h-0 lg:h-full">
+          <section className="bg-white/80 backdrop-blur-xl border border-white/80 lg:border-[#EAEAEA] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col min-h-[420px] lg:min-h-0 lg:flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto am-scroll p-4 sm:p-10">
               <div className="min-h-full flex flex-col justify-center">
                 <Stepper steps={steps} current={currentStep} />
@@ -1416,13 +1417,13 @@ export default function AirMidiPage() {
             </div>
           </section>
 
-          {/* ---------------- ACTIVITY LOG (always open on desktop) ---------------- */}
-          <section className="rounded-2xl border border-zinc-200 bg-white/80 backdrop-blur overflow-hidden flex flex-col lg:min-h-0 lg:h-full">
+          {/* ---------------- ACTIVITY LOG (compact, collapsed by default) ---------------- */}
+          <section className="shrink-0 rounded-2xl border border-zinc-200 bg-white/80 backdrop-blur overflow-hidden flex flex-col">
             <button
               onClick={() => setShowLog((v) => !v)}
-              className="shrink-0 w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-zinc-50/70 transition-colors lg:cursor-default lg:hover:bg-transparent"
+              className="shrink-0 w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-zinc-50/70 transition-colors"
             >
-              <span className="flex items-center gap-2 text-xs font-bold text-zinc-800">
+              <span className="flex items-center gap-2 text-xs font-bold text-zinc-800 min-w-0 flex-1">
                 <svg className="w-4 h-4 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 17l6-6-6-6M12 19h8" />
                 </svg>
@@ -1430,17 +1431,22 @@ export default function AirMidiPage() {
                 <span className="text-[10px] font-semibold bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full corp-mono">
                   {logs.length}
                 </span>
-                {hasError && <span className="w-2 h-2 rounded-full bg-red-500" />}
+                {hasError && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />}
+                {!showLog && logs.length > 0 && (
+                  <span className="ml-1 truncate font-normal text-[11px] text-zinc-400 corp-mono min-w-0">
+                    {logs[logs.length - 1].message}
+                  </span>
+                )}
               </span>
               <svg
-                className={`lg:hidden w-4 h-4 text-zinc-400 transition-transform duration-300 ${showLog ? "rotate-180" : ""}`}
+                className={`shrink-0 ml-3 w-4 h-4 text-zinc-400 transition-transform duration-300 ${showLog ? "rotate-180" : ""}`}
                 viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               >
                 <path d="M6 9l6 6 6-6" />
               </svg>
             </button>
 
-            <div className={`${showLog ? "flex" : "hidden"} lg:flex flex-col flex-1 min-h-0 border-t border-zinc-200`}>
+            <div className={`${showLog ? "flex" : "hidden"} flex-col border-t border-zinc-200`}>
               <div className="shrink-0 flex flex-wrap items-center gap-3 px-4 py-2 bg-zinc-50 border-b border-zinc-200">
                 <label className="flex items-center gap-1.5 text-[11px] text-zinc-600 font-medium cursor-pointer select-none">
                   <input
@@ -1468,7 +1474,7 @@ export default function AirMidiPage() {
 
               <div
                 ref={logBoxRef}
-                className="am-scroll h-72 lg:h-auto lg:flex-1 lg:min-h-0 overflow-y-auto bg-[#0B1020] px-4 py-3 corp-mono text-[11px] leading-relaxed"
+                className="am-scroll h-40 overflow-y-auto bg-[#0B1020] px-4 py-3 corp-mono text-[11px] leading-relaxed"
               >
                 {logs.length === 0 ? (
                   <p className="text-zinc-500">No events yet.</p>
@@ -1486,6 +1492,7 @@ export default function AirMidiPage() {
               </div>
             </div>
           </section>
+          </div>
         </div>
       </main>
 
