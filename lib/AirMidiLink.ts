@@ -11,6 +11,7 @@ export type AirMidiStatus =
   | 'disconnected'
 export type AirMidiLogLevel = 'info' | 'success' | 'warn' | 'error'
 export type MidiDirection = 'in' | 'out'
+export type VideoQuality = '360p' | '720p'
 
 // Public identity shown to the other side (email is masked on purpose)
 export type AirMidiPeer = {
@@ -37,7 +38,19 @@ export class AirMidiLink {
   private channel: RealtimeChannel | null = null
   private dataChannel: RTCDataChannel | null = null
   private midiAccess: MIDIAccess | null = null
-  private pendingIce: RTCIceCandidateInit[] = []
+  private pendingIce: { from?: string; ice: RTCIceCandidateInit }[] = []
+
+  // identity of this browser tab in the signaling channel + join approval state
+  private clientId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
+  private peerId: string | null = null
+  private pendingOffer: RTCSessionDescriptionInit | null = null
+  private approved = false
+  private waitingApproval = false
+
+  // video (optional, bidirectional, no audio)
+  private videoTransceiver: RTCRtpTransceiver | null = null
+  private localStream: MediaStream | null = null
+  private remoteStream: MediaStream | null = null
   private hasRemoteDescription = false
   private connectTimer: ReturnType<typeof setTimeout> | null = null
   private hasTurn = false
@@ -54,6 +67,11 @@ export class AirMidiLink {
   public onError: (message: string) => void = () => {}
   public onLog: (level: AirMidiLogLevel, message: string) => void = () => {}
   public onPeerInfo: (peer: AirMidiPeer) => void = () => {}
+  public onJoinRequest: (peer: AirMidiPeer) => void = () => {}
+  public onWaitingApproval: () => void = () => {}
+  public onLocalVideo: (stream: MediaStream | null) => void = () => {}
+  public onRemoteStream: (stream: MediaStream | null) => void = () => {}
+  public onRemoteVideoState: (on: boolean) => void = () => {}
   private localPeer: AirMidiPeer | null = null
 
   constructor(supabaseClient: SupabaseClient) {
@@ -88,20 +106,23 @@ export class AirMidiLink {
   /* ------------------------------------------------------------------ */
   /* CONNECT TIMEOUT                                                     */
   /* ------------------------------------------------------------------ */
-  private startConnectTimer() {
+  private startConnectTimer(ms = 15000) {
     this.clearConnectTimer()
     this.connectTimer = setTimeout(() => {
       if (this.status !== 'connected' && this.status !== 'idle') {
         const hasTurn = this.hasTurn
-        this.log('error', 'Connection timed out after 15 seconds.')
+        this.log('error', `Connection timed out after ${Math.round(ms / 1000)} seconds.`)
+        const waiting = this.waitingApproval
         this.disconnect()
         this.onError(
-          hasTurn
+          waiting
+            ? 'The sender did not respond to your join request.'
+            : hasTurn
             ? 'Could not establish the connection. Check the code and make sure the sender is still active.'
             : 'Direct connection failed (mobile network or strict NAT). A TURN server is required.'
         )
       }
-    }, 15000)
+    }, ms)
   }
 
   private clearConnectTimer() {
@@ -258,6 +279,14 @@ export class AirMidiLink {
     const iceServers = await this.loadIceServers()
     this.peerConnection = new RTCPeerConnection({ iceServers })
 
+    // Remote video track (the track stays silent until the other side starts a camera)
+    this.peerConnection.ontrack = (event) => {
+      if (event.track.kind !== 'video') return
+      this.remoteStream = new MediaStream([event.track])
+      this.log('info', 'Remote video channel ready.')
+      this.onRemoteStream(this.remoteStream)
+    }
+
     this.peerConnection.onicegatheringstatechange = () => {
       const st = this.peerConnection?.iceGatheringState
       this.log('info', `ICE gathering: ${st}`)
@@ -275,7 +304,11 @@ export class AirMidiLink {
         this.channel.send({
           type: 'broadcast',
           event: 'airmidi-signal',
-          payload: { ice: event.candidate.toJSON() },
+          payload: {
+            ice: event.candidate.toJSON(),
+            from: this.clientId,
+            ...(this.peerId ? { to: this.peerId } : {}),
+          },
         })
       }
     }
@@ -319,8 +352,8 @@ export class AirMidiLink {
   }
 
   // Data from the other user is untrusted: validate and trim it
-  private handlePeerInfo(raw: any) {
-    if (!raw || typeof raw !== 'object') return
+  private handlePeerInfo(raw: any): AirMidiPeer | null {
+    if (!raw || typeof raw !== 'object') return null
     const avatar =
       typeof raw.avatar === 'string' && raw.avatar.startsWith('https://') && raw.avatar.length < 500
         ? raw.avatar
@@ -333,13 +366,16 @@ export class AirMidiLink {
     }
     this.log('info', `Peer identified: ${peer.name}`)
     this.onPeerInfo(peer)
+    return peer
   }
 
   private async flushPendingIce() {
     if (!this.peerConnection) return
-    for (const c of this.pendingIce) {
+    const list =
+      this.role === 'sender' && this.peerId ? this.pendingIce.filter((c) => c.from === this.peerId) : this.pendingIce
+    for (const c of list) {
       try {
-        await this.peerConnection.addIceCandidate(c)
+        await this.peerConnection.addIceCandidate(c.ice)
       } catch (e) {
         this.log('warn', 'An ICE candidate was ignored.')
       }
@@ -355,34 +391,74 @@ export class AirMidiLink {
 
       this.channel
         .on('broadcast', { event: 'airmidi-signal' }, async ({ payload }) => {
-          if (!this.peerConnection) return
+          if (!this.peerConnection || !payload) return
+          // addressed to another client? ignore
+          if (payload.to && payload.to !== this.clientId) return
+          const from = String(payload.from || 'unknown')
+
           try {
-            if (payload.peer) this.handlePeerInfo(payload.peer)
+            // ---- receiver: answers to its join request ----
+            if (this.role === 'receiver') {
+              if (payload.reject) {
+                this.log('warn', 'The sender declined the join request.')
+                this.disconnect()
+                this.onError('The sender declined your request to join.')
+                return
+              }
+              if (payload.pending) {
+                this.waitingApproval = true
+                this.log('info', 'Waiting for the sender to approve...')
+                this.onWaitingApproval()
+                this.startConnectTimer(60000)
+                return
+              }
+            }
+
+            // ---- sender: only talk to the first client that asks to join ----
+            if (this.role === 'sender') {
+              if (payload.sdp?.type === 'offer') {
+                if (this.peerId && from !== this.peerId) {
+                  this.log('warn', 'Ignored a join request from another client.')
+                  return
+                }
+                if (!this.peerId) this.peerId = from
+              } else if (this.peerId && from !== this.peerId) {
+                return
+              }
+            }
+
+            const peer = payload.peer ? this.handlePeerInfo(payload.peer) : null
+
             if (payload.sdp) {
               this.log('info', `Received ${payload.sdp.type} from peer.`)
-              await this.peerConnection.setRemoteDescription(payload.sdp)
-              this.hasRemoteDescription = true
-              await this.flushPendingIce()
 
-              if (payload.sdp.type === 'offer' && this.role === 'sender') {
-                const answer = await this.peerConnection.createAnswer()
-                await this.peerConnection.setLocalDescription(answer)
-                this.channel?.send({
-                  type: 'broadcast',
-                  event: 'airmidi-signal',
-                  payload: { sdp: this.peerConnection.localDescription, peer: this.localPeer },
-                })
-                this.log('info', 'Answer sent to peer.')
+              // sender: hold the offer until the user accepts
+              if (payload.sdp.type === 'offer' && this.role === 'sender' && !this.approved) {
+                this.pendingOffer = payload.sdp
+                this.sendSignal({ pending: true })
+                this.log('warn', `Join request from ${peer?.name || 'an unknown user'}. Waiting for approval.`)
+                this.onJoinRequest(peer || { name: 'Unknown user', email: '', role: 'receiver' })
+                return
               }
+              await this.applyRemoteSdp(payload.sdp)
             } else if (payload.ice) {
               if (this.hasRemoteDescription) {
                 await this.peerConnection.addIceCandidate(payload.ice)
               } else {
-                this.pendingIce.push(payload.ice)
+                this.pendingIce.push({ from, ice: payload.ice })
               }
             }
           } catch (err: any) {
             this.log('error', `Signaling error: ${err?.message || err}`)
+          }
+        })
+        .on('broadcast', { event: 'airmidi-control' }, ({ payload }) => {
+          if (!payload || this.status !== 'connected') return
+          if (payload.to && payload.to !== this.clientId) return
+          if (this.role === 'sender' && this.peerId && payload.from !== this.peerId) return
+          if (typeof payload.video === 'boolean') {
+            this.log('info', `Remote camera ${payload.video ? 'on' : 'off'}.`)
+            this.onRemoteVideoState(payload.video)
           }
         })
         .subscribe((s) => {
@@ -476,17 +552,172 @@ export class AirMidiLink {
     this.dataChannel = this.peerConnection!.createDataChannel('midi-data', { ordered: true })
     this.setupDataChannelHandlers()
 
+    // Video m-line negotiated once, up front. The camera is attached later with replaceTrack(),
+    // so turning it on/off never needs a new negotiation.
+    this.videoTransceiver = this.peerConnection!.addTransceiver('video', { direction: 'sendrecv' })
+
     await this.setupSignalingChannel(code)
 
     const offer = await this.peerConnection!.createOffer()
     await this.peerConnection!.setLocalDescription(offer)
+    this.sendSignal({ sdp: this.peerConnection!.localDescription, peer: this.localPeer })
+    this.log('info', 'Offer sent. Waiting for the sender to answer...')
+    this.startConnectTimer()
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------ */
+  /* SIGNALING HELPERS + JOIN APPROVAL                                   */
+  /* ------------------------------------------------------------------ */
+  private sendSignal(extra: Record<string, unknown>) {
     this.channel?.send({
       type: 'broadcast',
       event: 'airmidi-signal',
-      payload: { sdp: this.peerConnection!.localDescription, peer: this.localPeer },
+      payload: { from: this.clientId, ...(this.peerId ? { to: this.peerId } : {}), ...extra },
     })
-    this.log('info', 'Offer sent. Waiting for the sender to answer...')
-    this.startConnectTimer()
+  }
+
+  private sendControl(extra: Record<string, unknown>) {
+    this.channel?.send({
+      type: 'broadcast',
+      event: 'airmidi-control',
+      payload: { from: this.clientId, ...(this.peerId ? { to: this.peerId } : {}), ...extra },
+    })
+  }
+
+  private async applyRemoteSdp(sdp: RTCSessionDescriptionInit) {
+    const pc = this.peerConnection
+    if (!pc) return
+    await pc.setRemoteDescription(sdp)
+    this.hasRemoteDescription = true
+    await this.flushPendingIce()
+
+    if (sdp.type === 'offer' && this.role === 'sender') {
+      // Make the negotiated video m-line send + receive, so our camera can start later without renegotiating
+      const t = pc.getTransceivers().find((x) => x.receiver.track?.kind === 'video')
+      if (t) {
+        t.direction = 'sendrecv'
+        this.videoTransceiver = t
+      }
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+      this.sendSignal({ sdp: pc.localDescription, peer: this.localPeer })
+      this.log('info', 'Answer sent to peer.')
+    }
+  }
+
+  // Sender: accept the pending join request
+  public async approveJoin() {
+    if (this.role !== 'sender' || !this.pendingOffer) return
+    const sdp = this.pendingOffer
+    this.pendingOffer = null
+    this.approved = true
+    this.log('success', 'Join request accepted.')
+    try {
+      await this.applyRemoteSdp(sdp)
+    } catch (err: any) {
+      this.log('error', `Could not accept the request: ${err?.message || err}`)
+    }
+  }
+
+  // Sender: decline the pending join request
+  public rejectJoin() {
+    if (this.role !== 'sender' || !this.pendingOffer) return
+    this.sendSignal({ reject: true })
+    this.pendingOffer = null
+    const declined = this.peerId
+    this.pendingIce = this.pendingIce.filter((c) => c.from !== declined)
+    this.peerId = null
+    this.log('warn', 'Join request declined.')
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* OPTIONAL VIDEO (bidirectional, no audio)                            */
+  /* ------------------------------------------------------------------ */
+  public get videoActive(): boolean {
+    return !!this.localStream
+  }
+
+  private stopLocalTracks() {
+    this.localStream?.getTracks().forEach((t) => {
+      t.onended = null
+      t.stop()
+    })
+    this.localStream = null
+  }
+
+  public async startVideo(quality: VideoQuality = '360p') {
+    if (this.status !== 'connected' || !this.videoTransceiver) {
+      throw new Error('Connect first, then start the camera.')
+    }
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      throw new Error('This browser does not support camera access.')
+    }
+
+    const q =
+      quality === '720p'
+        ? { w: 1280, h: 720, bitrate: 1_500_000 }
+        : { w: 640, h: 360, bitrate: 500_000 }
+
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: q.w },
+          height: { ideal: q.h },
+          frameRate: { ideal: 24, max: 30 },
+          facingMode: 'user',
+        },
+        audio: false,
+      })
+    } catch (err: any) {
+      const name = err?.name
+      throw new Error(
+        name === 'NotAllowedError' || name === 'SecurityError'
+          ? 'Camera permission was denied.'
+          : name === 'NotFoundError'
+          ? 'No camera found on this device.'
+          : 'Could not start the camera.'
+      )
+    }
+
+    this.stopLocalTracks() // switching quality: release the previous camera stream
+    this.localStream = stream
+    const track = stream.getVideoTracks()[0]
+    track.onended = () => {
+      this.log('warn', 'Camera stopped by the system.')
+      this.stopVideo()
+    }
+
+    await this.videoTransceiver.sender.replaceTrack(track)
+
+    // cap the bitrate so a relayed (TURN) call stays cheap
+    try {
+      const sender = this.videoTransceiver.sender
+      const params = sender.getParameters()
+      if (!params.encodings || params.encodings.length === 0) params.encodings = [{}]
+      params.encodings[0].maxBitrate = q.bitrate
+      await sender.setParameters(params)
+    } catch {
+      this.log('warn', 'Could not apply the video bitrate limit.')
+    }
+
+    this.sendControl({ video: true })
+    this.log('success', `Camera started (${quality}).`)
+    this.onLocalVideo(stream)
+  }
+
+  public async stopVideo() {
+    if (!this.localStream) return
+    this.stopLocalTracks()
+    try {
+      await this.videoTransceiver?.sender.replaceTrack(null)
+    } catch {
+      /* ignore */
+    }
+    this.sendControl({ video: false })
+    this.log('info', 'Camera stopped.')
+    this.onLocalVideo(null)
   }
 
   /* ------------------------------------------------------------------ */
@@ -518,7 +749,7 @@ export class AirMidiLink {
       this.midiAccess.inputs.forEach((i) => (i.onmidimessage = null))
       this.midiAccess.onstatechange = null
     }
-    
+
     this.dataChannel = null
     this.peerConnection = null
     this.channel = null
@@ -526,6 +757,19 @@ export class AirMidiLink {
     this.localPeer = null
     this.pendingIce = []
     this.hasRemoteDescription = false
+
+    // video + join approval state
+    this.stopLocalTracks()
+    this.videoTransceiver = null
+    this.remoteStream = null
+    this.peerId = null
+    this.pendingOffer = null
+    this.approved = false
+    this.waitingApproval = false
+    this.onLocalVideo(null)
+    this.onRemoteStream(null)
+    this.onRemoteVideoState(false)
+
     this.updateStatus('idle')
   }
 }

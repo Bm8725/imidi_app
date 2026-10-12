@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
-import { AirMidiLink, AirMidiStatus, AirMidiLogLevel, AirMidiPeer, peerFromUser } from "@/lib/AirMidiLink";
+import { AirMidiLink, AirMidiStatus, AirMidiLogLevel, AirMidiPeer, VideoQuality, peerFromUser } from "@/lib/AirMidiLink";
 
 /* ---------------------------------------------------------------------- */
 /* Types & helpers                                                         */
@@ -308,6 +308,16 @@ export default function AirMidiPage() {
   const [isFs, setIsFs] = useState(false); // real browser fullscreen
   const [pseudoFs, setPseudoFs] = useState(false); // fallback "app mode" (e.g. iPhone)
 
+  // join approval + optional video
+  const [joinRequest, setJoinRequest] = useState<AirMidiPeer | null>(null);
+  const [waitingApproval, setWaitingApproval] = useState(false);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [remoteVideoOn, setRemoteVideoOn] = useState(false);
+  const [quality, setQuality] = useState<VideoQuality>("360p");
+  const [cameraBusy, setCameraBusy] = useState(false);
+  const cameraOn = !!localStream;
+
   const [mode, setMode] = useState<"choose" | "sender" | "receiver">("choose");
   const [status, setStatus] = useState<AirMidiStatus>("idle");
   const [roomCode, setRoomCode] = useState("");
@@ -330,6 +340,8 @@ export default function AirMidiPage() {
   const airMidiRef = useRef<AirMidiLink | null>(null);
   const ledTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logBoxRef = useRef<HTMLDivElement | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const logIdRef = useRef(0);
   const logBufferRef = useRef<LogEntry[]>([]);
@@ -396,6 +408,11 @@ export default function AirMidiPage() {
     link.onDevicesChange = (names) => setDetectedDevices(names);
 
     link.onPeerInfo = (p) => setPeer(p);
+    link.onJoinRequest = (p) => setJoinRequest(p);
+    link.onWaitingApproval = () => setWaitingApproval(true);
+    link.onLocalVideo = (st) => setLocalStream(st);
+    link.onRemoteStream = (st) => setRemoteStream(st);
+    link.onRemoteVideoState = (on) => setRemoteVideoOn(on);
 
     link.onError = (msg) => {
       setError(msg);
@@ -404,6 +421,8 @@ export default function AirMidiPage() {
       setRoomCode("");
       setInputCode("");
       setPeer(null);
+      setJoinRequest(null);
+      setWaitingApproval(false);
     };
 
     link.onLog = (level, message) => pushLog(level, message);
@@ -464,6 +483,19 @@ export default function AirMidiPage() {
     const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
     return () => clearInterval(t);
   }, [status]);
+
+  /* ---- attach camera streams to <video> elements ---- */
+  useEffect(() => {
+    const el = localVideoRef.current;
+    if (el) el.srcObject = localStream;
+  }, [localStream, status]);
+
+  useEffect(() => {
+    const el = remoteVideoRef.current;
+    if (!el) return;
+    el.srcObject = remoteStream;
+    if (remoteStream) el.play().catch(() => {});
+  }, [remoteStream, status, remoteVideoOn]);
 
   /* ---- fullscreen state ---- */
   useEffect(() => {
@@ -573,11 +605,48 @@ export default function AirMidiPage() {
     setScanning(false);
     setDetectedDevices([]);
     setPeer(null);
+    setJoinRequest(null);
+    setWaitingApproval(false);
     countRef.current = 0;
     lastMsgRef.current = "—";
     chRef.current = Array(16).fill(0);
     setStats({ count: 0, last: "—" });
     setChannels(Array(16).fill(0));
+  };
+
+  const toggleCamera = async () => {
+    setError("");
+    setCameraBusy(true);
+    try {
+      if (cameraOn) await airMidiRef.current?.stopVideo();
+      else await airMidiRef.current?.startVideo(quality);
+    } catch (err: any) {
+      setError(err.message);
+    }
+    setCameraBusy(false);
+  };
+
+  const changeQuality = async (q: VideoQuality) => {
+    setQuality(q);
+    if (!cameraOn) return;
+    setCameraBusy(true);
+    try {
+      await airMidiRef.current?.startVideo(q);
+    } catch (err: any) {
+      setError(err.message);
+    }
+    setCameraBusy(false);
+  };
+
+  const acceptJoin = async () => {
+    setJoinRequest(null);
+    await airMidiRef.current?.approveJoin();
+  };
+
+  const declineJoin = () => {
+    setJoinRequest(null);
+    airMidiRef.current?.rejectJoin();
+    setPeer(null);
   };
 
   const toggleFullscreen = async () => {
@@ -700,6 +769,49 @@ export default function AirMidiPage() {
       <div className="absolute top-[-10%] right-[-5%] w-[400px] sm:w-[800px] h-[400px] sm:h-[800px] bg-gradient-to-br from-[#4F46E5]/35 via-[#8B5CF6]/30 to-transparent rounded-full blur-[70px] sm:blur-[110px] pointer-events-none z-0 animate-pulse duration-[5000ms]" />
       <div className="absolute bottom-[5%] left-[-10%] w-[350px] sm:w-[700px] h-[350px] sm:h-[700px] bg-gradient-to-tr from-[#6366F1]/25 via-[#EC4899]/10 to-transparent rounded-full blur-[80px] sm:blur-[120px] pointer-events-none z-0" />
 
+      {/* JOIN REQUEST (sender must approve every new participant) */}
+      {joinRequest && (
+        <div
+          className="am-fade-up fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Join request"
+        >
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl text-center space-y-5">
+            <div className="flex justify-center">
+              <div className="relative">
+                <span className="absolute inset-0 rounded-full bg-indigo-400/30 am-ring" />
+                <div className="relative rounded-full p-[3px] bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500">
+                  <div className="rounded-full bg-white p-0.5">
+                    <Avatar name={joinRequest.name} src={joinRequest.avatar} size={64} />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Join request</p>
+              <h3 className="text-lg font-extrabold text-zinc-900 truncate">{joinRequest.name}</h3>
+              {joinRequest.email && <p className="text-xs corp-mono text-zinc-400">{joinRequest.email}</p>}
+              <p className="text-sm text-zinc-500 pt-2">wants to join your session. Only accept people you know.</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={declineJoin}
+                className="flex-1 h-11 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-xs font-semibold transition-colors"
+              >
+                Decline
+              </button>
+              <button
+                onClick={acceptJoin}
+                className="flex-1 h-11 rounded-xl bg-black text-white text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 active:scale-[0.98] transition-all"
+              >
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!appMode && <Navbar />}
 
       {/* WORKSPACE: fills the whole viewport on desktop */}
@@ -728,6 +840,15 @@ export default function AirMidiPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            {cameraOn && (
+              <span className="inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border border-red-200 bg-red-50 text-red-700">
+                <span className="relative flex w-2 h-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-60 animate-ping" />
+                  <span className="relative inline-flex w-2 h-2 rounded-full bg-red-500" />
+                </span>
+                Camera live
+              </span>
+            )}
             {connected && (
               <span className="hidden sm:inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border border-zinc-200 bg-white text-zinc-700 corp-mono">
                 ⏱ {formatElapsed(elapsed)}
@@ -793,6 +914,7 @@ export default function AirMidiPage() {
                 {[
                   { k: "Role", v: roleLabel },
                   { k: "Peer", v: peer?.name || "—" },
+                  { k: "Camera", v: cameraOn ? "On" : "Off" },
                   { k: "Room", v: roomCode || "—", mono: true },
                   { k: "State", v: meta.label },
                   { k: "Uptime", v: connected ? formatElapsed(elapsed) : "—", mono: true },
@@ -998,7 +1120,7 @@ export default function AirMidiPage() {
                       placeholder="000000"
                       disabled={loading}
                     />
-                    {loading && <ScanBar label="Negotiating secure connection…" />}
+                    {loading && <ScanBar label={waitingApproval ? "Waiting for the sender to approve…" : "Negotiating secure connection…"} />}
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -1047,6 +1169,76 @@ export default function AirMidiPage() {
 
                     {/* who am I connected with */}
                     <PeerLink me={me} peer={peer} myRole={mode === "receiver" ? "receiver" : "sender"} active={isActive} />
+
+                    {/* optional video (bidirectional, no audio) */}
+                    <div className="bg-white border border-zinc-200 rounded-2xl p-3 sm:p-4 shadow-sm space-y-3">
+                      <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-[#0B1020]">
+                        <video
+                          ref={remoteVideoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-500 ${
+                            remoteVideoOn ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        {!remoteVideoOn && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-zinc-500 px-4 text-center">
+                            <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
+                              <line x1="1" y1="1" x2="23" y2="23" />
+                            </svg>
+                            <p className="text-xs font-medium">
+                              {peer ? `${peer.name}'s camera is off` : "Remote camera is off"}
+                            </p>
+                          </div>
+                        )}
+                        {remoteVideoOn && peer && (
+                          <span className="absolute left-3 bottom-3 text-[11px] font-semibold text-white bg-black/50 backdrop-blur px-2.5 py-1 rounded-full">
+                            {peer.name}
+                          </span>
+                        )}
+                        {cameraOn && (
+                          <div className="am-fade-up absolute right-3 bottom-3 w-28 sm:w-40 aspect-video rounded-lg overflow-hidden border-2 border-white/80 shadow-lg bg-black">
+                            <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover -scale-x-100" />
+                            <span className="absolute left-1.5 top-1.5 flex items-center gap-1 text-[9px] font-bold text-white bg-red-600/90 px-1.5 py-0.5 rounded-full">
+                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                              LIVE
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={toggleCamera}
+                          disabled={cameraBusy}
+                          className={`h-10 px-4 rounded-xl text-xs font-bold transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-2 ${
+                            cameraOn
+                              ? "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100"
+                              : "bg-black text-white hover:bg-neutral-800"
+                          }`}
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M23 7l-7 5 7 5V7z" />
+                            <rect x="1" y="5" width="15" height="14" rx="2" />
+                          </svg>
+                          {cameraBusy ? "…" : cameraOn ? "Stop camera" : "Start camera"}
+                        </button>
+                        <select
+                          value={quality}
+                          onChange={(e) => changeQuality(e.target.value as VideoQuality)}
+                          disabled={cameraBusy}
+                          className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 outline-none focus:border-indigo-400"
+                        >
+                          <option value="360p">360p · saves data</option>
+                          <option value="720p">720p · sharper</option>
+                        </select>
+                        <p className="text-[11px] text-zinc-400 w-full sm:w-auto sm:ml-auto">
+                          Video only, no audio. Your camera stays off until you start it.
+                        </p>
+                      </div>
+                    </div>
 
                     {/* stats */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
