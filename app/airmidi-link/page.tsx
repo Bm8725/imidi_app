@@ -496,6 +496,544 @@ function Watermark({ className = "" }: { className?: string }) {
   );
 }
 
+/* ---- piano keyboard: lights up with the MIDI notes in the link ---- */
+const KB_RANGES: Record<number, [number, number]> = { 49: [36, 84], 61: [36, 96], 88: [21, 108] };
+const BLACK_KEYS = new Set([1, 3, 6, 8, 10]);
+
+const CHORDS: [string, number[]][] = [
+  ["", [0, 4, 7]],
+  ["m", [0, 3, 7]],
+  ["dim", [0, 3, 6]],
+  ["aug", [0, 4, 8]],
+  ["sus2", [0, 2, 7]],
+  ["sus4", [0, 5, 7]],
+  ["maj7", [0, 4, 7, 11]],
+  ["7", [0, 4, 7, 10]],
+  ["m7", [0, 3, 7, 10]],
+  ["m7♭5", [0, 3, 6, 10]],
+  ["dim7", [0, 3, 6, 9]],
+  ["mMaj7", [0, 3, 7, 11]],
+  ["6", [0, 4, 7, 9]],
+  ["m6", [0, 3, 7, 9]],
+  ["add9", [0, 2, 4, 7]],
+  ["m(add9)", [0, 2, 3, 7]],
+  ["5", [0, 7]],
+];
+
+// notes: pressed MIDI notes, ascending. Returns e.g. "Cmaj7" or "Am/C" (inversion), or "".
+function detectChord(notes: number[]): string {
+  if (notes.length < 2) return "";
+  const pcs = Array.from(new Set(notes.map((n) => n % 12))).sort((a, b) => a - b);
+  const bass = notes[0] % 12;
+  const roots = [bass, ...pcs.filter((x) => x !== bass)]; // the lowest note is tried first
+  for (const root of roots) {
+    const set = pcs.map((x) => (x - root + 12) % 12).sort((a, b) => a - b);
+    for (const [name, iv] of CHORDS) {
+      if (iv.length === set.length && iv.every((v, i) => v === set[i])) {
+        return `${NOTE_NAMES[root]}${name}${root !== bass ? "/" + NOTE_NAMES[bass] : ""}`;
+      }
+    }
+  }
+  return "";
+}
+
+const IcKeys = () => (
+  <svg className="w-4 h-4" {...svgProps}>
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="M7 4v8M12 4v16M17 4v8" />
+  </svg>
+);
+
+// All drawing is done by direct DOM updates in its own animation loop (no React re-renders),
+// so the keyboard never competes with the MIDI path.
+function PianoKeyboard({
+  size,
+  vel,
+  dir,
+  sustain,
+  dirty,
+}: {
+  size: number;
+  vel: React.MutableRefObject<Uint8Array>;
+  dir: React.MutableRefObject<Uint8Array>;
+  sustain: React.MutableRefObject<number>;
+  dirty: React.MutableRefObject<boolean>;
+}) {
+  const [lo, hi] = KB_RANGES[size] || KB_RANGES[61];
+  const keyEls = useRef<(HTMLDivElement | null)[]>([]);
+  const notesTextRef = useRef<HTMLSpanElement | null>(null);
+  const chordTextRef = useRef<HTMLSpanElement | null>(null);
+  const susRef = useRef<HTMLSpanElement | null>(null);
+
+  const whites: number[] = [];
+  const blacks: { n: number; at: number }[] = [];
+  for (let n = lo; n <= hi; n++) {
+    if (BLACK_KEYS.has(n % 12)) blacks.push({ n, at: whites.length });
+    else whites.push(n);
+  }
+  const unit = 100 / whites.length;
+  const blackW = unit * 0.62;
+
+  useEffect(() => {
+    const paint = (n: number, v: number, d: number) => {
+      const el = keyEls.current[n];
+      if (!el) return;
+      if (!v) {
+        el.style.background = "";
+        el.style.boxShadow = "";
+        el.style.transform = "";
+        el.style.borderColor = "";
+        return;
+      }
+      const black = BLACK_KEYS.has(n % 12);
+      const c = d === 2 ? "217,70,239" : "99,102,241"; // remote: fuchsia, you: indigo
+      const a = 0.5 + 0.5 * (v / 127); // harder hit = stronger colour
+      el.style.background = black
+        ? `linear-gradient(to bottom, rgba(${c},${a}), rgba(${c},${a * 0.65}))`
+        : `linear-gradient(to bottom, rgba(${c},${a * 0.9}), rgba(${c},${a * 0.45}))`;
+      el.style.boxShadow = `0 0 ${10 + 14 * a}px rgba(${c},${0.55 * a})`;
+      el.style.transform = black ? "translateY(1px)" : "translateY(2px)";
+      el.style.borderColor = `rgba(${c},0.9)`;
+    };
+
+    const prev = new Uint16Array(128).fill(0xffff); // force a first paint
+    let prevSus = -1;
+    let raf = 0;
+    dirty.current = true;
+
+    const tick = () => {
+      if (dirty.current) {
+        dirty.current = false;
+        const pressed: number[] = [];
+        for (let n = 0; n < 128; n++) {
+          const v = vel.current[n];
+          const sig = v ? (dir.current[n] << 8) | v : 0;
+          if (v) pressed.push(n);
+          if (prev[n] !== sig) {
+            prev[n] = sig;
+            paint(n, v, dir.current[n]);
+          }
+        }
+        if (notesTextRef.current) notesTextRef.current.textContent = pressed.length ? pressed.map(noteName).join(" ") : "—";
+        if (chordTextRef.current) chordTextRef.current.textContent = detectChord(pressed) || "—";
+        const sus = sustain.current;
+        if (susRef.current && sus !== prevSus) {
+          prevSus = sus;
+          susRef.current.style.opacity = sus ? "1" : "0.35";
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [lo, hi, vel, dir, sustain, dirty]);
+
+  return (
+    <div>
+      <div className="relative flex h-28 sm:h-40 select-none rounded-b-lg overflow-visible">
+        {whites.map((n) => (
+          <div
+            key={n}
+            ref={(el) => {
+              keyEls.current[n] = el;
+            }}
+            className="relative flex-1 min-w-0 rounded-b-md border border-zinc-300 bg-gradient-to-b from-white to-zinc-100 transition-[transform,box-shadow] duration-75 flex items-end justify-center pb-1"
+          >
+            {n % 12 === 0 && (
+              <span className="text-[8px] sm:text-[9px] font-semibold text-zinc-400 corp-mono pointer-events-none">
+                C{Math.floor(n / 12) - 1}
+              </span>
+            )}
+          </div>
+        ))}
+        {blacks.map(({ n, at }) => (
+          <div
+            key={n}
+            ref={(el) => {
+              keyEls.current[n] = el;
+            }}
+            style={{ left: `${at * unit - blackW / 2}%`, width: `${blackW}%` }}
+            className="absolute top-0 h-[62%] z-10 rounded-b-md bg-gradient-to-b from-zinc-800 to-black shadow-md transition-[transform,box-shadow] duration-75"
+          />
+        ))}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Notes</span>
+          <span ref={notesTextRef} className="corp-mono font-semibold text-zinc-800 truncate max-w-[14rem] sm:max-w-sm">
+            —
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Chord</span>
+          <span ref={chordTextRef} className="corp-mono font-bold text-indigo-600">
+            —
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Pedal</span>
+          <span
+            ref={susRef}
+            style={{ opacity: 0.35 }}
+            className="inline-block px-2 py-0.5 rounded-md bg-zinc-900 text-white text-[10px] font-bold corp-mono transition-opacity"
+          >
+            SUS
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- MIDI controls: knobs, wheels and tempo derived from the live MIDI stream ---- */
+const CC_TILES = [
+  { id: "cc7", cc: 7, name: "Volume", short: "07", center: false },
+  { id: "cc11", cc: 11, name: "Expression", short: "11", center: false },
+  { id: "cc1", cc: 1, name: "Mod wheel", short: "01", center: false },
+  { id: "cc10", cc: 10, name: "Pan", short: "10", center: true },
+  { id: "cc74", cc: 74, name: "Brightness", short: "74", center: false },
+  { id: "cc91", cc: 91, name: "Reverb", short: "91", center: false },
+  { id: "cc93", cc: 93, name: "Chorus", short: "93", center: false },
+];
+
+const CTL_ITEMS = [
+  ...CC_TILES.map((t) => ({ id: t.id, label: `${t.name} ${t.short}` })),
+  { id: "bend", label: "Pitch bend" },
+  { id: "press", label: "Aftertouch" },
+  { id: "tempo", label: "Tempo" },
+  { id: "prog", label: "Program" },
+];
+
+const IcSliders = () => (
+  <svg className="w-4 h-4" {...svgProps}>
+    <line x1="4" y1="21" x2="4" y2="14" />
+    <line x1="4" y1="10" x2="4" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="12" />
+    <line x1="12" y1="8" x2="12" y2="3" />
+    <line x1="20" y1="21" x2="20" y2="16" />
+    <line x1="20" y1="12" x2="20" y2="3" />
+    <line x1="1" y1="14" x2="7" y2="14" />
+    <line x1="9" y1="8" x2="15" y2="8" />
+    <line x1="17" y1="16" x2="23" y2="16" />
+  </svg>
+);
+
+// Like the keyboard: values live in refs and are drawn by direct DOM updates in an animation loop,
+// so this panel never adds work to the MIDI path.
+function ControlsPanel({
+  hidden,
+  cc,
+  bend,
+  press,
+  prog,
+  transport,
+  clkTimes,
+  clkIdx,
+  dirty,
+}: {
+  hidden: string[];
+  cc: React.MutableRefObject<Int16Array>;
+  bend: React.MutableRefObject<number>;
+  press: React.MutableRefObject<number>;
+  prog: React.MutableRefObject<number>;
+  transport: React.MutableRefObject<number>;
+  clkTimes: React.MutableRefObject<Float64Array>;
+  clkIdx: React.MutableRefObject<number>;
+  dirty: React.MutableRefObject<boolean>;
+}) {
+  const els = useRef<Record<string, any>>({});
+  const reg = (k: string) => (n: any) => {
+    els.current[k] = n;
+  };
+  const isOn = (id: string) => !hidden.includes(id);
+  const R = 26;
+  const C = 2 * Math.PI * R; // circle length
+  const SW = 0.75 * C; // 270 degree sweep
+  const hiddenKey = hidden.join(",");
+
+  useEffect(() => {
+    const E = els.current;
+    const lastCc = new Int16Array(128).fill(-2);
+    let lastBend = Number.NaN;
+    let lastPress = -2;
+    let lastProg = -3;
+    let lastTransport = -1;
+    let lastBeat = -1;
+    let lastBpmAt = 0;
+    let lastBpmShown = "";
+    let bpmEma = 0;
+    let beatFadeAt = 0;
+    let first = true;
+    let raf = 0;
+    const hot: Record<string, number> = {};
+    dirty.current = true;
+
+    const flash = (id: string, now: number) => {
+      const b = E[id + ":box"];
+      if (!b) return;
+      hot[id] = now + 450;
+      b.style.borderColor = "rgba(99,102,241,.55)";
+      b.style.boxShadow = "0 0 18px rgba(99,102,241,.25)";
+    };
+
+    const tick = () => {
+      const now = performance.now();
+
+      if (dirty.current) {
+        dirty.current = false;
+
+        for (const t of CC_TILES) {
+          const v = cc.current[t.cc];
+          if (v === lastCc[t.cc]) continue;
+          lastCc[t.cc] = v;
+          const arc = E[t.id + ":arc"];
+          const txt = E[t.id + ":val"];
+          if (!arc || !txt) continue;
+          const f = v < 0 ? 0 : v / 127;
+          let start = 0;
+          let len = SW * f;
+          if (t.center) {
+            // pan: the arc grows from the middle to the left or to the right
+            if (f >= 0.5) {
+              start = SW * 0.5;
+              len = SW * (f - 0.5);
+            } else {
+              start = SW * f;
+              len = SW * (0.5 - f);
+            }
+          }
+          arc.style.strokeDasharray = `${len} ${C}`;
+          arc.style.strokeDashoffset = String(-start);
+          txt.textContent = v < 0 ? "—" : t.center ? (v === 64 ? "C" : v < 64 ? `L${64 - v}` : `R${v - 64}`) : String(v);
+          if (!first && v >= 0) flash(t.id, now);
+        }
+
+        const b = bend.current;
+        if (b !== lastBend) {
+          lastBend = b;
+          const fill = E["bend:fill"];
+          const txt = E["bend:val"];
+          if (fill) {
+            const w = (Math.abs(b) / 8192) * 50;
+            fill.style.left = `${b >= 0 ? 50 : 50 - w}%`;
+            fill.style.width = `${w}%`;
+          }
+          if (txt) txt.textContent = `${b > 0 ? "+" : ""}${b}`;
+          if (!first) flash("bend", now);
+        }
+
+        const pr = press.current;
+        if (pr !== lastPress) {
+          lastPress = pr;
+          const fill = E["press:fill"];
+          const txt = E["press:val"];
+          if (fill) fill.style.width = `${(pr / 127) * 100}%`;
+          if (txt) txt.textContent = String(pr);
+          if (!first) flash("press", now);
+        }
+
+        const pg = prog.current;
+        if (pg !== lastProg) {
+          lastProg = pg;
+          const txt = E["prog:val"];
+          if (txt) txt.textContent = pg < 0 ? "—" : `#${pg}`;
+          if (!first && pg >= 0) flash("prog", now);
+        }
+
+        const tr = transport.current;
+        if (tr !== lastTransport) {
+          lastTransport = tr;
+          const el = E["tempo:tr"];
+          if (el) {
+            el.textContent = tr === 1 ? "PLAY" : tr === 2 ? "STOP" : "—";
+            el.style.background = tr === 1 ? "#10B981" : "#E4E4E7";
+            el.style.color = tr === 1 ? "#fff" : "#52525B";
+          }
+        }
+        first = false;
+      }
+
+      // tempo from the MIDI clock (24 ticks per quarter note), refreshed ~3 times a second
+      if (now - lastBpmAt > 300) {
+        lastBpmAt = now;
+        const idx = clkIdx.current;
+        const times = clkTimes.current;
+        let shown = "—";
+        if (idx >= 8 && now - times[(idx - 1) % 64] < 1000) {
+          const count = Math.min(idx, 48);
+          const span = times[(idx - 1) % 64] - times[(idx - count) % 64];
+          if (span > 0) {
+            const bpm = 60000 / ((span / (count - 1)) * 24);
+            bpmEma = bpmEma ? bpmEma * 0.5 + bpm * 0.5 : bpm;
+            shown = bpmEma.toFixed(1);
+          }
+        } else bpmEma = 0;
+        if (shown !== lastBpmShown) {
+          lastBpmShown = shown;
+          const t = E["tempo:val"];
+          if (t) t.textContent = shown;
+        }
+      }
+
+      // beat light: blinks once per quarter note
+      const beat = Math.floor(clkIdx.current / 24);
+      if (beat !== lastBeat) {
+        lastBeat = beat;
+        const d = E["tempo:dot"];
+        if (d && clkIdx.current > 0) {
+          d.style.opacity = "1";
+          beatFadeAt = now + 90;
+        }
+      }
+      if (beatFadeAt && now > beatFadeAt) {
+        beatFadeAt = 0;
+        const d = E["tempo:dot"];
+        if (d) d.style.opacity = "0.2";
+      }
+
+      // let highlighted tiles settle back
+      for (const id in hot) {
+        if (now > hot[id]) {
+          const b = E[id + ":box"];
+          if (b) {
+            b.style.borderColor = "";
+            b.style.boxShadow = "";
+          }
+          delete hot[id];
+        }
+      }
+
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hiddenKey, cc, bend, press, prog, transport, clkTimes, clkIdx, dirty]);
+
+  const tileBox =
+    "rounded-2xl border border-zinc-200 bg-white p-3 transition-[border-color,box-shadow] duration-300";
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {CC_TILES.filter((t) => isOn(t.id)).map((t) => (
+        <div key={t.id} ref={reg(t.id + ":box")} className={`${tileBox} flex flex-col items-center gap-1`}>
+          <div className="relative w-16 h-16 sm:w-20 sm:h-20">
+            <svg viewBox="0 0 64 64" className="w-full h-full">
+              <circle
+                cx="32"
+                cy="32"
+                r={R}
+                fill="none"
+                stroke="#E4E4E7"
+                strokeWidth="6"
+                strokeLinecap="round"
+                strokeDasharray={`${SW} ${C}`}
+                transform="rotate(135 32 32)"
+              />
+              <circle
+                ref={reg(t.id + ":arc")}
+                cx="32"
+                cy="32"
+                r={R}
+                fill="none"
+                stroke={t.center ? "#D946EF" : "#6366F1"}
+                strokeWidth="6"
+                strokeLinecap="round"
+                strokeDasharray={`0 ${C}`}
+                transform="rotate(135 32 32)"
+                style={{ transition: "stroke-dasharray .08s linear, stroke-dashoffset .08s linear" }}
+              />
+            </svg>
+            <span
+              ref={reg(t.id + ":val")}
+              className="absolute inset-0 flex items-center justify-center text-sm font-bold corp-mono text-zinc-900"
+            >
+              —
+            </span>
+          </div>
+          <p className="text-[11px] font-bold text-zinc-800 leading-tight">{t.name}</p>
+          <p className="text-[9px] uppercase tracking-wider text-zinc-400 font-semibold">CC {t.short}</p>
+        </div>
+      ))}
+
+      {isOn("bend") && (
+        <div ref={reg("bend:box")} className={`${tileBox} col-span-2`}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[11px] font-bold text-zinc-800">Pitch bend</p>
+            <span ref={reg("bend:val")} className="text-sm font-bold corp-mono text-zinc-900">
+              0
+            </span>
+          </div>
+          <div className="relative mt-3 h-3 rounded-full bg-zinc-100 overflow-hidden">
+            <span className="absolute inset-y-0 left-1/2 w-px bg-zinc-300" />
+            <span
+              ref={reg("bend:fill")}
+              style={{ left: "50%", width: "0%" }}
+              className="absolute inset-y-0 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 transition-[left,width] duration-75"
+            />
+          </div>
+        </div>
+      )}
+
+      {isOn("press") && (
+        <div ref={reg("press:box")} className={`${tileBox} col-span-2`}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[11px] font-bold text-zinc-800">Aftertouch</p>
+            <span ref={reg("press:val")} className="text-sm font-bold corp-mono text-zinc-900">
+              0
+            </span>
+          </div>
+          <div className="relative mt-3 h-3 rounded-full bg-zinc-100 overflow-hidden">
+            <span
+              ref={reg("press:fill")}
+              style={{ width: "0%" }}
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 transition-[width] duration-75"
+            />
+          </div>
+        </div>
+      )}
+
+      {isOn("tempo") && (
+        <div ref={reg("tempo:box")} className={`${tileBox} col-span-2`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span
+                ref={reg("tempo:dot")}
+                style={{ opacity: 0.2 }}
+                className="w-2.5 h-2.5 rounded-full bg-indigo-500 transition-opacity duration-300"
+              />
+              <p className="text-[11px] font-bold text-zinc-800">Tempo</p>
+            </div>
+            <span
+              ref={reg("tempo:tr")}
+              style={{ background: "#E4E4E7", color: "#52525B" }}
+              className="px-2 py-0.5 rounded-md text-[10px] font-bold corp-mono"
+            >
+              —
+            </span>
+          </div>
+          <p className="mt-2 flex items-baseline gap-1.5">
+            <span ref={reg("tempo:val")} className="text-2xl font-extrabold corp-mono text-zinc-900">
+              —
+            </span>
+            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">BPM · from MIDI clock</span>
+          </p>
+        </div>
+      )}
+
+      {isOn("prog") && (
+        <div ref={reg("prog:box")} className={`${tileBox} flex flex-col justify-between`}>
+          <p className="text-[11px] font-bold text-zinc-800">Program</p>
+          <span ref={reg("prog:val")} className="mt-2 text-2xl font-extrabold corp-mono text-zinc-900">
+            —
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Panel({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
     <section className={`bg-white/80 backdrop-blur-xl border border-white/80 lg:border-[#EAEAEA] rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.03)] ${className}`}>
@@ -537,6 +1075,10 @@ export default function AirMidiPage() {
   const [speakerMuted, setSpeakerMuted] = useState(false);
   const micOn = !!localAudio;
   const [sysexOn, setSysexOn] = useState<boolean | null>(null);
+  const [showKeyboard, setShowKeyboard] = useState(true);
+  const [kbSize, setKbSize] = useState(61);
+  const [showControls, setShowControls] = useState(true);
+  const [hiddenCtl, setHiddenCtl] = useState<string[]>([]);
   const [rtt, setRtt] = useState<number | null>(null);
   const [netPath, setNetPath] = useState<"direct" | "relay" | null>(null);
   const [throttled, setThrottled] = useState(false);
@@ -596,6 +1138,32 @@ export default function AirMidiPage() {
   const chRef = useRef<number[]>(Array(16).fill(0));
   const chShownRef = useRef(false);
   const activityRef = useRef<{ data: Uint8Array; dir: "in" | "out" }[]>([]);
+
+  // keyboard state (written on every note, drawn in the piano's own animation loop)
+  const kbVel = useRef(new Uint8Array(128));
+  const kbDir = useRef(new Uint8Array(128)); // 1 = you, 2 = the other user
+  const kbSus = useRef(0);
+  const kbDirty = useRef(false);
+
+  // MIDI controls state (same idea: written in the tiny MIDI callback, drawn elsewhere)
+  const ccVal = useRef(new Int16Array(128).fill(-1)); // -1 = not received yet
+  const bendRef = useRef(0);
+  const pressRef = useRef(0);
+  const progRef = useRef(-1);
+  const transportRef = useRef(0); // 0 none, 1 play, 2 stop
+  const clkTimes = useRef(new Float64Array(64));
+  const clkIdx = useRef(0);
+  const ctlDirty = useRef(false);
+
+  const resetControls = () => {
+    ccVal.current.fill(-1);
+    bendRef.current = 0;
+    pressRef.current = 0;
+    progRef.current = -1;
+    transportRef.current = 0;
+    clkIdx.current = 0;
+    ctlDirty.current = true;
+  };
   const ledUntilRef = useRef(0);
   const ledOnRef = useRef(false);
 
@@ -685,10 +1253,52 @@ export default function AirMidiPage() {
     // Decoding, logging and drawing happen later, in the flush loop below.
     link.onMidiActivity = (data, dir) => {
       const st = data[0];
-      if (st === 0xf8 || st === 0xfe) return; // clock / active sensing: too noisy
+      if (st === 0xf8) {
+        // MIDI clock: only a timestamp is kept (tempo is derived later, in the controls loop)
+        clkTimes.current[clkIdx.current % 64] = performance.now();
+        clkIdx.current += 1;
+        return;
+      }
+      if (st === 0xfe) return; // active sensing: too noisy
       countRef.current += 1;
       statsDirtyRef.current = true;
       if (st < 0xf0) chRef.current[st & 0x0f] = 1;
+      // keyboard state: a few array writes only; the drawing happens elsewhere
+      const ty = st & 0xf0;
+      if (ty === 0x90 && data.length > 2 && data[2] > 0) {
+        kbVel.current[data[1]] = data[2];
+        kbDir.current[data[1]] = dir === "out" ? 1 : 2;
+        kbDirty.current = true;
+      } else if (ty === 0x80 || (ty === 0x90 && data.length > 2 && data[2] === 0)) {
+        kbVel.current[data[1]] = 0;
+        kbDirty.current = true;
+      } else if (ty === 0xb0 && data.length > 2) {
+        ccVal.current[data[1]] = data[2];
+        ctlDirty.current = true;
+        if (data[1] === 64) {
+          kbSus.current = data[2] >= 64 ? 1 : 0;
+          kbDirty.current = true;
+        } else if (data[1] === 120 || data[1] === 123) {
+          kbVel.current.fill(0); // all sound off / all notes off
+          kbDirty.current = true;
+        }
+      }
+      if (ty === 0xe0 && data.length > 2) {
+        bendRef.current = ((data[2] << 7) | data[1]) - 8192;
+        ctlDirty.current = true;
+      } else if (ty === 0xd0 && data.length > 1) {
+        pressRef.current = data[1];
+        ctlDirty.current = true;
+      } else if (ty === 0xc0 && data.length > 1) {
+        progRef.current = data[1];
+        ctlDirty.current = true;
+      } else if (st === 0xfa || st === 0xfb) {
+        transportRef.current = 1;
+        ctlDirty.current = true;
+      } else if (st === 0xfc) {
+        transportRef.current = 2;
+        ctlDirty.current = true;
+      }
       activityRef.current.push({ data, dir });
       ledUntilRef.current = performance.now() + 90;
       if (!ledOnRef.current) {
@@ -781,6 +1391,34 @@ export default function AirMidiPage() {
     const el = remoteAudioRef.current;
     if (el) el.muted = speakerMuted;
   }, [speakerMuted]);
+
+  /* ---- keyboard: remembered on/off + size, and release every key when the link ends ---- */
+  useEffect(() => {
+    try {
+      const on = localStorage.getItem("airmidi-kb-on");
+      if (on !== null) setShowKeyboard(on === "1");
+      const cOn = localStorage.getItem("airmidi-ctl-on");
+      if (cOn !== null) setShowControls(cOn === "1");
+      const cHidden = JSON.parse(localStorage.getItem("airmidi-ctl-hidden") || "[]");
+      if (Array.isArray(cHidden)) setHiddenCtl(cHidden.filter((x) => typeof x === "string"));
+      const sz = Number(localStorage.getItem("airmidi-kb-size"));
+      if (sz === 49 || sz === 61 || sz === 88) setKbSize(sz);
+      else if (window.innerWidth < 640) setKbSize(49);
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (status !== "connected") {
+      kbVel.current.fill(0);
+      kbDir.current.fill(0);
+      kbSus.current = 0;
+      kbDirty.current = true;
+      resetControls();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   /* ---- stage: auto-hide controls while in full screen ---- */
   useEffect(() => {
@@ -948,6 +1586,11 @@ export default function AirMidiPage() {
     setAudioBlocked(false);
     setSysexOn(null);
     setStagePseudo(false);
+    kbVel.current.fill(0);
+    kbDir.current.fill(0);
+    kbSus.current = 0;
+    kbDirty.current = true;
+    resetControls();
     setRtt(null);
     setNetPath(null);
     setThrottled(false);
@@ -1014,6 +1657,45 @@ export default function AirMidiPage() {
     setJoinRequest(null);
     airMidiRef.current?.rejectJoin();
     setPeer(null);
+  };
+
+  const toggleControls = () => {
+    const next = !showControls;
+    setShowControls(next);
+    try {
+      localStorage.setItem("airmidi-ctl-on", next ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const toggleCtlItem = (id: string) => {
+    const next = hiddenCtl.includes(id) ? hiddenCtl.filter((x) => x !== id) : [...hiddenCtl, id];
+    setHiddenCtl(next);
+    try {
+      localStorage.setItem("airmidi-ctl-hidden", JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const toggleKeyboard = () => {
+    const next = !showKeyboard;
+    setShowKeyboard(next);
+    try {
+      localStorage.setItem("airmidi-kb-on", next ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const changeKbSize = (size: number) => {
+    setKbSize(size);
+    try {
+      localStorage.setItem("airmidi-kb-size", String(size));
+    } catch {
+      /* ignore */
+    }
   };
 
   const toggleStage = async () => {
@@ -1780,6 +2462,159 @@ export default function AirMidiPage() {
                       <kbd className="corp-mono">V</kbd> camera · <kbd className="corp-mono">M</kbd> mic ·{" "}
                       <kbd className="corp-mono">F</kbd> full screen
                     </p>
+
+                    {/* KEYBOARD (on/off) */}
+                    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
+                      <div
+                        className={`flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 ${
+                          showKeyboard ? "border-b border-zinc-100" : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                            <IcKeys />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-zinc-900 leading-tight">Keyboard</p>
+                            <p className="text-[11px] text-zinc-400 truncate">
+                              {showKeyboard ? "Keys light up with the MIDI notes in the link" : "Off · no drawing, zero overhead"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {showKeyboard && (
+                            <div className="hidden md:flex items-center gap-3 text-[11px] text-zinc-500 font-medium">
+                              <span className="inline-flex items-center gap-1.5">
+                                <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                                You
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 min-w-0">
+                                <span className="w-2.5 h-2.5 rounded-full bg-fuchsia-500 shrink-0" />
+                                <span className="truncate max-w-[8rem]">{peer ? peer.name : "Remote"}</span>
+                              </span>
+                            </div>
+                          )}
+                          {showKeyboard && (
+                            <div className="flex rounded-lg border border-zinc-200 bg-zinc-50 p-0.5">
+                              {[49, 61, 88].map((k) => (
+                                <button
+                                  key={k}
+                                  onClick={() => changeKbSize(k)}
+                                  title={`${k} keys`}
+                                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                                    kbSize === k ? "bg-white text-indigo-600 shadow-sm" : "text-zinc-500 hover:text-zinc-800"
+                                  }`}
+                                >
+                                  {k}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <button
+                            role="switch"
+                            aria-checked={showKeyboard}
+                            aria-label="Show keyboard"
+                            onClick={toggleKeyboard}
+                            className="flex items-center gap-2 text-[11px] font-bold text-zinc-500"
+                          >
+                            <span
+                              className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                                showKeyboard ? "bg-indigo-600" : "bg-zinc-300"
+                              }`}
+                            >
+                              <span
+                                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                                  showKeyboard ? "translate-x-5" : ""
+                                }`}
+                              />
+                            </span>
+                            {showKeyboard ? "ON" : "OFF"}
+                          </button>
+                        </div>
+                      </div>
+                      {showKeyboard && (
+                        <div className="p-4 sm:p-5 bg-gradient-to-b from-zinc-50 to-white">
+                          <PianoKeyboard size={kbSize} vel={kbVel} dir={kbDir} sustain={kbSus} dirty={kbDirty} />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* MIDI CONTROLS (on/off + per-control) */}
+                    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
+                      <div
+                        className={`flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 ${
+                          showControls ? "border-b border-zinc-100" : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                            <IcSliders />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-zinc-900 leading-tight">MIDI controls</p>
+                            <p className="text-[11px] text-zinc-400 truncate">
+                              {showControls
+                                ? "Volume, expression, mod wheel, tempo and more, live from the link"
+                                : "Off · no drawing, zero overhead"}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          role="switch"
+                          aria-checked={showControls}
+                          aria-label="Show MIDI controls"
+                          onClick={toggleControls}
+                          className="flex items-center gap-2 text-[11px] font-bold text-zinc-500"
+                        >
+                          <span
+                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                              showControls ? "bg-indigo-600" : "bg-zinc-300"
+                            }`}
+                          >
+                            <span
+                              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                                showControls ? "translate-x-5" : ""
+                              }`}
+                            />
+                          </span>
+                          {showControls ? "ON" : "OFF"}
+                        </button>
+                      </div>
+                      {showControls && (
+                        <div className="p-4 sm:p-5 bg-gradient-to-b from-zinc-50 to-white space-y-4">
+                          <div className="flex flex-wrap gap-1.5">
+                            {CTL_ITEMS.map((it) => {
+                              const on = !hiddenCtl.includes(it.id);
+                              return (
+                                <button
+                                  key={it.id}
+                                  onClick={() => toggleCtlItem(it.id)}
+                                  aria-pressed={on}
+                                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors ${
+                                    on
+                                      ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                      : "bg-white text-zinc-400 border-zinc-200 hover:text-zinc-600"
+                                  }`}
+                                >
+                                  {it.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <ControlsPanel
+                            hidden={hiddenCtl}
+                            cc={ccVal}
+                            bend={bendRef}
+                            press={pressRef}
+                            prog={progRef}
+                            transport={transportRef}
+                            clkTimes={clkTimes}
+                            clkIdx={clkIdx}
+                            dirty={ctlDirty}
+                          />
+                        </div>
+                      )}
+                    </div>
 
                     {throttled && (
                       <div className="am-fade-up text-xs bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 font-medium leading-relaxed">
