@@ -552,12 +552,14 @@ function PianoKeyboard({
   dir,
   sustain,
   dirty,
+  variant = "light",
 }: {
   size: number;
   vel: React.MutableRefObject<Uint8Array>;
   dir: React.MutableRefObject<Uint8Array>;
   sustain: React.MutableRefObject<number>;
-  dirty: React.MutableRefObject<boolean>;
+  dirty: React.MutableRefObject<number>;
+  variant?: "light" | "glass";
 }) {
   const [lo, hi] = KB_RANGES[size] || KB_RANGES[61];
   const keyEls = useRef<(HTMLDivElement | null)[]>([]);
@@ -599,11 +601,11 @@ function PianoKeyboard({
     const prev = new Uint16Array(128).fill(0xffff); // force a first paint
     let prevSus = -1;
     let raf = 0;
-    dirty.current = true;
+    let seen = -1; // every keyboard instance tracks the version it has drawn
 
     const tick = () => {
-      if (dirty.current) {
-        dirty.current = false;
+      if (dirty.current !== seen) {
+        seen = dirty.current;
         const pressed: number[] = [];
         for (let n = 0; n < 128; n++) {
           const v = vel.current[n];
@@ -628,19 +630,49 @@ function PianoKeyboard({
     return () => cancelAnimationFrame(raf);
   }, [lo, hi, vel, dir, sustain, dirty]);
 
+  const glass = variant === "glass";
   return (
     <div>
-      <div className="relative flex h-28 sm:h-40 select-none rounded-b-lg overflow-visible">
+      {glass && (
+        <div className="flex items-end justify-between gap-3 px-1 pb-2">
+          <span ref={notesTextRef} className="corp-mono text-[11px] font-semibold text-white/80 truncate max-w-[38%]">
+            —
+          </span>
+          <span
+            ref={chordTextRef}
+            className="corp-mono text-2xl sm:text-4xl font-extrabold text-white leading-none drop-shadow-[0_0_18px_rgba(129,140,248,0.9)]"
+          >
+            —
+          </span>
+          <span
+            ref={susRef}
+            style={{ opacity: 0.35 }}
+            className="px-2 py-0.5 rounded-md bg-white/20 text-white text-[10px] font-bold corp-mono transition-opacity"
+          >
+            SUS
+          </span>
+        </div>
+      )}
+
+      <div className={`relative flex select-none ${glass ? "h-16 sm:h-24" : "h-28 sm:h-40 rounded-b-lg overflow-visible"}`}>
         {whites.map((n) => (
           <div
             key={n}
             ref={(el) => {
               keyEls.current[n] = el;
             }}
-            className="relative flex-1 min-w-0 rounded-b-md border border-zinc-300 bg-gradient-to-b from-white to-zinc-100 transition-[transform,box-shadow] duration-75 flex items-end justify-center pb-1"
+            className={`relative flex-1 min-w-0 rounded-b-md border transition-[transform,box-shadow] duration-75 flex items-end justify-center pb-1 ${
+              glass
+                ? "border-white/40 bg-gradient-to-b from-white/90 to-white/55"
+                : "border-zinc-300 bg-gradient-to-b from-white to-zinc-100"
+            }`}
           >
             {n % 12 === 0 && (
-              <span className="text-[8px] sm:text-[9px] font-semibold text-zinc-400 corp-mono pointer-events-none">
+              <span
+                className={`text-[8px] sm:text-[9px] font-semibold corp-mono pointer-events-none ${
+                  glass ? "text-zinc-600" : "text-zinc-400"
+                }`}
+              >
                 C{Math.floor(n / 12) - 1}
               </span>
             )}
@@ -653,35 +685,39 @@ function PianoKeyboard({
               keyEls.current[n] = el;
             }}
             style={{ left: `${at * unit - blackW / 2}%`, width: `${blackW}%` }}
-            className="absolute top-0 h-[62%] z-10 rounded-b-md bg-gradient-to-b from-zinc-800 to-black shadow-md transition-[transform,box-shadow] duration-75"
+            className={`absolute top-0 h-[62%] z-10 rounded-b-md bg-gradient-to-b shadow-md transition-[transform,box-shadow] duration-75 ${
+              glass ? "from-zinc-900/95 to-black/85 border border-white/10" : "from-zinc-800 to-black"
+            }`}
           />
         ))}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Notes</span>
-          <span ref={notesTextRef} className="corp-mono font-semibold text-zinc-800 truncate max-w-[14rem] sm:max-w-sm">
-            —
-          </span>
+      {!glass && (
+        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Notes</span>
+            <span ref={notesTextRef} className="corp-mono font-semibold text-zinc-800 truncate max-w-[14rem] sm:max-w-sm">
+              —
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Chord</span>
+            <span ref={chordTextRef} className="corp-mono font-bold text-indigo-600">
+              —
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Pedal</span>
+            <span
+              ref={susRef}
+              style={{ opacity: 0.35 }}
+              className="inline-block px-2 py-0.5 rounded-md bg-zinc-900 text-white text-[10px] font-bold corp-mono transition-opacity"
+            >
+              SUS
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Chord</span>
-          <span ref={chordTextRef} className="corp-mono font-bold text-indigo-600">
-            —
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Pedal</span>
-          <span
-            ref={susRef}
-            style={{ opacity: 0.35 }}
-            className="inline-block px-2 py-0.5 rounded-md bg-zinc-900 text-white text-[10px] font-bold corp-mono transition-opacity"
-          >
-            SUS
-          </span>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -740,7 +776,7 @@ function ControlsPanel({
   transport: React.MutableRefObject<number>;
   clkTimes: React.MutableRefObject<Float64Array>;
   clkIdx: React.MutableRefObject<number>;
-  dirty: React.MutableRefObject<boolean>;
+  dirty: React.MutableRefObject<number>;
 }) {
   const els = useRef<Record<string, any>>({});
   const reg = (k: string) => (n: any) => {
@@ -767,7 +803,7 @@ function ControlsPanel({
     let first = true;
     let raf = 0;
     const hot: Record<string, number> = {};
-    dirty.current = true;
+    let seen = -1;
 
     const flash = (id: string, now: number) => {
       const b = E[id + ":box"];
@@ -780,8 +816,8 @@ function ControlsPanel({
     const tick = () => {
       const now = performance.now();
 
-      if (dirty.current) {
-        dirty.current = false;
+      if (dirty.current !== seen) {
+        seen = dirty.current;
 
         for (const t of CC_TILES) {
           const v = cc.current[t.cc];
@@ -1034,6 +1070,145 @@ function ControlsPanel({
   );
 }
 
+function estimateBpm(idx: number, times: Float64Array, now: number): number | null {
+  if (idx < 8 || now - times[(idx - 1) % 64] >= 1000) return null;
+  const count = Math.min(idx, 48);
+  const span = times[(idx - 1) % 64] - times[(idx - count) % 64];
+  return span > 0 ? 60000 / ((span / (count - 1)) * 24) : null;
+}
+
+const GLASS_CHIPS = [
+  { id: "cc7", cc: 7, label: "VOL" },
+  { id: "cc11", cc: 11, label: "EXP" },
+  { id: "cc1", cc: 1, label: "MOD" },
+];
+
+// Compact glass strip drawn over the video in full screen (same refs, own animation loop)
+function GlassControls({
+  hidden,
+  cc,
+  bend,
+  clkTimes,
+  clkIdx,
+  dirty,
+}: {
+  hidden: string[];
+  cc: React.MutableRefObject<Int16Array>;
+  bend: React.MutableRefObject<number>;
+  clkTimes: React.MutableRefObject<Float64Array>;
+  clkIdx: React.MutableRefObject<number>;
+  dirty: React.MutableRefObject<number>;
+}) {
+  const els = useRef<Record<string, any>>({});
+  const reg = (k: string) => (n: any) => {
+    els.current[k] = n;
+  };
+  const isOn = (id: string) => !hidden.includes(id);
+  const hiddenKey = hidden.join(",");
+
+  useEffect(() => {
+    const E = els.current;
+    const lastCc = new Int16Array(128).fill(-2);
+    let lastBend = Number.NaN;
+    let seen = -1;
+    let lastBpmAt = 0;
+    let lastShown = "";
+    let ema = 0;
+    let raf = 0;
+
+    const tick = () => {
+      const now = performance.now();
+      if (dirty.current !== seen) {
+        seen = dirty.current;
+        for (const c of GLASS_CHIPS) {
+          const v = cc.current[c.cc];
+          if (v === lastCc[c.cc]) continue;
+          lastCc[c.cc] = v;
+          const bar = E[c.id + ":bar"];
+          const txt = E[c.id + ":val"];
+          if (bar) bar.style.width = `${v < 0 ? 0 : (v / 127) * 100}%`;
+          if (txt) txt.textContent = v < 0 ? "—" : String(v);
+        }
+        const b = bend.current;
+        if (b !== lastBend) {
+          lastBend = b;
+          const fill = E["bend:bar"];
+          const txt = E["bend:val"];
+          if (fill) {
+            const w = (Math.abs(b) / 8192) * 50;
+            fill.style.left = `${b >= 0 ? 50 : 50 - w}%`;
+            fill.style.width = `${w}%`;
+          }
+          if (txt) txt.textContent = `${b > 0 ? "+" : ""}${b}`;
+        }
+      }
+      if (now - lastBpmAt > 300) {
+        lastBpmAt = now;
+        const raw = estimateBpm(clkIdx.current, clkTimes.current, now);
+        let shown = "—";
+        if (raw === null) ema = 0;
+        else {
+          ema = ema ? ema * 0.5 + raw * 0.5 : raw;
+          shown = ema.toFixed(1);
+        }
+        if (shown !== lastShown) {
+          lastShown = shown;
+          const t = E["tempo:val"];
+          if (t) t.textContent = shown;
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [hiddenKey, cc, bend, clkTimes, clkIdx, dirty]);
+
+  const chip = "flex items-center gap-2 rounded-full border border-white/20 bg-white/10 backdrop-blur-xl px-3 py-1.5";
+  return (
+    <div className="flex flex-wrap justify-center gap-2">
+      {GLASS_CHIPS.filter((c) => isOn(c.id)).map((c) => (
+        <div key={c.id} className={chip}>
+          <span className="text-[9px] font-bold tracking-[0.14em] text-white/60">{c.label}</span>
+          <span className="relative w-10 sm:w-20 h-1.5 rounded-full bg-white/15 overflow-hidden">
+            <span
+              ref={reg(c.id + ":bar")}
+              style={{ width: "0%" }}
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-400 to-fuchsia-400 transition-[width] duration-75"
+            />
+          </span>
+          <span ref={reg(c.id + ":val")} className="text-[10px] corp-mono font-semibold text-white w-6 text-right">
+            —
+          </span>
+        </div>
+      ))}
+      {isOn("bend") && (
+        <div className={chip}>
+          <span className="text-[9px] font-bold tracking-[0.14em] text-white/60">BEND</span>
+          <span className="relative w-10 sm:w-20 h-1.5 rounded-full bg-white/15 overflow-hidden">
+            <span className="absolute inset-y-0 left-1/2 w-px bg-white/40" />
+            <span
+              ref={reg("bend:bar")}
+              style={{ left: "50%", width: "0%" }}
+              className="absolute inset-y-0 rounded-full bg-gradient-to-r from-indigo-400 to-fuchsia-400 transition-[left,width] duration-75"
+            />
+          </span>
+          <span ref={reg("bend:val")} className="text-[10px] corp-mono font-semibold text-white w-10 text-right">
+            0
+          </span>
+        </div>
+      )}
+      {isOn("tempo") && (
+        <div className={chip}>
+          <span className="text-[9px] font-bold tracking-[0.14em] text-white/60">BPM</span>
+          <span ref={reg("tempo:val")} className="text-[10px] corp-mono font-semibold text-white min-w-[2.5rem] text-right">
+            —
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Panel({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
     <section className={`bg-white/80 backdrop-blur-xl border border-white/80 lg:border-[#EAEAEA] rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.03)] ${className}`}>
@@ -1095,7 +1270,16 @@ export default function AirMidiPage() {
     toggleMic: () => void;
     toggleCamera: () => void;
     toggleStage: () => void;
-  }>({ connected: false, toggleMic: () => {}, toggleCamera: () => {}, toggleStage: () => {} });
+    toggleKeyboard: () => void;
+    toggleControls: () => void;
+  }>({
+    connected: false,
+    toggleMic: () => {},
+    toggleCamera: () => {},
+    toggleStage: () => {},
+    toggleKeyboard: () => {},
+    toggleControls: () => {},
+  });
 
   const wakeControls = useCallback(() => {
     setControlsVisible(true);
@@ -1143,7 +1327,7 @@ export default function AirMidiPage() {
   const kbVel = useRef(new Uint8Array(128));
   const kbDir = useRef(new Uint8Array(128)); // 1 = you, 2 = the other user
   const kbSus = useRef(0);
-  const kbDirty = useRef(false);
+  const kbDirty = useRef(0);
 
   // MIDI controls state (same idea: written in the tiny MIDI callback, drawn elsewhere)
   const ccVal = useRef(new Int16Array(128).fill(-1)); // -1 = not received yet
@@ -1153,7 +1337,7 @@ export default function AirMidiPage() {
   const transportRef = useRef(0); // 0 none, 1 play, 2 stop
   const clkTimes = useRef(new Float64Array(64));
   const clkIdx = useRef(0);
-  const ctlDirty = useRef(false);
+  const ctlDirty = useRef(0);
 
   const resetControls = () => {
     ccVal.current.fill(-1);
@@ -1162,7 +1346,7 @@ export default function AirMidiPage() {
     progRef.current = -1;
     transportRef.current = 0;
     clkIdx.current = 0;
-    ctlDirty.current = true;
+    ctlDirty.current += 1;
   };
   const ledUntilRef = useRef(0);
   const ledOnRef = useRef(false);
@@ -1268,36 +1452,36 @@ export default function AirMidiPage() {
       if (ty === 0x90 && data.length > 2 && data[2] > 0) {
         kbVel.current[data[1]] = data[2];
         kbDir.current[data[1]] = dir === "out" ? 1 : 2;
-        kbDirty.current = true;
+        kbDirty.current += 1;
       } else if (ty === 0x80 || (ty === 0x90 && data.length > 2 && data[2] === 0)) {
         kbVel.current[data[1]] = 0;
-        kbDirty.current = true;
+        kbDirty.current += 1;
       } else if (ty === 0xb0 && data.length > 2) {
         ccVal.current[data[1]] = data[2];
-        ctlDirty.current = true;
+        ctlDirty.current += 1;
         if (data[1] === 64) {
           kbSus.current = data[2] >= 64 ? 1 : 0;
-          kbDirty.current = true;
+          kbDirty.current += 1;
         } else if (data[1] === 120 || data[1] === 123) {
           kbVel.current.fill(0); // all sound off / all notes off
-          kbDirty.current = true;
+          kbDirty.current += 1;
         }
       }
       if (ty === 0xe0 && data.length > 2) {
         bendRef.current = ((data[2] << 7) | data[1]) - 8192;
-        ctlDirty.current = true;
+        ctlDirty.current += 1;
       } else if (ty === 0xd0 && data.length > 1) {
         pressRef.current = data[1];
-        ctlDirty.current = true;
+        ctlDirty.current += 1;
       } else if (ty === 0xc0 && data.length > 1) {
         progRef.current = data[1];
-        ctlDirty.current = true;
+        ctlDirty.current += 1;
       } else if (st === 0xfa || st === 0xfb) {
         transportRef.current = 1;
-        ctlDirty.current = true;
+        ctlDirty.current += 1;
       } else if (st === 0xfc) {
         transportRef.current = 2;
-        ctlDirty.current = true;
+        ctlDirty.current += 1;
       }
       activityRef.current.push({ data, dir });
       ledUntilRef.current = performance.now() + 90;
@@ -1414,7 +1598,7 @@ export default function AirMidiPage() {
       kbVel.current.fill(0);
       kbDir.current.fill(0);
       kbSus.current = 0;
-      kbDirty.current = true;
+      kbDirty.current += 1;
       resetControls();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1460,6 +1644,8 @@ export default function AirMidiPage() {
       if (k === "m") a.toggleMic();
       else if (k === "v") a.toggleCamera();
       else if (k === "f") a.toggleStage();
+      else if (k === "k") a.toggleKeyboard();
+      else if (k === "c") a.toggleControls();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -1589,7 +1775,7 @@ export default function AirMidiPage() {
     kbVel.current.fill(0);
     kbDir.current.fill(0);
     kbSus.current = 0;
-    kbDirty.current = true;
+    kbDirty.current += 1;
     resetControls();
     setRtt(null);
     setNetPath(null);
@@ -1772,7 +1958,14 @@ export default function AirMidiPage() {
   /* ---------------------------------------------------------------------- */
   /* Render                                                                  */
   /* ---------------------------------------------------------------------- */
-  actionsRef.current = { connected: status === "connected", toggleMic, toggleCamera, toggleStage };
+  actionsRef.current = {
+    connected: status === "connected",
+    toggleMic,
+    toggleCamera,
+    toggleStage,
+    toggleKeyboard,
+    toggleControls,
+  };
 
   if (checkingAuth || !isLoggedIn) {
     return (
@@ -1871,6 +2064,32 @@ export default function AirMidiPage() {
               {cameraOn && micOn ? "CAM + MIC" : cameraOn ? "CAM" : "MIC"}
             </span>
           )}
+          {stageFull && (
+            <>
+              <button
+                onClick={toggleKeyboard}
+                title="Keyboard (K)"
+                aria-label="Toggle keyboard"
+                aria-pressed={showKeyboard}
+                className={`w-9 h-9 rounded-full border backdrop-blur flex items-center justify-center transition-colors ${
+                  showKeyboard ? "bg-white text-zinc-900 border-white" : "bg-black/40 text-white border-white/15 hover:bg-black/60"
+                }`}
+              >
+                <IcKeys />
+              </button>
+              <button
+                onClick={toggleControls}
+                title="MIDI controls (C)"
+                aria-label="Toggle MIDI controls"
+                aria-pressed={showControls}
+                className={`w-9 h-9 rounded-full border backdrop-blur flex items-center justify-center transition-colors ${
+                  showControls ? "bg-white text-zinc-900 border-white" : "bg-black/40 text-white border-white/15 hover:bg-black/60"
+                }`}
+              >
+                <IcSliders />
+              </button>
+            </>
+          )}
           <button
             onClick={toggleStage}
             title={stageFull ? "Exit full screen (F)" : "Full screen (F)"}
@@ -1928,6 +2147,34 @@ export default function AirMidiPage() {
             <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
             YOU
           </span>
+        </div>
+      )}
+
+      {/* glass overlay in full screen: MIDI controls + keyboard on top of the video (display only) */}
+      {stageFull && (showKeyboard || showControls) && (
+        <div
+          className="pointer-events-none absolute inset-x-3 sm:inset-x-8 z-20 flex flex-col gap-2 transition-[bottom] duration-300 ease-out"
+          style={{
+            bottom: controlsVisible
+              ? "calc(7.25rem + env(safe-area-inset-bottom))"
+              : "calc(2.25rem + env(safe-area-inset-bottom))",
+          }}
+        >
+          {showControls && (
+            <GlassControls
+              hidden={hiddenCtl}
+              cc={ccVal}
+              bend={bendRef}
+              clkTimes={clkTimes}
+              clkIdx={clkIdx}
+              dirty={ctlDirty}
+            />
+          )}
+          {showKeyboard && (
+            <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.35)] p-2.5 sm:p-3.5">
+              <PianoKeyboard variant="glass" size={kbSize} vel={kbVel} dir={kbDir} sustain={kbSus} dirty={kbDirty} />
+            </div>
+          )}
         </div>
       )}
 
