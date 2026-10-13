@@ -428,15 +428,23 @@ function MidiHud({
   active,
   last,
   channels,
+  latency,
+  path,
+  throttled,
   className = "",
   textClass = "",
 }: {
   active: boolean;
   last: string;
   channels: number[];
+  latency: number | null;
+  path: "direct" | "relay" | null;
+  throttled: boolean;
   className?: string;
   textClass?: string;
 }) {
+  const color =
+    latency === null ? "text-white/50" : latency < 30 ? "text-emerald-300" : latency < 80 ? "text-amber-300" : "text-red-300";
   return (
     <div
       className={`pointer-events-none absolute z-20 flex items-center gap-3 rounded-xl border border-white/10 bg-black/45 backdrop-blur-md px-3 py-2 ${className}`}
@@ -450,6 +458,19 @@ function MidiHud({
         <p className="text-[9px] uppercase tracking-[0.14em] font-bold text-white/40">MIDI</p>
         <p className={`text-[11px] corp-mono text-white/90 truncate ${textClass}`}>{last}</p>
       </div>
+      <div className="shrink-0 text-right">
+        <p className="text-[9px] uppercase tracking-[0.14em] font-bold text-white/40">
+          {path === "relay" ? "Relay" : path === "direct" ? "Direct" : "Latency"}
+        </p>
+        <p className={`text-[11px] corp-mono font-semibold ${color}`}>
+          {latency === null ? "…" : `≈${latency} ms`}
+        </p>
+      </div>
+      {throttled && (
+        <span className="shrink-0 text-[9px] font-bold text-amber-300 bg-amber-400/15 border border-amber-300/30 px-1.5 py-0.5 rounded-full">
+          VIDEO ↓
+        </span>
+      )}
       <div className="hidden sm:flex items-end gap-[2px] h-6">
         {channels.map((v, i) => (
           <span
@@ -516,6 +537,9 @@ export default function AirMidiPage() {
   const [speakerMuted, setSpeakerMuted] = useState(false);
   const micOn = !!localAudio;
   const [sysexOn, setSysexOn] = useState<boolean | null>(null);
+  const [rtt, setRtt] = useState<number | null>(null);
+  const [netPath, setNetPath] = useState<"direct" | "relay" | null>(null);
+  const [throttled, setThrottled] = useState(false);
 
   // video stage: full screen + auto-hiding controls
   const [stageFs, setStageFs] = useState(false); // native fullscreen on the stage element
@@ -571,6 +595,9 @@ export default function AirMidiPage() {
   const statsDirtyRef = useRef(false);
   const chRef = useRef<number[]>(Array(16).fill(0));
   const chShownRef = useRef(false);
+  const activityRef = useRef<{ data: Uint8Array; dir: "in" | "out" }[]>([]);
+  const ledUntilRef = useRef(0);
+  const ledOnRef = useRef(false);
 
   const pushLog = useCallback((level: LogLevel, message: string) => {
     if (level === "midi" && !logMidiRef.current) return;
@@ -637,6 +664,9 @@ export default function AirMidiPage() {
     link.onRemoteAudioStream = (st) => setRemoteAudioStream(st);
     link.onRemoteAudioState = (on) => setRemoteMicOn(on);
     link.onSysexState = (on) => setSysexOn(on);
+    link.onLatency = (ms) => setRtt(ms);
+    link.onPathInfo = (p) => setNetPath(p);
+    link.onVideoThrottle = (on) => setThrottled(on);
 
     link.onError = (msg) => {
       setError(msg);
@@ -651,21 +681,20 @@ export default function AirMidiPage() {
 
     link.onLog = (level, message) => pushLog(level, message);
 
+    // Keep this callback tiny: MIDI timing matters more than the UI.
+    // Decoding, logging and drawing happen later, in the flush loop below.
     link.onMidiActivity = (data, dir) => {
-      const s = data[0];
-      if (s === 0xf8 || s === 0xfe) return; // clock / active sensing: too noisy
-
-      setIsActive(true);
-      if (ledTimeout.current) clearTimeout(ledTimeout.current);
-      ledTimeout.current = setTimeout(() => setIsActive(false), 90);
-
+      const st = data[0];
+      if (st === 0xf8 || st === 0xfe) return; // clock / active sensing: too noisy
       countRef.current += 1;
-      const text = decodeMidi(data);
-      lastMsgRef.current = text;
       statsDirtyRef.current = true;
-      if (s < 0xf0) chRef.current[s & 0x0f] = 1;
-
-      pushLog("midi", `${dir === "out" ? "TX" : "RX"}  ${text}   [${toHexShort(data)}]`);
+      if (st < 0xf0) chRef.current[st & 0x0f] = 1;
+      activityRef.current.push({ data, dir });
+      ledUntilRef.current = performance.now() + 90;
+      if (!ledOnRef.current) {
+        ledOnRef.current = true;
+        setIsActive(true);
+      }
     };
 
     return () => {
@@ -678,6 +707,21 @@ export default function AirMidiPage() {
   /* ---- batched flush (log, stats, channel meters) every 150ms ---- */
   useEffect(() => {
     const t = setInterval(() => {
+      if (activityRef.current.length) {
+        const batch = activityRef.current;
+        activityRef.current = [];
+        const MAX = 40;
+        if (batch.length > MAX) pushLog("midi", `… ${batch.length - MAX} more messages (showing the latest ${MAX})`);
+        for (const m of batch.slice(-MAX)) {
+          pushLog("midi", `${m.dir === "out" ? "TX" : "RX"}  ${decodeMidi(m.data)}   [${toHexShort(m.data)}]`);
+        }
+        lastMsgRef.current = decodeMidi(batch[batch.length - 1].data);
+        statsDirtyRef.current = true;
+      }
+      if (ledOnRef.current && performance.now() > ledUntilRef.current) {
+        ledOnRef.current = false;
+        setIsActive(false);
+      }
       if (logBufferRef.current.length) {
         const batch = logBufferRef.current;
         logBufferRef.current = [];
@@ -904,6 +948,10 @@ export default function AirMidiPage() {
     setAudioBlocked(false);
     setSysexOn(null);
     setStagePseudo(false);
+    setRtt(null);
+    setNetPath(null);
+    setThrottled(false);
+    activityRef.current = [];
     countRef.current = 0;
     lastMsgRef.current = "—";
     chRef.current = Array(16).fill(0);
@@ -1179,6 +1227,9 @@ export default function AirMidiPage() {
         active={isActive}
         last={stats.last}
         channels={channels}
+        latency={rtt === null ? null : Math.round(rtt / 2)}
+        path={netPath}
+        throttled={throttled}
         className={stageFull ? "left-3 sm:left-5 top-16" : "left-3 bottom-3"}
         textClass={stageFull ? "max-w-[55vw] sm:max-w-xs" : "max-w-[30vw] sm:max-w-[16rem]"}
       />
@@ -1730,17 +1781,31 @@ export default function AirMidiPage() {
                       <kbd className="corp-mono">F</kbd> full screen
                     </p>
 
+                    {throttled && (
+                      <div className="am-fade-up text-xs bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 font-medium leading-relaxed">
+                        The connection is congested, so the video was reduced automatically to keep MIDI latency low.
+                        It returns to normal when the network calms down.
+                      </div>
+                    )}
+
                     {/* STATS */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-zinc-100 rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
                       {[
                         { label: "Messages", value: stats.count.toLocaleString("en-US") },
                         { label: "Session", value: formatElapsed(elapsed) },
-                        { label: "Role", value: roleLabel },
+                        {
+                          label: "Latency",
+                          value: rtt === null ? "…" : `≈${Math.round(rtt / 2)} ms`,
+                          sub: netPath ? (netPath === "relay" ? "via TURN relay" : "direct") : undefined,
+                        },
                         { label: mode === "receiver" ? "Outputs" : "Inputs", value: String(detectedDevices.length) },
                       ].map((st, i) => (
                         <div key={st.label} className={`p-4 text-center ${i >= 2 ? "border-t border-zinc-100 sm:border-t-0" : ""}`}>
                           <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">{st.label}</p>
                           <p className="text-base font-bold text-zinc-900 corp-mono mt-1">{st.value}</p>
+                          {(st as { sub?: string }).sub && (
+                            <p className="text-[10px] text-zinc-400 mt-0.5">{(st as { sub?: string }).sub}</p>
+                          )}
                         </div>
                       ))}
                     </div>

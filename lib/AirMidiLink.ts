@@ -12,6 +12,13 @@ export type AirMidiStatus =
 export type AirMidiLogLevel = 'info' | 'success' | 'warn' | 'error'
 export type MidiDirection = 'in' | 'out'
 export type VideoQuality = '360p' | '720p'
+export type NetPath = 'direct' | 'relay'
+
+// Continuous controllers can ride the fast lane (a newer value replaces an older one).
+// Everything in this set is discrete (switches, bank select, RPN/NRPN, channel mode) and must be reliable.
+const DISCRETE_CC = new Set([
+  0, 6, 32, 38, 64, 65, 66, 67, 68, 69, 96, 97, 98, 99, 100, 101, 120, 121, 122, 123, 124, 125, 126, 127,
+])
 
 // Public identity shown to the other side (email is masked on purpose)
 export type AirMidiPeer = {
@@ -61,6 +68,19 @@ export class AirMidiLink {
   private hasTurn = false
   private relaySeen = false
 
+  // MIDI priority: a reliable lane for notes/SysEx and a fast, loss-tolerant lane for controllers
+  private fastChannel: RTCDataChannel | null = null
+  private settle = new Map<number, { data: Uint8Array; at: number }>()
+  private midiTimers: ReturnType<typeof setInterval>[] = []
+
+  // latency probe + "video yields to MIDI"
+  private rttEma = 0
+  private rttSamples: number[] = []
+  private congestionHits = 0
+  private calmHits = 0
+  private throttled = false
+  private videoBitrate = 500_000
+
   public role: AirMidiRole | null = null
   public roomCode: string | null = null
   public status: AirMidiStatus = 'idle'
@@ -72,6 +92,9 @@ export class AirMidiLink {
   public onError: (message: string) => void = () => {}
   public onLog: (level: AirMidiLogLevel, message: string) => void = () => {}
   public onSysexState: (enabled: boolean) => void = () => {}
+  public onLatency: (rttMs: number) => void = () => {}
+  public onPathInfo: (path: NetPath) => void = () => {}
+  public onVideoThrottle: (on: boolean) => void = () => {}
   public sysexEnabled = false
   private outputErrorLogged = false
   public onPeerInfo: (peer: AirMidiPeer) => void = () => {}
@@ -363,25 +386,208 @@ export class AirMidiLink {
     }
   }
 
-  private setupDataChannelHandlers() {
-    if (!this.dataChannel) return
-    this.dataChannel.binaryType = 'arraybuffer'
+  private setupDataChannelHandlers(ch: RTCDataChannel, kind: 'reliable' | 'fast') {
+    ch.binaryType = 'arraybuffer'
 
-    this.dataChannel.onopen = () => {
+    ch.onopen = () => {
+      if (kind === 'fast') {
+        this.log('success', 'Fast MIDI lane open (controllers, pitch bend, clock).')
+        return
+      }
       this.clearConnectTimer()
       this.log('success', 'Data channel open. MIDI link established.')
       this.updateStatus('connected')
       this.initHardwareMidi()
+      this.startMidiTimers()
+      setTimeout(() => this.detectPath(), 800)
     }
-    this.dataChannel.onclose = () => {
+    ch.onclose = () => {
+      if (kind === 'fast') {
+        this.log('warn', 'Fast MIDI lane closed.')
+        return
+      }
       this.log('warn', 'Data channel closed.')
+      this.stopMidiTimers()
       if (this.status !== 'idle') this.updateStatus('disconnected')
     }
-    this.dataChannel.onmessage = (event) => {
-      const data = new Uint8Array(event.data as ArrayBuffer)
-      this.forwardToMidiOutput(data)
-      this.onMidiActivity(data, 'in')
-      this.onMidiMessageReceived(data)
+    ch.onmessage = (event) => this.handleIncoming(event.data)
+  }
+
+  // Incoming: MIDI goes to the output first, everything else (UI, callbacks) comes after
+  private handleIncoming(raw: unknown) {
+    if (typeof raw === 'string') {
+      this.handleText(raw)
+      return
+    }
+    const data = new Uint8Array(raw as ArrayBuffer)
+    this.forwardToMidiOutput(data)
+    this.onMidiActivity(data, 'in')
+    this.onMidiMessageReceived(data)
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* MIDI PRIORITY: fast lane, settle, latency probe, path               */
+  /* ------------------------------------------------------------------ */
+  private isFastMessage(d: Uint8Array): boolean {
+    const s = d[0]
+    if (s === 0xf8 || s === 0xfe) return true // clock, active sensing
+    if (s >= 0xf0) return false // SysEx, transport, system common: always reliable
+    const type = s & 0xf0
+    if (type === 0xe0 || type === 0xd0 || type === 0xa0) return true // pitch bend, pressure, poly aftertouch
+    if (type === 0xb0) return !DISCRETE_CC.has(d[1]) // continuous controllers only
+    return false // notes, program change: always reliable
+  }
+
+  // The last value of a fast-lane message is re-sent reliably once the movement stops,
+  // so a dropped packet can never leave a controller at the wrong value.
+  private scheduleSettle(d: Uint8Array) {
+    const s = d[0]
+    if (s >= 0xf0) return
+    const type = s & 0xf0
+    const key = type === 0xb0 || type === 0xa0 ? (s << 8) | d[1] : s << 8
+    this.settle.set(key, { data: d.slice(), at: performance.now() })
+  }
+
+  private flushSettle() {
+    const rel = this.dataChannel
+    if (!rel || rel.readyState !== 'open' || this.settle.size === 0) return
+    const now = performance.now()
+    this.settle.forEach((v, key) => {
+      if (now - v.at >= 80) {
+        this.settle.delete(key)
+        try {
+          rel.send(v.data as any)
+        } catch {
+          /* ignore */
+        }
+      }
+    })
+  }
+
+  private startMidiTimers() {
+    this.stopMidiTimers()
+    this.midiTimers.push(setInterval(() => this.flushSettle(), 40))
+    this.midiTimers.push(setInterval(() => this.sendText(JSON.stringify({ t: 'ping', ts: performance.now() })), 1000))
+  }
+
+  private stopMidiTimers() {
+    this.midiTimers.forEach(clearInterval)
+    this.midiTimers = []
+  }
+
+  private sendText(str: string) {
+    const ch = this.fastChannel && this.fastChannel.readyState === 'open' ? this.fastChannel : this.dataChannel
+    if (ch && ch.readyState === 'open') {
+      try {
+        ch.send(str)
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  private handleText(raw: string) {
+    let msg: any
+    try {
+      msg = JSON.parse(raw)
+    } catch {
+      return
+    }
+    if (msg?.t === 'ping' && typeof msg.ts === 'number') {
+      this.sendText(JSON.stringify({ t: 'pong', ts: msg.ts }))
+    } else if (msg?.t === 'pong' && typeof msg.ts === 'number') {
+      const rtt = performance.now() - msg.ts
+      if (rtt >= 0 && rtt < 5000) this.updateLatency(rtt)
+    }
+  }
+
+  private updateLatency(rtt: number) {
+    this.rttEma = this.rttEma ? this.rttEma * 0.7 + rtt * 0.3 : rtt
+    this.rttSamples.push(rtt)
+    if (this.rttSamples.length > 120) this.rttSamples.shift()
+    const base = Math.min(...this.rttSamples)
+    this.onLatency(Math.round(this.rttEma))
+    this.protectMidi(this.rttEma - base)
+  }
+
+  // If the extra delay (above the best RTT seen) grows while the camera is on,
+  // the video is what is filling the line: shrink it so MIDI keeps its low latency.
+  private protectMidi(queueDelay: number) {
+    if (!this.localStream) {
+      this.congestionHits = 0
+      this.calmHits = 0
+      return
+    }
+    if (!this.throttled) {
+      if (queueDelay > 60) {
+        if (++this.congestionHits >= 3) void this.setThrottle(true)
+      } else this.congestionHits = 0
+    } else if (queueDelay < 25) {
+      if (++this.calmHits >= 10) void this.setThrottle(false)
+    } else this.calmHits = 0
+  }
+
+  private async setThrottle(on: boolean) {
+    this.throttled = on
+    this.congestionHits = 0
+    this.calmHits = 0
+    await this.applyVideoParams(this.videoBitrate)
+    this.log(
+      on ? 'warn' : 'info',
+      on ? 'Network is congested: video was reduced to protect MIDI latency.' : 'Network is calm again: video quality restored.'
+    )
+    this.onVideoThrottle(on)
+  }
+
+  private async applyVideoParams(bitrate: number) {
+    this.videoBitrate = bitrate
+    const sender = this.videoTransceiver?.sender
+    if (!sender) return
+    try {
+      const params = sender.getParameters()
+      if (!params.encodings || params.encodings.length === 0) params.encodings = [{}]
+      const enc: any = params.encodings[0]
+      enc.maxBitrate = this.throttled ? Math.min(bitrate, 150_000) : bitrate
+      enc.scaleResolutionDownBy = this.throttled ? 2 : 1
+      await sender.setParameters(params)
+    } catch {
+      this.log('warn', 'Could not apply the video bitrate limit.')
+    }
+    // video yields to MIDI: lowest network priority (a hint, not every browser honours it)
+    try {
+      const params = sender.getParameters()
+      if (params.encodings?.length) {
+        const enc: any = params.encodings[0]
+        enc.networkPriority = 'low'
+        enc.priority = 'low'
+        await sender.setParameters(params)
+      }
+    } catch {
+      /* unsupported */
+    }
+  }
+
+  private async detectPath() {
+    const pc = this.peerConnection
+    if (!pc) return
+    try {
+      const stats = await pc.getStats()
+      let pairId: string | undefined
+      stats.forEach((r: any) => {
+        if (r.type === 'transport' && r.selectedCandidatePairId) pairId = r.selectedCandidatePairId
+      })
+      let pair: any
+      stats.forEach((r: any) => {
+        if (r.type === 'candidate-pair' && (r.id === pairId || (!pairId && r.nominated && r.state === 'succeeded'))) pair = r
+      })
+      if (!pair) return
+      const local: any = stats.get(pair.localCandidateId)
+      const remote: any = stats.get(pair.remoteCandidateId)
+      const relay = local?.candidateType === 'relay' || remote?.candidateType === 'relay'
+      this.log('info', `Network path: ${relay ? 'relayed through TURN (adds latency)' : 'direct peer-to-peer'}`)
+      this.onPathInfo(relay ? 'relay' : 'direct')
+    } catch {
+      /* stats unavailable */
     }
   }
 
@@ -546,9 +752,15 @@ export class AirMidiLink {
 
     // The receiver creates the data channel, the sender receives it
     this.peerConnection!.ondatachannel = (event) => {
-      this.log('info', 'Data channel received from peer.')
-      this.dataChannel = event.channel
-      this.setupDataChannelHandlers()
+      const ch = event.channel
+      this.log('info', `Data channel received from peer (${ch.label}).`)
+      if (ch.label === 'midi-fast') {
+        this.fastChannel = ch
+        this.setupDataChannelHandlers(ch, 'fast')
+      } else {
+        this.dataChannel = ch
+        this.setupDataChannelHandlers(ch, 'reliable')
+      }
     }
 
     await this.setupSignalingChannel(code)
@@ -587,8 +799,20 @@ export class AirMidiLink {
     await this.initPeerConnection()
 
     // Reliable and ordered channel: no lost note-off messages
-    this.dataChannel = this.peerConnection!.createDataChannel('midi-data', { ordered: true })
-    this.setupDataChannelHandlers()
+    // (priority is a hint that not every browser supports; unknown fields are ignored)
+    this.dataChannel = this.peerConnection!.createDataChannel('midi-data', {
+      ordered: true,
+      priority: 'high',
+    } as RTCDataChannelInit)
+    this.setupDataChannelHandlers(this.dataChannel, 'reliable')
+
+    // Fast lane: unordered, no retransmits. Stale controller values are never worth waiting for.
+    this.fastChannel = this.peerConnection!.createDataChannel('midi-fast', {
+      ordered: false,
+      maxRetransmits: 0,
+      priority: 'high',
+    } as RTCDataChannelInit)
+    this.setupDataChannelHandlers(this.fastChannel, 'fast')
 
     // Video m-line negotiated once, up front. The camera is attached later with replaceTrack(),
     // so turning it on/off never needs a new negotiation.
@@ -735,16 +959,8 @@ export class AirMidiLink {
 
     await this.videoTransceiver.sender.replaceTrack(track)
 
-    // cap the bitrate so a relayed (TURN) call stays cheap
-    try {
-      const sender = this.videoTransceiver.sender
-      const params = sender.getParameters()
-      if (!params.encodings || params.encodings.length === 0) params.encodings = [{}]
-      params.encodings[0].maxBitrate = q.bitrate
-      await sender.setParameters(params)
-    } catch {
-      this.log('warn', 'Could not apply the video bitrate limit.')
-    }
+    // cap the bitrate (and give video the lowest priority) so MIDI always wins
+    await this.applyVideoParams(q.bitrate)
 
     this.sendControl({ video: true })
     this.log('success', `Camera started (${quality}).`)
@@ -823,6 +1039,18 @@ export class AirMidiLink {
     } catch {
       this.log('warn', 'Could not apply the audio bitrate limit.')
     }
+    try {
+      const sender = this.audioTransceiver.sender
+      const params = sender.getParameters()
+      if (params.encodings?.length) {
+        const enc: any = params.encodings[0]
+        enc.networkPriority = 'medium'
+        enc.priority = 'medium'
+        await sender.setParameters(params)
+      }
+    } catch {
+      /* unsupported */
+    }
 
     this.sendControl({ audio: true })
     this.log('success', 'Microphone started.')
@@ -844,14 +1072,27 @@ export class AirMidiLink {
 
   /* ------------------------------------------------------------------ */
   public sendMidi(midiMessage: Uint8Array) {
-    if (this.dataChannel && this.dataChannel.readyState === 'open') {
+    const rel = this.dataChannel
+    if (!rel || rel.readyState !== 'open') return
+
+    // fast lane: controllers, pitch bend, clock. Under congestion, stale values are dropped
+    // instead of queued, so they can never add latency to the notes.
+    const fast = this.fastChannel
+    if (fast && fast.readyState === 'open' && this.isFastMessage(midiMessage)) {
+      if (fast.bufferedAmount < 2048) fast.send(midiMessage as any)
+      this.scheduleSettle(midiMessage)
+      return
+    }
+
+    // reliable lane: notes, program change, SysEx, transport
+    if (midiMessage.length > 1024) {
       const max = this.peerConnection?.sctp?.maxMessageSize
       if (max && midiMessage.length > max) {
         this.log('error', `MIDI message too large to send (${midiMessage.length} bytes, limit ${max}).`)
         return
       }
-      this.dataChannel.send(midiMessage as any)
     }
+    rel.send(midiMessage as any)
   }
 
   public disconnect() {
@@ -863,6 +1104,13 @@ export class AirMidiLink {
       this.dataChannel.onclose = null
       this.dataChannel.onmessage = null
       this.dataChannel.close()
+    }
+    this.stopMidiTimers()
+    if (this.fastChannel) {
+      this.fastChannel.onopen = null
+      this.fastChannel.onclose = null
+      this.fastChannel.onmessage = null
+      this.fastChannel.close()
     }
     if (this.peerConnection) {
       this.peerConnection.onconnectionstatechange = null
@@ -878,6 +1126,7 @@ export class AirMidiLink {
     }
 
     this.dataChannel = null
+    this.fastChannel = null
     this.peerConnection = null
     this.channel = null
     this.midiAccess = null
@@ -885,6 +1134,12 @@ export class AirMidiLink {
     this.pendingIce = []
     this.hasRemoteDescription = false
     this.outputErrorLogged = false
+    this.settle.clear()
+    this.rttEma = 0
+    this.rttSamples = []
+    this.congestionHits = 0
+    this.calmHits = 0
+    this.throttled = false
 
     // video + join approval state
     this.stopLocalTracks()
