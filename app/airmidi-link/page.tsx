@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { createPortal } from "react-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
@@ -213,39 +214,62 @@ function Avatar({ name, src, size = 56 }: { name: string; src?: string; size?: n
   );
 }
 
-function PeerSide({ p, label, isMe }: { p: AirMidiPeer | null; label: string; isMe: boolean }) {
+function PeerSide({
+  p,
+  label,
+  isMe,
+  dark = false,
+}: {
+  p: AirMidiPeer | null;
+  label: string;
+  isMe: boolean;
+  dark?: boolean;
+}) {
   return (
     <div className="flex flex-col items-center gap-2 min-w-0 w-[5.5rem] sm:w-36">
       <div className="relative">
         {p && <span className="absolute inset-0 rounded-full bg-emerald-400/30 am-ring" />}
         <div
           className={`relative rounded-full p-[3px] bg-gradient-to-br ${
-            p ? "from-indigo-500 via-violet-500 to-fuchsia-500" : "from-zinc-200 to-zinc-300"
+            p ? "from-indigo-500 via-violet-500 to-fuchsia-500" : dark ? "from-white/20 to-white/10" : "from-zinc-200 to-zinc-300"
           }`}
         >
-          <div className="rounded-full bg-white p-0.5">
+          <div className={`rounded-full p-0.5 ${dark ? "bg-[#0B1020]" : "bg-white"}`}>
             {p ? (
               <Avatar name={p.name} src={p.avatar} />
             ) : (
-              <span className="w-14 h-14 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-300 text-xl font-bold am-dot">
+              <span
+                className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold am-dot ${
+                  dark ? "bg-white/10 text-white/40" : "bg-zinc-100 text-zinc-300"
+                }`}
+              >
                 ?
               </span>
             )}
           </div>
         </div>
         {p && (
-          <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+          <span
+            className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ${
+              dark ? "ring-[#0B1020]" : "ring-white"
+            }`}
+          />
         )}
       </div>
       <div className="text-center min-w-0 w-full">
-        <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">
+        <p className={`text-[10px] uppercase tracking-wider font-bold ${dark ? "text-white/40" : "text-zinc-400"}`}>
           {label}
           {isMe ? " · You" : ""}
         </p>
-        <p key={p?.name || "none"} className="am-fade-up text-sm font-bold text-zinc-900 truncate">
+        <p
+          key={p?.name || "none"}
+          className={`am-fade-up text-sm font-bold truncate ${dark ? "text-white" : "text-zinc-900"}`}
+        >
           {p ? p.name : "Identifying…"}
         </p>
-        {p?.email && <p className="text-[10px] text-zinc-400 corp-mono truncate">{p.email}</p>}
+        {p?.email && (
+          <p className={`text-[10px] corp-mono truncate ${dark ? "text-white/40" : "text-zinc-400"}`}>{p.email}</p>
+        )}
       </div>
     </div>
   );
@@ -257,23 +281,33 @@ function PeerLink({
   peer,
   myRole,
   active,
+  dark = false,
 }: {
   me: AirMidiPeer | null;
   peer: AirMidiPeer | null;
   myRole: "sender" | "receiver";
   active: boolean;
+  dark?: boolean;
 }) {
   const left = myRole === "sender" ? me : peer;
   const right = myRole === "sender" ? peer : me;
   return (
-    <div className="bg-white border border-zinc-200 rounded-2xl p-4 sm:p-6 shadow-sm">
-      <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 text-center mb-5">
+    <div className={dark ? "" : "bg-white border border-zinc-200 rounded-2xl p-4 sm:p-6 shadow-sm"}>
+      <p
+        className={`text-[10px] uppercase tracking-wider font-bold text-center mb-5 ${
+          dark ? "text-white/40" : "text-zinc-400"
+        }`}
+      >
         {peer ? (myRole === "receiver" ? "Receiving from" : "Streaming to") : "Establishing link"}
       </p>
       <div className="flex items-center justify-center gap-1 sm:gap-4">
-        <PeerSide p={left} label="Sender" isMe={myRole === "sender"} />
+        <PeerSide p={left} label="Sender" isMe={myRole === "sender"} dark={dark} />
         <div className="relative flex-1 h-10 min-w-[40px] max-w-[220px]">
-          <span className="absolute left-0 right-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-indigo-200" />
+          <span
+            className={`absolute left-0 right-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed ${
+              dark ? "border-white/20" : "border-indigo-200"
+            }`}
+          />
           {[0, 1, 2].map((i) => (
             <span
               key={i}
@@ -282,8 +316,161 @@ function PeerLink({
             />
           ))}
         </div>
-        <PeerSide p={right} label="Receiver" isMe={myRole === "receiver"} />
+        <PeerSide p={right} label="Receiver" isMe={myRole === "receiver"} dark={dark} />
       </div>
+    </div>
+  );
+}
+
+/* ---- stage building blocks ---- */
+const svgProps = {
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+} as const;
+
+const IcCamera = ({ off }: { off?: boolean }) => (
+  <svg className="w-5 h-5" {...svgProps}>
+    {off ? (
+      <>
+        <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </>
+    ) : (
+      <>
+        <path d="M23 7l-7 5 7 5V7z" />
+        <rect x="1" y="5" width="15" height="14" rx="2" />
+      </>
+    )}
+  </svg>
+);
+
+const IcMic = ({ off }: { off?: boolean }) => (
+  <svg className="w-5 h-5" {...svgProps}>
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <line x1="12" y1="19" x2="12" y2="23" />
+    <line x1="8" y1="23" x2="16" y2="23" />
+    {off && <line x1="1" y1="1" x2="23" y2="23" />}
+  </svg>
+);
+
+const IcSpeaker = ({ muted }: { muted?: boolean }) => (
+  <svg className="w-5 h-5" {...svgProps}>
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    {muted ? (
+      <>
+        <line x1="23" y1="9" x2="17" y2="15" />
+        <line x1="17" y1="9" x2="23" y2="15" />
+      </>
+    ) : (
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+    )}
+  </svg>
+);
+
+const IcExpand = ({ exit }: { exit?: boolean }) => (
+  <svg className="w-5 h-5" {...svgProps}>
+    {exit ? (
+      <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+    ) : (
+      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+    )}
+  </svg>
+);
+
+const IcEnd = () => (
+  <svg className="w-5 h-5" {...svgProps}>
+    <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91" />
+    <line x1="23" y1="1" x2="1" y2="23" />
+  </svg>
+);
+
+function DockButton({
+  onClick,
+  label,
+  active = false,
+  danger = false,
+  disabled = false,
+  children,
+}: {
+  onClick: () => void;
+  label: string;
+  active?: boolean;
+  danger?: boolean;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+      className={`h-11 w-11 sm:h-12 sm:w-12 shrink-0 rounded-full border flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-50 ${
+        danger
+          ? "bg-red-600 border-red-400/60 text-white hover:bg-red-500"
+          : active
+          ? "bg-white border-white text-zinc-900"
+          : "bg-white/10 border-white/15 text-white hover:bg-white/20"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// MIDI is the priority: its activity is always visible on the stage
+function MidiHud({
+  active,
+  last,
+  channels,
+  className = "",
+  textClass = "",
+}: {
+  active: boolean;
+  last: string;
+  channels: number[];
+  className?: string;
+  textClass?: string;
+}) {
+  return (
+    <div
+      className={`pointer-events-none absolute z-20 flex items-center gap-3 rounded-xl border border-white/10 bg-black/45 backdrop-blur-md px-3 py-2 ${className}`}
+    >
+      <span
+        className={`shrink-0 w-2 h-2 rounded-full transition-colors duration-100 ${
+          active ? "bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,.9)]" : "bg-emerald-400"
+        }`}
+      />
+      <div className="min-w-0">
+        <p className="text-[9px] uppercase tracking-[0.14em] font-bold text-white/40">MIDI</p>
+        <p className={`text-[11px] corp-mono text-white/90 truncate ${textClass}`}>{last}</p>
+      </div>
+      <div className="hidden sm:flex items-end gap-[2px] h-6">
+        {channels.map((v, i) => (
+          <span
+            key={i}
+            className="w-[3px] rounded-sm bg-gradient-to-t from-indigo-500 to-fuchsia-400 transition-[height] duration-150"
+            style={{ height: `${12 + v * 88}%`, opacity: 0.35 + v * 0.65 }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Watermark({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`pointer-events-none select-none absolute z-20 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold tracking-wide text-white/75 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] ${className}`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/airlink-icon.png" alt="" width={14} height={14} className="w-3.5 h-3.5 rounded-full opacity-90" draggable={false} />
+      www.imidi.co.uk/airmidi-link
     </div>
   );
 }
@@ -329,6 +516,26 @@ export default function AirMidiPage() {
   const [speakerMuted, setSpeakerMuted] = useState(false);
   const micOn = !!localAudio;
   const [sysexOn, setSysexOn] = useState<boolean | null>(null);
+
+  // video stage: full screen + auto-hiding controls
+  const [stageFs, setStageFs] = useState(false); // native fullscreen on the stage element
+  const [stagePseudo, setStagePseudo] = useState(false); // fallback (e.g. iPhone): covers the viewport
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const stageFull = stageFs || stagePseudo;
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const actionsRef = useRef<{
+    connected: boolean;
+    toggleMic: () => void;
+    toggleCamera: () => void;
+    toggleStage: () => void;
+  }>({ connected: false, toggleMic: () => {}, toggleCamera: () => {}, toggleStage: () => {} });
+
+  const wakeControls = useCallback(() => {
+    setControlsVisible(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setControlsVisible(false), 3000);
+  }, []);
 
   const [mode, setMode] = useState<"choose" | "sender" | "receiver">("choose");
   const [status, setStatus] = useState<AirMidiStatus>("idle");
@@ -505,14 +712,14 @@ export default function AirMidiPage() {
   useEffect(() => {
     const el = localVideoRef.current;
     if (el) el.srcObject = localStream;
-  }, [localStream, status]);
+  }, [localStream, status, stagePseudo]);
 
   useEffect(() => {
     const el = remoteVideoRef.current;
     if (!el) return;
     el.srcObject = remoteStream;
     if (remoteStream) el.play().catch(() => {});
-  }, [remoteStream, status, remoteVideoOn]);
+  }, [remoteStream, status, remoteVideoOn, stagePseudo]);
 
   /* ---- play the other user's voice ---- */
   useEffect(() => {
@@ -531,11 +738,64 @@ export default function AirMidiPage() {
     if (el) el.muted = speakerMuted;
   }, [speakerMuted]);
 
+  /* ---- stage: auto-hide controls while in full screen ---- */
+  useEffect(() => {
+    if (stageFull) wakeControls();
+    else {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      setControlsVisible(true);
+    }
+    return () => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    };
+  }, [stageFull, wakeControls]);
+
+  /* ---- stage: fallback full screen (Escape, no page scroll) ---- */
+  useEffect(() => {
+    if (!stagePseudo) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setStagePseudo(false);
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [stagePseudo]);
+
+  useEffect(() => {
+    if (status !== "connected") setStagePseudo(false);
+  }, [status]);
+
+  /* ---- keyboard shortcuts: M mic, V camera, F full screen ---- */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const a = actionsRef.current;
+      if (!a.connected) return;
+      const k = e.key.toLowerCase();
+      if (k === "m") a.toggleMic();
+      else if (k === "v") a.toggleCamera();
+      else if (k === "f") a.toggleStage();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   /* ---- fullscreen state ---- */
   useEffect(() => {
-    const onChange = () => setIsFs(!!document.fullscreenElement);
+    const onChange = () => {
+      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement || null;
+      setIsFs(!!fsEl);
+      setStageFs(!!fsEl && fsEl === stageRef.current);
+    };
     document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
+    document.addEventListener("webkitfullscreenchange", onChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      document.removeEventListener("webkitfullscreenchange", onChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -643,6 +903,7 @@ export default function AirMidiPage() {
     setWaitingApproval(false);
     setAudioBlocked(false);
     setSysexOn(null);
+    setStagePseudo(false);
     countRef.current = 0;
     lastMsgRef.current = "—";
     chRef.current = Array(16).fill(0);
@@ -707,6 +968,26 @@ export default function AirMidiPage() {
     setPeer(null);
   };
 
+  const toggleStage = async () => {
+    const el = stageRef.current;
+    try {
+      if (stagePseudo) {
+        setStagePseudo(false);
+        return;
+      }
+      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      if (fsEl && fsEl === el) {
+        await (document.exitFullscreen?.() ?? (document as any).webkitExitFullscreen?.());
+        return;
+      }
+      const req = el?.requestFullscreen || (el as any)?.webkitRequestFullscreen;
+      if (el && req) await req.call(el);
+      else setStagePseudo(true); // e.g. iPhone: no element fullscreen
+    } catch {
+      setStagePseudo(true);
+    }
+  };
+
   const toggleFullscreen = async () => {
     try {
       if (document.fullscreenElement) {
@@ -761,6 +1042,8 @@ export default function AirMidiPage() {
   /* ---------------------------------------------------------------------- */
   /* Render                                                                  */
   /* ---------------------------------------------------------------------- */
+  actionsRef.current = { connected: status === "connected", toggleMic, toggleCamera, toggleStage };
+
   if (checkingAuth || !isLoggedIn) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[#EEF2FF]">
@@ -788,6 +1071,174 @@ export default function AirMidiPage() {
   else if (mode === "receiver") currentStep = loading ? 2 : 1;
 
   const roleLabel = mode === "sender" ? "Sender" : mode === "receiver" ? "Receiver" : "—";
+  const myRole: "sender" | "receiver" = mode === "receiver" ? "receiver" : "sender";
+
+  const stageNode = connected ? (
+    <div
+      ref={stageRef}
+      onPointerMove={stageFull ? wakeControls : undefined}
+      onPointerDown={stageFull ? wakeControls : undefined}
+      className={`relative overflow-hidden bg-[#070B16] select-none ${
+        stageFull
+          ? `${stagePseudo ? "fixed inset-0 z-[80]" : "w-full h-full"} ${controlsVisible ? "" : "cursor-none"}`
+          : "aspect-video w-full rounded-2xl ring-1 ring-black/10 shadow-[0_24px_60px_-12px_rgba(79,70,229,0.45)]"
+      }`}
+    >
+      {/* remote video (always mounted so the stream never drops) */}
+      <video
+        ref={remoteVideoRef}
+        autoPlay
+        playsInline
+        muted
+        className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-500 ${
+          remoteVideoOn ? "opacity-100" : "opacity-0"
+        }`}
+      />
+
+      {/* idle state: the animated link between the two users */}
+      <div
+        className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 px-4 transition-opacity duration-500 ${
+          remoteVideoOn ? "opacity-0 pointer-events-none" : "opacity-100"
+        }`}
+        style={{ background: "radial-gradient(ellipse at center, rgba(99,102,241,.22), transparent 70%)" }}
+      >
+        <div className="w-full max-w-md scale-90 sm:scale-100">
+          <PeerLink dark me={me} peer={peer} myRole={myRole} active={isActive} />
+        </div>
+        <p className="text-[11px] text-white/45 font-medium text-center">
+          {peer ? `${peer.name}'s camera is off` : "Establishing link…"} · MIDI is live
+        </p>
+      </div>
+
+      {/* top bar */}
+      <div
+        className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 px-3 sm:px-4 pt-3 pb-10 bg-gradient-to-b from-black/60 to-transparent transition-opacity duration-300 ${
+          stageFull && !controlsVisible ? "opacity-0 pointer-events-none" : "opacity-100"
+        }`}
+        style={stageFull ? { paddingTop: "max(0.75rem, env(safe-area-inset-top))" } : undefined}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          {peer ? (
+            <Avatar name={peer.name} src={peer.avatar} size={30} />
+          ) : (
+            <span className="w-[30px] h-[30px] rounded-full bg-white/10" />
+          )}
+          <div className="min-w-0 leading-tight">
+            <p className="text-[13px] font-bold text-white truncate">{peer ? peer.name : "Connecting…"}</p>
+            <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+              <span className="relative flex w-1.5 h-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              </span>
+              Live · {formatElapsed(elapsed)}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {(cameraOn || micOn) && (
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-white bg-red-600/90 px-2.5 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              {cameraOn && micOn ? "CAM + MIC" : cameraOn ? "CAM" : "MIC"}
+            </span>
+          )}
+          <button
+            onClick={toggleStage}
+            title={stageFull ? "Exit full screen (F)" : "Full screen (F)"}
+            aria-label={stageFull ? "Exit full screen" : "Enter full screen"}
+            className="w-9 h-9 rounded-full bg-black/40 border border-white/15 text-white hover:bg-black/60 backdrop-blur flex items-center justify-center transition-colors"
+          >
+            <IcExpand exit={stageFull} />
+          </button>
+        </div>
+      </div>
+
+      {/* sound blocked by the browser: one tap fixes it */}
+      {audioBlocked && (
+        <button
+          onClick={enableSound}
+          className="am-fade-up absolute z-30 left-1/2 -translate-x-1/2 top-16 h-9 px-4 rounded-full bg-amber-400 text-black text-xs font-bold shadow-lg hover:bg-amber-300 transition-colors"
+        >
+          🔊 Tap to enable sound
+        </button>
+      )}
+
+      {/* who is talking */}
+      {remoteMicOn && (
+        <span
+          className={`absolute z-20 flex items-center gap-1.5 text-[11px] font-semibold text-white bg-black/50 backdrop-blur px-2.5 py-1 rounded-full ${
+            stageFull ? "left-3 sm:left-5 top-28" : "left-3 top-14"
+          }`}
+        >
+          <IcMic />
+          {peer ? peer.name : "Remote"} is talking
+        </span>
+      )}
+
+      {/* MIDI activity */}
+      <MidiHud
+        active={isActive}
+        last={stats.last}
+        channels={channels}
+        className={stageFull ? "left-3 sm:left-5 top-16" : "left-3 bottom-3"}
+        textClass={stageFull ? "max-w-[55vw] sm:max-w-xs" : "max-w-[30vw] sm:max-w-[16rem]"}
+      />
+
+      {/* your own camera */}
+      {cameraOn && (
+        <div
+          className={`am-fade-up absolute z-20 aspect-video rounded-lg overflow-hidden border-2 border-white/80 shadow-xl bg-black ${
+            stageFull ? "top-16 right-3 sm:right-5 w-28 sm:w-44" : "right-3 bottom-8 w-24 sm:w-40"
+          }`}
+        >
+          <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover -scale-x-100" />
+          <span className="absolute left-1.5 top-1.5 flex items-center gap-1 text-[9px] font-bold text-white bg-red-600/90 px-1.5 py-0.5 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            YOU
+          </span>
+        </div>
+      )}
+
+      {/* watermark */}
+      <Watermark className="right-3 sm:right-4 bottom-2" />
+
+      {/* full screen dock: controls on top of the video */}
+      {stageFull && (
+        <div
+          className={`absolute left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ${
+            controlsVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+          }`}
+          style={{ bottom: "max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))" }}
+        >
+          <div className="flex items-center gap-2 sm:gap-3 rounded-full border border-white/15 bg-black/45 backdrop-blur-2xl px-3 py-2.5 shadow-2xl">
+            <DockButton onClick={toggleCamera} disabled={cameraBusy} active={cameraOn} label="Camera (V)">
+              <IcCamera off={!cameraOn} />
+            </DockButton>
+            <DockButton onClick={toggleMic} disabled={micBusy} active={micOn} label="Microphone (M)">
+              <IcMic off={!micOn} />
+            </DockButton>
+            <DockButton onClick={() => setSpeakerMuted((v) => !v)} label={speakerMuted ? "Unmute their voice" : "Mute their voice"}>
+              <IcSpeaker muted={speakerMuted} />
+            </DockButton>
+            <button
+              onClick={() => changeQuality(quality === "360p" ? "720p" : "360p")}
+              disabled={cameraBusy}
+              title="Video quality"
+              className="h-11 sm:h-12 px-3 rounded-full border border-white/15 bg-white/10 text-white text-[11px] font-bold hover:bg-white/20 transition-all active:scale-95 disabled:opacity-50"
+            >
+              {quality}
+            </button>
+            <span className="w-px h-6 bg-white/15" />
+            <DockButton onClick={toggleStage} label="Exit full screen (F)">
+              <IcExpand exit />
+            </DockButton>
+            <DockButton onClick={handleReset} danger label="End session">
+              <IcEnd />
+            </DockButton>
+          </div>
+        </div>
+      )}
+    </div>
+  ) : null;
 
   return (
     <div className="am-grid bg-gradient-to-tr from-[#E0E7FF] via-[#EEF2FF] to-[#F5F3FF] text-[#111111] am-app flex flex-col antialiased relative overflow-x-hidden corp-sans">
@@ -1201,205 +1652,134 @@ export default function AirMidiPage() {
                   </form>
                 )}
 
-                {/* CONNECTED */}
+                {/* CONNECTED: live console */}
                 {connected && (
-                  <div key="connected" className="am-fade-up w-full max-w-3xl mx-auto space-y-7">
-                    <div className="text-center space-y-3">
-                      <div className="relative w-24 h-24 mx-auto am-float">
-                        <span className="absolute inset-0 rounded-full bg-emerald-400/30 am-ring" />
-                        <span className="absolute inset-0 rounded-full bg-emerald-400/20 am-ring" style={{ animationDelay: "1.1s" }} />
-                        <span
-                          className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-150 ${
-                            isActive
-                              ? "bg-amber-400 text-black scale-110 shadow-lg shadow-amber-400/40"
-                              : "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                          }`}
-                        >
-                          <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            {isActive ? <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /> : <path d="M5 13l4 4L19 7" />}
-                          </svg>
-                        </span>
-                      </div>
-                      <h2 className="text-2xl font-extrabold tracking-tight text-zinc-900">Link active</h2>
-                      <p className="text-sm text-zinc-500 max-w-md mx-auto leading-relaxed">
-                        {mode === "receiver"
-                          ? "Incoming MIDI is being played on this device's MIDI output."
-                          : "MIDI from your USB adapter is being streamed directly to the receiver."}
-                      </p>
+                  <div key="connected" className="am-fade-up w-full max-w-4xl mx-auto space-y-5">
+                    <audio ref={remoteAudioRef} autoPlay playsInline />
+
+                    {/* STAGE (video + MIDI HUD + watermark) */}
+                    {stagePseudo && typeof document !== "undefined" ? createPortal(stageNode, document.body) : stageNode}
+
+                    {/* CONTROLS */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={toggleCamera}
+                        disabled={cameraBusy}
+                        title="Camera (V)"
+                        className={`h-11 px-4 rounded-xl text-xs font-bold border transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-2 ${
+                          cameraOn
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white text-zinc-700 border-zinc-200 hover:border-indigo-300 hover:text-indigo-600"
+                        }`}
+                      >
+                        <IcCamera off={!cameraOn} />
+                        {cameraBusy ? "…" : cameraOn ? "Camera on" : "Camera"}
+                      </button>
+                      <button
+                        onClick={toggleMic}
+                        disabled={micBusy}
+                        title="Microphone (M)"
+                        className={`h-11 px-4 rounded-xl text-xs font-bold border transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-2 ${
+                          micOn
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white text-zinc-700 border-zinc-200 hover:border-indigo-300 hover:text-indigo-600"
+                        }`}
+                      >
+                        <IcMic off={!micOn} />
+                        {micBusy ? "…" : micOn ? "Mic on" : "Mic"}
+                      </button>
+                      <button
+                        onClick={() => setSpeakerMuted((v) => !v)}
+                        aria-label={speakerMuted ? "Unmute speaker" : "Mute speaker"}
+                        title={speakerMuted ? "Unmute their voice" : "Mute their voice"}
+                        className={`h-11 w-11 rounded-xl border bg-white flex items-center justify-center transition-colors ${
+                          speakerMuted ? "border-red-200 text-red-500" : "border-zinc-200 text-zinc-600 hover:text-indigo-600 hover:border-indigo-300"
+                        }`}
+                      >
+                        <IcSpeaker muted={speakerMuted} />
+                      </button>
+                      <select
+                        value={quality}
+                        onChange={(e) => changeQuality(e.target.value as VideoQuality)}
+                        disabled={cameraBusy}
+                        className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 outline-none focus:border-indigo-400"
+                      >
+                        <option value="360p">360p · saves data</option>
+                        <option value="720p">720p · sharper</option>
+                      </select>
+                      <button
+                        onClick={toggleStage}
+                        title="Full screen (F)"
+                        className="h-11 px-4 rounded-xl text-xs font-bold border border-zinc-200 bg-white text-zinc-700 hover:border-indigo-300 hover:text-indigo-600 transition-all active:scale-[0.98] flex items-center gap-2"
+                      >
+                        <IcExpand />
+                        Full screen
+                      </button>
+                      <span className="flex-1" />
+                      <button
+                        onClick={handleReset}
+                        className="h-11 px-4 rounded-xl text-xs font-bold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors active:scale-[0.98] flex items-center gap-2"
+                      >
+                        <IcEnd />
+                        End session
+                      </button>
                     </div>
+                    <p className="text-[11px] text-zinc-400 -mt-2">
+                      Camera and microphone stay off until you start them. Use headphones to avoid echo. Shortcuts:{" "}
+                      <kbd className="corp-mono">V</kbd> camera · <kbd className="corp-mono">M</kbd> mic ·{" "}
+                      <kbd className="corp-mono">F</kbd> full screen
+                    </p>
 
-                    {/* who am I connected with */}
-                    <PeerLink me={me} peer={peer} myRole={mode === "receiver" ? "receiver" : "sender"} active={isActive} />
-
-                    {/* optional video + voice (bidirectional) */}
-                    <div className="bg-white border border-zinc-200 rounded-2xl p-3 sm:p-4 shadow-sm space-y-3">
-                      <audio ref={remoteAudioRef} autoPlay playsInline />
-                      {audioBlocked && (
-                        <button
-                          onClick={enableSound}
-                          className="am-fade-up w-full h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold hover:bg-amber-100 transition-colors"
-                        >
-                          🔊 Tap to enable sound
-                        </button>
-                      )}
-                      <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-[#0B1020]">
-                        <video
-                          ref={remoteVideoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-500 ${
-                            remoteVideoOn ? "opacity-100" : "opacity-0"
-                          }`}
-                        />
-                        {!remoteVideoOn && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-zinc-500 px-4 text-center">
-                            <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
-                              <line x1="1" y1="1" x2="23" y2="23" />
-                            </svg>
-                            <p className="text-xs font-medium">
-                              {peer ? `${peer.name}'s camera is off` : "Remote camera is off"}
-                            </p>
-                          </div>
-                        )}
-                        {remoteVideoOn && peer && (
-                          <span className="absolute left-3 bottom-3 text-[11px] font-semibold text-white bg-black/50 backdrop-blur px-2.5 py-1 rounded-full">
-                            {peer.name}
-                          </span>
-                        )}
-                        {remoteMicOn && (
-                          <span className="absolute left-3 top-3 flex items-center gap-1.5 text-[11px] font-semibold text-white bg-black/50 backdrop-blur px-2.5 py-1 rounded-full">
-                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                            </svg>
-                            {peer ? peer.name : "Remote"} is talking
-                          </span>
-                        )}
-                        {cameraOn && (
-                          <div className="am-fade-up absolute right-3 bottom-3 w-28 sm:w-40 aspect-video rounded-lg overflow-hidden border-2 border-white/80 shadow-lg bg-black">
-                            <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover -scale-x-100" />
-                            <span className="absolute left-1.5 top-1.5 flex items-center gap-1 text-[9px] font-bold text-white bg-red-600/90 px-1.5 py-0.5 rounded-full">
-                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                              LIVE
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          onClick={toggleCamera}
-                          disabled={cameraBusy}
-                          className={`h-10 px-4 rounded-xl text-xs font-bold transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-2 ${
-                            cameraOn
-                              ? "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100"
-                              : "bg-black text-white hover:bg-neutral-800"
-                          }`}
-                        >
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M23 7l-7 5 7 5V7z" />
-                            <rect x="1" y="5" width="15" height="14" rx="2" />
-                          </svg>
-                          {cameraBusy ? "…" : cameraOn ? "Stop camera" : "Start camera"}
-                        </button>
-                        <button
-                          onClick={toggleMic}
-                          disabled={micBusy}
-                          className={`h-10 px-4 rounded-xl text-xs font-bold transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-2 ${
-                            micOn
-                              ? "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100"
-                              : "bg-zinc-900 text-white hover:bg-black"
-                          }`}
-                        >
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                            <line x1="12" y1="19" x2="12" y2="23" />
-                            <line x1="8" y1="23" x2="16" y2="23" />
-                          </svg>
-                          {micBusy ? "…" : micOn ? "Stop mic" : "Start mic"}
-                        </button>
-                        <button
-                          onClick={() => setSpeakerMuted((v) => !v)}
-                          aria-label={speakerMuted ? "Unmute speaker" : "Mute speaker"}
-                          title={speakerMuted ? "Unmute their voice" : "Mute their voice"}
-                          className={`h-10 w-10 rounded-xl border bg-white flex items-center justify-center transition-colors ${
-                            speakerMuted ? "border-red-200 text-red-500" : "border-zinc-200 text-zinc-600 hover:text-indigo-600"
-                          }`}
-                        >
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                            {speakerMuted ? (
-                              <>
-                                <line x1="23" y1="9" x2="17" y2="15" />
-                                <line x1="17" y1="9" x2="23" y2="15" />
-                              </>
-                            ) : (
-                              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                            )}
-                          </svg>
-                        </button>
-                        <select
-                          value={quality}
-                          onChange={(e) => changeQuality(e.target.value as VideoQuality)}
-                          disabled={cameraBusy}
-                          className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 outline-none focus:border-indigo-400"
-                        >
-                          <option value="360p">360p · saves data</option>
-                          <option value="720p">720p · sharper</option>
-                        </select>
-                        <p className="text-[11px] text-zinc-400 w-full sm:w-auto sm:ml-auto">
-                          Camera and microphone stay off until you start them. Use headphones to avoid echo.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* stats */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {/* STATS */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-zinc-100 rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
                       {[
                         { label: "Messages", value: stats.count.toLocaleString("en-US") },
                         { label: "Session", value: formatElapsed(elapsed) },
                         { label: "Role", value: roleLabel },
                         { label: mode === "receiver" ? "Outputs" : "Inputs", value: String(detectedDevices.length) },
-                      ].map((s) => (
-                        <div key={s.label} className="bg-zinc-50 border border-zinc-100 rounded-xl p-4 text-center">
-                          <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">{s.label}</p>
-                          <p className="text-base font-bold text-zinc-900 corp-mono mt-1">{s.value}</p>
+                      ].map((st, i) => (
+                        <div key={st.label} className={`p-4 text-center ${i >= 2 ? "border-t border-zinc-100 sm:border-t-0" : ""}`}>
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">{st.label}</p>
+                          <p className="text-base font-bold text-zinc-900 corp-mono mt-1">{st.value}</p>
                         </div>
                       ))}
                     </div>
 
-                    {/* last message */}
-                    <div className="bg-zinc-50 border border-zinc-100 rounded-xl px-5 py-4">
-                      <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 mb-1">Last message</p>
-                      <p className="text-sm corp-mono text-zinc-800 truncate">{stats.last}</p>
+                    {/* MIDI MONITOR */}
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 mb-1">Last MIDI message</p>
+                          <p className="text-sm corp-mono text-zinc-800 truncate">{stats.last}</p>
+                        </div>
+                        <span
+                          className={`shrink-0 w-2.5 h-2.5 rounded-full transition-colors duration-100 ${
+                            isActive ? "bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,.9)]" : "bg-emerald-400"
+                          }`}
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-end gap-1 sm:gap-1.5 h-20">
+                          {channels.map((v, i) => (
+                            <div key={i} className="flex-1 h-full flex items-end">
+                              <div
+                                className="w-full rounded-sm bg-gradient-to-t from-indigo-600 to-violet-400 transition-[height,opacity] duration-150"
+                                style={{ height: `${6 + v * 94}%`, opacity: 0.3 + v * 0.7 }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-1 sm:gap-1.5 mt-1">
+                          {channels.map((_, i) => (
+                            <span key={i} className="flex-1 text-center text-[9px] text-zinc-400 corp-mono">
+                              {i + 1}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     </div>
 
-                    {/* channel meters */}
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 mb-2">Channel activity</p>
-                      <div className="flex items-end gap-1 sm:gap-1.5 h-24">
-                        {channels.map((v, i) => (
-                          <div key={i} className="flex-1 h-full flex items-end">
-                            <div
-                              className="w-full rounded-sm bg-gradient-to-t from-indigo-600 to-violet-400 transition-[height,opacity] duration-150"
-                              style={{ height: `${6 + v * 94}%`, opacity: 0.3 + v * 0.7 }}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex gap-1.5 mt-1">
-                        {channels.map((_, i) => (
-                          <span key={i} className="flex-1 text-center text-[9px] text-zinc-400 corp-mono">
-                            {i + 1}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* devices */}
+                    {/* DEVICES */}
                     {detectedDevices.length > 0 ? (
                       <div className="text-xs bg-zinc-50 border border-zinc-100 p-4 rounded-xl text-zinc-500 font-medium">
                         {mode === "receiver" ? "MIDI outputs: " : "MIDI inputs: "}
@@ -1420,13 +1800,6 @@ export default function AirMidiPage() {
                         settings and reconnect.
                       </div>
                     )}
-
-                    <button
-                      onClick={handleReset}
-                      className="w-full h-11 rounded-xl text-xs font-semibold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors"
-                    >
-                      Disconnect
-                    </button>
                   </div>
                 )}
               </div>
