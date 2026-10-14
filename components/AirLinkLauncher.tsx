@@ -33,7 +33,7 @@ export default function AirLinkLauncher() {
     }
   }, []);
 
-  // Widget transformation loop (Circle -> Pill with "use client" -> Circle)
+  // Wow Transformation Loop: Circle -> Futuristic Pill -> Circle
   useEffect(() => {
     if (open || dismissed) {
       setIsExpandingTeaser(false);
@@ -47,21 +47,20 @@ export default function AirLinkLauncher() {
     };
 
     const cycle = () => {
-      // Step 1: Expand into pill showing "use client"
+      // Step 1: Transform into the wow capsule
       setIsExpandingTeaser(true);
       
-      // Step 2: After 5 seconds, shrink back down to a circle
+      // Step 2: Keep it transformed for 4.5 seconds, then shrink
       later(() => {
         setIsExpandingTeaser(false);
-      }, 5000);
+      }, 4500);
 
-      // Step 3: Wait 8 seconds in circle mode before transforming again
+      // Step 3: Stay in normal circle state for 8 seconds before next transformation
       later(() => {
         cycle();
-      }, 5000 + 8000);
+      }, 4500 + 8000);
     };
 
-    // First animation triggers after 3.5 seconds
     later(cycle, 3500);
 
     return () => {
@@ -106,13 +105,25 @@ export default function AirLinkLauncher() {
         @keyframes al-pop { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
         .al-pop { animation: al-pop .28s cubic-bezier(.2,.8,.2,1) both; transform-origin: bottom left; }
         
-        @keyframes al-sonar {
-          0% { transform: scale(1); opacity: 0.5; }
-          100% { transform: scale(1.5); opacity: 0; }
+        /* Futuristic liquid background grid wave */
+        @keyframes al-wave {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
         }
-        .al-sonar { animation: al-sonar 2s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
-        
-        @media (prefers-reduced-motion: reduce) { .al-pop, .al-sonar { animation: none; } }
+        .al-bg-gradient {
+          background: linear-gradient(-45deg, #4f46e5, #7c3aed, #ec4899, #2563eb);
+          background-size: 400% 400%;
+          animation: al-wave 6s ease infinite;
+        }
+
+        /* Ambient neon radar ring */
+        @keyframes al-sonar-wow {
+          0% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.7); }
+          70% { transform: scale(1.1); opacity: 0.3; box-shadow: 0 0 0 20px rgba(236, 72, 153, 0); }
+          100% { transform: scale(1); opacity: 0; }
+        }
+        .al-sonar-wow { animation: al-sonar-wow 2.5s cubic-bezier(0.25, 0, 0, 1) infinite; }
       `}</style>
 
       {/* Dialog/Popup Menu */}
@@ -169,11 +180,11 @@ export default function AirLinkLauncher() {
         </div>
       )}
 
-      {/* Interactive Transforming Trigger Button */}
+      {/* Transforming Widget Container */}
       <div className="relative">
-        {/* Sonar Glow Effect - only active when closed and expanding */}
+        {/* Glow Aura when transformed */}
         {!open && isExpandingTeaser && (
-          <div className="al-sonar absolute inset-0 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-full pointer-events-none" />
+          <div className="al-sonar-wow absolute inset-0 rounded-full pointer-events-none" />
         )}
         
         <button
@@ -183,40 +194,46 @@ export default function AirLinkLauncher() {
           }}
           aria-label={open ? "Close AirLink" : "Open AirLink"}
           aria-expanded={open}
-          className={`relative h-14 rounded-full shadow-lg transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) flex items-center shadow-indigo-500/20 overflow-hidden ${
+          className={`relative h-14 rounded-full shadow-lg transition-all duration-[600ms] cubic-bezier(0.34, 1.56, 0.64, 1) flex items-center overflow-hidden border border-white/10 ${
             open 
-              ? "w-14 bg-zinc-900 text-white justify-center shadow-zinc-950/20" 
+              ? "w-14 bg-zinc-900 text-white justify-center shadow-zinc-950/30" 
               : isExpandingTeaser 
-                ? "w-44 bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-600 text-white px-4 justify-between"
-                : "w-14 bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-600 text-white justify-center hover:scale-105 active:scale-95"
+                ? "w-48 al-bg-gradient text-white px-4 justify-between shadow-indigo-500/40"
+                : "w-14 bg-gradient-to-br from-indigo-600 to-violet-600 text-white justify-center hover:scale-105 active:scale-95 shadow-indigo-500/20"
           }`}
         >
           {open ? (
-            /* Closed state icon (X) */
-            <svg className="w-5 h-5 min-w-[20px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            /* X Icon when opened */
+            <svg className="w-5 h-5 min-w-[20px] transition-transform duration-200 rotate-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           ) : (
-            /* Default State & Dynamic Transformation */
+            /* Icon Initial & Dynamic Pill Reveal */
             <>
-              {/* Left element: The Main Icon */}
+              {/* Icon Initial: Always untouched, static and clean on the left/center */}
               <div className="flex items-center justify-center min-w-[24px]">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
 
-              {/* Center element: Revealed text code string */}
+              {/* Revealed WOW section: Sliding & fading effect */}
               <div 
-                className={`text-[12px] font-mono font-bold tracking-tight whitespace-nowrap transition-all duration-300 delay-100 flex items-center gap-1.5 ${
-                  isExpandingTeaser ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 pointer-events-none absolute"
+                className={`text-[12px] font-mono font-bold tracking-wider whitespace-nowrap transition-all duration-300 flex items-center gap-1.5 ${
+                  isExpandingTeaser 
+                    ? "opacity-100 translate-x-0 scale-100" 
+                    : "opacity-0 -translate-x-4 scale-90 pointer-events-none absolute"
                 }`}
               >
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                <span className="text-white bg-black/20 backdrop-blur-md px-2 py-0.5 rounded border border-white/10 shadow-inner">
+                  "use client";
                 </span>
-                "use client";
+                
+                {/* Cyber dot indicator */}
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-300"></span>
+                </span>
               </div>
             </>
           )}
