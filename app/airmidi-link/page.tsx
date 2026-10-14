@@ -82,6 +82,22 @@ const nowStamp = () => {
 const formatElapsed = (s: number) =>
   `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
+// viewport width, used to adapt the full screen overlay (phone / tablet / desktop)
+function useViewportWidth() {
+  const [w, setW] = useState(1024);
+  useEffect(() => {
+    const on = () => setW(window.innerWidth);
+    on();
+    window.addEventListener("resize", on);
+    window.addEventListener("orientationchange", on);
+    return () => {
+      window.removeEventListener("resize", on);
+      window.removeEventListener("orientationchange", on);
+    };
+  }, []);
+  return w;
+}
+
 /* ---------------------------------------------------------------------- */
 /* Small UI pieces                                                         */
 /* ---------------------------------------------------------------------- */
@@ -410,7 +426,8 @@ function DockButton({
       disabled={disabled}
       title={label}
       aria-label={label}
-      className={`h-11 w-11 sm:h-12 sm:w-12 shrink-0 rounded-full border flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-50 ${
+      aria-pressed={active}
+      className={`h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-full border flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-50 ${
         danger
           ? "bg-red-600 border-red-400/60 text-white hover:bg-red-500"
           : active
@@ -538,7 +555,7 @@ function detectChord(notes: number[]): string {
 }
 
 const IcKeys = () => (
-  <svg className="w-4 h-4" {...svgProps}>
+  <svg className="w-5 h-5" {...svgProps}>
     <rect x="2" y="4" width="20" height="16" rx="2" />
     <path d="M7 4v8M12 4v16M17 4v8" />
   </svg>
@@ -654,7 +671,11 @@ function PianoKeyboard({
         </div>
       )}
 
-      <div className={`relative flex select-none ${glass ? "h-16 sm:h-24" : "h-28 sm:h-40 rounded-b-lg overflow-visible"}`}>
+      <div
+        className={`relative flex select-none ${
+          glass ? "h-16 sm:h-24 [@media(max-height:430px)]:!h-11" : "h-28 sm:h-40 rounded-b-lg overflow-visible"
+        }`}
+      >
         {whites.map((n) => (
           <div
             key={n}
@@ -742,7 +763,7 @@ const CTL_ITEMS = [
 ];
 
 const IcSliders = () => (
-  <svg className="w-4 h-4" {...svgProps}>
+  <svg className="w-5 h-5" {...svgProps}>
     <line x1="4" y1="21" x2="4" y2="14" />
     <line x1="4" y1="10" x2="4" y2="3" />
     <line x1="12" y1="21" x2="12" y2="12" />
@@ -1081,6 +1102,9 @@ const GLASS_CHIPS = [
   { id: "cc7", cc: 7, label: "VOL" },
   { id: "cc11", cc: 11, label: "EXP" },
   { id: "cc1", cc: 1, label: "MOD" },
+  { id: "cc74", cc: 74, label: "BRT" },
+  { id: "cc91", cc: 91, label: "REV" },
+  { id: "cc93", cc: 93, label: "CHO" },
 ];
 
 // Compact glass strip drawn over the video in full screen (same refs, own animation loop)
@@ -1163,9 +1187,10 @@ function GlassControls({
     return () => cancelAnimationFrame(raf);
   }, [hiddenKey, cc, bend, clkTimes, clkIdx, dirty]);
 
-  const chip = "flex items-center gap-2 rounded-full border border-white/20 bg-white/10 backdrop-blur-xl px-3 py-1.5";
+  const chip =
+    "shrink-0 flex items-center gap-2 rounded-full border border-white/20 bg-black/35 backdrop-blur-xl px-3 py-1.5";
   return (
-    <div className="flex flex-wrap justify-center gap-2">
+    <div className="pointer-events-auto no-scrollbar flex flex-nowrap sm:flex-wrap sm:justify-center gap-2 overflow-x-auto sm:overflow-visible">
       {GLASS_CHIPS.filter((c) => isOn(c.id)).map((c) => (
         <div key={c.id} className={chip}>
           <span className="text-[9px] font-bold tracking-[0.14em] text-white/60">{c.label}</span>
@@ -1211,8 +1236,8 @@ function GlassControls({
 
 function Panel({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`bg-white/80 backdrop-blur-xl border border-white/80 lg:border-[#EAEAEA] rounded-2xl p-5 shadow-[0_8px_32px_rgba(0,0,0,0.03)] ${className}`}>
-      <h2 className="text-[10px] uppercase tracking-[0.14em] font-bold text-zinc-400 mb-4">{title}</h2>
+    <section className={`bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm ${className}`}>
+      <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-zinc-500 mb-4">{title}</h2>
       {children}
     </section>
   );
@@ -1257,6 +1282,10 @@ export default function AirMidiPage() {
   const [rtt, setRtt] = useState<number | null>(null);
   const [netPath, setNetPath] = useState<"direct" | "relay" | null>(null);
   const [throttled, setThrottled] = useState(false);
+
+  // keyboard size used in full screen: 49 keys on phones, max 61 on tablets
+  const vw = useViewportWidth();
+  const stageKbSize = vw < 640 ? 49 : vw < 1024 ? Math.min(kbSize, 61) : kbSize;
 
   // video stage: full screen + auto-hiding controls
   const [stageFs, setStageFs] = useState(false); // native fullscreen on the stage element
@@ -1632,7 +1661,7 @@ export default function AirMidiPage() {
     if (status !== "connected") setStagePseudo(false);
   }, [status]);
 
-  /* ---- keyboard shortcuts: M mic, V camera, F full screen ---- */
+  /* ---- keyboard shortcuts: M mic, V camera, F full screen, K keyboard, C controls ---- */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -2004,7 +2033,7 @@ export default function AirMidiPage() {
       className={`relative overflow-hidden bg-[#070B16] select-none ${
         stageFull
           ? `${stagePseudo ? "fixed inset-0 z-[80]" : "w-full h-full"} ${controlsVisible ? "" : "cursor-none"}`
-          : "aspect-video w-full rounded-2xl ring-1 ring-black/10 shadow-[0_24px_60px_-12px_rgba(79,70,229,0.45)]"
+          : "aspect-video w-full rounded-2xl ring-1 ring-black/10 shadow-[0_24px_60px_-12px_rgba(79,70,229,0.35)]"
       }`}
     >
       {/* remote video (always mounted so the stream never drops) */}
@@ -2038,7 +2067,15 @@ export default function AirMidiPage() {
         className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 px-3 sm:px-4 pt-3 pb-10 bg-gradient-to-b from-black/60 to-transparent transition-opacity duration-300 ${
           stageFull && !controlsVisible ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
-        style={stageFull ? { paddingTop: "max(0.75rem, env(safe-area-inset-top))" } : undefined}
+        style={
+          stageFull
+            ? {
+                paddingTop: "max(0.75rem, env(safe-area-inset-top))",
+                paddingLeft: "max(0.75rem, env(safe-area-inset-left))",
+                paddingRight: "max(0.75rem, env(safe-area-inset-right))",
+              }
+            : undefined
+        }
       >
         <div className="flex items-center gap-2.5 min-w-0">
           {peer ? (
@@ -2063,32 +2100,6 @@ export default function AirMidiPage() {
               <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
               {cameraOn && micOn ? "CAM + MIC" : cameraOn ? "CAM" : "MIC"}
             </span>
-          )}
-          {stageFull && (
-            <>
-              <button
-                onClick={toggleKeyboard}
-                title="Keyboard (K)"
-                aria-label="Toggle keyboard"
-                aria-pressed={showKeyboard}
-                className={`w-9 h-9 rounded-full border backdrop-blur flex items-center justify-center transition-colors ${
-                  showKeyboard ? "bg-white text-zinc-900 border-white" : "bg-black/40 text-white border-white/15 hover:bg-black/60"
-                }`}
-              >
-                <IcKeys />
-              </button>
-              <button
-                onClick={toggleControls}
-                title="MIDI controls (C)"
-                aria-label="Toggle MIDI controls"
-                aria-pressed={showControls}
-                className={`w-9 h-9 rounded-full border backdrop-blur flex items-center justify-center transition-colors ${
-                  showControls ? "bg-white text-zinc-900 border-white" : "bg-black/40 text-white border-white/15 hover:bg-black/60"
-                }`}
-              >
-                <IcSliders />
-              </button>
-            </>
           )}
           <button
             onClick={toggleStage}
@@ -2115,7 +2126,7 @@ export default function AirMidiPage() {
       {remoteMicOn && (
         <span
           className={`absolute z-20 flex items-center gap-1.5 text-[11px] font-semibold text-white bg-black/50 backdrop-blur px-2.5 py-1 rounded-full ${
-            stageFull ? "left-3 sm:left-5 top-28" : "left-3 top-14"
+            stageFull ? "left-[max(0.75rem,env(safe-area-inset-left))] sm:left-5 top-28" : "left-3 top-14"
           }`}
         >
           <IcMic />
@@ -2131,7 +2142,7 @@ export default function AirMidiPage() {
         latency={rtt === null ? null : Math.round(rtt / 2)}
         path={netPath}
         throttled={throttled}
-        className={stageFull ? "left-3 sm:left-5 top-16" : "left-3 bottom-3"}
+        className={stageFull ? "left-[max(0.75rem,env(safe-area-inset-left))] sm:left-5 top-16" : "left-3 bottom-3"}
         textClass={stageFull ? "max-w-[55vw] sm:max-w-xs" : "max-w-[30vw] sm:max-w-[16rem]"}
       />
 
@@ -2139,7 +2150,9 @@ export default function AirMidiPage() {
       {cameraOn && (
         <div
           className={`am-fade-up absolute z-20 aspect-video rounded-lg overflow-hidden border-2 border-white/80 shadow-xl bg-black ${
-            stageFull ? "top-16 right-3 sm:right-5 w-28 sm:w-44" : "right-3 bottom-8 w-24 sm:w-40"
+            stageFull
+              ? "top-16 right-[max(0.75rem,env(safe-area-inset-right))] sm:right-5 w-28 sm:w-44"
+              : "right-3 bottom-8 w-24 sm:w-40"
           }`}
         >
           <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover -scale-x-100" />
@@ -2150,13 +2163,15 @@ export default function AirMidiPage() {
         </div>
       )}
 
-      {/* glass overlay in full screen: MIDI controls + keyboard on top of the video (display only) */}
+      {/* glass overlay in full screen: MIDI controls + keyboard on top of the video */}
       {stageFull && (showKeyboard || showControls) && (
         <div
-          className="pointer-events-none absolute inset-x-3 sm:inset-x-8 z-20 flex flex-col gap-2 transition-[bottom] duration-300 ease-out"
+          className="pointer-events-none absolute z-20 flex flex-col gap-2 transition-[bottom] duration-300 ease-out"
           style={{
+            left: "max(0.75rem, env(safe-area-inset-left))",
+            right: "max(0.75rem, env(safe-area-inset-right))",
             bottom: controlsVisible
-              ? "calc(7.25rem + env(safe-area-inset-bottom))"
+              ? "calc(6.5rem + env(safe-area-inset-bottom))"
               : "calc(2.25rem + env(safe-area-inset-bottom))",
           }}
         >
@@ -2171,8 +2186,8 @@ export default function AirMidiPage() {
             />
           )}
           {showKeyboard && (
-            <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.35)] p-2.5 sm:p-3.5">
-              <PianoKeyboard variant="glass" size={kbSize} vel={kbVel} dir={kbDir} sustain={kbSus} dirty={kbDirty} />
+            <div className="rounded-2xl border border-white/20 bg-black/30 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.35)] p-2 sm:p-3.5">
+              <PianoKeyboard variant="glass" size={stageKbSize} vel={kbVel} dir={kbDir} sustain={kbSus} dirty={kbDirty} />
             </div>
           )}
         </div>
@@ -2181,39 +2196,48 @@ export default function AirMidiPage() {
       {/* watermark */}
       <Watermark className="right-3 sm:right-4 bottom-2" />
 
-      {/* full screen dock: controls on top of the video */}
+      {/* full screen dock: controls on top of the video (scrolls sideways on small phones) */}
       {stageFull && (
         <div
-          className={`absolute left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ${
+          className={`absolute left-1/2 -translate-x-1/2 z-30 transition-all duration-300 max-w-[calc(100vw-1rem)] ${
             controlsVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
           }`}
           style={{ bottom: "max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))" }}
         >
-          <div className="flex items-center gap-2 sm:gap-3 rounded-full border border-white/15 bg-black/45 backdrop-blur-2xl px-3 py-2.5 shadow-2xl">
-            <DockButton onClick={toggleCamera} disabled={cameraBusy} active={cameraOn} label="Camera (V)">
-              <IcCamera off={!cameraOn} />
-            </DockButton>
-            <DockButton onClick={toggleMic} disabled={micBusy} active={micOn} label="Microphone (M)">
-              <IcMic off={!micOn} />
-            </DockButton>
-            <DockButton onClick={() => setSpeakerMuted((v) => !v)} label={speakerMuted ? "Unmute their voice" : "Mute their voice"}>
-              <IcSpeaker muted={speakerMuted} />
-            </DockButton>
-            <button
-              onClick={() => changeQuality(quality === "360p" ? "720p" : "360p")}
-              disabled={cameraBusy}
-              title="Video quality"
-              className="h-11 sm:h-12 px-3 rounded-full border border-white/15 bg-white/10 text-white text-[11px] font-bold hover:bg-white/20 transition-all active:scale-95 disabled:opacity-50"
-            >
-              {quality}
-            </button>
-            <span className="w-px h-6 bg-white/15" />
-            <DockButton onClick={toggleStage} label="Exit full screen (F)">
-              <IcExpand exit />
-            </DockButton>
-            <DockButton onClick={handleReset} danger label="End session">
-              <IcEnd />
-            </DockButton>
+          <div className="no-scrollbar overflow-x-auto rounded-full border border-white/15 bg-black/50 backdrop-blur-2xl px-2 sm:px-3 py-2 shadow-2xl">
+            <div className="flex items-center gap-1.5 sm:gap-3 w-max mx-auto">
+              <DockButton onClick={toggleCamera} disabled={cameraBusy} active={cameraOn} label="Camera (V)">
+                <IcCamera off={!cameraOn} />
+              </DockButton>
+              <DockButton onClick={toggleMic} disabled={micBusy} active={micOn} label="Microphone (M)">
+                <IcMic off={!micOn} />
+              </DockButton>
+              <DockButton onClick={() => setSpeakerMuted((v) => !v)} label={speakerMuted ? "Unmute their voice" : "Mute their voice"}>
+                <IcSpeaker muted={speakerMuted} />
+              </DockButton>
+              <span className="w-px h-6 bg-white/15 shrink-0" />
+              <DockButton onClick={toggleKeyboard} active={showKeyboard} label="Keyboard (K)">
+                <IcKeys />
+              </DockButton>
+              <DockButton onClick={toggleControls} active={showControls} label="MIDI controls (C)">
+                <IcSliders />
+              </DockButton>
+              <button
+                onClick={() => changeQuality(quality === "360p" ? "720p" : "360p")}
+                disabled={cameraBusy}
+                title="Video quality"
+                className="h-10 sm:h-12 px-3 shrink-0 rounded-full border border-white/15 bg-white/10 text-white text-[11px] font-bold hover:bg-white/20 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {quality}
+              </button>
+              <span className="w-px h-6 bg-white/15 shrink-0" />
+              <DockButton onClick={toggleStage} label="Exit full screen (F)">
+                <IcExpand exit />
+              </DockButton>
+              <DockButton onClick={handleReset} danger label="End session">
+                <IcEnd />
+              </DockButton>
+            </div>
           </div>
         </div>
       )}
@@ -2228,8 +2252,8 @@ export default function AirMidiPage() {
         .corp-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
         .am-grid {
           background-image:
-            linear-gradient(rgba(79,70,229,.045) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(79,70,229,.045) 1px, transparent 1px);
+            linear-gradient(rgba(79,70,229,.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(79,70,229,.035) 1px, transparent 1px);
           background-size: 44px 44px;
         }
         @keyframes am-fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -2250,13 +2274,15 @@ export default function AirMidiPage() {
         .am-flow { animation: am-flow 1.9s linear infinite; }
         .am-scroll::-webkit-scrollbar { width: 8px; }
         .am-scroll::-webkit-scrollbar-thumb { background: rgba(120,120,140,.35); border-radius: 8px; }
+        .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
         @media (prefers-reduced-motion: reduce) {
           .am-fade-up, .am-ring, .am-scan, .am-digit, .am-float, .am-dot, .am-flow { animation: none; }
         }
       `}</style>
 
-      <div className="absolute top-[-10%] right-[-5%] w-[400px] sm:w-[800px] h-[400px] sm:h-[800px] bg-gradient-to-br from-[#4F46E5]/35 via-[#8B5CF6]/30 to-transparent rounded-full blur-[70px] sm:blur-[110px] pointer-events-none z-0 animate-pulse duration-[5000ms]" />
-      <div className="absolute bottom-[5%] left-[-10%] w-[350px] sm:w-[700px] h-[350px] sm:h-[700px] bg-gradient-to-tr from-[#6366F1]/25 via-[#EC4899]/10 to-transparent rounded-full blur-[80px] sm:blur-[120px] pointer-events-none z-0" />
+      <div className="absolute top-[-10%] right-[-5%] w-[400px] sm:w-[800px] h-[400px] sm:h-[800px] bg-gradient-to-br from-[#4F46E5]/15 via-[#8B5CF6]/10 to-transparent rounded-full blur-[70px] sm:blur-[110px] pointer-events-none z-0" />
+      <div className="absolute bottom-[5%] left-[-10%] w-[350px] sm:w-[700px] h-[350px] sm:h-[700px] bg-gradient-to-tr from-[#6366F1]/12 via-transparent to-transparent rounded-full blur-[80px] sm:blur-[120px] pointer-events-none z-0" />
 
       {/* JOIN REQUEST (sender must approve every new participant) */}
       {joinRequest && (
@@ -2279,7 +2305,7 @@ export default function AirMidiPage() {
             </div>
             <div className="space-y-1">
               <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Join request</p>
-              <h3 className="text-lg font-extrabold text-zinc-900 truncate">{joinRequest.name}</h3>
+              <h3 className="text-lg font-bold text-zinc-900 truncate">{joinRequest.name}</h3>
               {joinRequest.email && <p className="text-xs corp-mono text-zinc-400">{joinRequest.email}</p>}
               <p className="text-sm text-zinc-500 pt-2">wants to join your session. Only accept people you know.</p>
             </div>
@@ -2314,12 +2340,12 @@ export default function AirMidiPage() {
         }}
       >
         {/* TOOLBAR */}
-        <header className="shrink-0 mb-5 bg-white/75 backdrop-blur-xl border border-white/80 lg:border-[#EAEAEA] rounded-2xl px-5 py-4 flex flex-wrap items-center justify-between gap-4 shadow-[0_8px_32px_rgba(0,0,0,0.03)]">
+        <header className="shrink-0 mb-5 bg-white border border-zinc-200 rounded-2xl px-4 sm:px-5 py-4 flex flex-wrap items-center justify-between gap-4 shadow-sm">
           <div className="flex items-center gap-4 am-fade-up">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/airlink-icon.png" alt="" width={44} height={44} className="w-11 h-11 rounded-full shadow-md shadow-indigo-500/30" draggable={false} />
+            <img src="/airlink-icon.png" alt="" width={44} height={44} className="w-11 h-11 rounded-full shadow-md shadow-indigo-500/20" draggable={false} />
             <div>
-              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent leading-tight">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 leading-tight">
                 AirMIDI Link
               </h1>
               <p className="text-[11px] sm:text-xs text-zinc-500 max-w-[14rem] sm:max-w-none truncate sm:whitespace-normal">
@@ -2328,7 +2354,7 @@ export default function AirMidiPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {(cameraOn || micOn) && (
               <span className="inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border border-red-200 bg-red-50 text-red-700">
                 <span className="relative flex w-2 h-2">
@@ -2364,7 +2390,7 @@ export default function AirMidiPage() {
               onClick={toggleFullscreen}
               aria-label={appMode ? "Exit full screen" : "Enter full screen"}
               title={appMode ? "Exit full screen" : "Full screen"}
-              className="w-9 h-9 rounded-full border border-zinc-200 bg-white text-zinc-600 hover:text-indigo-600 hover:border-indigo-300 hover:shadow-md active:scale-95 transition-all flex items-center justify-center"
+              className="w-10 h-10 sm:w-9 sm:h-9 rounded-full border border-zinc-200 bg-white text-zinc-600 hover:text-indigo-600 hover:border-indigo-300 hover:shadow-md active:scale-95 transition-all flex items-center justify-center"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 {appMode ? (
@@ -2442,8 +2468,8 @@ export default function AirMidiPage() {
 
           {/* ---------------- CENTER COLUMN: stage + compact log ---------------- */}
           <div className="flex flex-col gap-3 min-w-0 lg:min-h-0 lg:h-full">
-          <section className="bg-white/80 backdrop-blur-xl border border-white/80 lg:border-[#EAEAEA] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.04)] flex flex-col min-h-[420px] lg:min-h-0 lg:flex-1 overflow-hidden">
-            <div className="flex-1 overflow-y-auto am-scroll p-4 sm:p-10">
+          <section className="bg-white border border-zinc-200 rounded-2xl shadow-sm flex flex-col min-h-[420px] lg:min-h-0 lg:flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto am-scroll p-4 sm:p-8 lg:p-10">
               <div className="min-h-full flex flex-col justify-center">
                 <Stepper steps={steps} current={currentStep} />
 
@@ -2451,16 +2477,16 @@ export default function AirMidiPage() {
                 {mode === "choose" && (
                   <div key="choose" className="am-fade-up w-full max-w-3xl mx-auto space-y-8">
                     <div className="text-center space-y-2">
-                      <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900">Start a session</h2>
+                      <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">Start a session</h2>
                       <p className="text-sm text-zinc-500 max-w-md mx-auto">
                         Choose how this device takes part in the link.
                       </p>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                       <button
                         onClick={handleChooseSender}
                         disabled={loading || scanning}
-                        className="group text-left p-6 sm:p-7 rounded-2xl border border-zinc-200 bg-white hover:border-indigo-400 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 disabled:opacity-50"
+                        className="group text-left p-6 sm:p-7 rounded-2xl border border-zinc-200 bg-white hover:border-indigo-400 hover:shadow-md transition-all duration-300 disabled:opacity-50"
                       >
                         <span className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-5 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
                           <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2481,7 +2507,7 @@ export default function AirMidiPage() {
                           setError("");
                           setMode("receiver");
                         }}
-                        className="group text-left p-6 sm:p-7 rounded-2xl border border-zinc-200 bg-white hover:border-sky-400 hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+                        className="group text-left p-6 sm:p-7 rounded-2xl border border-zinc-200 bg-white hover:border-sky-400 hover:shadow-md transition-all duration-300"
                       >
                         <span className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center mb-5 group-hover:bg-sky-600 group-hover:text-white transition-colors duration-300">
                           <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2507,7 +2533,7 @@ export default function AirMidiPage() {
 
                     {!scanning && !roomCode && detectedDevices.length === 0 && (
                       <>
-                        <h2 className="text-xl font-extrabold text-zinc-900">Detect your adapter</h2>
+                        <h2 className="text-xl font-bold text-zinc-900">Detect your adapter</h2>
                         <div className="text-xs bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 font-medium leading-relaxed text-left">
                           No USB MIDI adapter detected. Plug it into this device and allow MIDI access in your browser.
                         </div>
@@ -2522,7 +2548,7 @@ export default function AirMidiPage() {
 
                     {!scanning && !roomCode && detectedDevices.length > 0 && (
                       <>
-                        <h2 className="text-xl font-extrabold text-zinc-900">Adapter ready</h2>
+                        <h2 className="text-xl font-bold text-zinc-900">Adapter ready</h2>
                         <div className="text-left space-y-2">
                           <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Detected adapters</p>
                           <div className="flex flex-wrap gap-2">
@@ -2557,20 +2583,20 @@ export default function AirMidiPage() {
 
                     {roomCode && (
                       <>
-                        <h2 className="text-xl font-extrabold text-zinc-900">Share this code</h2>
+                        <h2 className="text-xl font-bold text-zinc-900">Share this code</h2>
                         <p className="text-xs text-zinc-500">Enter it on the receiver device to pair.</p>
                         <div className="flex justify-center gap-2 sm:gap-3">
                           {roomCode.split("").map((d, i) => (
                             <span
                               key={i}
                               style={{ animationDelay: `${i * 70}ms` }}
-                              className="am-digit w-10 h-14 sm:w-16 sm:h-20 flex items-center justify-center rounded-xl bg-white border border-zinc-200 shadow-sm text-2xl sm:text-4xl font-extrabold text-zinc-900 corp-mono"
+                              className="am-digit w-10 h-14 sm:w-16 sm:h-20 flex items-center justify-center rounded-xl bg-white border border-zinc-200 shadow-sm text-2xl sm:text-4xl font-bold text-zinc-900 corp-mono"
                             >
                               {d}
                             </span>
                           ))}
                         </div>
-                        <button onClick={copyCode} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+                        <button onClick={copyCode} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors py-2">
                           {copied ? "✓ Copied" : "Copy code"}
                         </button>
                         <div className="flex items-center justify-center gap-2 text-xs text-zinc-500">
@@ -2586,7 +2612,7 @@ export default function AirMidiPage() {
 
                     <button
                       onClick={handleReset}
-                      className="text-xs font-semibold text-zinc-500 hover:text-black transition-colors pt-1 block mx-auto"
+                      className="text-xs font-semibold text-zinc-500 hover:text-black transition-colors pt-1 py-2 block mx-auto"
                     >
                       ← {roomCode ? "Stop session" : "Back"}
                     </button>
@@ -2597,7 +2623,7 @@ export default function AirMidiPage() {
                 {mode === "receiver" && !connected && (
                   <form key="receiver" onSubmit={handleConnectAsReceiver} className="am-fade-up w-full max-w-md mx-auto space-y-6">
                     <div className="text-center space-y-1">
-                      <h2 className="text-xl font-extrabold text-zinc-900">Join a session</h2>
+                      <h2 className="text-xl font-bold text-zinc-900">Join a session</h2>
                       <p className="text-xs text-zinc-500">Enter the 6-digit code shown on the sender device.</p>
                     </div>
                     <input
@@ -2608,7 +2634,7 @@ export default function AirMidiPage() {
                       required
                       value={inputCode}
                       onChange={(e) => setInputCode(e.target.value.replace(/\D/g, ""))}
-                      className="w-full h-20 bg-white border border-zinc-200 rounded-2xl px-4 text-4xl font-extrabold corp-mono text-center tracking-[0.5em] outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 placeholder:text-zinc-300 placeholder:tracking-[0.5em] disabled:opacity-60"
+                      className="w-full h-20 bg-white border border-zinc-200 rounded-2xl px-4 text-4xl font-bold corp-mono text-center tracking-[0.5em] outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 placeholder:text-zinc-300 placeholder:tracking-[0.5em] disabled:opacity-60"
                       placeholder="000000"
                       disabled={loading}
                     />
@@ -2634,7 +2660,7 @@ export default function AirMidiPage() {
 
                 {/* CONNECTED: live console */}
                 {connected && (
-                  <div key="connected" className="am-fade-up w-full max-w-4xl mx-auto space-y-5">
+                  <div key="connected" className="am-fade-up w-full max-w-4xl md:max-w-3xl lg:max-w-4xl mx-auto space-y-5">
                     <audio ref={remoteAudioRef} autoPlay playsInline />
 
                     {/* STAGE (video + MIDI HUD + watermark) */}
@@ -2682,7 +2708,7 @@ export default function AirMidiPage() {
                         value={quality}
                         onChange={(e) => changeQuality(e.target.value as VideoQuality)}
                         disabled={cameraBusy}
-                        className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 outline-none focus:border-indigo-400"
+                        className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-[16px] sm:text-xs font-semibold text-zinc-700 outline-none focus:border-indigo-400"
                       >
                         <option value="360p">360p · saves data</option>
                         <option value="720p">720p · sharper</option>
@@ -2707,7 +2733,8 @@ export default function AirMidiPage() {
                     <p className="text-[11px] text-zinc-400 -mt-2">
                       Camera and microphone stay off until you start them. Use headphones to avoid echo. Shortcuts:{" "}
                       <kbd className="corp-mono">V</kbd> camera · <kbd className="corp-mono">M</kbd> mic ·{" "}
-                      <kbd className="corp-mono">F</kbd> full screen
+                      <kbd className="corp-mono">F</kbd> full screen · <kbd className="corp-mono">K</kbd> keyboard ·{" "}
+                      <kbd className="corp-mono">C</kbd> controls
                     </p>
 
                     {/* KEYBOARD (on/off) */}
@@ -2748,7 +2775,7 @@ export default function AirMidiPage() {
                                   key={k}
                                   onClick={() => changeKbSize(k)}
                                   title={`${k} keys`}
-                                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors ${
+                                  className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-colors ${
                                     kbSize === k ? "bg-white text-indigo-600 shadow-sm" : "text-zinc-500 hover:text-zinc-800"
                                   }`}
                                 >
@@ -2762,7 +2789,7 @@ export default function AirMidiPage() {
                             aria-checked={showKeyboard}
                             aria-label="Show keyboard"
                             onClick={toggleKeyboard}
-                            className="flex items-center gap-2 text-[11px] font-bold text-zinc-500"
+                            className="flex items-center gap-2 text-[11px] font-bold text-zinc-500 py-1"
                           >
                             <span
                               className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
@@ -2811,7 +2838,7 @@ export default function AirMidiPage() {
                           aria-checked={showControls}
                           aria-label="Show MIDI controls"
                           onClick={toggleControls}
-                          className="flex items-center gap-2 text-[11px] font-bold text-zinc-500"
+                          className="flex items-center gap-2 text-[11px] font-bold text-zinc-500 py-1"
                         >
                           <span
                             className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
@@ -2837,7 +2864,7 @@ export default function AirMidiPage() {
                                   key={it.id}
                                   onClick={() => toggleCtlItem(it.id)}
                                   aria-pressed={on}
-                                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors ${
+                                  className={`px-2.5 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${
                                     on
                                       ? "bg-indigo-50 text-indigo-700 border-indigo-200"
                                       : "bg-white text-zinc-400 border-zinc-200 hover:text-zinc-600"
@@ -2954,10 +2981,10 @@ export default function AirMidiPage() {
           </section>
 
           {/* ---------------- ACTIVITY LOG (compact, collapsed by default) ---------------- */}
-          <section className="shrink-0 rounded-2xl border border-zinc-200 bg-white/80 backdrop-blur overflow-hidden flex flex-col">
+          <section className="shrink-0 rounded-2xl border border-zinc-200 bg-white overflow-hidden flex flex-col shadow-sm">
             <button
               onClick={() => setShowLog((v) => !v)}
-              className="shrink-0 w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-zinc-50/70 transition-colors"
+              className="shrink-0 w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-50/70 transition-colors"
             >
               <span className="flex items-center gap-2 text-xs font-bold text-zinc-800 min-w-0 flex-1">
                 <svg className="w-4 h-4 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2997,13 +3024,13 @@ export default function AirMidiPage() {
                   MIDI messages
                 </label>
                 <span className="flex-1" />
-                <button onClick={copyLog} className="text-[11px] font-semibold text-zinc-600 hover:text-black transition-colors">
+                <button onClick={copyLog} className="text-[11px] font-semibold text-zinc-600 hover:text-black transition-colors py-1">
                   Copy
                 </button>
-                <button onClick={downloadLog} className="text-[11px] font-semibold text-zinc-600 hover:text-black transition-colors">
+                <button onClick={downloadLog} className="text-[11px] font-semibold text-zinc-600 hover:text-black transition-colors py-1">
                   Download
                 </button>
-                <button onClick={() => setLogs([])} className="text-[11px] font-semibold text-zinc-600 hover:text-red-600 transition-colors">
+                <button onClick={() => setLogs([])} className="text-[11px] font-semibold text-zinc-600 hover:text-red-600 transition-colors py-1">
                   Clear
                 </button>
               </div>
