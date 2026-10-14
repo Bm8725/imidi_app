@@ -1,4 +1,8 @@
-// lib/AirMidiLink.ts
+// lib/AirMidiLink.t
+/**
+ * author: BM8725
+ * date: 14/10/25
+ */
 import { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 
 export type AirMidiRole = 'sender' | 'receiver'
@@ -270,7 +274,7 @@ export class AirMidiLink {
   }
 
   /* ------------------------------------------------------------------ */
-  /* WEBRTC                                                              */
+  /* e-RTC                                                              */
   /* ------------------------------------------------------------------ */
   // Loads STUN + short-lived TURN credentials from our own /api/turn route
   private async loadIceServers(): Promise<RTCIceServer[]> {
@@ -719,7 +723,7 @@ export class AirMidiLink {
   }
 
   /* ------------------------------------------------------------------ */
-  /* SENDER                                                              */
+  /* SENDER                 e-rtc                                       */
   /* ------------------------------------------------------------------ */
   async startBroadcasting(deviceInfo: any = {}): Promise<string> {
     // 1) signed in?  2) USB MIDI adapter connected?  3) only then generate the code
@@ -770,7 +774,7 @@ export class AirMidiLink {
   }
 
   /* ------------------------------------------------------------------ */
-  /* RECEIVER                                                            */
+  /* RECEIVER       e-rtc                                               */
   /* ------------------------------------------------------------------ */
   async connect(code: string, deviceInfo: any = {}): Promise<void> {
     const user = await this.requireUser()
@@ -914,6 +918,9 @@ export class AirMidiLink {
     this.localStream = null
   }
 
+  /**
+   * default v q=360p
+   */
   public async startVideo(quality: VideoQuality = '360p') {
     if (this.status !== 'connected' || !this.videoTransceiver) {
       throw new Error('Connect first, then start the camera.')
@@ -967,6 +974,7 @@ export class AirMidiLink {
     this.onLocalVideo(stream)
   }
 
+
   public async stopVideo() {
     if (!this.localStream) return
     this.stopLocalTracks()
@@ -1006,7 +1014,10 @@ export class AirMidiLink {
     let stream: MediaStream
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+ audio: { echoCancellation: true, 
+          noiseSuppression: false,
+           autoGainControl: false,
+            channelCount: 1 },
         video: false,
       })
     } catch (err: any) {
