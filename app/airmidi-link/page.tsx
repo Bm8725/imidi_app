@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
+import { useKeepAwake } from "@/lib/useKeepAwake";
 import { AirMidiLink, AirMidiStatus, AirMidiLogLevel, AirMidiPeer, VideoQuality, peerFromUser } from "@/lib/AirMidiLink";
 
 /* ---------------------------------------------------------------------- */
@@ -88,11 +89,11 @@ const formatHours = (s: number) => {
   return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
 };
 
-// viewport width, used to adapt the full screen overlay (phone / tablet / desktop)
-function useViewportWidth() {
-  const [w, setW] = useState(1024);
+// viewport size, used to adapt the full screen overlay (phone / tablet / desktop, landscape too)
+function useViewport() {
+  const [v, setV] = useState({ w: 1024, h: 768 });
   useEffect(() => {
-    const on = () => setW(window.innerWidth);
+    const on = () => setV({ w: window.innerWidth, h: window.innerHeight });
     on();
     window.addEventListener("resize", on);
     window.addEventListener("orientationchange", on);
@@ -101,7 +102,7 @@ function useViewportWidth() {
       window.removeEventListener("orientationchange", on);
     };
   }, []);
-  return w;
+  return v;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -247,36 +248,79 @@ function PeerSide({
   isMe: boolean;
   dark?: boolean;
 }) {
+  const sender = label === "Sender";
+  const tone = sender
+    ? {
+        ring: "from-blue-400 to-blue-800",
+        glow: "rgba(37,99,235,.55)",
+        orbitA: "border-t-blue-400 border-r-blue-500/30",
+        orbitB: "border-b-sky-300 border-l-blue-400/30",
+      }
+    : {
+        ring: "from-teal-300 to-teal-700",
+        glow: "rgba(13,148,136,.55)",
+        orbitA: "border-t-teal-300 border-r-teal-500/30",
+        orbitB: "border-b-emerald-300 border-l-teal-400/30",
+      };
   return (
-    <div className="flex flex-col items-center gap-2 min-w-0 w-[5.5rem] sm:w-36">
-      <div className="relative">
-        {p && <span className="absolute inset-0 rounded-full bg-emerald-400/30 am-ring" />}
-        <div
-          className={`relative rounded-full p-[3px] bg-gradient-to-br ${
-            p ? "from-blue-600 to-teal-500" : dark ? "from-white/20 to-white/10" : "from-slate-200 to-slate-300"
-          }`}
-        >
-          <div className={`rounded-full p-0.5 ${dark ? "bg-[#0B1020]" : "bg-white"}`}>
-            {p ? (
-              <Avatar name={p.name} src={p.avatar} />
-            ) : (
+    <div className="flex flex-col items-center gap-4 min-w-0 w-[5.5rem] sm:w-36">
+      <div className="relative" style={{ perspective: 700 }}>
+        {/* glowing platform under the avatar */}
+        <span
+          aria-hidden
+          className="absolute left-1/2 -bottom-4 h-5 w-20 -translate-x-1/2 rounded-[50%]"
+          style={{
+            background: `radial-gradient(ellipse at center, ${
+              p ? tone.glow : dark ? "rgba(255,255,255,.12)" : "rgba(15,27,45,.10)"
+            }, transparent 70%)`,
+          }}
+        />
+        {/* two tilted orbits around the avatar */}
+        {p && (
+          <>
+            <span
+              aria-hidden
+              className={`am-orbit absolute -inset-2.5 rounded-full border-2 border-transparent ${tone.orbitA}`}
+              style={{ ["--tilt" as string]: "68deg" } as React.CSSProperties}
+            />
+            <span
+              aria-hidden
+              className={`am-orbit am-orbit-rev absolute -inset-4 rounded-full border-2 border-transparent ${tone.orbitB}`}
+              style={{ ["--tilt" as string]: "58deg" } as React.CSSProperties}
+            />
+          </>
+        )}
+        <div className={p ? "am-float" : ""}>
+          <div className="relative">
+            {p && <span className="absolute inset-0 rounded-full am-ring" style={{ background: tone.glow }} />}
+            <div
+              className={`relative rounded-full p-[3px] bg-gradient-to-br ${
+                p ? tone.ring : dark ? "from-white/20 to-white/10" : "from-slate-200 to-slate-300"
+              }`}
+            >
+              <div className={`rounded-full p-0.5 ${dark ? "bg-[#0B1020]" : "bg-white"}`}>
+                {p ? (
+                  <Avatar name={p.name} src={p.avatar} />
+                ) : (
+                  <span
+                    className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold am-dot ${
+                      dark ? "bg-white/10 text-white/40" : "bg-slate-100 text-slate-300"
+                    }`}
+                  >
+                    ?
+                  </span>
+                )}
+              </div>
+            </div>
+            {p && (
               <span
-                className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold am-dot ${
-                  dark ? "bg-white/10 text-white/40" : "bg-slate-100 text-slate-300"
+                className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ${
+                  dark ? "ring-[#0B1020]" : "ring-white"
                 }`}
-              >
-                ?
-              </span>
+              />
             )}
           </div>
         </div>
-        {p && (
-          <span
-            className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ${
-              dark ? "ring-[#0B1020]" : "ring-white"
-            }`}
-          />
-        )}
       </div>
       <div className="text-center min-w-0 w-full">
         <p className={`text-[10px] uppercase tracking-wider font-bold ${dark ? "text-white/40" : "text-slate-400"}`}>
@@ -297,7 +341,7 @@ function PeerSide({
   );
 }
 
-// You <-> the other user, with data packets flowing sender -> receiver
+// You <-> the other user: a 3D data tube, rings and packets flowing sender -> receiver
 function PeerLink({
   me,
   peer,
@@ -313,31 +357,74 @@ function PeerLink({
 }) {
   const left = myRole === "sender" ? me : peer;
   const right = myRole === "sender" ? peer : me;
+  const live = !!peer;
   return (
     <div className={dark ? "" : "bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm"}>
       <p
-        className={`text-[10px] uppercase tracking-wider font-bold text-center mb-5 ${
+        className={`text-[10px] uppercase tracking-wider font-bold text-center mb-6 ${
           dark ? "text-white/40" : "text-slate-400"
         }`}
       >
         {peer ? (myRole === "receiver" ? "Receiving from" : "Streaming to") : "Establishing link"}
       </p>
-      <div className="flex items-center justify-center gap-1 sm:gap-4">
+      <div className="flex items-center justify-center gap-1 sm:gap-3">
         <PeerSide p={left} label="Sender" isMe={myRole === "sender"} dark={dark} />
-        <div className="relative flex-1 h-10 min-w-[40px] max-w-[220px]">
+
+        <div className="relative flex-1 h-20 min-w-[56px] max-w-[260px]" style={{ perspective: 520 }}>
+          {/* soft light under the tube */}
           <span
-            className={`absolute left-0 right-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed ${
-              dark ? "border-white/20" : "border-blue-300"
-            }`}
+            aria-hidden
+            className="absolute left-2 right-2 top-1/2 h-8 -translate-y-1/2 rounded-full blur-xl transition-opacity duration-200"
+            style={{
+              background: "linear-gradient(90deg, rgba(37,99,235,.40), rgba(13,148,136,.40))",
+              opacity: live ? (active ? 1 : 0.6) : 0.25,
+            }}
           />
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              style={{ animationDelay: `${i * 0.6}s`, animationDuration: active ? "0.9s" : "1.9s" }}
-              className="am-flow absolute top-1/2 -translate-y-1/2 left-0 w-2.5 h-2.5 rounded-full bg-gradient-to-r from-blue-600 to-teal-500 shadow shadow-blue-500/60"
-            />
-          ))}
+          {/* the tube (glass body with a highlight on top) */}
+          <span
+            aria-hidden
+            className="absolute left-0 right-0 top-1/2 h-2 -translate-y-1/2 rounded-full"
+            style={{
+              background: dark
+                ? "linear-gradient(180deg, rgba(255,255,255,.30), rgba(255,255,255,.06) 55%, rgba(0,0,0,.35))"
+                : "linear-gradient(180deg, rgba(255,255,255,.9), rgba(148,163,184,.35) 55%, rgba(71,85,105,.35))",
+              boxShadow: dark ? "inset 0 0 0 1px rgba(255,255,255,.12)" : "inset 0 0 0 1px rgba(15,27,45,.12)",
+            }}
+          />
+          {/* colour core: sender blue -> receiver teal, brighter while MIDI flows */}
+          <span
+            aria-hidden
+            className="absolute left-3 right-3 top-1/2 h-[3px] -translate-y-1/2 rounded-full transition-opacity duration-150"
+            style={{
+              background: "linear-gradient(90deg, #2563EB, #0D9488)",
+              opacity: live ? (active ? 1 : 0.55) : 0.2,
+            }}
+          />
+          <div className={`absolute inset-0 ${live ? "" : "opacity-40"}`}>
+            {[0, 1, 2, 3].map((i) => (
+              <span
+                key={`r${i}`}
+                className="am-ring3d"
+                style={{ animationDelay: `${i * 0.7}s`, animationDuration: active ? "1.4s" : "2.8s" }}
+              />
+            ))}
+            {[0, 1, 2].map((i) => (
+              <span
+                key={`p${i}`}
+                className="am-packet"
+                style={{ animationDelay: `${i * 0.6}s`, animationDuration: active ? "0.9s" : "1.9s" }}
+              />
+            ))}
+          </div>
+          <span
+            className={`absolute left-1/2 -translate-x-1/2 bottom-0 text-[9px] font-bold uppercase tracking-[0.2em] ${
+              dark ? "text-white/35" : "text-slate-400"
+            }`}
+          >
+            MIDI
+          </span>
         </div>
+
         <PeerSide p={right} label="Receiver" isMe={myRole === "receiver"} dark={dark} />
       </div>
     </div>
@@ -411,38 +498,92 @@ const IcEnd = () => (
   </svg>
 );
 
+const IcMore = () => (
+  <svg className="w-5 h-5" {...svgProps}>
+    <circle cx="5" cy="12" r="1.3" />
+    <circle cx="12" cy="12" r="1.3" />
+    <circle cx="19" cy="12" r="1.3" />
+  </svg>
+);
+
 function DockButton({
   onClick,
   label,
+  caption,
   active = false,
+  toggle = false,
   danger = false,
   disabled = false,
+  compact = false,
+  wide = false,
+  className = "",
   children,
 }: {
   onClick: () => void;
   label: string;
+  caption?: string;
   active?: boolean;
+  toggle?: boolean;
   danger?: boolean;
   disabled?: boolean;
+  compact?: boolean;
+  wide?: boolean;
+  className?: string;
   children: React.ReactNode;
 }) {
+  const size = compact
+    ? wide
+      ? "h-10 px-3 rounded-full"
+      : "h-10 w-10 rounded-full"
+    : "h-14 w-[3.75rem] gap-0.5 rounded-2xl";
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       title={label}
       aria-label={label}
-      aria-pressed={active}
-      className={`h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-full border flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-50 ${
+      aria-pressed={toggle ? active : undefined}
+      className={`shrink-0 flex flex-col items-center justify-center border transition-all duration-200 active:scale-95 disabled:opacity-50 ${size} ${
         danger
           ? "bg-red-600 border-red-400/60 text-white hover:bg-red-500"
           : active
-          ? "bg-white border-white text-slate-900"
+          ? "bg-white border-white text-[#0F1B2D] shadow-md"
           : "bg-white/10 border-white/15 text-white hover:bg-white/20"
-      }`}
+      } ${className}`}
     >
       {children}
+      {!compact && caption && (
+        <span className="text-[9px] font-semibold tracking-wide leading-none opacity-80">{caption}</span>
+      )}
     </button>
+  );
+}
+
+function QualityToggle({
+  quality,
+  onChange,
+  disabled,
+}: {
+  quality: VideoQuality;
+  onChange: (q: VideoQuality) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex rounded-xl border border-white/15 bg-white/10 p-0.5">
+      {(["360p", "720p"] as VideoQuality[]).map((q) => (
+        <button
+          key={q}
+          onClick={() => onChange(q)}
+          disabled={disabled}
+          aria-pressed={quality === q}
+          className={`px-2.5 h-8 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-50 ${
+            quality === q ? "bg-white text-[#0F1B2D]" : "text-white/80 hover:text-white"
+          }`}
+        >
+          {q}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -1292,14 +1433,18 @@ export default function AirMidiPage() {
   const [lowHours, setLowHours] = useState<number | null>(null);
 
   // keyboard size used in full screen: 49 keys on phones, max 61 on tablets
-  const vw = useViewportWidth();
+  const { w: vw, h: vh } = useViewport();
   const stageKbSize = vw < 640 ? 49 : vw < 1024 ? Math.min(kbSize, 61) : kbSize;
+  const compact = vw < 640 || vh < 430; // phones and landscape phones: smaller dock + "more" menu
 
   // video stage: full screen + auto-hiding controls
   const [stageFs, setStageFs] = useState(false); // native fullscreen on the stage element
   const [stagePseudo, setStagePseudo] = useState(false); // fallback (e.g. iPhone): covers the viewport
   const [controlsVisible, setControlsVisible] = useState(true);
   const stageFull = stageFs || stagePseudo;
+  const [moreOpen, setMoreOpen] = useState(false); // phone dock: extra actions menu
+  const [confirmEnd, setConfirmEnd] = useState(false); // second tap needed to end the session
+  const endTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actionsRef = useRef<{
@@ -1650,6 +1795,14 @@ export default function AirMidiPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
+  /* ---- dock: close the menu / cancel "end session" when the dock hides ---- */
+  useEffect(() => {
+    if (!controlsVisible || !stageFull) {
+      setMoreOpen(false);
+      setConfirmEnd(false);
+    }
+  }, [controlsVisible, stageFull]);
+
   /* ---- stage: auto-hide controls while in full screen ---- */
   useEffect(() => {
     if (stageFull) wakeControls();
@@ -1719,32 +1872,28 @@ export default function AirMidiPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [pseudoFs]);
 
-  /* ---- keep the screen awake while the link is live (phones) ---- */
+  /* ---- anti-sleep: keep the screen on from "waiting for receiver" until the link ends ---- */
+  const [awakeEnabled, setAwakeEnabled] = useState(true);
   useEffect(() => {
-    if (status !== "connected") return;
-    let lock: any = null;
-    let cancelled = false;
-    const request = async () => {
-      try {
-        lock = await (navigator as any).wakeLock?.request("screen");
-        if (cancelled && lock) lock.release();
-      } catch {
-        /* not supported or denied */
-      }
-    };
-    request();
-    const onVisible = () => document.visibilityState === "visible" && request();
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      cancelled = true;
-      document.removeEventListener("visibilitychange", onVisible);
-      try {
-        lock?.release();
-      } catch {
-        /* ignore */
-      }
-    };
-  }, [status]);
+    try {
+      const v = localStorage.getItem("airmidi-awake");
+      if (v !== null) setAwakeEnabled(v === "1");
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  const awakeActive =
+    status === "initializing" || status === "waiting" || status === "connecting" || status === "connected";
+  const awake = useKeepAwake(awakeActive, awakeEnabled);
+  const toggleAwake = () => {
+    const next = !awakeEnabled;
+    setAwakeEnabled(next);
+    try {
+      localStorage.setItem("airmidi-awake", next ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  };
 
   /* ---- log auto-scroll (box is always in the DOM) ---- */
   useEffect(() => {
@@ -1832,6 +1981,20 @@ export default function AirMidiPage() {
     chRef.current = Array(16).fill(0);
     setStats({ count: 0, last: "—" });
     setChannels(Array(16).fill(0));
+  };
+
+  // full screen: ending the session needs a second tap, so it can't happen by accident
+  const requestEnd = () => {
+    if (confirmEnd) {
+      if (endTimer.current) clearTimeout(endTimer.current);
+      setConfirmEnd(false);
+      handleReset();
+      return;
+    }
+    setConfirmEnd(true);
+    wakeControls();
+    if (endTimer.current) clearTimeout(endTimer.current);
+    endTimer.current = setTimeout(() => setConfirmEnd(false), 3000);
   };
 
   const toggleMic = async () => {
@@ -2188,7 +2351,11 @@ export default function AirMidiPage() {
             left: "max(0.75rem, env(safe-area-inset-left))",
             right: "max(0.75rem, env(safe-area-inset-right))",
             bottom: controlsVisible
-              ? "calc(6.5rem + env(safe-area-inset-bottom))"
+              ? compact
+                ? "calc(5.5rem + env(safe-area-inset-bottom))"
+                : "calc(8.25rem + env(safe-area-inset-bottom))"
+              : compact
+              ? "calc(1.75rem + env(safe-area-inset-bottom))"
               : "calc(2.25rem + env(safe-area-inset-bottom))",
           }}
         >
@@ -2213,48 +2380,107 @@ export default function AirMidiPage() {
       {/* watermark */}
       <Watermark className="right-3 sm:right-4 bottom-2" />
 
-      {/* full screen dock: controls on top of the video (scrolls sideways on small phones) */}
+      {/* full screen dock: glass bar with labelled buttons (phones get a compact bar + "more" menu) */}
       {stageFull && (
         <div
           className={`absolute left-1/2 -translate-x-1/2 z-30 transition-all duration-300 max-w-[calc(100vw-1rem)] ${
             controlsVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
           }`}
-          style={{ bottom: "max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))" }}
+          style={{
+            bottom: compact
+              ? "max(0.75rem, calc(env(safe-area-inset-bottom) + 0.5rem))"
+              : "max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))",
+          }}
         >
-          <div className="no-scrollbar overflow-x-auto rounded-full border border-white/15 bg-black/50 backdrop-blur-2xl px-2 sm:px-3 py-2 shadow-2xl">
-            <div className="flex items-center gap-1.5 sm:gap-3 w-max mx-auto">
-              <DockButton onClick={toggleCamera} disabled={cameraBusy} active={cameraOn} label="Camera (V)">
-                <IcCamera off={!cameraOn} />
-              </DockButton>
-              <DockButton onClick={toggleMic} disabled={micBusy} active={micOn} label="Microphone (M)">
-                <IcMic off={!micOn} />
-              </DockButton>
-              <DockButton onClick={() => setSpeakerMuted((v) => !v)} label={speakerMuted ? "Unmute their voice" : "Mute their voice"}>
+          <div
+            className={`relative flex items-center rounded-3xl border border-white/15 bg-[#0F1B2D]/70 backdrop-blur-2xl shadow-[0_18px_50px_-12px_rgba(0,0,0,0.65)] ${
+              compact ? "gap-1.5 px-2 py-1.5" : "gap-2 px-3 py-2.5"
+            }`}
+          >
+            {/* media */}
+            <DockButton compact={compact} toggle onClick={toggleCamera} disabled={cameraBusy} active={cameraOn} label="Camera (V)" caption="Camera">
+              <IcCamera off={!cameraOn} />
+            </DockButton>
+            <DockButton compact={compact} toggle onClick={toggleMic} disabled={micBusy} active={micOn} label="Microphone (M)" caption="Mic">
+              <IcMic off={!micOn} />
+            </DockButton>
+            {!compact && (
+              <DockButton
+                compact={compact}
+                onClick={() => setSpeakerMuted((v) => !v)}
+                label={speakerMuted ? "Unmute their voice" : "Mute their voice"}
+                caption={speakerMuted ? "Muted" : "Voice"}
+              >
                 <IcSpeaker muted={speakerMuted} />
               </DockButton>
-              <span className="w-px h-6 bg-white/15 shrink-0" />
-              <DockButton onClick={toggleKeyboard} active={showKeyboard} label="Keyboard (K)">
-                <IcKeys />
-              </DockButton>
-              <DockButton onClick={toggleControls} active={showControls} label="MIDI controls (C)">
-                <IcSliders />
-              </DockButton>
-              <button
-                onClick={() => changeQuality(quality === "360p" ? "720p" : "360p")}
-                disabled={cameraBusy}
-                title="Video quality"
-                className="h-10 sm:h-12 px-3 shrink-0 rounded-full border border-white/15 bg-white/10 text-white text-[11px] font-bold hover:bg-white/20 transition-all active:scale-95 disabled:opacity-50"
-              >
-                {quality}
-              </button>
-              <span className="w-px h-6 bg-white/15 shrink-0" />
-              <DockButton onClick={toggleStage} label="Exit full screen (F)">
-                <IcExpand exit />
-              </DockButton>
-              <DockButton onClick={handleReset} danger label="End session">
-                <IcEnd />
-              </DockButton>
-            </div>
+            )}
+
+            <span className="w-px self-stretch my-1 bg-white/15 shrink-0" />
+
+            {/* MIDI views */}
+            <DockButton compact={compact} toggle onClick={toggleKeyboard} active={showKeyboard} label="Keyboard (K)" caption="Keys">
+              <IcKeys />
+            </DockButton>
+            <DockButton compact={compact} toggle onClick={toggleControls} active={showControls} label="MIDI controls (C)" caption="Controls">
+              <IcSliders />
+            </DockButton>
+
+            {!compact && (
+              <>
+                <span className="w-px self-stretch my-1 bg-white/15 shrink-0" />
+                <div className="flex flex-col items-center justify-center gap-1 h-14">
+                  <QualityToggle quality={quality} onChange={changeQuality} disabled={cameraBusy} />
+                  <span className="text-[9px] font-semibold tracking-wide leading-none text-white/80">Quality</span>
+                </div>
+                <DockButton compact={compact} onClick={toggleStage} label="Exit full screen (F)" caption="Exit">
+                  <IcExpand exit />
+                </DockButton>
+              </>
+            )}
+
+            {compact && (
+              <div className="relative">
+                <DockButton compact toggle onClick={() => setMoreOpen((v) => !v)} active={moreOpen} label="More">
+                  <IcMore />
+                </DockButton>
+                {moreOpen && (
+                  <div className="am-fade-up absolute bottom-full right-0 mb-3 w-60 rounded-2xl border border-white/15 bg-[#0F1B2D]/90 backdrop-blur-2xl p-2 shadow-2xl space-y-1">
+                    <button
+                      onClick={() => setSpeakerMuted((v) => !v)}
+                      className="w-full flex items-center gap-3 h-11 px-3 rounded-xl text-left text-xs font-semibold text-white hover:bg-white/10 transition-colors"
+                    >
+                      <IcSpeaker muted={speakerMuted} />
+                      {speakerMuted ? "Unmute their voice" : "Mute their voice"}
+                    </button>
+                    <div className="flex items-center justify-between gap-3 px-3 h-11">
+                      <span className="text-xs font-semibold text-white/80">Video quality</span>
+                      <QualityToggle quality={quality} onChange={changeQuality} disabled={cameraBusy} />
+                    </div>
+                    <button
+                      onClick={toggleStage}
+                      className="w-full flex items-center gap-3 h-11 px-3 rounded-xl text-left text-xs font-semibold text-white hover:bg-white/10 transition-colors"
+                    >
+                      <IcExpand exit />
+                      Exit full screen
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <span className="w-px self-stretch my-1 bg-white/15 shrink-0" />
+
+            <DockButton
+              compact={compact}
+              wide={compact && confirmEnd}
+              danger
+              onClick={requestEnd}
+              label={confirmEnd ? "Tap again to end the session" : "End session"}
+              caption={confirmEnd ? "Tap again" : "End"}
+              className={confirmEnd ? "animate-pulse" : ""}
+            >
+              {compact && confirmEnd ? <span className="text-[11px] font-bold px-1">End?</span> : <IcEnd />}
+            </DockButton>
           </div>
         </div>
       )}
@@ -2289,12 +2515,43 @@ export default function AirMidiPage() {
         @media (min-width: 1024px) { .am-main { height: 100vh; height: 100dvh; } }
         @keyframes am-flow { 0% { left: 0; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { left: calc(100% - 10px); opacity: 0; } }
         .am-flow { animation: am-flow 1.9s linear infinite; }
+        @keyframes am-orbit {
+          from { transform: rotateX(var(--tilt, 68deg)) rotateZ(0deg); }
+          to { transform: rotateX(var(--tilt, 68deg)) rotateZ(360deg); }
+        }
+        .am-orbit { animation: am-orbit 5.5s linear infinite; will-change: transform; }
+        .am-orbit-rev { animation-direction: reverse; animation-duration: 8s; }
+        .am-ring3d {
+          position: absolute; top: 50%; left: 0; width: 30px; height: 30px; margin-top: -15px;
+          border-radius: 50%; border: 2px solid rgba(96,165,250,.85);
+          animation: am-ring3d 2.8s linear infinite; will-change: left, transform, opacity;
+        }
+        @keyframes am-ring3d {
+          0% { left: 0; opacity: 0; transform: rotateY(72deg) scale(.45); border-color: rgba(96,165,250,.9); }
+          15% { opacity: 1; }
+          50% { transform: rotateY(72deg) scale(1); }
+          85% { opacity: 1; }
+          100% { left: calc(100% - 30px); opacity: 0; transform: rotateY(72deg) scale(.45); border-color: rgba(45,212,191,.9); }
+        }
+        .am-packet {
+          position: absolute; top: 50%; left: 0; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%;
+          background: radial-gradient(circle at 32% 30%, #fff 0, #93c5fd 28%, #2563eb 62%, #1e3a8a 100%);
+          box-shadow: 0 0 10px rgba(37,99,235,.7), 0 6px 8px -2px rgba(0,0,0,.35);
+          animation: am-packet 1.9s cubic-bezier(.45,.05,.55,.95) infinite; will-change: left, transform, opacity;
+        }
+        @keyframes am-packet {
+          0% { left: 0; opacity: 0; transform: translateY(0) scale(.6); }
+          12% { opacity: 1; }
+          50% { transform: translateY(-6px) scale(1.15); }
+          88% { opacity: 1; }
+          100% { left: calc(100% - 12px); opacity: 0; transform: translateY(0) scale(.6); }
+        }
         .am-scroll::-webkit-scrollbar { width: 8px; }
         .am-scroll::-webkit-scrollbar-thumb { background: rgba(120,120,140,.35); border-radius: 8px; }
         .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         @media (prefers-reduced-motion: reduce) {
-          .am-fade-up, .am-ring, .am-scan, .am-digit, .am-float, .am-dot, .am-flow { animation: none; }
+          .am-fade-up, .am-ring, .am-scan, .am-digit, .am-float, .am-dot, .am-flow, .am-orbit, .am-ring3d, .am-packet { animation: none; }
         }
       `}</style>
 
@@ -2392,6 +2649,32 @@ export default function AirMidiPage() {
                 <span className="truncate">{userEmail}</span>
               </span>
             )}
+            {awakeActive && (
+              <button
+                onClick={awakeEnabled && awake.mode === "off" ? awake.retry : toggleAwake}
+                title={
+                  awakeEnabled
+                    ? "Keeps the screen from sleeping while the link is active. Click to turn off."
+                    : "Click to keep the screen awake while the link is active."
+                }
+                className={`inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+                  !awakeEnabled
+                    ? "border-slate-200 bg-white text-slate-500"
+                    : awake.mode === "off"
+                    ? "border-amber-200 bg-amber-50 text-amber-700"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                <span aria-hidden>☀</span>
+                {!awakeEnabled
+                  ? "Sleep allowed"
+                  : awake.mode === "wakelock"
+                  ? "Screen awake"
+                  : awake.mode === "video"
+                  ? "Awake · fallback"
+                  : "Tap to stay awake"}
+              </button>
+            )}
             {hoursLeft !== null && mode !== "receiver" && (
               <span
                 className={`inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border corp-mono ${
@@ -2480,6 +2763,18 @@ export default function AirMidiPage() {
                   { k: "State", v: meta.label },
                   { k: "Uptime", v: connected ? formatElapsed(elapsed) : "—", mono: true },
                   { k: "Messages", v: stats.count.toLocaleString("en-US"), mono: true },
+                  {
+                    k: "Awake",
+                    v: !awakeEnabled
+                      ? "Off"
+                      : awake.mode === "wakelock"
+                      ? "Wake Lock"
+                      : awake.mode === "video"
+                      ? "Fallback"
+                      : awakeActive
+                      ? "Waiting"
+                      : "—",
+                  },
                   { k: "Hours left", v: hoursLeft === null ? "—" : formatHours(hoursLeft), mono: true },
                   { k: mode === "receiver" ? "Outputs" : "Inputs", v: String(detectedDevices.length), mono: true },
                 ].map((r) => (
@@ -3104,7 +3399,7 @@ export default function AirMidiPage() {
         </div>
       </main>
 
-       {/* {!appMode && <Footer />}*/}
+    {/* {!appMode && <Footer />} */}  
     </div>
   );
 }
