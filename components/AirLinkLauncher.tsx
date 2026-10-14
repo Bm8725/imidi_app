@@ -5,14 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-const MESSAGES = [
-  "Hey 👋 Meet AirMIDI Link",
-  "Try new tech: MIDI over the cloud ☁️",
-  "Stream your USB MIDI anywhere 🎹",
-  "Pair any device with a 6-digit code ⚡",
-  "No cables between you and your band 🎶",
-];
-
 const DISMISS_KEY = "airlink-teaser-dismissed";
 
 export default function AirLinkLauncher() {
@@ -20,9 +12,8 @@ export default function AirLinkLauncher() {
   const [open, setOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [dismissed, setDismissed] = useState(true); // start hidden until storage is read
-  const [teaser, setTeaser] = useState({ show: false, typing: false, idx: 0 });
+  const [isExpandingTeaser, setIsExpandingTeaser] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
-  const idxRef = useRef(0);
 
   const rememberDismiss = () => {
     setDismissed(true);
@@ -42,35 +33,44 @@ export default function AirLinkLauncher() {
     }
   }, []);
 
-  // teaser loop: typing dots -> message -> hide -> next message
+  // Widget transformation loop (Circle -> Pill with "use client" -> Circle)
   useEffect(() => {
     if (open || dismissed) {
-      setTeaser((t) => ({ ...t, show: false, typing: false }));
+      setIsExpandingTeaser(false);
       return;
     }
+
     let alive = true;
     const timers: ReturnType<typeof setTimeout>[] = [];
     const later = (fn: () => void, ms: number) => {
       timers.push(setTimeout(() => alive && fn(), ms));
     };
+
     const cycle = () => {
-      const idx = idxRef.current;
-      setTeaser({ show: true, typing: true, idx });
-      later(() => setTeaser({ show: true, typing: false, idx }), 900);
-      later(() => setTeaser({ show: false, typing: false, idx }), 900 + 4800);
+      // Step 1: Expand into pill showing "use client"
+      setIsExpandingTeaser(true);
+      
+      // Step 2: After 5 seconds, shrink back down to a circle
       later(() => {
-        idxRef.current = (idx + 1) % MESSAGES.length;
+        setIsExpandingTeaser(false);
+      }, 5000);
+
+      // Step 3: Wait 8 seconds in circle mode before transforming again
+      later(() => {
         cycle();
-      }, 900 + 4800 + 5500);
+      }, 5000 + 8000);
     };
+
+    // First animation triggers after 3.5 seconds
     later(cycle, 3500);
+
     return () => {
       alive = false;
       timers.forEach(clearTimeout);
     };
   }, [open, dismissed]);
 
-  // know if the user is signed in (only changes the button label)
+  // know if the user is signed in
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) =>
@@ -101,23 +101,21 @@ export default function AirLinkLauncher() {
   if (pathname?.startsWith("/airmidi-link")) return null;
 
   return (
-    <div ref={wrapRef} className="fixed left-4 md:left-5 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-5 z-[60] flex flex-col items-start gap-3">
+    <div ref={wrapRef} className="fixed left-4 md:left-5 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-5 z-[60] flex flex-col items-start gap-3 select-none">
       <style>{`
         @keyframes al-pop { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
         .al-pop { animation: al-pop .28s cubic-bezier(.2,.8,.2,1) both; transform-origin: bottom left; }
-        @keyframes al-ring { 0% { transform: scale(.9); opacity: .5; } 100% { transform: scale(1.8); opacity: 0; } }
-        .al-ring { animation: al-ring 2.4s ease-out infinite; }
-        @keyframes al-wiggle { 0%,100% { transform: rotate(0) translateY(0); } 20% { transform: rotate(-10deg) translateY(-4px); } 40% { transform: rotate(8deg) translateY(-2px); } 60% { transform: rotate(-5deg) translateY(-3px); } 80% { transform: rotate(3deg); } }
-        .al-wiggle { animation: al-wiggle .8s ease-in-out; }
-        @keyframes al-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-        .al-fade { animation: al-fade .35s ease-out both; }
-        @keyframes al-badge { 0% { transform: scale(0); } 70% { transform: scale(1.25); } 100% { transform: scale(1); } }
-        .al-badge { animation: al-badge .4s cubic-bezier(.2,.8,.2,1) both; }
-        @keyframes al-typing { 0%,80%,100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
-        .al-typing { animation: al-typing 1s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) { .al-pop, .al-ring, .al-wiggle, .al-fade, .al-badge, .al-typing { animation: none; } }
+        
+        @keyframes al-sonar {
+          0% { transform: scale(1); opacity: 0.5; }
+          100% { transform: scale(1.5); opacity: 0; }
+        }
+        .al-sonar { animation: al-sonar 2s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+        
+        @media (prefers-reduced-motion: reduce) { .al-pop, .al-sonar { animation: none; } }
       `}</style>
 
+      {/* Dialog/Popup Menu */}
       {open && (
         <div
           role="dialog"
@@ -171,86 +169,58 @@ export default function AirLinkLauncher() {
         </div>
       )}
 
-      <div className="flex items-center gap-3">
+      {/* Interactive Transforming Trigger Button */}
+      <div className="relative">
+        {/* Sonar Glow Effect - only active when closed and expanding */}
+        {!open && isExpandingTeaser && (
+          <div className="al-sonar absolute inset-0 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-full pointer-events-none" />
+        )}
+        
         <button
           onClick={() => {
             setOpen((v) => !v);
-            rememberDismiss(); // once opened, stop teasing for this session
+            rememberDismiss();
           }}
-          aria-label="Open AirLink"
+          aria-label={open ? "Close AirLink" : "Open AirLink"}
           aria-expanded={open}
-          className={`relative w-14 h-14 rounded-full shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-transform duration-200 flex items-center justify-center ${
-            open ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white" : ""
+          className={`relative h-14 rounded-full shadow-lg transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) flex items-center shadow-indigo-500/20 overflow-hidden ${
+            open 
+              ? "w-14 bg-zinc-900 text-white justify-center shadow-zinc-950/20" 
+              : isExpandingTeaser 
+                ? "w-44 bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-600 text-white px-4 justify-between"
+                : "w-14 bg-gradient-to-br from-indigo-600 via-indigo-500 to-violet-600 text-white justify-center hover:scale-105 active:scale-95"
           }`}
         >
-          {!open && <span className="absolute inset-0 rounded-full bg-indigo-500/40 al-ring" />}
           {open ? (
-            <svg className="relative w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 6l12 12M18 6L6 18" />
+            /* Closed state icon (X) */
+            <svg className="w-5 h-5 min-w-[20px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={teaser.typing ? `w-${teaser.idx}` : "idle"}
-              src="/airlink-icon.png"
-              alt="AirLink"
-              width={56}
-              height={56}
-              className={`relative w-14 h-14 rounded-full select-none ${teaser.show && teaser.typing ? "al-wiggle" : ""}`}
-              draggable={false}
-            />
-          )}
-          {/* notification badge */}
-          {!open && teaser.show && (
-            <span className="al-badge absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-pink-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">
-              1
-            </span>
+            /* Default State & Dynamic Transformation */
+            <>
+              {/* Left element: The Main Icon */}
+              <div className="flex items-center justify-center min-w-[24px]">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+
+              {/* Center element: Revealed text code string */}
+              <div 
+                className={`text-[12px] font-mono font-bold tracking-tight whitespace-nowrap transition-all duration-300 delay-100 flex items-center gap-1.5 ${
+                  isExpandingTeaser ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 pointer-events-none absolute"
+                }`}
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                </span>
+                "use client";
+              </div>
+            </>
           )}
         </button>
-
-        {/* teaser bubble */}
-        <div
-          aria-live="polite"
-          className={`relative origin-left transition-all duration-500 ease-out ${
-            teaser.show && !open
-              ? "opacity-100 translate-x-0 scale-100"
-              : "opacity-0 -translate-x-3 scale-90 pointer-events-none"
-          }`}
-        >
-          <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-45 bg-white border-l border-b border-zinc-200" />
-          <div className="relative flex items-center gap-1 pl-4 pr-2 py-2.5 rounded-2xl bg-white border border-zinc-200 shadow-[0_10px_30px_rgba(79,70,229,0.18)] max-w-[min(240px,calc(100vw-7rem))]">
-            <button
-              onClick={() => {
-                setOpen(true);
-                rememberDismiss();
-              }}
-              className="text-left min-h-[1rem]"
-            >
-              {teaser.typing ? (
-                <span className="flex items-center gap-1 py-1">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      style={{ animationDelay: `${i * 0.15}s` }}
-                      className="al-typing w-1.5 h-1.5 rounded-full bg-indigo-500"
-                    />
-                  ))}
-                </span>
-              ) : (
-                <span key={teaser.idx} className="al-fade block text-xs font-semibold text-zinc-800 leading-snug">
-                  {MESSAGES[teaser.idx]}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={rememberDismiss}
-              aria-label="Dismiss"
-              className="text-zinc-300 hover:text-zinc-600 transition-colors text-[11px] px-1.5 self-start"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
