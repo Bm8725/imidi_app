@@ -18,9 +18,9 @@ const STATUS_META: Record<
   AirMidiStatus,
   { label: string; dot: string; pill: string; pulse: boolean }
 > = {
-  idle: { label: "Idle", dot: "bg-zinc-400", pill: "bg-zinc-100 text-zinc-600 border-zinc-200", pulse: false },
+  idle: { label: "Idle", dot: "bg-slate-400", pill: "bg-slate-100 text-slate-600 border-slate-200", pulse: false },
   initializing: { label: "Initializing", dot: "bg-amber-500", pill: "bg-amber-50 text-amber-700 border-amber-200", pulse: true },
-  waiting: { label: "Waiting for receiver", dot: "bg-indigo-500", pill: "bg-indigo-50 text-indigo-700 border-indigo-200", pulse: true },
+  waiting: { label: "Waiting for receiver", dot: "bg-blue-600", pill: "bg-blue-50 text-blue-800 border-blue-300", pulse: true },
   connecting: { label: "Connecting", dot: "bg-amber-500", pill: "bg-amber-50 text-amber-700 border-amber-200", pulse: true },
   connected: { label: "Live", dot: "bg-emerald-500", pill: "bg-emerald-50 text-emerald-700 border-emerald-200", pulse: true },
   disconnected: { label: "Disconnected", dot: "bg-red-500", pill: "bg-red-50 text-red-700 border-red-200", pulse: false },
@@ -31,7 +31,7 @@ const LEVEL_STYLE: Record<LogLevel, { tag: string; color: string }> = {
   success: { tag: "OK", color: "text-emerald-400" },
   warn: { tag: "WARN", color: "text-amber-400" },
   error: { tag: "ERROR", color: "text-red-400" },
-  midi: { tag: "MIDI", color: "text-violet-400" },
+  midi: { tag: "MIDI", color: "text-teal-300" },
 };
 
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -82,6 +82,12 @@ const nowStamp = () => {
 const formatElapsed = (s: number) =>
   `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
+const formatHours = (s: number) => {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
+};
+
 // viewport width, used to adapt the full screen overlay (phone / tablet / desktop)
 function useViewportWidth() {
   const [w, setW] = useState(1024);
@@ -120,22 +126,22 @@ function Stepper({ steps, current }: { steps: string[]; current: number }) {
               <span
                 className={`relative flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-bold transition-all duration-500 ${
                   done
-                    ? "bg-indigo-600 text-white"
+                    ? "bg-blue-700 text-white"
                     : active
-                    ? "bg-white text-indigo-600 border-2 border-indigo-600"
-                    : "bg-white text-zinc-400 border border-zinc-300"
+                    ? "bg-white text-blue-700 border-2 border-blue-700"
+                    : "bg-white text-slate-400 border border-slate-300"
                 }`}
               >
                 {done ? <Check /> : i + 1}
-                {active && <span className="absolute inset-0 rounded-full bg-indigo-500/30 am-ring" />}
+                {active && <span className="absolute inset-0 rounded-full bg-blue-600/30 am-ring" />}
               </span>
-              <span className={`hidden sm:block text-[11px] font-semibold transition-colors ${done || active ? "text-zinc-900" : "text-zinc-400"}`}>
+              <span className={`hidden sm:block text-[11px] font-semibold transition-colors ${done || active ? "text-slate-900" : "text-slate-400"}`}>
                 {label}
               </span>
             </div>
             {i < steps.length - 1 && (
-              <span className="flex-1 mx-3 h-px bg-zinc-200 relative overflow-hidden">
-                <span className={`absolute inset-y-0 left-0 bg-indigo-600 transition-all duration-700 ${done ? "w-full" : "w-0"}`} />
+              <span className="flex-1 mx-3 h-px bg-slate-200 relative overflow-hidden">
+                <span className={`absolute inset-y-0 left-0 bg-blue-700 transition-all duration-700 ${done ? "w-full" : "w-0"}`} />
               </span>
             )}
           </li>
@@ -155,25 +161,25 @@ function VerticalSteps({ steps, current }: { steps: string[]; current: number })
         return (
           <li key={label} className="relative flex gap-3 pb-6 last:pb-0">
             {i < steps.length - 1 && (
-              <span className="absolute left-[13px] top-8 bottom-0 w-px bg-zinc-200 overflow-hidden">
-                <span className={`absolute inset-x-0 top-0 bg-indigo-600 transition-all duration-700 ${done ? "h-full" : "h-0"}`} />
+              <span className="absolute left-[13px] top-8 bottom-0 w-px bg-slate-200 overflow-hidden">
+                <span className={`absolute inset-x-0 top-0 bg-blue-700 transition-all duration-700 ${done ? "h-full" : "h-0"}`} />
               </span>
             )}
             <span
               className={`relative shrink-0 flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-bold transition-all duration-500 ${
                 done
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-blue-700 text-white"
                   : active
-                  ? "bg-white text-indigo-600 border-2 border-indigo-600"
-                  : "bg-white text-zinc-400 border border-zinc-300"
+                  ? "bg-white text-blue-700 border-2 border-blue-700"
+                  : "bg-white text-slate-400 border border-slate-300"
               }`}
             >
               {done ? <Check /> : i + 1}
-              {active && <span className="absolute inset-0 rounded-full bg-indigo-500/30 am-ring" />}
+              {active && <span className="absolute inset-0 rounded-full bg-blue-600/30 am-ring" />}
             </span>
             <div className="pt-0.5">
-              <p className={`text-xs font-bold transition-colors ${done || active ? "text-zinc-900" : "text-zinc-400"}`}>{label}</p>
-              <p className="text-[10px] text-zinc-400 mt-0.5">{done ? "Completed" : active ? "In progress" : "Pending"}</p>
+              <p className={`text-xs font-bold transition-colors ${done || active ? "text-slate-900" : "text-slate-400"}`}>{label}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{done ? "Completed" : active ? "In progress" : "Pending"}</p>
             </div>
           </li>
         );
@@ -185,20 +191,20 @@ function VerticalSteps({ steps, current }: { steps: string[]; current: number })
 function ScanBar({ label }: { label: string }) {
   return (
     <div className="space-y-3 py-2">
-      <div className="relative h-1.5 w-full rounded-full bg-zinc-100 overflow-hidden">
-        <span className="absolute inset-y-0 w-1/3 rounded-full bg-gradient-to-r from-transparent via-indigo-500 to-transparent am-scan" />
+      <div className="relative h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+        <span className="absolute inset-y-0 w-1/3 rounded-full bg-gradient-to-r from-transparent via-blue-600 to-transparent am-scan" />
       </div>
-      <p className="text-xs text-zinc-500 text-center">{label}</p>
+      <p className="text-xs text-slate-500 text-center">{label}</p>
     </div>
   );
 }
 
 const AVATAR_GRADIENTS = [
-  "from-indigo-500 to-violet-500",
-  "from-sky-500 to-indigo-500",
-  "from-fuchsia-500 to-pink-500",
-  "from-emerald-500 to-teal-500",
-  "from-amber-500 to-orange-500",
+  "from-blue-600 to-blue-800",
+  "from-teal-600 to-teal-800",
+  "from-slate-600 to-slate-800",
+  "from-cyan-700 to-cyan-900",
+  "from-sky-600 to-sky-800",
 ];
 
 function Avatar({ name, src, size = 56 }: { name: string; src?: string; size?: number }) {
@@ -247,7 +253,7 @@ function PeerSide({
         {p && <span className="absolute inset-0 rounded-full bg-emerald-400/30 am-ring" />}
         <div
           className={`relative rounded-full p-[3px] bg-gradient-to-br ${
-            p ? "from-indigo-500 via-violet-500 to-fuchsia-500" : dark ? "from-white/20 to-white/10" : "from-zinc-200 to-zinc-300"
+            p ? "from-blue-600 to-teal-500" : dark ? "from-white/20 to-white/10" : "from-slate-200 to-slate-300"
           }`}
         >
           <div className={`rounded-full p-0.5 ${dark ? "bg-[#0B1020]" : "bg-white"}`}>
@@ -256,7 +262,7 @@ function PeerSide({
             ) : (
               <span
                 className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold am-dot ${
-                  dark ? "bg-white/10 text-white/40" : "bg-zinc-100 text-zinc-300"
+                  dark ? "bg-white/10 text-white/40" : "bg-slate-100 text-slate-300"
                 }`}
               >
                 ?
@@ -273,18 +279,18 @@ function PeerSide({
         )}
       </div>
       <div className="text-center min-w-0 w-full">
-        <p className={`text-[10px] uppercase tracking-wider font-bold ${dark ? "text-white/40" : "text-zinc-400"}`}>
+        <p className={`text-[10px] uppercase tracking-wider font-bold ${dark ? "text-white/40" : "text-slate-400"}`}>
           {label}
           {isMe ? " · You" : ""}
         </p>
         <p
           key={p?.name || "none"}
-          className={`am-fade-up text-sm font-bold truncate ${dark ? "text-white" : "text-zinc-900"}`}
+          className={`am-fade-up text-sm font-bold truncate ${dark ? "text-white" : "text-slate-900"}`}
         >
           {p ? p.name : "Identifying…"}
         </p>
         {p?.email && (
-          <p className={`text-[10px] corp-mono truncate ${dark ? "text-white/40" : "text-zinc-400"}`}>{p.email}</p>
+          <p className={`text-[10px] corp-mono truncate ${dark ? "text-white/40" : "text-slate-400"}`}>{p.email}</p>
         )}
       </div>
     </div>
@@ -308,10 +314,10 @@ function PeerLink({
   const left = myRole === "sender" ? me : peer;
   const right = myRole === "sender" ? peer : me;
   return (
-    <div className={dark ? "" : "bg-white border border-zinc-200 rounded-2xl p-4 sm:p-6 shadow-sm"}>
+    <div className={dark ? "" : "bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm"}>
       <p
         className={`text-[10px] uppercase tracking-wider font-bold text-center mb-5 ${
-          dark ? "text-white/40" : "text-zinc-400"
+          dark ? "text-white/40" : "text-slate-400"
         }`}
       >
         {peer ? (myRole === "receiver" ? "Receiving from" : "Streaming to") : "Establishing link"}
@@ -321,14 +327,14 @@ function PeerLink({
         <div className="relative flex-1 h-10 min-w-[40px] max-w-[220px]">
           <span
             className={`absolute left-0 right-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed ${
-              dark ? "border-white/20" : "border-indigo-200"
+              dark ? "border-white/20" : "border-blue-300"
             }`}
           />
           {[0, 1, 2].map((i) => (
             <span
               key={i}
               style={{ animationDelay: `${i * 0.6}s`, animationDuration: active ? "0.9s" : "1.9s" }}
-              className="am-flow absolute top-1/2 -translate-y-1/2 left-0 w-2.5 h-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 shadow shadow-indigo-400/60"
+              className="am-flow absolute top-1/2 -translate-y-1/2 left-0 w-2.5 h-2.5 rounded-full bg-gradient-to-r from-blue-600 to-teal-500 shadow shadow-blue-500/60"
             />
           ))}
         </div>
@@ -431,7 +437,7 @@ function DockButton({
         danger
           ? "bg-red-600 border-red-400/60 text-white hover:bg-red-500"
           : active
-          ? "bg-white border-white text-zinc-900"
+          ? "bg-white border-white text-slate-900"
           : "bg-white/10 border-white/15 text-white hover:bg-white/20"
       }`}
     >
@@ -492,7 +498,7 @@ function MidiHud({
         {channels.map((v, i) => (
           <span
             key={i}
-            className="w-[3px] rounded-sm bg-gradient-to-t from-indigo-500 to-fuchsia-400 transition-[height] duration-150"
+            className="w-[3px] rounded-sm bg-gradient-to-t from-blue-600 to-teal-400 transition-[height] duration-150"
             style={{ height: `${12 + v * 88}%`, opacity: 0.35 + v * 0.65 }}
           />
         ))}
@@ -605,7 +611,7 @@ function PianoKeyboard({
         return;
       }
       const black = BLACK_KEYS.has(n % 12);
-      const c = d === 2 ? "217,70,239" : "99,102,241"; // remote: fuchsia, you: indigo
+      const c = d === 2 ? "13,148,136" : "37,99,235"; // remote: teal, you: blue
       const a = 0.5 + 0.5 * (v / 127); // harder hit = stronger colour
       el.style.background = black
         ? `linear-gradient(to bottom, rgba(${c},${a}), rgba(${c},${a * 0.65}))`
@@ -657,7 +663,7 @@ function PianoKeyboard({
           </span>
           <span
             ref={chordTextRef}
-            className="corp-mono text-2xl sm:text-4xl font-extrabold text-white leading-none drop-shadow-[0_0_18px_rgba(129,140,248,0.9)]"
+            className="corp-mono text-2xl sm:text-4xl font-extrabold text-white leading-none drop-shadow-[0_0_14px_rgba(37,99,235,0.7)]"
           >
             —
           </span>
@@ -685,13 +691,13 @@ function PianoKeyboard({
             className={`relative flex-1 min-w-0 rounded-b-md border transition-[transform,box-shadow] duration-75 flex items-end justify-center pb-1 ${
               glass
                 ? "border-white/40 bg-gradient-to-b from-white/90 to-white/55"
-                : "border-zinc-300 bg-gradient-to-b from-white to-zinc-100"
+                : "border-slate-300 bg-gradient-to-b from-white to-slate-100"
             }`}
           >
             {n % 12 === 0 && (
               <span
                 className={`text-[8px] sm:text-[9px] font-semibold corp-mono pointer-events-none ${
-                  glass ? "text-zinc-600" : "text-zinc-400"
+                  glass ? "text-slate-600" : "text-slate-400"
                 }`}
               >
                 C{Math.floor(n / 12) - 1}
@@ -707,7 +713,7 @@ function PianoKeyboard({
             }}
             style={{ left: `${at * unit - blackW / 2}%`, width: `${blackW}%` }}
             className={`absolute top-0 h-[62%] z-10 rounded-b-md bg-gradient-to-b shadow-md transition-[transform,box-shadow] duration-75 ${
-              glass ? "from-zinc-900/95 to-black/85 border border-white/10" : "from-zinc-800 to-black"
+              glass ? "from-slate-900/95 to-black/85 border border-white/10" : "from-slate-800 to-black"
             }`}
           />
         ))}
@@ -716,23 +722,23 @@ function PianoKeyboard({
       {!glass && (
         <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Notes</span>
-            <span ref={notesTextRef} className="corp-mono font-semibold text-zinc-800 truncate max-w-[14rem] sm:max-w-sm">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Notes</span>
+            <span ref={notesTextRef} className="corp-mono font-semibold text-slate-800 truncate max-w-[14rem] sm:max-w-sm">
               —
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Chord</span>
-            <span ref={chordTextRef} className="corp-mono font-bold text-indigo-600">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Chord</span>
+            <span ref={chordTextRef} className="corp-mono font-bold text-blue-700">
               —
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Pedal</span>
+            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Pedal</span>
             <span
               ref={susRef}
               style={{ opacity: 0.35 }}
-              className="inline-block px-2 py-0.5 rounded-md bg-zinc-900 text-white text-[10px] font-bold corp-mono transition-opacity"
+              className="inline-block px-2 py-0.5 rounded-md bg-slate-900 text-white text-[10px] font-bold corp-mono transition-opacity"
             >
               SUS
             </span>
@@ -830,8 +836,8 @@ function ControlsPanel({
       const b = E[id + ":box"];
       if (!b) return;
       hot[id] = now + 450;
-      b.style.borderColor = "rgba(99,102,241,.55)";
-      b.style.boxShadow = "0 0 18px rgba(99,102,241,.25)";
+      b.style.borderColor = "rgba(37,99,235,.55)";
+      b.style.boxShadow = "0 0 18px rgba(37,99,235,.25)";
     };
 
     const tick = () => {
@@ -904,8 +910,8 @@ function ControlsPanel({
           const el = E["tempo:tr"];
           if (el) {
             el.textContent = tr === 1 ? "PLAY" : tr === 2 ? "STOP" : "—";
-            el.style.background = tr === 1 ? "#10B981" : "#E4E4E7";
-            el.style.color = tr === 1 ? "#fff" : "#52525B";
+            el.style.background = tr === 1 ? "#10B981" : "#E2E8F0";
+            el.style.color = tr === 1 ? "#fff" : "#475569";
           }
         }
         first = false;
@@ -969,7 +975,7 @@ function ControlsPanel({
   }, [hiddenKey, cc, bend, press, prog, transport, clkTimes, clkIdx, dirty]);
 
   const tileBox =
-    "rounded-2xl border border-zinc-200 bg-white p-3 transition-[border-color,box-shadow] duration-300";
+    "rounded-2xl border border-slate-200 bg-white p-3 transition-[border-color,box-shadow] duration-300";
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -982,7 +988,7 @@ function ControlsPanel({
                 cy="32"
                 r={R}
                 fill="none"
-                stroke="#E4E4E7"
+                stroke="#E2E8F0"
                 strokeWidth="6"
                 strokeLinecap="round"
                 strokeDasharray={`${SW} ${C}`}
@@ -994,7 +1000,7 @@ function ControlsPanel({
                 cy="32"
                 r={R}
                 fill="none"
-                stroke={t.center ? "#D946EF" : "#6366F1"}
+                stroke={t.center ? "#0D9488" : "#2563EB"}
                 strokeWidth="6"
                 strokeLinecap="round"
                 strokeDasharray={`0 ${C}`}
@@ -1004,30 +1010,30 @@ function ControlsPanel({
             </svg>
             <span
               ref={reg(t.id + ":val")}
-              className="absolute inset-0 flex items-center justify-center text-sm font-bold corp-mono text-zinc-900"
+              className="absolute inset-0 flex items-center justify-center text-sm font-bold corp-mono text-slate-900"
             >
               —
             </span>
           </div>
-          <p className="text-[11px] font-bold text-zinc-800 leading-tight">{t.name}</p>
-          <p className="text-[9px] uppercase tracking-wider text-zinc-400 font-semibold">CC {t.short}</p>
+          <p className="text-[11px] font-bold text-slate-800 leading-tight">{t.name}</p>
+          <p className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold">CC {t.short}</p>
         </div>
       ))}
 
       {isOn("bend") && (
         <div ref={reg("bend:box")} className={`${tileBox} col-span-2`}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] font-bold text-zinc-800">Pitch bend</p>
-            <span ref={reg("bend:val")} className="text-sm font-bold corp-mono text-zinc-900">
+            <p className="text-[11px] font-bold text-slate-800">Pitch bend</p>
+            <span ref={reg("bend:val")} className="text-sm font-bold corp-mono text-slate-900">
               0
             </span>
           </div>
-          <div className="relative mt-3 h-3 rounded-full bg-zinc-100 overflow-hidden">
-            <span className="absolute inset-y-0 left-1/2 w-px bg-zinc-300" />
+          <div className="relative mt-3 h-3 rounded-full bg-slate-100 overflow-hidden">
+            <span className="absolute inset-y-0 left-1/2 w-px bg-slate-300" />
             <span
               ref={reg("bend:fill")}
               style={{ left: "50%", width: "0%" }}
-              className="absolute inset-y-0 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 transition-[left,width] duration-75"
+              className="absolute inset-y-0 rounded-full bg-gradient-to-r from-blue-600 to-teal-500 transition-[left,width] duration-75"
             />
           </div>
         </div>
@@ -1036,16 +1042,16 @@ function ControlsPanel({
       {isOn("press") && (
         <div ref={reg("press:box")} className={`${tileBox} col-span-2`}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] font-bold text-zinc-800">Aftertouch</p>
-            <span ref={reg("press:val")} className="text-sm font-bold corp-mono text-zinc-900">
+            <p className="text-[11px] font-bold text-slate-800">Aftertouch</p>
+            <span ref={reg("press:val")} className="text-sm font-bold corp-mono text-slate-900">
               0
             </span>
           </div>
-          <div className="relative mt-3 h-3 rounded-full bg-zinc-100 overflow-hidden">
+          <div className="relative mt-3 h-3 rounded-full bg-slate-100 overflow-hidden">
             <span
               ref={reg("press:fill")}
               style={{ width: "0%" }}
-              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500 transition-[width] duration-75"
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-blue-600 to-teal-500 transition-[width] duration-75"
             />
           </div>
         </div>
@@ -1058,31 +1064,31 @@ function ControlsPanel({
               <span
                 ref={reg("tempo:dot")}
                 style={{ opacity: 0.2 }}
-                className="w-2.5 h-2.5 rounded-full bg-indigo-500 transition-opacity duration-300"
+                className="w-2.5 h-2.5 rounded-full bg-blue-600 transition-opacity duration-300"
               />
-              <p className="text-[11px] font-bold text-zinc-800">Tempo</p>
+              <p className="text-[11px] font-bold text-slate-800">Tempo</p>
             </div>
             <span
               ref={reg("tempo:tr")}
-              style={{ background: "#E4E4E7", color: "#52525B" }}
+              style={{ background: "#E2E8F0", color: "#475569" }}
               className="px-2 py-0.5 rounded-md text-[10px] font-bold corp-mono"
             >
               —
             </span>
           </div>
           <p className="mt-2 flex items-baseline gap-1.5">
-            <span ref={reg("tempo:val")} className="text-2xl font-extrabold corp-mono text-zinc-900">
+            <span ref={reg("tempo:val")} className="text-2xl font-extrabold corp-mono text-slate-900">
               —
             </span>
-            <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">BPM · from MIDI clock</span>
+            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">BPM · from MIDI clock</span>
           </p>
         </div>
       )}
 
       {isOn("prog") && (
         <div ref={reg("prog:box")} className={`${tileBox} flex flex-col justify-between`}>
-          <p className="text-[11px] font-bold text-zinc-800">Program</p>
-          <span ref={reg("prog:val")} className="mt-2 text-2xl font-extrabold corp-mono text-zinc-900">
+          <p className="text-[11px] font-bold text-slate-800">Program</p>
+          <span ref={reg("prog:val")} className="mt-2 text-2xl font-extrabold corp-mono text-slate-900">
             —
           </span>
         </div>
@@ -1198,7 +1204,7 @@ function GlassControls({
             <span
               ref={reg(c.id + ":bar")}
               style={{ width: "0%" }}
-              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-400 to-fuchsia-400 transition-[width] duration-75"
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-blue-500 to-teal-400 transition-[width] duration-75"
             />
           </span>
           <span ref={reg(c.id + ":val")} className="text-[10px] corp-mono font-semibold text-white w-6 text-right">
@@ -1214,7 +1220,7 @@ function GlassControls({
             <span
               ref={reg("bend:bar")}
               style={{ left: "50%", width: "0%" }}
-              className="absolute inset-y-0 rounded-full bg-gradient-to-r from-indigo-400 to-fuchsia-400 transition-[left,width] duration-75"
+              className="absolute inset-y-0 rounded-full bg-gradient-to-r from-blue-500 to-teal-400 transition-[left,width] duration-75"
             />
           </span>
           <span ref={reg("bend:val")} className="text-[10px] corp-mono font-semibold text-white w-10 text-right">
@@ -1236,8 +1242,8 @@ function GlassControls({
 
 function Panel({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm ${className}`}>
-      <h2 className="text-[10px] uppercase tracking-[0.12em] font-semibold text-zinc-500 mb-4">{title}</h2>
+    <section className={`bg-white border border-slate-200 rounded-2xl p-5 shadow-[0_1px_2px_rgba(15,27,45,0.06),0_10px_28px_-14px_rgba(15,27,45,0.18)] ${className}`}>
+      <h2 className="text-[11px] uppercase tracking-[0.1em] font-bold text-slate-700 mb-4 pb-3 border-b border-slate-100">{title}</h2>
       {children}
     </section>
   );
@@ -1282,6 +1288,8 @@ export default function AirMidiPage() {
   const [rtt, setRtt] = useState<number | null>(null);
   const [netPath, setNetPath] = useState<"direct" | "relay" | null>(null);
   const [throttled, setThrottled] = useState(false);
+  const [hoursLeft, setHoursLeft] = useState<number | null>(null); // sender's remaining streaming time (seconds)
+  const [lowHours, setLowHours] = useState<number | null>(null);
 
   // keyboard size used in full screen: 49 keys on phones, max 61 on tablets
   const vw = useViewportWidth();
@@ -1399,6 +1407,13 @@ export default function AirMidiPage() {
       pushLog("success", `Signed in as ${user.email || user.id}`);
       setIsLoggedIn(true);
       setCheckingAuth(false);
+      supabase
+        .from("airmidi_wallets")
+        .select("seconds_balance")
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (!error) setHoursLeft(data ? Number(data.seconds_balance) : 0);
+        });
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -1448,6 +1463,8 @@ export default function AirMidiPage() {
     link.onLatency = (ms) => setRtt(ms);
     link.onPathInfo = (p) => setNetPath(p);
     link.onVideoThrottle = (on) => setThrottled(on);
+    (link as any).onBalance = (s: number) => setHoursLeft(s);
+    (link as any).onLowHours = (s: number) => setLowHours(s);
 
     link.onError = (msg) => {
       setError(msg);
@@ -1998,9 +2015,9 @@ export default function AirMidiPage() {
 
   if (checkingAuth || !isLoggedIn) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[#EEF2FF]">
-        <span className="w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-        <p className="text-xs text-zinc-500 font-medium">Verifying session…</p>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[#E8ECF2]">
+        <span className="w-6 h-6 border-2 border-blue-300 border-t-blue-700 rounded-full animate-spin" />
+        <p className="text-xs text-slate-500 font-medium">Verifying session…</p>
       </div>
     );
   }
@@ -2033,7 +2050,7 @@ export default function AirMidiPage() {
       className={`relative overflow-hidden bg-[#070B16] select-none ${
         stageFull
           ? `${stagePseudo ? "fixed inset-0 z-[80]" : "w-full h-full"} ${controlsVisible ? "" : "cursor-none"}`
-          : "aspect-video w-full rounded-2xl ring-1 ring-black/10 shadow-[0_24px_60px_-12px_rgba(79,70,229,0.35)]"
+          : "aspect-video w-full rounded-2xl ring-1 ring-black/10 shadow-[0_24px_60px_-12px_rgba(15,27,45,0.45)]"
       }`}
     >
       {/* remote video (always mounted so the stream never drops) */}
@@ -2052,7 +2069,7 @@ export default function AirMidiPage() {
         className={`absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 px-4 transition-opacity duration-500 ${
           remoteVideoOn ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
-        style={{ background: "radial-gradient(ellipse at center, rgba(99,102,241,.22), transparent 70%)" }}
+        style={{ background: "radial-gradient(ellipse at center, rgba(37,99,235,.20), transparent 70%)" }}
       >
         <div className="w-full max-w-md scale-90 sm:scale-100">
           <PeerLink dark me={me} peer={peer} myRole={myRole} active={isActive} />
@@ -2245,15 +2262,15 @@ export default function AirMidiPage() {
   ) : null;
 
   return (
-    <div className="am-grid bg-gradient-to-tr from-[#E0E7FF] via-[#EEF2FF] to-[#F5F3FF] text-[#111111] am-app flex flex-col antialiased relative overflow-x-hidden corp-sans">
+    <div className="am-grid bg-[#E8ECF2] text-[#0F172A] am-app flex flex-col antialiased relative overflow-x-hidden corp-sans">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
         .corp-sans { font-family: 'Inter', system-ui, sans-serif; }
         .corp-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
         .am-grid {
           background-image:
-            linear-gradient(rgba(79,70,229,.035) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(79,70,229,.035) 1px, transparent 1px);
+            linear-gradient(rgba(15,27,45,.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(15,27,45,.04) 1px, transparent 1px);
           background-size: 44px 44px;
         }
         @keyframes am-fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -2281,8 +2298,8 @@ export default function AirMidiPage() {
         }
       `}</style>
 
-      <div className="absolute top-[-10%] right-[-5%] w-[400px] sm:w-[800px] h-[400px] sm:h-[800px] bg-gradient-to-br from-[#4F46E5]/15 via-[#8B5CF6]/10 to-transparent rounded-full blur-[70px] sm:blur-[110px] pointer-events-none z-0" />
-      <div className="absolute bottom-[5%] left-[-10%] w-[350px] sm:w-[700px] h-[350px] sm:h-[700px] bg-gradient-to-tr from-[#6366F1]/12 via-transparent to-transparent rounded-full blur-[80px] sm:blur-[120px] pointer-events-none z-0" />
+      <div className="absolute top-[-10%] right-[-5%] w-[400px] sm:w-[800px] h-[400px] sm:h-[800px] bg-gradient-to-br from-[#1D4ED8]/12 via-[#0F1B2D]/5 to-transparent rounded-full blur-[70px] sm:blur-[110px] pointer-events-none z-0" />
+      <div className="absolute bottom-[5%] left-[-10%] w-[350px] sm:w-[700px] h-[350px] sm:h-[700px] bg-gradient-to-tr from-[#0D9488]/10 via-transparent to-transparent rounded-full blur-[80px] sm:blur-[120px] pointer-events-none z-0" />
 
       {/* JOIN REQUEST (sender must approve every new participant) */}
       {joinRequest && (
@@ -2295,8 +2312,8 @@ export default function AirMidiPage() {
           <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl text-center space-y-5">
             <div className="flex justify-center">
               <div className="relative">
-                <span className="absolute inset-0 rounded-full bg-indigo-400/30 am-ring" />
-                <div className="relative rounded-full p-[3px] bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500">
+                <span className="absolute inset-0 rounded-full bg-blue-500/30 am-ring" />
+                <div className="relative rounded-full p-[3px] bg-gradient-to-br from-blue-600 to-teal-500">
                   <div className="rounded-full bg-white p-0.5">
                     <Avatar name={joinRequest.name} src={joinRequest.avatar} size={64} />
                   </div>
@@ -2304,21 +2321,21 @@ export default function AirMidiPage() {
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">Join request</p>
-              <h3 className="text-lg font-bold text-zinc-900 truncate">{joinRequest.name}</h3>
-              {joinRequest.email && <p className="text-xs corp-mono text-zinc-400">{joinRequest.email}</p>}
-              <p className="text-sm text-zinc-500 pt-2">wants to join your session. Only accept people you know.</p>
+              <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Join request</p>
+              <h3 className="text-lg font-bold text-slate-900 truncate">{joinRequest.name}</h3>
+              {joinRequest.email && <p className="text-xs corp-mono text-slate-400">{joinRequest.email}</p>}
+              <p className="text-sm text-slate-500 pt-2">wants to join your session. Only accept people you know.</p>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={declineJoin}
-                className="flex-1 h-11 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-xs font-semibold transition-colors"
+                className="flex-1 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold transition-colors"
               >
                 Decline
               </button>
               <button
                 onClick={acceptJoin}
-                className="flex-1 h-11 rounded-xl bg-black text-white text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 active:scale-[0.98] transition-all"
+                className="flex-1 h-11 rounded-xl bg-[#0F1B2D] text-white text-xs font-bold uppercase tracking-widest hover:bg-[#1E3050] active:scale-[0.98] transition-all"
               >
                 Accept
               </button>
@@ -2340,15 +2357,15 @@ export default function AirMidiPage() {
         }}
       >
         {/* TOOLBAR */}
-        <header className="shrink-0 mb-5 bg-white border border-zinc-200 rounded-2xl px-4 sm:px-5 py-4 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+        <header className="shrink-0 mb-5 bg-[#0F1B2D] border border-[#1E3050] rounded-2xl px-4 sm:px-5 py-4 flex flex-wrap items-center justify-between gap-4 shadow-[0_12px_32px_-14px_rgba(15,27,45,0.6)]">
           <div className="flex items-center gap-4 am-fade-up">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/airlink-icon.png" alt="" width={44} height={44} className="w-11 h-11 rounded-full shadow-md shadow-indigo-500/20" draggable={false} />
+            <img src="/airlink-icon.png" alt="" width={44} height={44} className="w-11 h-11 rounded-full ring-2 ring-white/15" draggable={false} />
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 leading-tight">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
                 AirMIDI Link
               </h1>
-              <p className="text-[11px] sm:text-xs text-zinc-500 max-w-[14rem] sm:max-w-none truncate sm:whitespace-normal">
+              <p className="text-[11px] sm:text-xs text-slate-400 max-w-[14rem] sm:max-w-none truncate sm:whitespace-normal">
                 Encrypted MIDI transport over AirMIDI-Link V 0.1.13 concept MIDI 3.0
               </p>
             </div>
@@ -2365,14 +2382,26 @@ export default function AirMidiPage() {
               </span>
             )}
             {connected && (
-              <span className="hidden sm:inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border border-zinc-200 bg-white text-zinc-700 corp-mono">
+              <span className="hidden sm:inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-700 corp-mono">
                 ⏱ {formatElapsed(elapsed)}
               </span>
             )}
             {userEmail && (
-              <span className="hidden md:inline-flex items-center gap-2 text-[11px] font-medium px-3 py-1.5 rounded-full border border-zinc-200 bg-white text-zinc-500 corp-mono max-w-[240px] truncate">
+              <span className="hidden md:inline-flex items-center gap-2 text-[11px] font-medium px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-500 corp-mono max-w-[240px] truncate">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                 <span className="truncate">{userEmail}</span>
+              </span>
+            )}
+            {hoursLeft !== null && mode !== "receiver" && (
+              <span
+                className={`inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border corp-mono ${
+                  hoursLeft <= 4 * 3600
+                    ? "border-amber-200 bg-amber-50 text-amber-700"
+                    : "border-slate-200 bg-white text-slate-700"
+                }`}
+                title="Remaining streaming hours (sender only)"
+              >
+                ⏳ {formatHours(hoursLeft)} left
               </span>
             )}
             <span
@@ -2390,7 +2419,7 @@ export default function AirMidiPage() {
               onClick={toggleFullscreen}
               aria-label={appMode ? "Exit full screen" : "Enter full screen"}
               title={appMode ? "Exit full screen" : "Full screen"}
-              className="w-10 h-10 sm:w-9 sm:h-9 rounded-full border border-zinc-200 bg-white text-zinc-600 hover:text-indigo-600 hover:border-indigo-300 hover:shadow-md active:scale-95 transition-all flex items-center justify-center"
+              className="w-10 h-10 sm:w-9 sm:h-9 rounded-full border border-slate-200 bg-white text-slate-600 hover:text-blue-700 hover:border-blue-400 hover:shadow-md active:scale-95 transition-all flex items-center justify-center"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 {appMode ? (
@@ -2416,6 +2445,21 @@ export default function AirMidiPage() {
           </div>
         )}
 
+        {/* LOW HOURS WARNING */}
+        {lowHours !== null && (
+          <div className="am-fade-up shrink-0 mb-5 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 flex items-start gap-3">
+            <span className="flex-1 font-medium leading-relaxed">
+              Only {formatHours(lowHours)} of streaming left.{" "}
+              <a href="/pricing" className="underline font-bold">
+                Buy more hours
+              </a>
+            </span>
+            <button onClick={() => setLowHours(null)} aria-label="Dismiss" className="text-amber-500 hover:text-amber-800 transition-colors">
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* DASHBOARD GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-[270px_minmax(0,1fr)] gap-5 lg:flex-1 lg:min-h-0">
           {/* ---------------- LEFT RAIL (desktop) ---------------- */}
@@ -2436,18 +2480,19 @@ export default function AirMidiPage() {
                   { k: "State", v: meta.label },
                   { k: "Uptime", v: connected ? formatElapsed(elapsed) : "—", mono: true },
                   { k: "Messages", v: stats.count.toLocaleString("en-US"), mono: true },
+                  { k: "Hours left", v: hoursLeft === null ? "—" : formatHours(hoursLeft), mono: true },
                   { k: mode === "receiver" ? "Outputs" : "Inputs", v: String(detectedDevices.length), mono: true },
                 ].map((r) => (
                   <div key={r.k} className="flex items-center justify-between gap-3">
-                    <dt className="text-zinc-400 font-medium">{r.k}</dt>
-                    <dd className={`font-semibold text-zinc-900 truncate ${r.mono ? "corp-mono" : ""}`}>{r.v}</dd>
+                    <dt className="text-slate-400 font-medium">{r.k}</dt>
+                    <dd className={`font-semibold text-slate-900 truncate ${r.mono ? "corp-mono" : ""}`}>{r.v}</dd>
                   </div>
                 ))}
               </dl>
             </Panel>
 
             <Panel title="Security">
-              <ul className="space-y-2.5 text-xs text-zinc-600">
+              <ul className="space-y-2.5 text-xs text-slate-600">
                 {[
                   "Signed-in access only",
                   "DTLS-encrypted data channel",
@@ -2468,7 +2513,7 @@ export default function AirMidiPage() {
 
           {/* ---------------- CENTER COLUMN: stage + compact log ---------------- */}
           <div className="flex flex-col gap-3 min-w-0 lg:min-h-0 lg:h-full">
-          <section className="bg-white border border-zinc-200 rounded-2xl shadow-sm flex flex-col min-h-[420px] lg:min-h-0 lg:flex-1 overflow-hidden">
+          <section className="bg-white border border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(15,27,45,0.06),0_10px_28px_-14px_rgba(15,27,45,0.18)] flex flex-col min-h-[420px] lg:min-h-0 lg:flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto am-scroll p-4 sm:p-8 lg:p-10">
               <div className="min-h-full flex flex-col justify-center">
                 <Stepper steps={steps} current={currentStep} />
@@ -2477,8 +2522,8 @@ export default function AirMidiPage() {
                 {mode === "choose" && (
                   <div key="choose" className="am-fade-up w-full max-w-3xl mx-auto space-y-8">
                     <div className="text-center space-y-2">
-                      <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">Start a session</h2>
-                      <p className="text-sm text-zinc-500 max-w-md mx-auto">
+                      <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Start a session</h2>
+                      <p className="text-sm text-slate-500 max-w-md mx-auto">
                         Choose how this device takes part in the link.
                       </p>
                     </div>
@@ -2486,18 +2531,18 @@ export default function AirMidiPage() {
                       <button
                         onClick={handleChooseSender}
                         disabled={loading || scanning}
-                        className="group text-left p-6 sm:p-7 rounded-2xl border border-zinc-200 bg-white hover:border-indigo-400 hover:shadow-md transition-all duration-300 disabled:opacity-50"
+                        className="group text-left p-6 sm:p-7 rounded-2xl border border-slate-200 bg-white border-t-4 border-t-blue-700 hover:border-x-blue-500 hover:border-b-blue-500 hover:shadow-md transition-all duration-300 disabled:opacity-50"
                       >
-                        <span className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-5 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
+                        <span className="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center mb-5 group-hover:bg-blue-700 group-hover:text-white transition-colors duration-300">
                           <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M12 20V10m0 0l-4 4m4-4l4 4M5 5h14" />
                           </svg>
                         </span>
-                        <span className="block text-base font-bold text-zinc-900">Sender</span>
-                        <span className="block text-xs text-zinc-500 mt-1.5 leading-relaxed">
+                        <span className="block text-base font-bold text-slate-900">Sender</span>
+                        <span className="block text-xs text-slate-500 mt-1.5 leading-relaxed">
                           Stream MIDI from a USB adapter connected to this device.
                         </span>
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 mt-4">
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 mt-4">
                           Continue <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
                         </span>
                       </button>
@@ -2507,18 +2552,18 @@ export default function AirMidiPage() {
                           setError("");
                           setMode("receiver");
                         }}
-                        className="group text-left p-6 sm:p-7 rounded-2xl border border-zinc-200 bg-white hover:border-sky-400 hover:shadow-md transition-all duration-300"
+                        className="group text-left p-6 sm:p-7 rounded-2xl border border-slate-200 bg-white border-t-4 border-t-teal-600 hover:border-x-teal-500 hover:border-b-teal-500 hover:shadow-md transition-all duration-300"
                       >
-                        <span className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center mb-5 group-hover:bg-sky-600 group-hover:text-white transition-colors duration-300">
+                        <span className="w-12 h-12 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center mb-5 group-hover:bg-teal-700 group-hover:text-white transition-colors duration-300">
                           <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M12 4v10m0 0l-4-4m4 4l4-4M5 19h14" />
                           </svg>
                         </span>
-                        <span className="block text-base font-bold text-zinc-900">Receiver</span>
-                        <span className="block text-xs text-zinc-500 mt-1.5 leading-relaxed">
+                        <span className="block text-base font-bold text-slate-900">Receiver</span>
+                        <span className="block text-xs text-slate-500 mt-1.5 leading-relaxed">
                           Join with a code and play incoming MIDI on this device.
                         </span>
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 mt-4">
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 mt-4">
                           Continue <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
                         </span>
                       </button>
@@ -2533,13 +2578,13 @@ export default function AirMidiPage() {
 
                     {!scanning && !roomCode && detectedDevices.length === 0 && (
                       <>
-                        <h2 className="text-xl font-bold text-zinc-900">Detect your adapter</h2>
+                        <h2 className="text-xl font-bold text-slate-900">Detect your adapter</h2>
                         <div className="text-xs bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 font-medium leading-relaxed text-left">
                           No USB MIDI adapter detected. Plug it into this device and allow MIDI access in your browser.
                         </div>
                         <button
                           onClick={scanAdapters}
-                          className="h-11 px-6 bg-black text-white text-xs font-semibold rounded-xl hover:bg-neutral-800 active:scale-[0.98] transition-all"
+                          className="h-11 px-6 bg-[#0F1B2D] text-white text-xs font-semibold rounded-xl hover:bg-[#1E3050] active:scale-[0.98] transition-all"
                         >
                           Scan again
                         </button>
@@ -2548,9 +2593,9 @@ export default function AirMidiPage() {
 
                     {!scanning && !roomCode && detectedDevices.length > 0 && (
                       <>
-                        <h2 className="text-xl font-bold text-zinc-900">Adapter ready</h2>
+                        <h2 className="text-xl font-bold text-slate-900">Adapter ready</h2>
                         <div className="text-left space-y-2">
-                          <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Detected adapters</p>
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Detected adapters</p>
                           <div className="flex flex-wrap gap-2">
                             {detectedDevices.map((d, i) => (
                               <span
@@ -2567,7 +2612,7 @@ export default function AirMidiPage() {
                         <button
                           onClick={handleStartBroadcasting}
                           disabled={loading}
-                          className="w-full h-12 bg-black text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-neutral-800 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                          className="w-full h-12 bg-[#0F1B2D] text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-[#1E3050] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                           {loading ? (
                             <>
@@ -2583,26 +2628,26 @@ export default function AirMidiPage() {
 
                     {roomCode && (
                       <>
-                        <h2 className="text-xl font-bold text-zinc-900">Share this code</h2>
-                        <p className="text-xs text-zinc-500">Enter it on the receiver device to pair.</p>
+                        <h2 className="text-xl font-bold text-slate-900">Share this code</h2>
+                        <p className="text-xs text-slate-500">Enter it on the receiver device to pair.</p>
                         <div className="flex justify-center gap-2 sm:gap-3">
                           {roomCode.split("").map((d, i) => (
                             <span
                               key={i}
                               style={{ animationDelay: `${i * 70}ms` }}
-                              className="am-digit w-10 h-14 sm:w-16 sm:h-20 flex items-center justify-center rounded-xl bg-white border border-zinc-200 shadow-sm text-2xl sm:text-4xl font-bold text-zinc-900 corp-mono"
+                              className="am-digit w-10 h-14 sm:w-16 sm:h-20 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-sm text-2xl sm:text-4xl font-bold text-slate-900 corp-mono"
                             >
                               {d}
                             </span>
                           ))}
                         </div>
-                        <button onClick={copyCode} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors py-2">
+                        <button onClick={copyCode} className="text-xs font-semibold text-blue-700 hover:text-blue-900 transition-colors py-2">
                           {copied ? "✓ Copied" : "Copy code"}
                         </button>
-                        <div className="flex items-center justify-center gap-2 text-xs text-zinc-500">
+                        <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
                           <span className="flex gap-1">
                             {[0, 1, 2].map((i) => (
-                              <span key={i} style={{ animationDelay: `${i * 0.2}s` }} className="am-dot w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                              <span key={i} style={{ animationDelay: `${i * 0.2}s` }} className="am-dot w-1.5 h-1.5 rounded-full bg-blue-600" />
                             ))}
                           </span>
                           Waiting for the receiver to join… (code valid for 15 min)
@@ -2612,7 +2657,7 @@ export default function AirMidiPage() {
 
                     <button
                       onClick={handleReset}
-                      className="text-xs font-semibold text-zinc-500 hover:text-black transition-colors pt-1 py-2 block mx-auto"
+                      className="text-xs font-semibold text-slate-500 hover:text-black transition-colors pt-1 py-2 block mx-auto"
                     >
                       ← {roomCode ? "Stop session" : "Back"}
                     </button>
@@ -2623,8 +2668,8 @@ export default function AirMidiPage() {
                 {mode === "receiver" && !connected && (
                   <form key="receiver" onSubmit={handleConnectAsReceiver} className="am-fade-up w-full max-w-md mx-auto space-y-6">
                     <div className="text-center space-y-1">
-                      <h2 className="text-xl font-bold text-zinc-900">Join a session</h2>
-                      <p className="text-xs text-zinc-500">Enter the 6-digit code shown on the sender device.</p>
+                      <h2 className="text-xl font-bold text-slate-900">Join a session</h2>
+                      <p className="text-xs text-slate-500">Enter the 6-digit code shown on the sender device.</p>
                     </div>
                     <input
                       type="text"
@@ -2634,7 +2679,7 @@ export default function AirMidiPage() {
                       required
                       value={inputCode}
                       onChange={(e) => setInputCode(e.target.value.replace(/\D/g, ""))}
-                      className="w-full h-20 bg-white border border-zinc-200 rounded-2xl px-4 text-4xl font-bold corp-mono text-center tracking-[0.5em] outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 placeholder:text-zinc-300 placeholder:tracking-[0.5em] disabled:opacity-60"
+                      className="w-full h-20 bg-white border border-slate-200 rounded-2xl px-4 text-4xl font-bold corp-mono text-center tracking-[0.5em] outline-none transition-all focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 placeholder:text-slate-300 placeholder:tracking-[0.5em] disabled:opacity-60"
                       placeholder="000000"
                       disabled={loading}
                     />
@@ -2643,14 +2688,14 @@ export default function AirMidiPage() {
                       <button
                         type="button"
                         onClick={handleReset}
-                        className="h-12 px-6 bg-zinc-100 hover:bg-zinc-200 text-xs font-semibold rounded-xl transition-colors"
+                        className="h-12 px-6 bg-slate-100 hover:bg-slate-200 text-xs font-semibold rounded-xl transition-colors"
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
                         disabled={loading || inputCode.length < 6}
-                        className="flex-1 h-12 bg-black text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-neutral-800 active:scale-[0.99] transition-all disabled:opacity-50"
+                        className="flex-1 h-12 bg-[#0F1B2D] text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-[#1E3050] active:scale-[0.99] transition-all disabled:opacity-50"
                       >
                         {loading ? "Connecting…" : "Connect →"}
                       </button>
@@ -2674,8 +2719,8 @@ export default function AirMidiPage() {
                         title="Camera (V)"
                         className={`h-11 px-4 rounded-xl text-xs font-bold border transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-2 ${
                           cameraOn
-                            ? "bg-zinc-900 text-white border-zinc-900"
-                            : "bg-white text-zinc-700 border-zinc-200 hover:border-indigo-300 hover:text-indigo-600"
+                            ? "bg-[#0F1B2D] text-white border-[#0F1B2D]"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:text-blue-700"
                         }`}
                       >
                         <IcCamera off={!cameraOn} />
@@ -2687,8 +2732,8 @@ export default function AirMidiPage() {
                         title="Microphone (M)"
                         className={`h-11 px-4 rounded-xl text-xs font-bold border transition-all active:scale-[0.98] disabled:opacity-50 flex items-center gap-2 ${
                           micOn
-                            ? "bg-zinc-900 text-white border-zinc-900"
-                            : "bg-white text-zinc-700 border-zinc-200 hover:border-indigo-300 hover:text-indigo-600"
+                            ? "bg-[#0F1B2D] text-white border-[#0F1B2D]"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:text-blue-700"
                         }`}
                       >
                         <IcMic off={!micOn} />
@@ -2699,7 +2744,7 @@ export default function AirMidiPage() {
                         aria-label={speakerMuted ? "Unmute speaker" : "Mute speaker"}
                         title={speakerMuted ? "Unmute their voice" : "Mute their voice"}
                         className={`h-11 w-11 rounded-xl border bg-white flex items-center justify-center transition-colors ${
-                          speakerMuted ? "border-red-200 text-red-500" : "border-zinc-200 text-zinc-600 hover:text-indigo-600 hover:border-indigo-300"
+                          speakerMuted ? "border-red-200 text-red-500" : "border-slate-200 text-slate-600 hover:text-blue-700 hover:border-blue-400"
                         }`}
                       >
                         <IcSpeaker muted={speakerMuted} />
@@ -2708,7 +2753,7 @@ export default function AirMidiPage() {
                         value={quality}
                         onChange={(e) => changeQuality(e.target.value as VideoQuality)}
                         disabled={cameraBusy}
-                        className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-[16px] sm:text-xs font-semibold text-zinc-700 outline-none focus:border-indigo-400"
+                        className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-[16px] sm:text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"
                       >
                         <option value="360p">360p · saves data</option>
                         <option value="720p">720p · sharper</option>
@@ -2716,7 +2761,7 @@ export default function AirMidiPage() {
                       <button
                         onClick={toggleStage}
                         title="Full screen (F)"
-                        className="h-11 px-4 rounded-xl text-xs font-bold border border-zinc-200 bg-white text-zinc-700 hover:border-indigo-300 hover:text-indigo-600 transition-all active:scale-[0.98] flex items-center gap-2"
+                        className="h-11 px-4 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:border-blue-400 hover:text-blue-700 transition-all active:scale-[0.98] flex items-center gap-2"
                       >
                         <IcExpand />
                         Full screen
@@ -2730,7 +2775,7 @@ export default function AirMidiPage() {
                         End session
                       </button>
                     </div>
-                    <p className="text-[11px] text-zinc-400 -mt-2">
+                    <p className="text-[11px] text-slate-400 -mt-2">
                       Camera and microphone stay off until you start them. Use headphones to avoid echo. Shortcuts:{" "}
                       <kbd className="corp-mono">V</kbd> camera · <kbd className="corp-mono">M</kbd> mic ·{" "}
                       <kbd className="corp-mono">F</kbd> full screen · <kbd className="corp-mono">K</kbd> keyboard ·{" "}
@@ -2738,45 +2783,45 @@ export default function AirMidiPage() {
                     </p>
 
                     {/* KEYBOARD (on/off) */}
-                    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
+                    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                       <div
                         className={`flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 ${
-                          showKeyboard ? "border-b border-zinc-100" : ""
+                          showKeyboard ? "border-b border-slate-100" : ""
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                          <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
                             <IcKeys />
                           </span>
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-zinc-900 leading-tight">Keyboard</p>
-                            <p className="text-[11px] text-zinc-400 truncate">
+                            <p className="text-sm font-bold text-slate-900 leading-tight">Keyboard</p>
+                            <p className="text-[11px] text-slate-400 truncate">
                               {showKeyboard ? "Keys light up with the MIDI notes in the link" : "Off · no drawing, zero overhead"}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
                           {showKeyboard && (
-                            <div className="hidden md:flex items-center gap-3 text-[11px] text-zinc-500 font-medium">
+                            <div className="hidden md:flex items-center gap-3 text-[11px] text-slate-500 font-medium">
                               <span className="inline-flex items-center gap-1.5">
-                                <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                                <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
                                 You
                               </span>
                               <span className="inline-flex items-center gap-1.5 min-w-0">
-                                <span className="w-2.5 h-2.5 rounded-full bg-fuchsia-500 shrink-0" />
+                                <span className="w-2.5 h-2.5 rounded-full bg-teal-600 shrink-0" />
                                 <span className="truncate max-w-[8rem]">{peer ? peer.name : "Remote"}</span>
                               </span>
                             </div>
                           )}
                           {showKeyboard && (
-                            <div className="flex rounded-lg border border-zinc-200 bg-zinc-50 p-0.5">
+                            <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
                               {[49, 61, 88].map((k) => (
                                 <button
                                   key={k}
                                   onClick={() => changeKbSize(k)}
                                   title={`${k} keys`}
                                   className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-colors ${
-                                    kbSize === k ? "bg-white text-indigo-600 shadow-sm" : "text-zinc-500 hover:text-zinc-800"
+                                    kbSize === k ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-800"
                                   }`}
                                 >
                                   {k}
@@ -2789,11 +2834,11 @@ export default function AirMidiPage() {
                             aria-checked={showKeyboard}
                             aria-label="Show keyboard"
                             onClick={toggleKeyboard}
-                            className="flex items-center gap-2 text-[11px] font-bold text-zinc-500 py-1"
+                            className="flex items-center gap-2 text-[11px] font-bold text-slate-500 py-1"
                           >
                             <span
                               className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-                                showKeyboard ? "bg-indigo-600" : "bg-zinc-300"
+                                showKeyboard ? "bg-blue-700" : "bg-slate-300"
                               }`}
                             >
                               <span
@@ -2807,26 +2852,26 @@ export default function AirMidiPage() {
                         </div>
                       </div>
                       {showKeyboard && (
-                        <div className="p-4 sm:p-5 bg-gradient-to-b from-zinc-50 to-white">
+                        <div className="p-4 sm:p-5 bg-gradient-to-b from-slate-50 to-white">
                           <PianoKeyboard size={kbSize} vel={kbVel} dir={kbDir} sustain={kbSus} dirty={kbDirty} />
                         </div>
                       )}
                     </div>
 
                     {/* MIDI CONTROLS (on/off + per-control) */}
-                    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
+                    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                       <div
                         className={`flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 ${
-                          showControls ? "border-b border-zinc-100" : ""
+                          showControls ? "border-b border-slate-100" : ""
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                          <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
                             <IcSliders />
                           </span>
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-zinc-900 leading-tight">MIDI controls</p>
-                            <p className="text-[11px] text-zinc-400 truncate">
+                            <p className="text-sm font-bold text-slate-900 leading-tight">MIDI controls</p>
+                            <p className="text-[11px] text-slate-400 truncate">
                               {showControls
                                 ? "Volume, expression, mod wheel, tempo and more, live from the link"
                                 : "Off · no drawing, zero overhead"}
@@ -2838,11 +2883,11 @@ export default function AirMidiPage() {
                           aria-checked={showControls}
                           aria-label="Show MIDI controls"
                           onClick={toggleControls}
-                          className="flex items-center gap-2 text-[11px] font-bold text-zinc-500 py-1"
+                          className="flex items-center gap-2 text-[11px] font-bold text-slate-500 py-1"
                         >
                           <span
                             className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-                              showControls ? "bg-indigo-600" : "bg-zinc-300"
+                              showControls ? "bg-blue-700" : "bg-slate-300"
                             }`}
                           >
                             <span
@@ -2855,7 +2900,7 @@ export default function AirMidiPage() {
                         </button>
                       </div>
                       {showControls && (
-                        <div className="p-4 sm:p-5 bg-gradient-to-b from-zinc-50 to-white space-y-4">
+                        <div className="p-4 sm:p-5 bg-gradient-to-b from-slate-50 to-white space-y-4">
                           <div className="flex flex-wrap gap-1.5">
                             {CTL_ITEMS.map((it) => {
                               const on = !hiddenCtl.includes(it.id);
@@ -2866,8 +2911,8 @@ export default function AirMidiPage() {
                                   aria-pressed={on}
                                   className={`px-2.5 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${
                                     on
-                                      ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                      : "bg-white text-zinc-400 border-zinc-200 hover:text-zinc-600"
+                                      ? "bg-blue-50 text-blue-800 border-blue-300"
+                                      : "bg-white text-slate-400 border-slate-200 hover:text-slate-600"
                                   }`}
                                 >
                                   {it.label}
@@ -2898,7 +2943,7 @@ export default function AirMidiPage() {
                     )}
 
                     {/* STATS */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-zinc-100 rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-slate-100 rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                       {[
                         { label: "Messages", value: stats.count.toLocaleString("en-US") },
                         { label: "Session", value: formatElapsed(elapsed) },
@@ -2909,22 +2954,22 @@ export default function AirMidiPage() {
                         },
                         { label: mode === "receiver" ? "Outputs" : "Inputs", value: String(detectedDevices.length) },
                       ].map((st, i) => (
-                        <div key={st.label} className={`p-4 text-center ${i >= 2 ? "border-t border-zinc-100 sm:border-t-0" : ""}`}>
-                          <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">{st.label}</p>
-                          <p className="text-base font-bold text-zinc-900 corp-mono mt-1">{st.value}</p>
+                        <div key={st.label} className={`p-4 text-center ${i >= 2 ? "border-t border-slate-100 sm:border-t-0" : ""}`}>
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">{st.label}</p>
+                          <p className="text-base font-bold text-slate-900 corp-mono mt-1">{st.value}</p>
                           {(st as { sub?: string }).sub && (
-                            <p className="text-[10px] text-zinc-400 mt-0.5">{(st as { sub?: string }).sub}</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">{(st as { sub?: string }).sub}</p>
                           )}
                         </div>
                       ))}
                     </div>
 
                     {/* MIDI MONITOR */}
-                    <div className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 shadow-sm space-y-4">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm space-y-4">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 mb-1">Last MIDI message</p>
-                          <p className="text-sm corp-mono text-zinc-800 truncate">{stats.last}</p>
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Last MIDI message</p>
+                          <p className="text-sm corp-mono text-slate-800 truncate">{stats.last}</p>
                         </div>
                         <span
                           className={`shrink-0 w-2.5 h-2.5 rounded-full transition-colors duration-100 ${
@@ -2937,7 +2982,7 @@ export default function AirMidiPage() {
                           {channels.map((v, i) => (
                             <div key={i} className="flex-1 h-full flex items-end">
                               <div
-                                className="w-full rounded-sm bg-gradient-to-t from-indigo-600 to-violet-400 transition-[height,opacity] duration-150"
+                                className="w-full rounded-sm bg-gradient-to-t from-blue-700 to-blue-500 transition-[height,opacity] duration-150"
                                 style={{ height: `${6 + v * 94}%`, opacity: 0.3 + v * 0.7 }}
                               />
                             </div>
@@ -2945,7 +2990,7 @@ export default function AirMidiPage() {
                         </div>
                         <div className="flex gap-1 sm:gap-1.5 mt-1">
                           {channels.map((_, i) => (
-                            <span key={i} className="flex-1 text-center text-[9px] text-zinc-400 corp-mono">
+                            <span key={i} className="flex-1 text-center text-[9px] text-slate-400 corp-mono">
                               {i + 1}
                             </span>
                           ))}
@@ -2955,9 +3000,9 @@ export default function AirMidiPage() {
 
                     {/* DEVICES */}
                     {detectedDevices.length > 0 ? (
-                      <div className="text-xs bg-zinc-50 border border-zinc-100 p-4 rounded-xl text-zinc-500 font-medium">
+                      <div className="text-xs bg-slate-50 border border-slate-100 p-4 rounded-xl text-slate-500 font-medium">
                         {mode === "receiver" ? "MIDI outputs: " : "MIDI inputs: "}
-                        <span className="text-zinc-900 corp-mono">{detectedDevices.join(", ")}</span>
+                        <span className="text-slate-900 corp-mono">{detectedDevices.join(", ")}</span>
                       </div>
                     ) : (
                       <div className="text-xs bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 font-medium leading-relaxed">
@@ -2981,37 +3026,37 @@ export default function AirMidiPage() {
           </section>
 
           {/* ---------------- ACTIVITY LOG (compact, collapsed by default) ---------------- */}
-          <section className="shrink-0 rounded-2xl border border-zinc-200 bg-white overflow-hidden flex flex-col shadow-sm">
+          <section className="shrink-0 rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col shadow-sm">
             <button
               onClick={() => setShowLog((v) => !v)}
-              className="shrink-0 w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-50/70 transition-colors"
+              className="shrink-0 w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50/70 transition-colors"
             >
-              <span className="flex items-center gap-2 text-xs font-bold text-zinc-800 min-w-0 flex-1">
-                <svg className="w-4 h-4 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <span className="flex items-center gap-2 text-xs font-bold text-slate-800 min-w-0 flex-1">
+                <svg className="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 17l6-6-6-6M12 19h8" />
                 </svg>
                 Activity log
-                <span className="text-[10px] font-semibold bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full corp-mono">
+                <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full corp-mono">
                   {logs.length}
                 </span>
                 {hasError && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />}
                 {!showLog && logs.length > 0 && (
-                  <span className="ml-1 truncate font-normal text-[11px] text-zinc-400 corp-mono min-w-0">
+                  <span className="ml-1 truncate font-normal text-[11px] text-slate-400 corp-mono min-w-0">
                     {logs[logs.length - 1].message}
                   </span>
                 )}
               </span>
               <svg
-                className={`shrink-0 ml-3 w-4 h-4 text-zinc-400 transition-transform duration-300 ${showLog ? "rotate-180" : ""}`}
+                className={`shrink-0 ml-3 w-4 h-4 text-slate-400 transition-transform duration-300 ${showLog ? "rotate-180" : ""}`}
                 viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
               >
                 <path d="M6 9l6 6 6-6" />
               </svg>
             </button>
 
-            <div className={`${showLog ? "flex" : "hidden"} flex-col border-t border-zinc-200`}>
-              <div className="shrink-0 flex flex-wrap items-center gap-3 px-4 py-2 bg-zinc-50 border-b border-zinc-200">
-                <label className="flex items-center gap-1.5 text-[11px] text-zinc-600 font-medium cursor-pointer select-none">
+            <div className={`${showLog ? "flex" : "hidden"} flex-col border-t border-slate-200`}>
+              <div className="shrink-0 flex flex-wrap items-center gap-3 px-4 py-2 bg-slate-50 border-b border-slate-200">
+                <label className="flex items-center gap-1.5 text-[11px] text-slate-600 font-medium cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={logMidi}
@@ -3019,18 +3064,18 @@ export default function AirMidiPage() {
                       setLogMidi(e.target.checked);
                       logMidiRef.current = e.target.checked;
                     }}
-                    className="accent-indigo-600"
+                    className="accent-blue-700"
                   />
                   MIDI messages
                 </label>
                 <span className="flex-1" />
-                <button onClick={copyLog} className="text-[11px] font-semibold text-zinc-600 hover:text-black transition-colors py-1">
+                <button onClick={copyLog} className="text-[11px] font-semibold text-slate-600 hover:text-black transition-colors py-1">
                   Copy
                 </button>
-                <button onClick={downloadLog} className="text-[11px] font-semibold text-zinc-600 hover:text-black transition-colors py-1">
+                <button onClick={downloadLog} className="text-[11px] font-semibold text-slate-600 hover:text-black transition-colors py-1">
                   Download
                 </button>
-                <button onClick={() => setLogs([])} className="text-[11px] font-semibold text-zinc-600 hover:text-red-600 transition-colors py-1">
+                <button onClick={() => setLogs([])} className="text-[11px] font-semibold text-slate-600 hover:text-red-600 transition-colors py-1">
                   Clear
                 </button>
               </div>
@@ -3040,15 +3085,15 @@ export default function AirMidiPage() {
                 className="am-scroll h-40 overflow-y-auto bg-[#0B1020] px-4 py-3 corp-mono text-[11px] leading-relaxed"
               >
                 {logs.length === 0 ? (
-                  <p className="text-zinc-500">No events yet.</p>
+                  <p className="text-slate-500">No events yet.</p>
                 ) : (
                   logs.map((l) => (
                     <div key={l.id} className="flex gap-3">
-                      <span className="text-zinc-500 shrink-0">{l.time}</span>
+                      <span className="text-slate-500 shrink-0">{l.time}</span>
                       <span className={`shrink-0 w-11 font-semibold ${LEVEL_STYLE[l.level].color}`}>
                         {LEVEL_STYLE[l.level].tag}
                       </span>
-                      <span className="text-zinc-200 break-all whitespace-pre-wrap">{l.message}</span>
+                      <span className="text-slate-200 break-all whitespace-pre-wrap">{l.message}</span>
                     </div>
                   ))
                 )}
@@ -3059,7 +3104,7 @@ export default function AirMidiPage() {
         </div>
       </main>
 
-         {/*    {!appMode && <Footer />}*/}    
+       {/* {!appMode && <Footer />}*/}
     </div>
   );
 }
