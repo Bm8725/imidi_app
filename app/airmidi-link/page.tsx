@@ -3059,7 +3059,7 @@ export default function AirMidiPage() {
         </div>
       </main>
 
-      {!appMode && <Footer />}
+         {/*    {!appMode && <Footer />}*/}    
     </div>
   );
 }
