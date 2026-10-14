@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({ email: "", password: "" });
 
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -110,6 +111,8 @@ export default function LoginPage() {
       setGoogleLoading(false);
     }
   };
+
+  
 
 
 
@@ -236,6 +239,10 @@ export default function LoginPage() {
               <div className="flex-1 h-px bg-black/[0.08]" />
             </div>
     
+
+
+
+
           <form onSubmit={handleLogin} className="space-y-4">
             
             {/* INPUT FIELD: EMAIL */}
