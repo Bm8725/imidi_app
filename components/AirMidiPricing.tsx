@@ -140,26 +140,27 @@ export default function AirMidiPricing({
   const copyRef = async () => {
     if (!req) return;
     try {
-      // 1. Copiază automat referința în clipboard ca backup sigur
+      // 1. Copiază codul de referință în clipboard ca backup sigur
       await navigator.clipboard.writeText(req.reference);
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
 
-      // 2. Construiește textul mesajului corect interpolat cu \${}
+      // 2. Mesajul corectat folosind formatul \${} pentru a extrage datele reale
       const message = `Salut! Am trimis plata prin Revolut.\n\n` +
-                      `*Plan:* req.plan ({req.hours} ore)\n` +
+                      `*Plan:* \({req.plan} (\){req.hours} ore)\n` +
                       `*Sumă:* \${money(req.amount, req.currency)}\n` +
                       `*Referință:* \`${req.reference}\``;
 
-      // 3. URL-ul oficial de WhatsApp corectat cap-coadă
+      // 3. Link-ul direct și complet către API-ul WhatsApp
       const whatsappUrl = `https://whatsapp.com{SELLER_WHATSAPP}&text=${encodeURIComponent(message)}`;
       
-      // 4. Deschide aplicația sau interfața web WhatsApp
+      // 4. Deschide direct chat-ul cu numărul tău de telefon
       window.open(whatsappUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
-      console.error("Eroare la trimiterea WhatsApp:", error);
+      console.error("Eroare la deschiderea WhatsApp:", error);
     }
   };
+
 
 
   return (
