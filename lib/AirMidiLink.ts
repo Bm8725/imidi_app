@@ -1,8 +1,4 @@
-// lib/AirMidiLink.t
-/**
- * author: BM8725
- * date: 14/10/25
- */
+// lib/AirMidiLink.ts
 import { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 
 export type AirMidiRole = 'sender' | 'receiver'
@@ -12,6 +8,7 @@ export type AirMidiStatus =
   | 'waiting'
   | 'connecting'
   | 'connected'
+  | 'reconnecting'
   | 'disconnected'
 export type AirMidiLogLevel = 'info' | 'success' | 'warn' | 'error'
 export type MidiDirection = 'in' | 'out'
@@ -23,6 +20,13 @@ export type NetPath = 'direct' | 'relay'
 const DISCRETE_CC = new Set([
   0, 6, 32, 38, 64, 65, 66, 67, 68, 69, 96, 97, 98, 99, 100, 101, 120, 121, 122, 123, 124, 125, 126, 127,
 ])
+
+// Low-hours warning thresholds in seconds (10 min, 1 h, 4 h). Edit the list to change when users are warned.
+const LOW_HOURS_THRESHOLDS = [600, 3600, 4 * 3600]
+
+// Auto-reconnect: a short network blip is ignored, then the link is repaired for up to a minute
+const DISCONNECT_GRACE_MS = 4000
+const RECONNECT_TIMEOUT_MS = 60000
 
 // Public identity shown to the other side (email is masked on purpose)
 export type AirMidiPeer = {
@@ -85,6 +89,23 @@ export class AirMidiLink {
   private throttled = false
   private videoBitrate = 500_000
 
+  // billing: hours are spent by the sender; the database clock is the source of truth
+  private billingActive = false
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null
+  private pageHideHandler: (() => void) | null = null
+  private lowAnnounced = Infinity
+  private freeTimer: ReturnType<typeof setTimeout> | null = null
+  private freeWarned = false
+  private freeLimit = 300
+
+  // auto-reconnect
+  private graceTimer: ReturnType<typeof setTimeout> | null = null
+  private retryTimer: ReturnType<typeof setTimeout> | null = null
+  private reconnectDeadline = 0
+  private reconnectAttempts = 0
+  private onlineHandler: (() => void) | null = null
+  private rebuilding = false
+
   public role: AirMidiRole | null = null
   public roomCode: string | null = null
   public status: AirMidiStatus = 'idle'
@@ -99,6 +120,10 @@ export class AirMidiLink {
   public onLatency: (rttMs: number) => void = () => {}
   public onPathInfo: (path: NetPath) => void = () => {}
   public onVideoThrottle: (on: boolean) => void = () => {}
+  public onBalance: (seconds: number) => void = () => {}
+  public onLowHours: (seconds: number) => void = () => {}
+  // seconds left in a free session (null when the session is not free)
+  public onFreeTime: (remaining: number | null, limit: number) => void = () => {}
   public sysexEnabled = false
   private outputErrorLogged = false
   public onPeerInfo: (peer: AirMidiPeer) => void = () => {}
@@ -123,7 +148,403 @@ export class AirMidiLink {
   private updateStatus(newStatus: AirMidiStatus) {
     this.status = newStatus
     this.log(newStatus === 'connected' ? 'success' : 'info', `Status changed: ${newStatus}`)
+    if (newStatus === 'connected') void this.billingStart()
+    else if (newStatus === 'disconnected' || newStatus === 'idle') this.billingStop()
     this.onStatusChange(newStatus)
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* BILLING (sender only: the hours wallet)                             */
+  /* ------------------------------------------------------------------ */
+  // result of the start / heartbeat / end functions: { free, balance, limit?, remaining? }
+  private handleBilling(r: any) {
+    if (typeof r === 'number') {
+      this.handleBalance(r)
+      return
+    }
+    if (!r || typeof r !== 'object') return
+
+    if (r.free) {
+      const limit = Number(r.limit) || this.freeLimit
+      const remaining = Math.max(0, Number(r.remaining) || 0)
+      this.freeLimit = limit
+      this.onBalance(0)
+      this.onFreeTime(remaining, limit)
+      this.armFreeTimer(remaining)
+      if (remaining <= 60 && !this.freeWarned) {
+        this.freeWarned = true
+        this.log('warn', `Free session: ${remaining} seconds left.`)
+        this.onLowHours(remaining)
+      }
+      return
+    }
+
+    this.clearFreeTimer()
+    this.onFreeTime(null, 0)
+    this.handleBalance(Number(r.balance))
+  }
+
+  // the server counts every 30 s; this timer ends the free session exactly on time
+  private armFreeTimer(remaining: number) {
+    this.clearFreeTimer()
+    this.freeTimer = setTimeout(() => {
+      if (this.status === 'connected' || this.status === 'reconnecting') {
+        const mins = Math.max(1, Math.round(this.freeLimit / 60))
+        this.log('warn', 'Free session limit reached. The session was closed.')
+        this.disconnect()
+        this.onError(`Your free ${mins}-minute session has ended. Buy hours to stream without a limit.`)
+      }
+    }, Math.max(0, remaining) * 1000)
+  }
+
+  private clearFreeTimer() {
+    if (this.freeTimer) clearTimeout(this.freeTimer)
+    this.freeTimer = null
+  }
+
+  private handleBalance(sec: number) {
+    this.onBalance(sec)
+    // smallest threshold the balance has fallen under; announce each one only once per session
+    const th = LOW_HOURS_THRESHOLDS.filter((t) => sec <= t).sort((a, b) => a - b)[0]
+    if (th !== undefined && th < this.lowAnnounced) {
+      this.lowAnnounced = th
+      this.log('warn', `Low hours: ${Math.floor(sec / 60)} minutes of streaming left.`)
+      this.onLowHours(sec)
+    }
+    if (sec <= 0 && (this.status === 'connected' || this.status === 'reconnecting')) {
+      this.log('error', 'No hours left. The session was closed.')
+      this.disconnect()
+      this.onError('Your hours have run out. Buy a plan to continue streaming.')
+    }
+  }
+
+  private async billingTick(code: string) {
+    const { data, error } = await this.supabase.rpc('airmidi_heartbeat', { p_room_code: code })
+    if (error) {
+      this.log('warn', `Hours heartbeat failed: ${error.message}`)
+      return
+    }
+    this.handleBilling(data)
+  }
+
+  private async billingStart() {
+    if (this.role !== 'sender' || !this.roomCode || this.billingActive) return
+    this.billingActive = true
+    this.lowAnnounced = Infinity
+    this.freeWarned = false
+    const code = this.roomCode
+
+    const { data, error } = await this.supabase.rpc('airmidi_mark_connected', { p_room_code: code })
+    if (error) {
+      this.billingActive = false
+      const msg = error.message || ''
+      if (msg.includes('FREE_LIMIT')) {
+        this.log('error', 'Free sessions for today are used up.')
+        this.disconnect()
+        this.onError('You have used all free sessions for today. Buy hours to keep streaming.')
+      } else if (msg.includes('NO_HOURS')) {
+        this.log('error', 'No hours left.')
+        this.disconnect()
+        this.onError('You have no hours left. Buy a plan to start streaming.')
+      } else {
+        this.log('warn', `Hours counter could not start: ${msg}`)
+      }
+      return
+    }
+    if (!this.billingActive) {
+      // the session ended while the request was in flight
+      void this.supabase.rpc('airmidi_end_session', { p_room_code: code })
+      return
+    }
+
+    this.log('info', 'Hours counter started.')
+    this.handleBilling(data)
+    if (!this.billingActive) return // handleBilling may have closed the session
+    this.heartbeatTimer = setInterval(() => void this.billingTick(code), 30000)
+
+    if (typeof window !== 'undefined') {
+      this.pageHideHandler = () => this.billingStop()
+      window.addEventListener('pagehide', this.pageHideHandler)
+    }
+  }
+
+  private billingStop() {
+    this.clearFreeTimer()
+    if (!this.billingActive) return
+    this.billingActive = false
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
+    this.heartbeatTimer = null
+    if (this.pageHideHandler && typeof window !== 'undefined') {
+      window.removeEventListener('pagehide', this.pageHideHandler)
+    }
+    this.pageHideHandler = null
+    this.onFreeTime(null, 0)
+
+    const code = this.roomCode
+    if (!code) return
+    void this.supabase.rpc('airmidi_end_session', { p_room_code: code }).then(({ data, error }) => {
+      if (error) this.log('warn', `Hours counter could not be closed: ${error.message}`)
+      else if (data && typeof data === 'object' && !data.free) this.onBalance(Number(data.balance))
+    })
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* MIDI PANIC                                                          */
+  /* ------------------------------------------------------------------ */
+  // All Notes Off + All Sound Off + Sustain Off on all 16 channels, sent to the other side
+  // and to every local MIDI output, so stuck notes stop on both ends.
+  public panic() {
+    const rel = this.dataChannel
+    const open = !!rel && rel.readyState === 'open'
+    for (let ch = 0; ch < 16; ch++) {
+      for (const cc of [123, 120, 64]) {
+        const msg = new Uint8Array([0xb0 | ch, cc, 0])
+        this.forwardToMidiOutput(msg)
+        if (open) {
+          try {
+            rel!.send(msg as any)
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    }
+    // lets the UI release its keys and the sustain pedal
+    this.onMidiActivity(new Uint8Array([0xb0, 123, 0]), 'out')
+    this.onMidiActivity(new Uint8Array([0xb0, 64, 0]), 'out')
+    this.log('warn', open ? 'MIDI panic: all notes off sent on all channels.' : 'MIDI panic: local outputs silenced (link is not open).')
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* AUTO-RECONNECT                                                      */
+  /* ------------------------------------------------------------------ */
+  // Receiver = the side that makes offers, so it drives the repair:
+  //   attempts 1-2: ICE restart (fixes Wi-Fi <-> 4G switches), then a full rebuild of the connection.
+  // The sender just waits and answers. Gives up after RECONNECT_TIMEOUT_MS.
+  private onLinkTrouble(reason: string) {
+    if (this.status === 'idle' || this.status === 'disconnected') return
+    if (this.status !== 'connected' && this.status !== 'reconnecting') {
+      // never got connected: same behaviour as before
+      this.updateStatus('disconnected')
+      return
+    }
+    if (this.status === 'connected') {
+      this.reconnectDeadline = Date.now() + RECONNECT_TIMEOUT_MS
+      this.reconnectAttempts = 0
+      this.log('warn', `Link lost (${reason}). Reconnecting...`)
+      this.stopMidiTimers()
+      this.updateStatus('reconnecting')
+      if (typeof window !== 'undefined' && !this.onlineHandler) {
+        this.onlineHandler = () => {
+          this.log('info', 'Network is back.')
+          this.scheduleReconnect(0)
+        }
+        window.addEventListener('online', this.onlineHandler)
+      }
+    }
+    this.scheduleReconnect(this.reconnectAttempts === 0 ? 500 : 6000)
+  }
+
+  private scheduleReconnect(delay: number) {
+    if (this.status !== 'reconnecting') return
+    if (this.retryTimer) {
+      if (delay > 0) return // a retry is already queued
+      clearTimeout(this.retryTimer)
+    }
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null
+      void this.reconnectStep()
+    }, delay)
+  }
+
+  private async reconnectStep() {
+    if (this.status !== 'reconnecting') return
+    if (Date.now() > this.reconnectDeadline) {
+      this.log('error', 'Could not restore the connection.')
+      this.resetReconnectState()
+      this.updateStatus('disconnected')
+      return
+    }
+    this.reconnectAttempts++
+    if (this.role === 'receiver') {
+      try {
+        if (this.reconnectAttempts <= 2) await this.restartIce()
+        else await this.rebuildAsReceiver()
+      } catch (err: any) {
+        this.log('warn', `Reconnect attempt ${this.reconnectAttempts} failed: ${err?.message || err}`)
+      }
+    } else if (this.reconnectAttempts === 1) {
+      this.log('info', 'Waiting for the other side to reconnect...')
+    }
+    this.scheduleReconnect(this.reconnectAttempts < 2 ? 6000 : 12000)
+  }
+
+  private async restartIce() {
+    const pc = this.peerConnection
+    if (!pc || (pc.signalingState !== 'stable' && pc.signalingState !== 'have-local-offer')) {
+      throw new Error('connection is not ready for an ICE restart')
+    }
+    this.log('info', 'Restarting ICE...')
+    pc.restartIce()
+    const offer = await pc.createOffer({ iceRestart: true })
+    await pc.setLocalDescription(offer)
+    this.sendSignal({ sdp: pc.localDescription, peer: this.localPeer, restart: true })
+  }
+
+  private async rebuildAsReceiver() {
+    this.log('info', 'Rebuilding the connection...')
+    this.teardownPeer()
+    await this.initPeerConnection()
+    this.createReceiverChannels()
+    const offer = await this.peerConnection!.createOffer()
+    await this.peerConnection!.setLocalDescription(offer)
+    this.sendSignal({ sdp: this.peerConnection!.localDescription, peer: this.localPeer, rebuild: true })
+  }
+
+  private async rebuildAsSender() {
+    this.rebuilding = true
+    this.log('info', 'The other side is rebuilding the connection...')
+    try {
+      this.teardownPeer()
+      await this.initPeerConnection()
+      this.attachSenderChannelHandler()
+    } finally {
+      this.rebuilding = false
+    }
+  }
+
+  // closes the peer connection and its channels without touching the signaling channel or the status
+  private teardownPeer() {
+    this.stopMidiTimers()
+    for (const ch of [this.dataChannel, this.fastChannel]) {
+      if (!ch) continue
+      ch.onopen = null
+      ch.onclose = null
+      ch.onmessage = null
+      try {
+        ch.close()
+      } catch {
+        /* ignore */
+      }
+    }
+    const pc = this.peerConnection
+    if (pc) {
+      pc.onconnectionstatechange = null
+      pc.oniceconnectionstatechange = null
+      pc.onicecandidate = null
+      pc.onicegatheringstatechange = null
+      pc.ontrack = null
+      pc.ondatachannel = null
+      try {
+        pc.close()
+      } catch {
+        /* ignore */
+      }
+    }
+    this.dataChannel = null
+    this.fastChannel = null
+    this.peerConnection = null
+    this.videoTransceiver = null
+    this.audioTransceiver = null
+    this.hasRemoteDescription = false
+    this.settle.clear()
+  }
+
+  // sender: the receiver creates the data channels, the sender receives them
+  private attachSenderChannelHandler() {
+    this.peerConnection!.ondatachannel = (event) => {
+      const ch = event.channel
+      this.log('info', `Data channel received from peer (${ch.label}).`)
+      if (ch.label === 'midi-fast') {
+        this.fastChannel = ch
+        this.setupDataChannelHandlers(ch, 'fast')
+      } else {
+        this.dataChannel = ch
+        this.setupDataChannelHandlers(ch, 'reliable')
+      }
+    }
+  }
+
+  // receiver: data channels + the media lines negotiated up front
+  private createReceiverChannels() {
+    // Reliable and ordered channel: no lost note-off messages
+    // (priority is a hint that not every browser supports; unknown fields are ignored)
+    this.dataChannel = this.peerConnection!.createDataChannel('midi-data', {
+      ordered: true,
+      priority: 'high',
+    } as RTCDataChannelInit)
+    this.setupDataChannelHandlers(this.dataChannel, 'reliable')
+
+    // Fast lane: unordered, no retransmits. Stale controller values are never worth waiting for.
+    this.fastChannel = this.peerConnection!.createDataChannel('midi-fast', {
+      ordered: false,
+      maxRetransmits: 0,
+      priority: 'high',
+    } as RTCDataChannelInit)
+    this.setupDataChannelHandlers(this.fastChannel, 'fast')
+
+    // Video + audio m-lines negotiated once. Camera / mic are attached later with replaceTrack().
+    this.videoTransceiver = this.peerConnection!.addTransceiver('video', { direction: 'sendrecv' })
+    this.audioTransceiver = this.peerConnection!.addTransceiver('audio', { direction: 'sendrecv' })
+  }
+
+  private onTransportRecovered() {
+    if (this.graceTimer) clearTimeout(this.graceTimer)
+    this.graceTimer = null
+    if (this.status !== 'reconnecting') return
+    const ch = this.dataChannel
+    if (ch && ch.readyState === 'open') {
+      this.log('success', 'Connection restored.')
+      this.resetReconnectState()
+      this.updateStatus('connected')
+      this.startMidiTimers()
+      void this.restoreMedia()
+    }
+  }
+
+  private resetReconnectState() {
+    if (this.graceTimer) clearTimeout(this.graceTimer)
+    if (this.retryTimer) clearTimeout(this.retryTimer)
+    this.graceTimer = null
+    this.retryTimer = null
+    this.reconnectAttempts = 0
+    this.reconnectDeadline = 0
+    if (this.onlineHandler && typeof window !== 'undefined') {
+      window.removeEventListener('online', this.onlineHandler)
+    }
+    this.onlineHandler = null
+  }
+
+  // the other side ended the session on purpose: no reconnect attempts
+  private onPeerBye() {
+    if (this.status === 'idle' || this.status === 'disconnected') return
+    this.log('warn', 'The other side ended the session.')
+    this.resetReconnectState()
+    this.stopMidiTimers()
+    this.updateStatus('disconnected')
+  }
+
+  // after a rebuilt connection the camera / microphone tracks are attached again
+  private async restoreMedia() {
+    try {
+      if (this.localStream && this.videoTransceiver) {
+        const track = this.localStream.getVideoTracks()[0]
+        if (track && track.readyState === 'live') {
+          await this.videoTransceiver.sender.replaceTrack(track)
+          await this.applyVideoParams(this.videoBitrate)
+          this.sendControl({ video: true })
+        }
+      }
+      if (this.micStream && this.audioTransceiver) {
+        const track = this.micStream.getAudioTracks()[0]
+        if (track && track.readyState === 'live') {
+          await this.audioTransceiver.sender.replaceTrack(track)
+          this.sendControl({ audio: true })
+        }
+      }
+    } catch {
+      this.log('warn', 'Could not restore the camera / microphone after reconnecting.')
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -274,7 +695,7 @@ export class AirMidiLink {
   }
 
   /* ------------------------------------------------------------------ */
-  /* e-RTC                                                              */
+  /* WEBRTC                                                              */
   /* ------------------------------------------------------------------ */
   // Loads STUN + short-lived TURN credentials from our own /api/turn route
   private async loadIceServers(): Promise<RTCIceServer[]> {
@@ -381,11 +802,21 @@ export class AirMidiLink {
     this.peerConnection.onconnectionstatechange = () => {
       const state = this.peerConnection?.connectionState
       this.log('info', `Peer connection state: ${state}`)
+      if (state === 'connected') {
+        this.onTransportRecovered()
+        return
+      }
       if (state === 'failed') {
         this.log('error', 'Peer connection failed. A TURN server is probably required for this network.')
-      }
-      if (state === 'failed' || state === 'disconnected' || state === 'closed') {
-        if (this.status !== 'idle') this.updateStatus('disconnected')
+        this.onLinkTrouble('connection failed')
+      } else if (state === 'disconnected') {
+        // often a short blip (Wi-Fi roaming): give it a moment before acting
+        if (this.graceTimer) clearTimeout(this.graceTimer)
+        this.graceTimer = setTimeout(() => {
+          if (this.peerConnection?.connectionState === 'disconnected') this.onLinkTrouble('connection lost')
+        }, DISCONNECT_GRACE_MS)
+      } else if (state === 'closed') {
+        this.onLinkTrouble('connection closed')
       }
     }
   }
@@ -400,9 +831,11 @@ export class AirMidiLink {
       }
       this.clearConnectTimer()
       this.log('success', 'Data channel open. MIDI link established.')
+      this.resetReconnectState()
       this.updateStatus('connected')
       this.initHardwareMidi()
       this.startMidiTimers()
+      void this.restoreMedia()
       setTimeout(() => this.detectPath(), 800)
     }
     ch.onclose = () => {
@@ -412,7 +845,7 @@ export class AirMidiLink {
       }
       this.log('warn', 'Data channel closed.')
       this.stopMidiTimers()
-      if (this.status !== 'idle') this.updateStatus('disconnected')
+      this.onLinkTrouble('data channel closed')
     }
     ch.onmessage = (event) => this.handleIncoming(event.data)
   }
@@ -502,6 +935,8 @@ export class AirMidiLink {
     } else if (msg?.t === 'pong' && typeof msg.ts === 'number') {
       const rtt = performance.now() - msg.ts
       if (rtt >= 0 && rtt < 5000) this.updateLatency(rtt)
+    } else if (msg?.t === 'bye') {
+      this.onPeerBye()
     }
   }
 
@@ -635,10 +1070,15 @@ export class AirMidiLink {
 
       this.channel
         .on('broadcast', { event: 'airmidi-signal' }, async ({ payload }) => {
-          if (!this.peerConnection || !payload) return
+          if (!payload) return
           // addressed to another client? ignore
           if (payload.to && payload.to !== this.clientId) return
           const from = String(payload.from || 'unknown')
+          if (!this.peerConnection) {
+            // while the sender rebuilds its connection, early ICE candidates are kept
+            if (this.rebuilding && payload.ice) this.pendingIce.push({ from, ice: payload.ice })
+            return
+          }
 
           try {
             // ---- receiver: answers to its join request ----
@@ -684,6 +1124,9 @@ export class AirMidiLink {
                 this.onJoinRequest(peer || { name: 'Unknown user', email: '', role: 'receiver' })
                 return
               }
+              if (payload.sdp.type === 'offer' && this.role === 'sender' && payload.rebuild) {
+                await this.rebuildAsSender()
+              }
               await this.applyRemoteSdp(payload.sdp)
             } else if (payload.ice) {
               if (this.hasRemoteDescription) {
@@ -697,9 +1140,14 @@ export class AirMidiLink {
           }
         })
         .on('broadcast', { event: 'airmidi-control' }, ({ payload }) => {
-          if (!payload || this.status !== 'connected') return
+          if (!payload) return
           if (payload.to && payload.to !== this.clientId) return
           if (this.role === 'sender' && this.peerId && payload.from !== this.peerId) return
+          if (payload.bye === true) {
+            this.onPeerBye()
+            return
+          }
+          if (this.status !== 'connected') return
           if (typeof payload.video === 'boolean') {
             this.log('info', `Remote camera ${payload.video ? 'on' : 'off'}.`)
             this.onRemoteVideoState(payload.video)
@@ -723,11 +1171,27 @@ export class AirMidiLink {
   }
 
   /* ------------------------------------------------------------------ */
-  /* SENDER                 e-rtc                                       */
+  /* SENDER                                                              */
   /* ------------------------------------------------------------------ */
   async startBroadcasting(deviceInfo: any = {}): Promise<string> {
-    // 1) signed in?  2) USB MIDI adapter connected?  3) only then generate the code
+    // 1) signed in?  2) hours left?  3) USB MIDI adapter connected?  4) only then generate the code
     const user = await this.requireUser()
+
+    // hours or a free session available? (if the billing functions are not installed, streaming stays open)
+    const { data: acct, error: acctErr } = await this.supabase.rpc('airmidi_account_status')
+    if (!acctErr && acct) {
+      const bal = Number(acct.balance)
+      this.onBalance(bal)
+      if (bal <= 0) {
+        const perDay = Number(acct.free_per_day)
+        if (perDay <= 0) {
+          throw new Error('You have no hours left. Buy a plan to start streaming.')
+        }
+        if (Number(acct.free_used_today) >= perDay) {
+          throw new Error('You have used all free sessions for today. Buy hours to keep streaming.')
+        }
+      }
+    }
 
     const inputs = await this.scanInputs()
     if (inputs.length === 0) {
@@ -755,17 +1219,7 @@ export class AirMidiLink {
     await this.initPeerConnection()
 
     // The receiver creates the data channel, the sender receives it
-    this.peerConnection!.ondatachannel = (event) => {
-      const ch = event.channel
-      this.log('info', `Data channel received from peer (${ch.label}).`)
-      if (ch.label === 'midi-fast') {
-        this.fastChannel = ch
-        this.setupDataChannelHandlers(ch, 'fast')
-      } else {
-        this.dataChannel = ch
-        this.setupDataChannelHandlers(ch, 'reliable')
-      }
-    }
+    this.attachSenderChannelHandler()
 
     await this.setupSignalingChannel(code)
 
@@ -774,7 +1228,7 @@ export class AirMidiLink {
   }
 
   /* ------------------------------------------------------------------ */
-  /* RECEIVER       e-rtc                                               */
+  /* RECEIVER                                                            */
   /* ------------------------------------------------------------------ */
   async connect(code: string, deviceInfo: any = {}): Promise<void> {
     const user = await this.requireUser()
@@ -802,26 +1256,7 @@ export class AirMidiLink {
 
     await this.initPeerConnection()
 
-    // Reliable and ordered channel: no lost note-off messages
-    // (priority is a hint that not every browser supports; unknown fields are ignored)
-    this.dataChannel = this.peerConnection!.createDataChannel('midi-data', {
-      ordered: true,
-      priority: 'high',
-    } as RTCDataChannelInit)
-    this.setupDataChannelHandlers(this.dataChannel, 'reliable')
-
-    // Fast lane: unordered, no retransmits. Stale controller values are never worth waiting for.
-    this.fastChannel = this.peerConnection!.createDataChannel('midi-fast', {
-      ordered: false,
-      maxRetransmits: 0,
-      priority: 'high',
-    } as RTCDataChannelInit)
-    this.setupDataChannelHandlers(this.fastChannel, 'fast')
-
-    // Video m-line negotiated once, up front. The camera is attached later with replaceTrack(),
-    // so turning it on/off never needs a new negotiation.
-    this.videoTransceiver = this.peerConnection!.addTransceiver('video', { direction: 'sendrecv' })
-    this.audioTransceiver = this.peerConnection!.addTransceiver('audio', { direction: 'sendrecv' })
+    this.createReceiverChannels()
 
     await this.setupSignalingChannel(code)
 
@@ -832,7 +1267,6 @@ export class AirMidiLink {
     this.startConnectTimer()
   }
 
-  /* ------------------------------------------------------------------ */
   /* ------------------------------------------------------------------ */
   /* SIGNALING HELPERS + JOIN APPROVAL                                   */
   /* ------------------------------------------------------------------ */
@@ -918,9 +1352,6 @@ export class AirMidiLink {
     this.localStream = null
   }
 
-  /**
-   * default v q=360p
-   */
   public async startVideo(quality: VideoQuality = '360p') {
     if (this.status !== 'connected' || !this.videoTransceiver) {
       throw new Error('Connect first, then start the camera.')
@@ -974,7 +1405,6 @@ export class AirMidiLink {
     this.onLocalVideo(stream)
   }
 
-
   public async stopVideo() {
     if (!this.localStream) return
     this.stopLocalTracks()
@@ -1014,10 +1444,7 @@ export class AirMidiLink {
     let stream: MediaStream
     try {
       stream = await navigator.mediaDevices.getUserMedia({
- audio: { echoCancellation: true, 
-          noiseSuppression: false,
-           autoGainControl: false,
-            channelCount: 1 },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
         video: false,
       })
     } catch (err: any) {
@@ -1107,6 +1534,14 @@ export class AirMidiLink {
   }
 
   public disconnect() {
+    // tell the other side this is on purpose, so it does not try to reconnect
+    if (this.status === 'connected' || this.status === 'reconnecting') {
+      this.sendText(JSON.stringify({ t: 'bye' }))
+      this.sendControl({ bye: true })
+    }
+    this.billingStop() // before anything else is cleared: it needs the room code
+    this.resetReconnectState()
+    this.rebuilding = false
     this.clearConnectTimer()
 
     // Remove handlers so a voluntary reset does not trigger "disconnected"

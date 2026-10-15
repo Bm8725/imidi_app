@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
 import { useKeepAwake } from "@/lib/useKeepAwake";
+import AirMidiPricing from "@/components/AirMidiPricing";
 import { AirMidiLink, AirMidiStatus, AirMidiLogLevel, AirMidiPeer, VideoQuality, peerFromUser } from "@/lib/AirMidiLink";
 
 /* ---------------------------------------------------------------------- */
@@ -24,6 +25,7 @@ const STATUS_META: Record<
   waiting: { label: "Waiting for receiver", dot: "bg-blue-600", pill: "bg-blue-50 text-blue-800 border-blue-300", pulse: true },
   connecting: { label: "Connecting", dot: "bg-amber-500", pill: "bg-amber-50 text-amber-700 border-amber-200", pulse: true },
   connected: { label: "Live", dot: "bg-emerald-500", pill: "bg-emerald-50 text-emerald-700 border-emerald-200", pulse: true },
+  reconnecting: { label: "Reconnecting", dot: "bg-amber-500", pill: "bg-amber-50 text-amber-700 border-amber-200", pulse: true },
   disconnected: { label: "Disconnected", dot: "bg-red-500", pill: "bg-red-50 text-red-700 border-red-200", pulse: false },
 };
 
@@ -88,6 +90,81 @@ const formatHours = (s: number) => {
   const m = Math.floor((s % 3600) / 60);
   return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m`;
 };
+
+// Dark theme: remaps the light utility classes used on this page (String.raw keeps the backslashes)
+const DARK_CSS = String.raw`
+.am-dark .bg-amber-50{background-color:rgba(245,158,11,0.14)}
+.am-dark .bg-blue-50{background-color:rgba(37,99,235,0.16)}
+.am-dark .bg-emerald-50{background-color:rgba(16,185,129,0.14)}
+.am-dark .hover\:bg-red-100:hover{background-color:rgba(239,68,68,0.22)}
+.am-dark .bg-red-50{background-color:rgba(239,68,68,0.14)}
+.am-dark .bg-red-50\/90{background-color:rgba(239,68,68,0.13)}
+.am-dark .hover\:bg-red-50:hover{background-color:rgba(239,68,68,0.14)}
+.am-dark .bg-slate-100{background-color:#1A2740}
+.am-dark .bg-slate-200{background-color:#22304A}
+.am-dark .hover\:bg-slate-200:hover{background-color:#22304A}
+.am-dark .bg-slate-300{background-color:#2C3E5C}
+.am-dark .bg-slate-50{background-color:#0E1626}
+.am-dark .hover\:bg-slate-50\/70:hover{background-color:rgba(14,22,38,0.70)}
+.am-dark .bg-slate-900{background-color:#31456A}
+.am-dark .bg-teal-50{background-color:rgba(13,148,136,0.16)}
+.am-dark .bg-white{background-color:#111A2B}
+.am-dark .bg-white\/10{background-color:rgba(17,26,43,0.10)}
+.am-dark .bg-white\/15{background-color:rgba(17,26,43,0.15)}
+.am-dark .bg-white\/20{background-color:rgba(17,26,43,0.20)}
+.am-dark .bg-white\/40{background-color:rgba(17,26,43,0.40)}
+.am-dark .hover\:bg-white\/10:hover{background-color:rgba(17,26,43,0.10)}
+.am-dark .hover\:bg-white\/20:hover{background-color:rgba(17,26,43,0.20)}
+.am-dark .border-amber-200{border-color:rgba(245,158,11,.38)}
+.am-dark .border-blue-300{border-color:#2B4C8F}
+.am-dark .hover\:border-blue-300:hover{border-color:#2B4C8F}
+.am-dark .border-emerald-200{border-color:rgba(16,185,129,.38)}
+.am-dark .border-red-100{border-color:rgba(239,68,68,.35)}
+.am-dark .border-red-200{border-color:rgba(239,68,68,.38)}
+.am-dark .border-slate-100{border-color:#1B2840}
+.am-dark .border-slate-200{border-color:#22304A}
+.am-dark .border-slate-300{border-color:#31456A}
+.am-dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]){border-color:#1B2840}
+.am-dark .from-slate-50{--tw-gradient-from:#0E1626;--tw-gradient-to:rgba(14,22,38,0);--tw-gradient-stops:var(--tw-gradient-from),var(--tw-gradient-to)}
+.am-dark .text-amber-700{color:#FCD34D}
+.am-dark .text-amber-800{color:#FCD34D}
+.am-dark .hover\:text-amber-800:hover{color:#FCD34D}
+.am-dark .text-blue-700{color:#60A5FA}
+.am-dark .hover\:text-blue-700:hover{color:#60A5FA}
+.am-dark .text-blue-800{color:#93C5FD}
+.am-dark .text-emerald-600{color:#6EE7B7}
+.am-dark .text-emerald-700{color:#6EE7B7}
+.am-dark .text-emerald-800{color:#6EE7B7}
+.am-dark .text-red-500{color:#FCA5A5}
+.am-dark .text-red-600{color:#FCA5A5}
+.am-dark .hover\:text-red-600:hover{color:#FCA5A5}
+.am-dark .text-red-700{color:#FCA5A5}
+.am-dark .hover\:text-red-700:hover{color:#FCA5A5}
+.am-dark .text-slate-300{color:#4A5D7C}
+.am-dark .placeholder\:text-slate-300::placeholder{color:#4A5D7C}
+.am-dark .text-slate-400{color:#7387A6}
+.am-dark .text-slate-500{color:#8EA0BC}
+.am-dark .text-slate-600{color:#A9B8CF}
+.am-dark .hover\:text-slate-600:hover{color:#A9B8CF}
+.am-dark .text-slate-700{color:#BFCCE0}
+.am-dark .text-slate-800{color:#D5DEEC}
+.am-dark .hover\:text-slate-800:hover{color:#D5DEEC}
+.am-dark .text-slate-900{color:#E6EDF7}
+.am-dark .hover\:text-slate-900:hover{color:#E6EDF7}
+.am-dark .text-teal-700{color:#2DD4BF}
+.am-dark .to-white{--tw-gradient-to:#111A2B}
+.am-dark .to-white\/10{--tw-gradient-to:#111A2B}
+.am-dark .to-white\/55{--tw-gradient-to:#111A2B}
+
+.am-dark.am-root{background-color:#0B1220;color:#E6EDF7;color-scheme:dark}
+.am-dark.am-grid{background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px)}
+.am-dark header.bg-\[\#0F1B2D\]{background-color:#0A1424;border-color:#1B2A44}
+.am-dark button.bg-\[\#0F1B2D\],.am-dark a.bg-\[\#0F1B2D\]{background-color:#2563EB;border-color:#2563EB}
+.am-dark button.bg-\[\#0F1B2D\]:hover,.am-dark a.bg-\[\#0F1B2D\]:hover,.am-dark .hover\:bg-\[\#1E3050\]:hover{background-color:#1D4ED8}
+.am-dark .shadow-sm{box-shadow:0 1px 2px rgba(0,0,0,.4)}
+.am-dark select,.am-dark input[type=text]{background-color:#111A2B;color:#E6EDF7}
+.am-dark .am-scroll::-webkit-scrollbar-thumb{background:rgba(160,180,210,.25)}
+`;
 
 // viewport size, used to adapt the full screen overlay (phone / tablet / desktop, landscape too)
 function useViewport() {
@@ -506,6 +583,14 @@ const IcMore = () => (
   </svg>
 );
 
+const IcPanic = () => (
+  <svg className="w-5 h-5" {...svgProps}>
+    <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+  </svg>
+);
+
 function DockButton({
   onClick,
   label,
@@ -534,7 +619,7 @@ function DockButton({
   const size = compact
     ? wide
       ? "h-10 px-3 rounded-full"
-      : "h-10 w-10 rounded-full"
+      : "h-10 w-10 [@media(max-width:359px)]:!h-9 [@media(max-width:359px)]:!w-9 rounded-full"
     : "h-14 w-[3.75rem] gap-0.5 rounded-2xl";
   return (
     <button
@@ -547,7 +632,7 @@ function DockButton({
         danger
           ? "bg-red-600 border-red-400/60 text-white hover:bg-red-500"
           : active
-          ? "bg-white border-white text-[#0F1B2D] shadow-md"
+          ? "bg-[#FFFFFF] border-white text-[#0F1B2D] shadow-md"
           : "bg-white/10 border-white/15 text-white hover:bg-white/20"
       } ${className}`}
     >
@@ -577,7 +662,7 @@ function QualityToggle({
           disabled={disabled}
           aria-pressed={quality === q}
           className={`px-2.5 h-8 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-50 ${
-            quality === q ? "bg-white text-[#0F1B2D]" : "text-white/80 hover:text-white"
+            quality === q ? "bg-[#FFFFFF] text-[#0F1B2D]" : "text-white/80 hover:text-white"
           }`}
         >
           {q}
@@ -838,7 +923,7 @@ function PianoKeyboard({
             {n % 12 === 0 && (
               <span
                 className={`text-[8px] sm:text-[9px] font-semibold corp-mono pointer-events-none ${
-                  glass ? "text-slate-600" : "text-slate-400"
+                  glass ? "text-[#475569]" : "text-slate-400"
                 }`}
               >
                 C{Math.floor(n / 12) - 1}
@@ -1431,6 +1516,17 @@ export default function AirMidiPage() {
   const [throttled, setThrottled] = useState(false);
   const [hoursLeft, setHoursLeft] = useState<number | null>(null); // sender's remaining streaming time (seconds)
   const [lowHours, setLowHours] = useState<number | null>(null);
+  const [pricingOpen, setPricingOpen] = useState(false);
+  const [account, setAccount] = useState<{
+    balance: number;
+    free_seconds: number;
+    free_per_day: number;
+    free_used_today: number;
+  } | null>(null);
+  const [freeEndsAt, setFreeEndsAt] = useState<number | null>(null); // end of the current free session (ms)
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const [panicSent, setPanicSent] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   // keyboard size used in full screen: 49 keys on phones, max 61 on tablets
   const { w: vw, h: vh } = useViewport();
@@ -1454,6 +1550,7 @@ export default function AirMidiPage() {
     toggleStage: () => void;
     toggleKeyboard: () => void;
     toggleControls: () => void;
+    panic: () => void;
   }>({
     connected: false,
     toggleMic: () => {},
@@ -1461,6 +1558,7 @@ export default function AirMidiPage() {
     toggleStage: () => {},
     toggleKeyboard: () => {},
     toggleControls: () => {},
+    panic: () => {},
   });
 
   const wakeControls = useCallback(() => {
@@ -1538,6 +1636,19 @@ export default function AirMidiPage() {
     logBufferRef.current.push({ id: ++logIdRef.current, time: nowStamp(), level, message });
   }, []);
 
+  // balance + free-tier info (silently skipped if the billing functions are not installed)
+  const refreshAccount = useCallback(async () => {
+    const { data, error } = await supabase.rpc("airmidi_account_status");
+    if (error || !data) return;
+    setAccount({
+      balance: Number(data.balance),
+      free_seconds: Number(data.free_seconds),
+      free_per_day: Number(data.free_per_day),
+      free_used_today: Number(data.free_used_today),
+    });
+    setHoursLeft(Number(data.balance));
+  }, []);
+
   /* ---- auth guard: only signed-in users ---- */
   useEffect(() => {
     let active = true;
@@ -1552,13 +1663,7 @@ export default function AirMidiPage() {
       pushLog("success", `Signed in as ${user.email || user.id}`);
       setIsLoggedIn(true);
       setCheckingAuth(false);
-      supabase
-        .from("airmidi_wallets")
-        .select("seconds_balance")
-        .maybeSingle()
-        .then(({ data, error }) => {
-          if (!error) setHoursLeft(data ? Number(data.seconds_balance) : 0);
-        });
+      void refreshAccount();
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -1610,9 +1715,12 @@ export default function AirMidiPage() {
     link.onVideoThrottle = (on) => setThrottled(on);
     (link as any).onBalance = (s: number) => setHoursLeft(s);
     (link as any).onLowHours = (s: number) => setLowHours(s);
+    (link as any).onFreeTime = (rem: number | null) =>
+      setFreeEndsAt(rem === null ? null : Date.now() + rem * 1000);
 
     link.onError = (msg) => {
       setError(msg);
+      setLowHours(null);
       setLoading(false);
       setMode("choose");
       setRoomCode("");
@@ -1726,16 +1834,56 @@ export default function AirMidiPage() {
     return () => clearInterval(t);
   }, []);
 
-  /* ---- session timer ---- */
+  /* ---- session timer (keeps running through an automatic reconnect) ---- */
+  const sessionStartRef = useRef<number | null>(null);
   useEffect(() => {
-    if (status !== "connected") {
+    if (status !== "connected" && status !== "reconnecting") {
+      sessionStartRef.current = null;
       setElapsed(0);
       return;
     }
-    const start = Date.now();
-    const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    if (sessionStartRef.current === null) sessionStartRef.current = Date.now();
+    const t = setInterval(
+      () => setElapsed(Math.floor((Date.now() - (sessionStartRef.current ?? Date.now())) / 1000)),
+      1000
+    );
     return () => clearInterval(t);
   }, [status]);
+
+  /* ---- free session countdown (display only: the library closes the session exactly on time) ---- */
+  useEffect(() => {
+    if (freeEndsAt === null) return;
+    setNowTick(Date.now());
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [freeEndsAt]);
+
+  /* ---- refresh balance / free sessions used once a session is over ---- */
+  useEffect(() => {
+    if (!isLoggedIn || (status !== "idle" && status !== "disconnected")) return;
+    const t = setTimeout(() => void refreshAccount(), 1500);
+    return () => clearTimeout(t);
+  }, [status, isLoggedIn, refreshAccount]);
+
+  /* ---- theme: remembered, defaults to the system setting ---- */
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("airmidi-theme");
+      if (saved === "dark" || saved === "light") setTheme(saved);
+      else if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) setTheme("dark");
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    try {
+      localStorage.setItem("airmidi-theme", next);
+    } catch {
+      /* ignore */
+    }
+  };
 
   /* ---- attach camera streams to <video> elements ---- */
   useEffect(() => {
@@ -1828,7 +1976,7 @@ export default function AirMidiPage() {
   }, [stagePseudo]);
 
   useEffect(() => {
-    if (status !== "connected") setStagePseudo(false);
+    if (status !== "connected" && status !== "reconnecting") setStagePseudo(false);
   }, [status]);
 
   /* ---- keyboard shortcuts: M mic, V camera, F full screen, K keyboard, C controls ---- */
@@ -1845,6 +1993,7 @@ export default function AirMidiPage() {
       else if (k === "f") a.toggleStage();
       else if (k === "k") a.toggleKeyboard();
       else if (k === "c") a.toggleControls();
+      else if (k === "p") a.panic();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -1883,7 +2032,11 @@ export default function AirMidiPage() {
     }
   }, []);
   const awakeActive =
-    status === "initializing" || status === "waiting" || status === "connecting" || status === "connected";
+    status === "initializing" ||
+    status === "waiting" ||
+    status === "connecting" ||
+    status === "connected" ||
+    status === "reconnecting";
   const awake = useKeepAwake(awakeActive, awakeEnabled);
   const toggleAwake = () => {
     const next = !awakeEnabled;
@@ -1981,6 +2134,13 @@ export default function AirMidiPage() {
     chRef.current = Array(16).fill(0);
     setStats({ count: 0, last: "—" });
     setChannels(Array(16).fill(0));
+    setLowHours(null);
+  };
+
+  const handlePanic = () => {
+    airMidiRef.current?.panic();
+    setPanicSent(true);
+    setTimeout(() => setPanicSent(false), 1500);
   };
 
   // full screen: ending the session needs a second tap, so it can't happen by accident
@@ -2174,6 +2334,7 @@ export default function AirMidiPage() {
     toggleStage,
     toggleKeyboard,
     toggleControls,
+    panic: handlePanic,
   };
 
   if (checkingAuth || !isLoggedIn) {
@@ -2186,7 +2347,8 @@ export default function AirMidiPage() {
   }
 
   const meta = STATUS_META[status];
-  const connected = status === "connected";
+  const freeLeft = freeEndsAt === null ? null : Math.max(0, Math.round((freeEndsAt - nowTick) / 1000));
+  const connected = status === "connected" || status === "reconnecting";
   const appMode = isFs || pseudoFs;
   const hasError = logs.some((l) => l.level === "error");
 
@@ -2242,6 +2404,17 @@ export default function AirMidiPage() {
         </p>
       </div>
 
+      {/* link lost: repairing itself */}
+      {status === "reconnecting" && (
+        <div className="am-fade-up absolute inset-0 z-[25] flex flex-col items-center justify-center gap-3 bg-[#070B16]/75 backdrop-blur-sm">
+          <span className="w-8 h-8 border-2 border-white/25 border-t-white rounded-full animate-spin" />
+          <p className="text-sm font-bold text-white">Reconnecting…</p>
+          <p className="text-[11px] text-white/60 text-center px-6 max-w-xs">
+            MIDI is paused. The link repairs itself, there is nothing to do.
+          </p>
+        </div>
+      )}
+
       {/* top bar */}
       <div
         className={`absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 px-3 sm:px-4 pt-3 pb-10 bg-gradient-to-b from-black/60 to-transparent transition-opacity duration-300 ${
@@ -2275,6 +2448,15 @@ export default function AirMidiPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {freeLeft !== null && (
+            <span
+              className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full corp-mono ${
+                freeLeft <= 60 ? "text-white bg-red-600/90" : "text-amber-100 bg-amber-500/30 border border-amber-300/30"
+              }`}
+            >
+              FREE {formatElapsed(freeLeft)}
+            </span>
+          )}
           {(cameraOn || micOn) && (
             <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-white bg-red-600/90 px-2.5 py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
@@ -2415,7 +2597,7 @@ export default function AirMidiPage() {
               </DockButton>
             )}
 
-            <span className="w-px self-stretch my-1 bg-white/15 shrink-0" />
+            {!compact && <span className="w-px self-stretch my-1 bg-white/15 shrink-0" />}
 
             {/* MIDI views */}
             <DockButton compact={compact} toggle onClick={toggleKeyboard} active={showKeyboard} label="Keyboard (K)" caption="Keys">
@@ -2424,10 +2606,23 @@ export default function AirMidiPage() {
             <DockButton compact={compact} toggle onClick={toggleControls} active={showControls} label="MIDI controls (C)" caption="Controls">
               <IcSliders />
             </DockButton>
+            <DockButton
+              compact={compact}
+              onClick={handlePanic}
+              label="MIDI panic: all notes off (P)"
+              caption={panicSent ? "Sent ✓" : "Panic"}
+              className={
+                panicSent
+                  ? "!bg-emerald-500/25 !border-emerald-400/50 !text-emerald-200"
+                  : "!bg-red-500/15 !border-red-400/40 !text-red-200 hover:!bg-red-500/30"
+              }
+            >
+              <IcPanic />
+            </DockButton>
 
             {!compact && (
               <>
-                <span className="w-px self-stretch my-1 bg-white/15 shrink-0" />
+                {!compact && <span className="w-px self-stretch my-1 bg-white/15 shrink-0" />}
                 <div className="flex flex-col items-center justify-center gap-1 h-14">
                   <QualityToggle quality={quality} onChange={changeQuality} disabled={cameraBusy} />
                   <span className="text-[9px] font-semibold tracking-wide leading-none text-white/80">Quality</span>
@@ -2468,7 +2663,7 @@ export default function AirMidiPage() {
               </div>
             )}
 
-            <span className="w-px self-stretch my-1 bg-white/15 shrink-0" />
+            {!compact && <span className="w-px self-stretch my-1 bg-white/15 shrink-0" />}
 
             <DockButton
               compact={compact}
@@ -2488,7 +2683,9 @@ export default function AirMidiPage() {
   ) : null;
 
   return (
-    <div className="am-grid bg-[#E8ECF2] text-[#0F172A] am-app flex flex-col antialiased relative overflow-x-hidden corp-sans">
+    <div
+      className={`am-root ${theme === "dark" ? "am-dark" : ""} am-grid bg-[#E8ECF2] text-[#0F172A] am-app flex flex-col antialiased relative overflow-x-hidden corp-sans`}
+    >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
         .corp-sans { font-family: 'Inter', system-ui, sans-serif; }
@@ -2554,6 +2751,7 @@ export default function AirMidiPage() {
           .am-fade-up, .am-ring, .am-scan, .am-digit, .am-float, .am-dot, .am-flow, .am-orbit, .am-ring3d, .am-packet { animation: none; }
         }
       `}</style>
+      <style>{DARK_CSS}</style>
 
       <div className="absolute top-[-10%] right-[-5%] w-[400px] sm:w-[800px] h-[400px] sm:h-[800px] bg-gradient-to-br from-[#1D4ED8]/12 via-[#0F1B2D]/5 to-transparent rounded-full blur-[70px] sm:blur-[110px] pointer-events-none z-0" />
       <div className="absolute bottom-[5%] left-[-10%] w-[350px] sm:w-[700px] h-[350px] sm:h-[700px] bg-gradient-to-tr from-[#0D9488]/10 via-transparent to-transparent rounded-full blur-[80px] sm:blur-[120px] pointer-events-none z-0" />
@@ -2600,6 +2798,16 @@ export default function AirMidiPage() {
           </div>
         </div>
       )}
+
+      <AirMidiPricing
+        open={pricingOpen}
+        onClose={() => {
+          setPricingOpen(false);
+          void refreshAccount();
+        }}
+        hoursLeft={hoursLeft}
+        account={account}
+      />
 
       {!appMode && <Navbar />}
 
@@ -2675,7 +2883,31 @@ export default function AirMidiPage() {
                   : "Tap to stay awake"}
               </button>
             )}
-            {hoursLeft !== null && mode !== "receiver" && (
+            {freeLeft !== null && (
+              <span
+                className={`inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border corp-mono ${
+                  freeLeft <= 60 ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"
+                }`}
+                title="Free session: time left"
+              >
+                ⏱ Free · {formatElapsed(freeLeft)} left
+              </span>
+            )}
+            {freeLeft === null && account && account.balance <= 0 && mode !== "receiver" && (
+              <span
+                className="inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border border-slate-200 bg-white text-slate-600"
+                title="Free plan"
+              >
+                Free plan · {Math.round(account.free_seconds / 60)} min sessions
+              </span>
+            )}
+            <button
+              onClick={() => setPricingOpen(true)}
+              className="inline-flex items-center gap-2 text-[11px] font-bold px-3.5 py-1.5 rounded-full bg-blue-600 text-white hover:bg-blue-500 active:scale-95 transition-all"
+            >
+              Get hours
+            </button>
+            {hoursLeft !== null && hoursLeft > 0 && mode !== "receiver" && (
               <span
                 className={`inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border corp-mono ${
                   hoursLeft <= 4 * 3600
@@ -2698,6 +2930,23 @@ export default function AirMidiPage() {
               </span>
               {meta.label}
             </span>
+            <button
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+              title={theme === "dark" ? "Light theme" : "Dark theme"}
+              className="w-10 h-10 sm:w-9 sm:h-9 rounded-full border border-slate-200 bg-white text-slate-600 hover:text-blue-700 hover:border-blue-300 hover:shadow-md active:scale-95 transition-all flex items-center justify-center"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {theme === "dark" ? (
+                  <>
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                  </>
+                ) : (
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                )}
+              </svg>
+            </button>
             <button
               onClick={toggleFullscreen}
               aria-label={appMode ? "Exit full screen" : "Enter full screen"}
@@ -2722,6 +2971,17 @@ export default function AirMidiPage() {
               <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
             </svg>
             <span className="flex-1 font-medium leading-relaxed">{error}</span>
+            {/(hours|free)/i.test(error) && (
+              <button
+                onClick={() => {
+                  setError("");
+                  setPricingOpen(true);
+                }}
+                className="shrink-0 h-8 px-3 rounded-lg bg-red-600 text-white text-[11px] font-bold hover:bg-red-700 transition-colors"
+              >
+                Get hours
+              </button>
+            )}
             <button onClick={() => setError("")} className="text-red-400 hover:text-red-700 transition-colors" aria-label="Dismiss">
               ✕
             </button>
@@ -2732,10 +2992,12 @@ export default function AirMidiPage() {
         {lowHours !== null && (
           <div className="am-fade-up shrink-0 mb-5 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 flex items-start gap-3">
             <span className="flex-1 font-medium leading-relaxed">
-              Only {formatHours(lowHours)} of streaming left.{" "}
-              <a href="/pricing" className="underline font-bold">
-                Buy more hours
-              </a>
+              {freeLeft !== null
+                ? `Your free session ends in ${formatElapsed(freeLeft)}.`
+                : `Only ${formatHours(lowHours)} of streaming left.`}{" "}
+              <button onClick={() => setPricingOpen(true)} className="underline font-bold">
+                {freeLeft !== null ? "Get hours to keep going" : "Buy more hours"}
+              </button>
             </span>
             <button onClick={() => setLowHours(null)} aria-label="Dismiss" className="text-amber-500 hover:text-amber-800 transition-colors">
               ✕
@@ -3063,6 +3325,18 @@ export default function AirMidiPage() {
                       </button>
                       <span className="flex-1" />
                       <button
+                        onClick={handlePanic}
+                        title="MIDI panic: all notes off (P)"
+                        className={`h-11 px-4 rounded-xl text-xs font-bold border transition-colors active:scale-[0.98] flex items-center gap-2 ${
+                          panicSent
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-white text-red-600 border-red-200 hover:bg-red-50"
+                        }`}
+                      >
+                        <IcPanic />
+                        {panicSent ? "Sent ✓" : "Panic"}
+                      </button>
+                      <button
                         onClick={handleReset}
                         className="h-11 px-4 rounded-xl text-xs font-bold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors active:scale-[0.98] flex items-center gap-2"
                       >
@@ -3074,7 +3348,7 @@ export default function AirMidiPage() {
                       Camera and microphone stay off until you start them. Use headphones to avoid echo. Shortcuts:{" "}
                       <kbd className="corp-mono">V</kbd> camera · <kbd className="corp-mono">M</kbd> mic ·{" "}
                       <kbd className="corp-mono">F</kbd> full screen · <kbd className="corp-mono">K</kbd> keyboard ·{" "}
-                      <kbd className="corp-mono">C</kbd> controls
+                      <kbd className="corp-mono">C</kbd> controls · <kbd className="corp-mono">P</kbd> panic
                     </p>
 
                     {/* KEYBOARD (on/off) */}
@@ -3399,7 +3673,7 @@ export default function AirMidiPage() {
         </div>
       </main>
 
-    {/* {!appMode && <Footer />} */}  
+      {!appMode && <Footer />}
     </div>
   );
 }
