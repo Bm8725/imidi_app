@@ -205,8 +205,9 @@ export default function AirMidiPricing({
             <div className="text-xs bg-red-50 border border-red-200 p-3.5 rounded-xl text-red-700 font-medium">{error}</div>
           )}
 
+           {/* STEP 2: pay on Revolut */}
           {req ? (
-            <div className="am-fade-up max-w-xl mx-auto space-y-5">
+            <div className="am-fade-up max-w-xl mx-auto space-y-6">
               <button onClick={() => setReq(null)} className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors py-1">
                 ← Back to plans
               </button>
@@ -214,6 +215,19 @@ export default function AirMidiPricing({
               <div className="text-center space-y-1">
                 <p className="text-[11px] uppercase tracking-wider font-bold text-slate-500">{req.plan} plan · {req.hours} hours</p>
                 <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Send {money(req.amount, req.currency)} on Revolut</h3>
+              </div>
+
+              {/* PASUL 1: Butonul de plată Revolut */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-slate-700">Step 1: Make the payment</p>
+                <a
+                  href={REVOLUT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center gap-2 text-[14px] font-bold px-6 py-3.5 rounded-xl bg-[#0075eb] text-white shadow-md shadow-blue-500/20 hover:bg-[#0066cc] transition-all text-center"
+                >
+                  Pay with Revolut
+                </a>
               </div>
 
               {/* Caseta cu codul de referință */}
@@ -232,17 +246,13 @@ export default function AirMidiPricing({
                 </div>
               </div>
 
-              {/* BUTONUL MARE ȘI FAIN DE WHATSAPP */}
-              <div className="pt-2 text-center space-y-3">
-                <p className="text-xs text-slate-500">
-                  After sending the money, tap below to send the reference code to the seller via WhatsApp for fast approval:
-                </p>
-                
+              {/* PASUL 2: Butonul de WhatsApp */}
+              <div className="space-y-2 text-center">
+                <p className="text-xs font-semibold text-slate-700 text-left">Step 2: Confirm your payment</p>
                 <button
                   onClick={copyRef}
                   className="w-full inline-flex items-center justify-center gap-2.5 text-[14px] font-bold px-6 py-3.5 rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-600/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-98 transition-all duration-200 border border-white/10"
                 >
-                  {/* Iconița oficială WhatsApp */}
                   <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                     <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397 0 11.973 0c3.184.001 6.177 1.242 8.426 3.496 2.249 2.254 3.487 5.251 3.486 8.442-.005 6.623-5.34 11.971-11.918 11.971-2.007-.001-3.98-.51-5.725-1.479L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.742.002-2.602-1.01-5.05-2.85-6.89C16.586 2.13 14.143 1.128 11.98 1.128c-5.444 0-9.866 4.372-9.87 9.747-.002 1.702.459 3.361 1.336 4.81l-1.015 3.703 3.829-.989zm13.411-6.195c-.277-.139-1.64-.809-1.894-.9-.253-.093-.438-.139-.623.139-.184.279-.714.9-.874 1.084-.16.185-.32.208-.597.069-.277-.139-1.169-.43-2.227-1.374-.823-.734-1.379-1.641-1.54-1.92-.16-.279-.017-.43.122-.568.125-.124.277-.323.416-.483.139-.16.185-.274.277-.457.092-.183.046-.347-.023-.486-.069-.139-.623-1.501-.853-2.053-.224-.539-.452-.465-.623-.474-.16-.008-.345-.01-.53-.01-.185 0-.486.07-.741.347-.255.279-.972.951-.972 2.32 0 1.369.996 2.69 1.135 2.875.139.185 1.96 2.994 4.748 4.199.663.288 1.18.46 1.583.589.666.212 1.272.182 1.751.11.534-.08 1.64-.67 1.872-1.318.23-.647.23-1.203.16-1.318-.069-.115-.25-.185-.527-.324z"/>
                   </svg>
@@ -252,6 +262,7 @@ export default function AirMidiPricing({
 
             </div>
           ) : (
+
             <>
               {/* STEP 1: plans */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 pt-3">
