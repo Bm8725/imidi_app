@@ -2905,24 +2905,25 @@ export default function AirMidiPage() {
                 Free plan · {Math.round(account.free_seconds / 60)} min sessions
               </span>
             )}
-                    <button
-                      onClick={() => setPricingOpen(true)}
-                      className="inline-flex items-center justify-center gap-2 text-[13px] font-semibold px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-98 transition-all duration-200 ease-in-out border border-white/10"
-                    >
-                      <svg 
-                        className="w-4 h-4 text-white/90" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        viewBox="0 0 24 24"
-                      >
-                        <rect width="20" height="14" x="2" y="5" rx="2" />
-                        <line x1="2" x2="22" y1="10" y2="10" />
-                      </svg>
-                      <span>Buy airMIDI Hours</span>
-                    </button>
+<button
+  onClick={() => setPricingOpen(true)}
+  className="inline-flex items-center justify-center gap-2 text-[13px] font-bold px-5 py-2.5 rounded-full bg-white text-black border border-zinc-200 shadow-sm hover:bg-zinc-50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-in-out"
+>
+  <svg 
+    className="w-4 h-4 text-black" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2.2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    viewBox="0 0 24 24"
+  >
+    <rect width="20" height="14" x="2" y="5" rx="2" />
+    <line x1="2" x2="22" y1="10" y2="10" />
+  </svg>
+  <span>Buy airMIDI Hours</span>
+</button>
+
 
 
             {hoursLeft !== null && hoursLeft > 0 && mode !== "receiver" && (
