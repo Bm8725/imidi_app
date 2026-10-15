@@ -3672,12 +3672,12 @@ export default function AirMidiPage() {
           </div>
         </div>
       </main>
-  // Exemplu de buton în pagina ta principală pentru a deschide subpagina de share
+
 <button
   onClick={() => router.push(`/airmidi-link/share?room=${roomCode}`)}
   className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm"
 >
-  Partajează Camera
+ share airmidi link
 </button>
 
       {!appMode && <Footer />}
