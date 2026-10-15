@@ -3681,21 +3681,7 @@ export default function AirMidiPage() {
         
       </main>
 
-        
-           
-<button
-  onClick={() => {
-    // Deschide pop-up-ul nativ din browser cu un mesaj simplu
-    if (typeof window !== "undefined") {
-      const url = window.location.href;
-      navigator.clipboard.writeText(url);
-      alert("Link-ul AirMIDI a fost copiat în clipboard! Trimite-l partenerului tău.");
-    }
-  }}
-  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors mt-4"
->
-  Share AirMIDI Link
-</button>
+
 
     </div>
   );
