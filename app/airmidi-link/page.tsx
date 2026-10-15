@@ -40,6 +40,9 @@ const LEVEL_STYLE: Record<LogLevel, { tag: string; color: string }> = {
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const noteName = (n: number) => `${NOTE_NAMES[n % 12]}${Math.floor(n / 12) - 1}`;
 
+const [showShare, setShowShare] = useState(false);
+
+
 function decodeMidi(d: Uint8Array): string {
   const s = d[0];
   if (s >= 0xf0) {
@@ -3671,16 +3674,74 @@ export default function AirMidiPage() {
           </section>
           </div>
         </div>
+
+
+
+        
       </main>
 
+        
+           
 <button
-  onClick={() => router.push(`/airmidi-link/share?room=${roomCode}`)}
-  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm"
+  onClick={() => setShowShare(true)}
+  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors mt-4"
 >
- share airmidi link
+  Share AirMIDI Link
 </button>
 
-      {!appMode && <Footer />}
+{showShare && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div className="w-full max-w-sm bg-[#111A2B] border border-[#22304A] rounded-2xl p-6 shadow-2xl text-center relative am-dark">
+      
+      <button 
+        onClick={() => setShowShare(false)}
+        className="absolute top-4 right-4 text-slate-400 hover:text-white font-bold text-sm"
+      >
+        ✕
+      </button>
+
+      <h3 className="text-lg font-bold text-white mb-1">
+        Partajează Conexiunea
+      </h3>
+      <p className="text-xs text-slate-400 mb-6">
+        Trimite link-ul sau scanează QR-ul pentru a conecta dispozitivele AirMIDI.
+      </p>
+
+      <div className="bg-[#1A2740] border border-[#22304A] rounded-xl p-3 mb-5">
+        <span className="text-[10px] uppercase tracking-wider text-slate-500 block font-bold mb-0.5">
+          Cod Cameră
+        </span>
+        <span className="text-2xl font-mono font-bold text-emerald-400 tracking-widest">
+          {roomCode}
+        </span>
+      </div>
+
+      <button
+        onClick={() => {
+          if (typeof window !== "undefined") {
+            navigator.clipboard.writeText(window.location.href);
+            alert("Link copiat!");
+          }
+        }}
+        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-colors mb-5"
+      >
+        Copiază Link-ul de Acces
+      </button>
+
+      <div className="bg-white p-2 rounded-xl flex items-center justify-center w-36 h-36 mx-auto mb-2 border border-slate-200">
+        <img
+          src="https://googleapis.com"
+          alt="QR Code"
+          className="w-full h-full object-contain"
+        />
+      </div>
+      <span className="text-[10px] text-slate-500 block">Scanează direct de pe ecran</span>
+
+    </div>
+  </div>
+)}
+
+
     </div>
   );
 }
