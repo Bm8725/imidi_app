@@ -228,11 +228,11 @@ window.open(whatsappUrl, "_blank", "noopener,noreferrer");
                 <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Send {money(req.amount, req.currency)} on Revolut</h3>
               </div>
 
-              {/* PASUL 1: Butonul de plată Revolut cu parametrul corect ?amount= */}
+              {/* PASUL 1: Butonul de plată Revolut cu fix pentru cenți și valută explicită */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-slate-700">Step 1: Make the payment</p>
                 <a
-                  href={`${REVOLUT_URL}?amount=${req.amount}`}
+                  href={`${REVOLUT_URL.endsWith("/") ? REVOLUT_URL.slice(0, -1) : REVOLUT_URL}/${req.currency.toLowerCase()}?amount=${req.amount }`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full inline-flex items-center justify-center gap-2 text-[14px] font-bold px-6 py-3.5 rounded-xl bg-[#0075eb] text-white shadow-md shadow-blue-500/20 hover:bg-[#0066cc] transition-all text-center"
