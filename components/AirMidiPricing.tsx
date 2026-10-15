@@ -205,62 +205,51 @@ export default function AirMidiPricing({
             <div className="text-xs bg-red-50 border border-red-200 p-3.5 rounded-xl text-red-700 font-medium">{error}</div>
           )}
 
-          {/* STEP 2: pay on Revolut */}
           {req ? (
             <div className="am-fade-up max-w-xl mx-auto space-y-5">
               <button onClick={() => setReq(null)} className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors py-1">
                 ← Back to plans
               </button>
+              
               <div className="text-center space-y-1">
                 <p className="text-[11px] uppercase tracking-wider font-bold text-slate-500">{req.plan} plan · {req.hours} hours</p>
                 <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Send {money(req.amount, req.currency)} on Revolut</h3>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5 text-center space-y-3">
-                <p className="text-[11px] uppercase tracking-wider font-bold text-slate-500">Payment reference (put it in the note)</p>
-                <p className="corp-mono text-3xl sm:text-4xl font-bold tracking-[0.12em] text-slate-900 select-all">{req.reference}</p>
+              {/* Caseta cu codul de referință */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center space-y-2">
+                <p className="text-xs text-slate-500 font-medium">Your Payment Reference ID:</p>
+                <div className="flex items-center justify-center gap-2">
+                  <code className="text-base font-mono font-bold text-slate-800 bg-white border border-slate-200 px-3 py-1 rounded-lg">
+                    {req.reference}
+                  </code>
+                  <button
+                    onClick={copyRef}
+                    className="text-xs font-semibold px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors"
+                  >
+                    {copied ? "✓ Copied" : "Copy Code"}
+                  </button>
+                </div>
+              </div>
+
+              {/* BUTONUL MARE ȘI FAIN DE WHATSAPP */}
+              <div className="pt-2 text-center space-y-3">
+                <p className="text-xs text-slate-500">
+                  After sending the money, tap below to send the reference code to the seller via WhatsApp for fast approval:
+                </p>
+                
                 <button
                   onClick={copyRef}
-                  className="h-10 px-5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                  className="w-full inline-flex items-center justify-center gap-2.5 text-[14px] font-bold px-6 py-3.5 rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-600/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-98 transition-all duration-200 border border-white/10"
                 >
-                  {copied ? "✓ Copied" : "Copy reference"}
+                  {/* Iconița oficială WhatsApp */}
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397 0 11.973 0c3.184.001 6.177 1.242 8.426 3.496 2.249 2.254 3.487 5.251 3.486 8.442-.005 6.623-5.34 11.971-11.918 11.971-2.007-.001-3.98-.51-5.725-1.479L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.742.002-2.602-1.01-5.05-2.85-6.89C16.586 2.13 14.143 1.128 11.98 1.128c-5.444 0-9.866 4.372-9.87 9.747-.002 1.702.459 3.361 1.336 4.81l-1.015 3.703 3.829-.989zm13.411-6.195c-.277-.139-1.64-.809-1.894-.9-.253-.093-.438-.139-.623.139-.184.279-.714.9-.874 1.084-.16.185-.32.208-.597.069-.277-.139-1.169-.43-2.227-1.374-.823-.734-1.379-1.641-1.54-1.92-.16-.279-.017-.43.122-.568.125-.124.277-.323.416-.483.139-.16.185-.274.277-.457.092-.183.046-.347-.023-.486-.069-.139-.623-1.501-.853-2.053-.224-.539-.452-.465-.623-.474-.16-.008-.345-.01-.53-.01-.185 0-.486.07-.741.347-.255.279-.972.951-.972 2.32 0 1.369.996 2.69 1.135 2.875.139.185 1.96 2.994 4.748 4.199.663.288 1.18.46 1.583.589.666.212 1.272.182 1.751.11.534-.08 1.64-.67 1.872-1.318.23-.647.23-1.203.16-1.318-.069-.115-.25-.185-.527-.324z"/>
+                  </svg>
+                  Notify Seller on WhatsApp
                 </button>
               </div>
 
-              <ol className="space-y-3 text-sm text-slate-600">
-                {[
-                  "Copy the reference above.",
-                  `Open Revolut and send exactly ${money(req.amount, req.currency)}, with the reference as the payment note.`,
-                  `Your ${req.hours} hours are added as soon as the payment is confirmed.`,
-                ].map((t, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="w-6 h-6 shrink-0 rounded-full bg-blue-50 text-blue-700 text-xs font-bold flex items-center justify-center">{i + 1}</span>
-                    <span className="pt-0.5">{t}</span>
-                  </li>
-                ))}
-              </ol>
-
-              <div className="flex flex-col sm:flex-row gap-2">
-                <a
-                  href={REVOLUT_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 h-12 rounded-xl bg-[#0F1B2D] text-white text-xs font-bold uppercase tracking-widest hover:bg-[#1E3050] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
-                >
-                  Open Revolut <span aria-hidden>↗</span>
-                </a>
-                <button
-                  onClick={onClose}
-                  className="h-12 px-6 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition-colors"
-                >
-                  I have paid
-                </button>
-              </div>
-              {REVOLUT_URL.includes("YOUR_TAG") && process.env.NODE_ENV !== "production" && (
-                <p className="text-[11px] bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2">
-                  Dev note: set <span className="corp-mono">NEXT_PUBLIC_REVOLUT_URL</span> (for example https://revolut.me/yourtag) or edit it in AirMidiPricing.tsx.
-                </p>
-              )}
             </div>
           ) : (
             <>
