@@ -10,6 +10,13 @@ import { supabase } from "@/lib/supabase";
 /* ---------------------------------------------------------------------- */
 export const REVOLUT_URL = process.env.NEXT_PUBLIC_REVOLUT_URL || "https://revolut.me/mariusvalentin_b";
 
+export const getRevolutPaymentUrl = (baseUrl: string, amount: number) => {
+  // Elimină un eventual slash de la finalul URL-ului de bază pentru a evita dublarea (ex: /50)
+  const cleanBase = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+  return `${cleanBase}/${amount}`;
+};
+
+
 type Plan = { id: string; name: string; price: number; currency: string; hours: number };
 type Account = { balance: number; free_seconds: number; free_per_day: number; free_used_today: number } | null;
 type PayReq = { reference: string; amount: number; currency: string; hours: number; plan: string };
@@ -221,11 +228,11 @@ window.open(whatsappUrl, "_blank", "noopener,noreferrer");
                 <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Send {money(req.amount, req.currency)} on Revolut</h3>
               </div>
 
-              {/* PASUL 1: Butonul de plată Revolut */}
+              {/* PASUL 1: Butonul de plată Revolut cu sumă adăugată dinamic */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-slate-700">Step 1: Make the payment</p>
                 <a
-                  href={REVOLUT_URL}
+                  href={`${REVOLUT_URL.endsWith("/") ? REVOLUT_URL.slice(0, -1) : REVOLUT_URL}/${req.amount}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full inline-flex items-center justify-center gap-2 text-[14px] font-bold px-6 py-3.5 rounded-xl bg-[#0075eb] text-white shadow-md shadow-blue-500/20 hover:bg-[#0066cc] transition-all text-center"
@@ -266,6 +273,7 @@ window.open(whatsappUrl, "_blank", "noopener,noreferrer");
 
             </div>
           ) : (
+
 
             <>
               {/* STEP 1: plans */}
