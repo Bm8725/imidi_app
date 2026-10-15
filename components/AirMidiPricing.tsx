@@ -141,14 +141,15 @@ export default function AirMidiPricing({
     if (!req) return;
     try {
       // 1. Pregătim mesajul corect text
-      const message = `Salut! Am trimis plata prin Revolut.\n\n` +
+      const message = `Hi! I have sent the payment via Revolut.\n\n` +
                       `*Plan:* req.plan ({req.hours} ore)\n` +
-                      `*Sumă:* \${money(req.amount, req.currency)}\n` +
-                      `*Referință:* \`${req.reference}\``;
+                      `*Amount:* \${money(req.amount, req.currency)}\n` +
+                      `*Reference:* \`${req.reference}\``;
 
       // 2. Generăm link-ul oficial wa.me
-      const whatsappUrl = `https://wa.me{SELLER_WHATSAPP}?text=${encodeURIComponent(message)}`;
       
+      const whatsappUrl = `https://wa.me/${SELLER_WHATSAPP}?text=${encodeURIComponent(message)}`;
+
       // 3. DESCHIDEM INSTANT fereastra (fără await înainte), ca browserul să nu o blocheze
       window.open(whatsappUrl, "_blank", "noopener,noreferrer");
 
