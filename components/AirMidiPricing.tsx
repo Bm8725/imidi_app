@@ -137,27 +137,29 @@ export default function AirMidiPricing({
 
   const SELLER_WHATSAPP = "40729411747"; 
 
-  const copyRef = async () => {
+  const copyRef = () => {
     if (!req) return;
     try {
-      // 1. Copiază codul de referință în clipboard ca backup sigur
-      await navigator.clipboard.writeText(req.reference);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-
-      // 2. Mesajul corectat folosind formatul \${} pentru a extrage datele reale
+      // 1. Pregătim mesajul corect text
       const message = `Salut! Am trimis plata prin Revolut.\n\n` +
-                      `*Plan:* \({req.plan} (\){req.hours} ore)\n` +
+                      `*Plan:* req.plan ({req.hours} ore)\n` +
                       `*Sumă:* \${money(req.amount, req.currency)}\n` +
                       `*Referință:* \`${req.reference}\``;
 
-      // 3. Link-ul direct și complet către API-ul WhatsApp
-      const whatsappUrl = `https://whatsapp.com{SELLER_WHATSAPP}&text=${encodeURIComponent(message)}`;
+      // 2. Generăm link-ul oficial wa.me
+      const whatsappUrl = `https://wa.me{SELLER_WHATSAPP}?text=${encodeURIComponent(message)}`;
       
-      // 4. Deschide direct chat-ul cu numărul tău de telefon
+      // 3. DESCHIDEM INSTANT fereastra (fără await înainte), ca browserul să nu o blocheze
       window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+
+      // 4. Copiem codul în clipboard imediat după în fundal
+      navigator.clipboard.writeText(req.reference).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1600);
+      }).catch(err => console.error("Eroare clipboard:", err));
+
     } catch (error) {
-      console.error("Eroare la deschiderea WhatsApp:", error);
+      console.error("Eroare generală:", error);
     }
   };
 
