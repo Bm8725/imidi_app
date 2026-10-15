@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 /* >>> PUT YOUR REVOLUT LINK HERE (or set NEXT_PUBLIC_REVOLUT_URL)          */
 /*     e.g.  https://revolut.me/yourtag                                    */
 /* ---------------------------------------------------------------------- */
-export const REVOLUT_URL = process.env.NEXT_PUBLIC_REVOLUT_URL || "https://revolut.me/YOUR_TAG";
+export const REVOLUT_URL = process.env.NEXT_PUBLIC_REVOLUT_URL || "https://revolut.me/mariusvalentin_b";
 
 type Plan = { id: string; name: string; price: number; currency: string; hours: number };
 type Account = { balance: number; free_seconds: number; free_per_day: number; free_used_today: number } | null;
