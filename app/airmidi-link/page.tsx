@@ -2907,13 +2907,13 @@ export default function AirMidiPage() {
             )}
 <button
   onClick={() => setPricingOpen(true)}
-  className="inline-flex items-center justify-center gap-2 text-[13px] font-bold px-5 py-2.5 rounded-full bg-white text-black border border-zinc-200 shadow-sm hover:bg-zinc-50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-in-out"
+  className="inline-flex items-center justify-center gap-2 text-[13px] font-bold px-5 py-2.5 rounded-full bg-[#FFD700] text-black border border-amber-400 shadow-md shadow-amber-500/10 hover:bg-[#FFE033] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-in-out"
 >
   <svg 
     className="w-4 h-4 text-black" 
     fill="none" 
     stroke="currentColor" 
-    strokeWidth="2.2" 
+    strokeWidth="2.5" 
     strokeLinecap="round" 
     strokeLinejoin="round" 
     viewBox="0 0 24 24"
