@@ -134,16 +134,32 @@ export default function AirMidiPricing({
       });
   };
 
+
+  const SELLER_WHATSAPP = "40729411747"; 
+
   const copyRef = async () => {
     if (!req) return;
     try {
+      // 1. Copiază automat referința în clipboard ca backup
       await navigator.clipboard.writeText(req.reference);
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
+
+      // 2. Construiește un mesaj frumos formatat pentru WhatsApp
+      const message = `Salut! Am trimis plata prin Revolut.\n\n` +
+                      `*Plan:* req.plan ({req.hours} ore)\n` +
+                      `*Sumă:* \${money(req.amount, req.currency)}\n` +
+                      `*Referință:* \`${req.reference}\``;
+
+      // 3. Encodează mesajul și deschide WhatsApp într-un tab nou
+      const whatsappUrl = `https://whatsapp.com{SELLER_WHATSAPP}&text=${encodeURIComponent(message)}`;
+      
+      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
     } catch {
-      /* clipboard unavailable */
+      /* clipboard sau window.open blocat */
     }
   };
+
 
   return (
     <div
