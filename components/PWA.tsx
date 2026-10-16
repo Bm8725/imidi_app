@@ -49,59 +49,87 @@ export default function PWA() {
     };
   }, []);
 
-  const bar: React.CSSProperties = {
+  // Stiluri premium tip Glassmorphic
+  const glassBar: React.CSSProperties = {
     position: 'fixed',
     left: '50%',
     transform: 'translateX(-50%)',
-    bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-    background: '#18181C',
-    color: '#fff',
-    border: '1px solid #A78BFA',
-    borderRadius: 12,
-    padding: '10px 14px',
-    font: '14px system-ui, sans-serif',
+    bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+    background: 'rgba(24, 24, 28, 0.65)',          // Fundal semi-transparent întunecat
+    backdropFilter: 'blur(16px) saturate(140%)',    // Efectul de sticlă (blur puternic)
+    WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+    color: '#F4F4F5',
+    border: '1px solid rgba(167, 139, 250, 0.25)',  // Bordură fină violet cu opacitate mică
+    borderRadius: 16,
+    padding: '12px 18px',
+    font: '600 14px system-ui, -apple-system, sans-serif',
     display: 'flex',
-    gap: 12,
+    gap: 14,
     alignItems: 'center',
     zIndex: 99999,
+    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset', // Umbră soft + luciu interior
+    animation: 'pwaSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
   };
-  const btn: React.CSSProperties = {
+
+  const mainBtn: React.CSSProperties = {
     background: '#67E8F9',
     color: '#0D0E12',
     border: 0,
-    borderRadius: 8,
-    padding: '6px 10px',
+    borderRadius: 10,
+    padding: '8px 14px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    letterSpacing: '-0.01em',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 8px rgba(103, 232, 249, 0.25)',
+  };
+
+  const secBtn: React.CSSProperties = {
+    background: 'rgba(255, 255, 255, 0.06)',
+    color: '#E4E4E7',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    borderRadius: 10,
+    padding: '8px 14px',
     fontWeight: 600,
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
   };
 
   if (waiting) {
     return (
-      <div role="status" style={bar}>
-        <span>New version available</span>
-        <button style={btn} onClick={() => waiting.postMessage('SKIP_WAITING')}>Update</button>
-      </div>
+      <>
+        <style>{`@keyframes pwaSlideUp { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }`}</style>
+        <div role="status" style={glassBar}>
+          <span style={{ marginRight: 4 }}>🎵 O nouă versiune iMIDI este disponibilă</span>
+          <button style={mainBtn} onClick={() => waiting.postMessage('SKIP_WAITING')}>
+            Actualizează
+          </button>
+        </div>
+      </>
     );
   }
 
   if (installEvt) {
     return (
-      <div role="status" style={bar}>
-        <span>Install iMIDI</span>
-        <button
-          style={btn}
-          onClick={async () => {
-            await installEvt.prompt();
-            await installEvt.userChoice;
-            setInstallEvt(null);
-          }}
-        >
-          Install
-        </button>
-        <button style={{ ...btn, background: 'transparent', color: '#fff' }} onClick={() => setInstallEvt(null)}>
-          Not now
-        </button>
-      </div>
+      <>
+        <style>{`@keyframes pwaSlideUp { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }`}</style>
+        <div role="status" style={glassBar}>
+          <span style={{ marginRight: 4 }}>✨ Instalează aplicația iMIDI</span>
+          <button
+            style={mainBtn}
+            onClick={async () => {
+              await installEvt.prompt();
+              await installEvt.userChoice;
+              setInstallEvt(null);
+            }}
+          >
+            Install
+          </button>
+          <button style={secBtn} onClick={() => setInstallEvt(null)}>
+            Later
+          </button>
+        </div>
+      </>
     );
   }
 
