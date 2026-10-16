@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabase";
 
 type Own = { code: string; live: boolean } | null;
 type LiveItem = { id: string; name: string | null };
+type LastEnded = { at: number; seconds: number | null } | null;
 
 type Stats = {
   live_now: number;
@@ -24,13 +25,15 @@ type Stats = {
   sessions_today: number;
   minutes_today: number;
   liveList: LiveItem[];
+  lastEnded: LastEnded;
   own: Own;
 };
 
 type Msg = {
   id: string;
-  kind: "static" | "live" | "wait" | "stats" | "burst";
+  kind: "static" | "live" | "wait" | "stats" | "idle" | "burst";
   node: ReactNode;
+  sub?: ReactNode; // optional second line shown in the ON AIR card
 };
 
 const STATIC_MESSAGES = [
@@ -41,14 +44,17 @@ const STATIC_MESSAGES = [
   "No cables between you and your band 🎶",
 ];
 
-const DISMISS_KEY = "airlink-teaser-dismissed";
-const POLL_MS = 15_000; // how often live data is refreshed
+const DISMISS_KEY = "airlink-teaser-dismissed"; // silences promo messages only
+const MUTE_KEY = "airlink-live-muted-until"; // silences live announcements temporarily
+const MUTE_CLOSE_MS = 10 * 60_000; // after ✕ on the ON AIR card
+const MUTE_OPEN_MS = 3 * 60_000; // after the user opened the panel
+const POLL_MS = 15_000;
 const FRESH_MS = 60_000; // heartbeat newer than this = link is live
-const PRIORITY_TTL_MS = 30_000; // a "just went live" card expires after this
-const LIVE_REPEAT_MS = 20_000; // while someone is live, re-announce at least this often
+const PRIORITY_TTL_MS = 30_000;
+const LIVE_REPEAT_MS = 20_000;
 const SHOW_NAMES = true; // show the device name of live senders (false = anonymous)
 
-// ?al=demo  -> simulated live sessions, animations forced (ignores DB + reduce-motion)
+// ?al=demo  -> simulated sessions (clearly a preview, only for you), animations forced
 // ?al=debug -> real data + console diagnostics + reduce-motion warning
 const qp = (k: string) =>
   typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get(k);
@@ -68,6 +74,15 @@ const CONFETTI = Array.from({ length: 16 }, (_, i) => {
 });
 
 /* ───────────────────────── small helpers ───────────────────────── */
+
+function timeAgo(ts: number): string {
+  const m = Math.max(1, Math.round((Date.now() - ts) / 60_000));
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.round(h / 24);
+  return d === 1 ? "yesterday" : `${d} days ago`;
+}
 
 // pulls a readable device name out of the jsonb, whatever its shape
 function deviceName(info: unknown): string | null {
@@ -148,20 +163,27 @@ function Stat({ label, value, live }: { label: string; value: number; live?: boo
   );
 }
 
-function liveNameMsg(item: LiveItem, i: number): Msg | null {
+function liveNameMsg(item: LiveItem, i: number, total: number): Msg | null {
   if (!item.name) return null;
   const variants = [
     <><b>{item.name}</b> is live right now 🎹</>,
     <><b>{item.name}</b> is streaming MIDI 🔴</>,
     <>Listen up: <b>{item.name}</b> is on air 📡</>,
   ];
-  return { id: `who-${item.id}-${i % variants.length}`, kind: "live", node: variants[i % variants.length] };
+  return {
+    id: `who-${item.id}-${i % variants.length}`,
+    kind: "live",
+    node: variants[i % variants.length],
+    sub: total > 1 ? `Now ${total} live` : undefined,
+  };
 }
 
 function buildMessages(s: Stats | null): Msg[] {
   const dyn: Msg[] = [];
 
   if (s) {
+    const nobodyLive = s.live_now === 0 && s.liveList.length === 0;
+
     if (s.own) {
       dyn.push(
         s.own.live
@@ -169,22 +191,25 @@ function buildMessages(s: Stats | null): Msg[] {
           : { id: `own-wait-${s.own.code}`, kind: "wait", node: <>Room <b>{s.own.code}</b> is waiting for a device ⚡</> }
       );
     }
+
+    // who is live + the running count
     s.liveList.slice(0, 3).forEach((item, i) => {
-      const m = liveNameMsg(item, i);
+      const m = liveNameMsg(item, i, s.live_now);
       if (m) dyn.push(m);
     });
     if (s.live_now > 0) {
       dyn.push({
-        id: `live-${s.live_now}`,
+        id: `count-${s.live_now}`,
         kind: "live",
         node: (
           <>
-            <b><CountUp value={s.live_now} /></b>{" "}
-            {s.live_now === 1 ? "MIDI link is" : "MIDI links are"} live right now
+            Now <b><CountUp value={s.live_now} /></b> live 🔴
           </>
         ),
+        sub: s.live_now === 1 ? "Join the jam 🎶" : "The room is heating up 🔥",
       });
     }
+
     if (s.waiting > 0) {
       dyn.push({
         id: `wait-${s.waiting}`,
@@ -197,6 +222,7 @@ function buildMessages(s: Stats | null): Msg[] {
         ),
       });
     }
+
     if (s.sessions_today > 0) {
       dyn.push({
         id: `today-${s.sessions_today}-${s.minutes_today}`,
@@ -213,6 +239,31 @@ function buildMessages(s: Stats | null): Msg[] {
             )}
           </>
         ),
+      });
+    }
+
+    // honest "quiet" messages when nobody is live (real data only, nothing faked)
+    if (nobodyLive) {
+      if (s.lastEnded) {
+        const mins = s.lastEnded.seconds ? Math.max(1, Math.round(s.lastEnded.seconds / 60)) : null;
+        dyn.push({
+          id: `last-${Math.floor(s.lastEnded.at / 60_000)}`,
+          kind: "idle",
+          node: (
+            <>
+              Last link ended <b>{timeAgo(s.lastEnded.at)}</b>
+              {mins ? <> · {mins} min of music</> : null} 🎹
+            </>
+          ),
+        });
+      }
+      dyn.push({
+        id: "idle-invite",
+        kind: "idle",
+        node:
+          s.sessions_today > 0
+            ? "All quiet right now. Start a link in 10 seconds ⚡"
+            : "No links yet today. Be the first to go live 🎹",
       });
     }
   }
@@ -236,7 +287,8 @@ export default function AirLinkLauncher() {
 
   const [open, setOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
-  const [dismissed, setDismissed] = useState(true); // start hidden until storage is read
+  const [dismissed, setDismissed] = useState(true); // promo messages off until storage is read
+  const [mutedUntil, setMutedUntil] = useState(0); // live announcements off until this time
   const [demo, setDemo] = useState(false);
   const [debug, setDebug] = useState(false);
   const [reduced, setReduced] = useState(false);
@@ -253,6 +305,7 @@ export default function AirLinkLauncher() {
   const liveIdxRef = useRef(0);
   const lastLiveAtRef = useRef(0);
   const prevIdsRef = useRef<Set<string> | null>(null);
+  const prevCountRef = useRef<number | null>(null);
   const prevOwnLiveRef = useRef<boolean | null>(null);
   const priorityRef = useRef<{ msg: Msg; at: number } | null>(null);
   const fastStartRef = useRef(false);
@@ -267,8 +320,12 @@ export default function AirLinkLauncher() {
     statsRef.current = stats;
   }, [stats]);
 
+  const hideTeaser = () => setTeaser((t) => ({ ...t, show: false, typing: false }));
+
+  // ✕ on a normal bubble / opening the panel: silence promo messages for this session
   const rememberDismiss = () => {
     setDismissed(true);
+    hideTeaser();
     try {
       sessionStorage.setItem(DISMISS_KEY, "1");
     } catch {
@@ -276,33 +333,58 @@ export default function AirLinkLauncher() {
     }
   };
 
-  // read modes + whether the teaser was dismissed (demo ignores it)
+  // silence live announcements for a while (never forever)
+  const muteLive = (ms: number) => {
+    const dur = isDemo() ? 15_000 : ms;
+    const until = Date.now() + dur;
+    setMutedUntil(until);
+    hideTeaser();
+    if (isDemo()) return;
+    try {
+      sessionStorage.setItem(MUTE_KEY, String(until));
+    } catch {
+      /* storage unavailable */
+    }
+  };
+
+  // read modes + stored state (demo ignores it)
   useEffect(() => {
     setDemo(isDemo());
     setDebug(isDebug());
     setReduced(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     if (isDemo()) {
       setDismissed(false);
+      setMutedUntil(0);
       return;
     }
     try {
       setDismissed(sessionStorage.getItem(DISMISS_KEY) === "1");
+      setMutedUntil(Number(sessionStorage.getItem(MUTE_KEY)) || 0);
     } catch {
       setDismissed(false);
     }
   }, []);
 
-  // new data arrived: detect "just went live" and WHO it is -> attention burst
+  // new data arrived: detect who just went live, count changes, and sessions ending
   const applyStats = useCallback((s: Stats) => {
     const ids = new Set(s.liveList.map((l) => l.id));
     const prevIds = prevIdsRef.current;
+    const prevCount = prevCountRef.current;
     const prevOwn = prevOwnLiveRef.current;
     prevIdsRef.current = ids;
+    prevCountRef.current = s.live_now;
     prevOwnLiveRef.current = !!s.own?.live;
 
+    const nowSub = s.live_now > 0 ? `Now ${s.live_now} live` : undefined;
     let burst: Msg | null = null;
+
     if (prevOwn !== null && s.own?.live && !prevOwn) {
-      burst = { id: `burst-own-${Date.now()}`, kind: "burst", node: <>Your link just connected! 🔴</> };
+      burst = {
+        id: `burst-own-${Date.now()}`,
+        kind: "burst",
+        node: <>Your link just connected! 🔴</>,
+        sub: nowSub,
+      };
     } else if (prevIds) {
       const fresh = s.liveList.filter((l) => !prevIds.has(l.id));
       if (fresh.length > 0) {
@@ -319,9 +401,30 @@ export default function AirLinkLauncher() {
           ) : (
             <>New MIDI link just went live! 🔴</>
           ),
+          sub: nowSub,
         };
+      } else if (prevCount !== null && s.live_now < prevCount) {
+        // someone left
+        burst =
+          s.live_now > 0
+            ? {
+                id: `down-${s.live_now}-${Date.now()}`,
+                kind: "live",
+                node: (
+                  <>
+                    Now <b>{s.live_now}</b> live 🔴
+                  </>
+                ),
+                sub: "A session just ended",
+              }
+            : {
+                id: `quiet-${Date.now()}`,
+                kind: "idle",
+                node: <>Session ended. All quiet now 🎹</>,
+              };
       }
     }
+
     if (burst) {
       priorityRef.current = { at: Date.now(), msg: burst };
       fastStartRef.current = true;
@@ -335,25 +438,27 @@ export default function AirLinkLauncher() {
     if (hiddenPage) return;
     let alive = true;
 
-    // ---------- DEMO MODE ----------
+    // ---------- DEMO MODE (preview for you only; visitors never see simulated data) ----------
     if (isDemo()) {
       const names = ["Roland A-49", "Korg Minilogue", "Akai MPK Mini", "Novation Launchkey"];
+      const seq = [1, 2, 3, 2, 1, 0, 1]; // goes up, down, and to zero
       let n = 0;
-      const mk = (count: number, cycle: number): Stats => ({
+      const mk = (count: number): Stats => ({
         live_now: count,
-        waiting: 2,
+        waiting: count === 0 ? 0 : 2,
         sessions_today: 7 + n,
         minutes_today: 93 + n * 3,
-        liveList: names.slice(0, count).map((name, i) => ({ id: `demo-${cycle}-${i}`, name })),
+        liveList: names.slice(0, count).map((name, i) => ({ id: `demo-${i}`, name })),
+        lastEnded: { at: Date.now() - 12 * 60_000, seconds: 34 * 60 },
         own: null,
       });
-      applyStats(mk(0, 0)); // baseline, so the next one counts as "just went live"
+      applyStats(mk(0)); // baseline, so the next one counts as "just went live"
       const tick = () => {
+        applyStats(mk(seq[n % seq.length]));
         n++;
-        applyStats(mk(((n - 1) % names.length) + 1, Math.floor((n - 1) / names.length)));
       };
       const t = setTimeout(tick, 2500);
-      const id = setInterval(tick, 14000);
+      const id = setInterval(tick, 12000);
       return () => {
         alive = false;
         clearTimeout(t);
@@ -371,7 +476,7 @@ export default function AirLinkLauncher() {
       const dayStart = new Date();
       dayStart.setUTCHours(0, 0, 0, 0);
 
-      const [todayRes, waitRes, liveRes] = await Promise.all([
+      const [todayRes, waitRes, liveRes, lastRes] = await Promise.all([
         supabase
           .from("airmidi_links")
           .select("connected_at, ended_at, duration_seconds, last_heartbeat_at")
@@ -391,12 +496,20 @@ export default function AirLinkLauncher() {
           .gte("last_heartbeat_at", freshIso)
           .order("connected_at", { ascending: false })
           .limit(5),
+        supabase
+          .from("airmidi_links")
+          .select("connected_at, ended_at, duration_seconds")
+          .not("connected_at", "is", null)
+          .not("ended_at", "is", null)
+          .order("ended_at", { ascending: false })
+          .limit(1),
       ]);
 
       if (isDebug()) {
         if (todayRes.error) console.warn("[AirLink] today query:", todayRes.error.message);
         if (waitRes.error) console.warn("[AirLink] waiting query:", waitRes.error.message);
         if (liveRes.error) console.warn("[AirLink] live query:", liveRes.error.message);
+        if (lastRes.error) console.warn("[AirLink] last-ended query:", lastRes.error.message);
       }
 
       // everything failed (no access / offline): keep what we had, stay on static messages
@@ -423,6 +536,22 @@ export default function AirLinkLauncher() {
       }));
       if (live === 0 && liveList.length > 0) live = liveList.length;
 
+      // the most recent finished session (real data, used for the quiet-state message)
+      let lastEnded: LastEnded = null;
+      const lr = lastRes.data?.[0];
+      if (lr?.ended_at) {
+        const endedAt = Date.parse(lr.ended_at);
+        const startedAt = lr.connected_at ? Date.parse(lr.connected_at) : NaN;
+        if (!Number.isNaN(endedAt)) {
+          lastEnded = {
+            at: endedAt,
+            seconds:
+              lr.duration_seconds ??
+              (Number.isNaN(startedAt) ? null : Math.max(0, (endedAt - startedAt) / 1000)),
+          };
+        }
+      }
+
       if (isDebug()) {
         console.info("[AirLink] data", {
           live,
@@ -430,6 +559,7 @@ export default function AirLinkLauncher() {
           sessionsToday: rows.length,
           liveRows: liveRes.data,
           names: liveList.map((l) => l.name),
+          lastEnded,
         });
       }
 
@@ -463,6 +593,7 @@ export default function AirLinkLauncher() {
         sessions_today: rows.length,
         minutes_today: Math.round(seconds / 60),
         liveList,
+        lastEnded,
         own,
       });
     };
@@ -480,10 +611,11 @@ export default function AirLinkLauncher() {
     };
   }, [hiddenPage, signedIn, applyStats]);
 
-  // teaser loop: typing dots -> message -> hide -> next message (live ones repeat often)
+  // teaser loop. Live announcements run even when promo is dismissed;
+  // they only stop while muted (✕ on the ON AIR card) or while the panel is open.
   useEffect(() => {
-    if (open || dismissed || hiddenPage) {
-      setTeaser((t) => ({ ...t, show: false, typing: false }));
+    if (open || hiddenPage) {
+      hideTeaser();
       return;
     }
     let alive = true;
@@ -493,43 +625,55 @@ export default function AirLinkLauncher() {
     };
 
     const cycle = () => {
+      const now = Date.now();
+      const liveOk = now >= mutedUntil;
       let msg: Msg | null = null;
 
-      // 1) a fresh "just went live" always goes first
+      // 1) a fresh change (just went live / count changed / session ended) goes first
       const p = priorityRef.current;
       priorityRef.current = null;
-      if (p && Date.now() - p.at < PRIORITY_TTL_MS) msg = p.msg;
+      if (p && liveOk && now - p.at < PRIORITY_TTL_MS) msg = p.msg;
 
-      // 2) while someone is live, repeat the "who" announcement regularly
-      if (!msg) {
+      // 2) while someone is live, (re)announce who it is and the running count
+      if (!msg && liveOk) {
         const st = statsRef.current;
-        if (st && st.liveList.length > 0 && Date.now() - lastLiveAtRef.current > LIVE_REPEAT_MS) {
+        if (st && st.live_now > 0 && now - lastLiveAtRef.current > LIVE_REPEAT_MS) {
           const named = st.liveList.filter((l) => l.name);
           if (named.length > 0) {
             const i = liveIdxRef.current++;
-            msg = liveNameMsg(named[i % named.length], i);
-          } else if (st.live_now > 0) {
+            msg = liveNameMsg(named[i % named.length], i, st.live_now);
+          } else {
             msg = {
-              id: `live-repeat-${Date.now()}`,
+              id: `live-repeat-${now}`,
               kind: "live",
               node: (
                 <>
-                  <b>{st.live_now}</b> {st.live_now === 1 ? "MIDI link is" : "MIDI links are"} on air 📡
+                  Now <b>{st.live_now}</b> live 📡
                 </>
               ),
+              sub: st.live_now === 1 ? "Join the jam 🎶" : "The room is heating up 🔥",
             };
           }
         }
       }
 
-      // 3) otherwise the normal rotation
-      if (!msg) {
-        const list = messagesRef.current;
-        msg = list[idxRef.current % list.length];
-        idxRef.current = (idxRef.current + 1) % list.length;
+      // 3) promo rotation, only if not dismissed
+      if (!msg && !dismissed) {
+        const all = messagesRef.current;
+        const list = liveOk ? all : all.filter((m) => m.kind !== "live" && m.kind !== "burst");
+        if (list.length > 0) {
+          msg = list[idxRef.current % list.length];
+          idxRef.current = (idxRef.current + 1) % list.length;
+        }
       }
 
-      if (msg.kind === "live" || msg.kind === "burst") lastLiveAtRef.current = Date.now();
+      // nothing to show right now: check again soon
+      if (!msg) {
+        later(cycle, 4000);
+        return;
+      }
+
+      if (msg.kind === "live" || msg.kind === "burst") lastLiveAtRef.current = now;
 
       const typingMs = msg.kind === "burst" ? 400 : 900;
       const showMs = msg.kind === "burst" ? 7000 : msg.kind === "live" ? 5500 : 4800;
@@ -548,7 +692,7 @@ export default function AirLinkLauncher() {
       alive = false;
       timers.forEach(clearTimeout);
     };
-  }, [open, dismissed, hiddenPage, burstKey]);
+  }, [open, dismissed, mutedUntil, hiddenPage, burstKey]);
 
   // know if the user is signed in (changes the button label + own-link lookup)
   useEffect(() => {
@@ -579,6 +723,12 @@ export default function AirLinkLauncher() {
 
   // don't show on the AirMIDI page itself
   if (hiddenPage) return null;
+
+  const openPanelFromTeaser = () => {
+    setOpen(true);
+    rememberDismiss();
+    muteLive(MUTE_OPEN_MS);
+  };
 
   const msg = teaser.msg;
   const isLive = msg?.kind === "live" || msg?.kind === "burst";
@@ -692,6 +842,12 @@ export default function AirLinkLauncher() {
         </div>
       )}
 
+      {demo && (
+        <div className="max-w-[260px] rounded-lg bg-zinc-900 text-white text-[10px] font-semibold px-2.5 py-1.5 leading-snug">
+          Preview mode: simulated sessions, only visible to you.
+        </div>
+      )}
+
       {open && (
         <div
           role="dialog"
@@ -756,8 +912,11 @@ export default function AirLinkLauncher() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => {
-            setOpen((v) => !v);
-            rememberDismiss(); // once opened, stop teasing for this session
+            if (open) {
+              setOpen(false);
+            } else {
+              openPanelFromTeaser();
+            }
           }}
           aria-label="Open AirLink"
           aria-expanded={open}
@@ -850,17 +1009,21 @@ export default function AirLinkLauncher() {
             />
           )}
 
-          {/* notification badge while a message is showing */}
-          {!open && teaser.show && (
+          {/* notification badge while a normal message is showing */}
+          {!open && teaser.show && !onAir && (
             <span className="al-badge absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-pink-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">
               1
             </span>
           )}
 
-          {/* quiet live counter when sessions are active (even if the teaser is dismissed) */}
-          {!open && !teaser.show && stats && stats.live_now > 0 && (
-            <span className="al-badge absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
-              {stats.live_now}
+          {/* LIVE pill: visible whenever someone is live and the card is not on screen */}
+          {!open && !onAir && stats && stats.live_now > 0 && (
+            <span className="al-badge absolute -top-2 -right-3 flex items-center gap-1 rounded-full bg-emerald-500 text-white text-[9px] font-extrabold tracking-wider pl-1.5 pr-2 h-[18px] ring-2 ring-white shadow-md">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-white opacity-80 animate-ping" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
+              </span>
+              {stats.live_now} LIVE
             </span>
           )}
         </button>
@@ -875,9 +1038,8 @@ export default function AirLinkLauncher() {
           }`}
         >
           {onAir && msg ? (
-            /* ───────── ON AIR CARD (live / just went live) ───────── */
+            /* ───────── ON AIR CARD (live / just went live / count changed) ───────── */
             <div key={msg.id} className="relative">
-              {/* signal waves around the card */}
               <span aria-hidden className="pointer-events-none absolute inset-0">
                 {[0, 0.6, 1.2].map((d) => (
                   <span
@@ -895,10 +1057,7 @@ export default function AirLinkLauncher() {
               />
 
               <button
-                onClick={() => {
-                  setOpen(true);
-                  rememberDismiss();
-                }}
+                onClick={openPanelFromTeaser}
                 className={`al-emerge relative overflow-hidden text-left rounded-2xl px-4 py-3 text-white min-w-[210px] max-w-[min(270px,calc(100vw-7rem))] ${cardGradient}`}
               >
                 <span aria-hidden className="al-shine pointer-events-none absolute inset-y-0 left-0 w-1/4 bg-white/35" />
@@ -923,14 +1082,17 @@ export default function AirLinkLauncher() {
                 </span>
 
                 <span className="relative block mt-2 text-sm font-bold leading-snug">{msg.node}</span>
+                {msg.sub && (
+                  <span className="relative block mt-0.5 text-xs font-semibold text-white/90">{msg.sub}</span>
+                )}
                 <span className="relative block mt-1 text-[10px] uppercase tracking-widest text-white/80">
                   Tap to listen →
                 </span>
               </button>
 
               <button
-                onClick={rememberDismiss}
-                aria-label="Dismiss"
+                onClick={() => muteLive(MUTE_CLOSE_MS)}
+                aria-label="Dismiss live alerts for 10 minutes"
                 className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white text-zinc-600 text-[10px] shadow-md flex items-center justify-center hover:bg-zinc-100"
               >
                 ✕
@@ -941,13 +1103,7 @@ export default function AirLinkLauncher() {
             <>
               <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-45 bg-white border-l border-b border-zinc-200" />
               <div className="relative flex items-center gap-1 pl-4 pr-2 py-2.5 rounded-2xl bg-white border border-zinc-200 shadow-[0_10px_30px_rgba(79,70,229,0.18)] max-w-[min(260px,calc(100vw-7rem))]">
-                <button
-                  onClick={() => {
-                    setOpen(true);
-                    rememberDismiss();
-                  }}
-                  className="text-left min-h-[1rem]"
-                >
+                <button onClick={openPanelFromTeaser} className="text-left min-h-[1rem]">
                   {teaser.typing ? (
                     <span className="flex items-center gap-1 py-1">
                       {[0, 1, 2].map((i) => (
