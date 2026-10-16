@@ -16,12 +16,14 @@ import { supabase } from "@/lib/supabase";
 /* ───────────────────────── types & constants ───────────────────────── */
 
 type Own = { code: string; live: boolean } | null;
+type LiveItem = { id: string; name: string | null };
 
 type Stats = {
   live_now: number;
   waiting: number;
   sessions_today: number;
   minutes_today: number;
+  liveList: LiveItem[];
   own: Own;
 };
 
@@ -40,11 +42,46 @@ const STATIC_MESSAGES = [
 ];
 
 const DISMISS_KEY = "airlink-teaser-dismissed";
-const POLL_MS = 20_000; // how often live data is refreshed
+const POLL_MS = 15_000; // how often live data is refreshed
 const FRESH_MS = 60_000; // heartbeat newer than this = link is live
 const PRIORITY_TTL_MS = 30_000; // a "just went live" bubble expires after this
+const LIVE_REPEAT_MS = 20_000; // while someone is live, re-announce at least this often
+const SHOW_NAMES = true; // show the device name of live senders (set false to keep it anonymous)
 
 /* ───────────────────────── small helpers ───────────────────────── */
+
+// pulls a readable device name out of the jsonb, whatever its shape
+function deviceName(info: unknown): string | null {
+  if (!SHOW_NAMES || !info || typeof info !== "object") return null;
+  const o = info as Record<string, unknown>;
+  const keys = [
+    "name", "deviceName", "device_name", "midiDevice", "midi_device",
+    "device", "label", "model", "product", "manufacturer",
+  ];
+  const clean = (v: unknown): string | null => {
+    if (typeof v !== "string") return null;
+    const t = v.trim();
+    return t && t.length <= 28 ? t : t.length > 28 ? t.slice(0, 27) + "…" : null;
+  };
+  for (const k of keys) {
+    const direct = clean(o[k]);
+    if (direct) return direct;
+    const nested = o[k];
+    if (nested && typeof nested === "object") {
+      const n = clean((nested as Record<string, unknown>).name);
+      if (n) return n;
+    }
+  }
+  for (const k of ["inputs", "devices", "midi"]) {
+    const arr = o[k];
+    if (Array.isArray(arr) && arr[0]) {
+      const first = arr[0] as Record<string, unknown> | string;
+      const n = typeof first === "string" ? clean(first) : clean(first?.name);
+      if (n) return n;
+    }
+  }
+  return null;
+}
 
 function CountUp({ value }: { value: number }) {
   const [shown, setShown] = useState(0);
@@ -88,6 +125,25 @@ function LiveDot({ color = "emerald", size = 2 }: { color?: "emerald" | "rose"; 
   );
 }
 
+// broadcast icon: dot + pulsing arcs, like a transmitting signal
+function Broadcast({ rose }: { rose?: boolean }) {
+  return (
+    <svg
+      className={`shrink-0 w-4 h-4 ${rose ? "text-rose-500" : "text-emerald-500"}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
+      <path className="al-arc1" d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7" />
+      <path className="al-arc2" d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8" />
+    </svg>
+  );
+}
+
 function Stat({ label, value, live }: { label: string; value: number; live?: boolean }) {
   return (
     <div className="rounded-xl bg-zinc-50 border border-zinc-100 px-2 py-2 text-center">
@@ -98,6 +154,16 @@ function Stat({ label, value, live }: { label: string; value: number; live?: boo
       <div className="text-[9px] uppercase tracking-widest text-zinc-400 mt-0.5">{label}</div>
     </div>
   );
+}
+
+function liveNameMsg(item: LiveItem, i: number): Msg | null {
+  if (!item.name) return null;
+  const variants = [
+    <><b>{item.name}</b> is live right now 🎹</>,
+    <><b>{item.name}</b> is streaming MIDI 🔴</>,
+    <>Listen up: <b>{item.name}</b> is on air 📡</>,
+  ];
+  return { id: `who-${item.id}-${i % variants.length}`, kind: "live", node: variants[i % variants.length] };
 }
 
 function buildMessages(s: Stats | null): Msg[] {
@@ -112,6 +178,11 @@ function buildMessages(s: Stats | null): Msg[] {
           : { id: `own-wait-${s.own.code}`, kind: "wait", node: <>Room <b>{s.own.code}</b> is waiting for a device ⚡</> }
       );
     }
+    // who is live
+    s.liveList.slice(0, 3).forEach((item, i) => {
+      const m = liveNameMsg(item, i);
+      if (m) dyn.push(m);
+    });
     if (s.live_now > 0) {
       dyn.push({
         id: `live-${s.live_now}`,
@@ -187,16 +258,22 @@ export default function AirLinkLauncher() {
 
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const idxRef = useRef(0);
-  const prevLiveRef = useRef<number | null>(null);
+  const liveIdxRef = useRef(0);
+  const lastLiveAtRef = useRef(0);
+  const prevIdsRef = useRef<Set<string> | null>(null);
   const prevOwnLiveRef = useRef<boolean | null>(null);
   const priorityRef = useRef<{ msg: Msg; at: number } | null>(null);
   const fastStartRef = useRef(false);
 
   const messages = useMemo(() => buildMessages(stats), [stats]);
   const messagesRef = useRef<Msg[]>(messages);
+  const statsRef = useRef<Stats | null>(null);
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+  useEffect(() => {
+    statsRef.current = stats;
+  }, [stats]);
 
   const rememberDismiss = () => {
     setDismissed(true);
@@ -216,30 +293,34 @@ export default function AirLinkLauncher() {
     }
   }, []);
 
-  // new data arrived: detect "just went live" -> attention burst
+  // new data arrived: detect "just went live" and WHO it is -> attention burst
   const applyStats = useCallback((s: Stats) => {
-    const prevLive = prevLiveRef.current;
+    const ids = new Set(s.liveList.map((l) => l.id));
+    const prevIds = prevIdsRef.current;
     const prevOwn = prevOwnLiveRef.current;
-    prevLiveRef.current = s.live_now;
+    prevIdsRef.current = ids;
     prevOwnLiveRef.current = !!s.own?.live;
 
     let burst: Msg | null = null;
     if (prevOwn !== null && s.own?.live && !prevOwn) {
-      burst = {
-        id: `burst-own-${Date.now()}`,
-        kind: "burst",
-        node: <>Your link just connected! 🔴</>,
-      };
-    } else if (prevLive !== null && s.live_now > prevLive) {
-      burst = {
-        id: `burst-${Date.now()}`,
-        kind: "burst",
-        node: (
-          <>
-            New MIDI link just went live! <b><CountUp value={s.live_now} /></b> online 🔴
-          </>
-        ),
-      };
+      burst = { id: `burst-own-${Date.now()}`, kind: "burst", node: <>Your link just connected! 🔴</> };
+    } else if (prevIds) {
+      const fresh = s.liveList.filter((l) => !prevIds.has(l.id));
+      if (fresh.length > 0) {
+        const first = fresh[0];
+        const extra = fresh.length - 1;
+        burst = {
+          id: `burst-${first.id}-${Date.now()}`,
+          kind: "burst",
+          node: first.name ? (
+            <>
+              <b>{first.name}</b> just went live!{extra > 0 && <> +{extra} more</>} 🔴
+            </>
+          ) : (
+            <>New MIDI link just went live! 🔴</>
+          ),
+        };
+      }
     }
     if (burst) {
       priorityRef.current = { at: Date.now(), msg: burst };
@@ -259,10 +340,11 @@ export default function AirLinkLauncher() {
       const now = Date.now();
       const nowIso = new Date(now).toISOString();
       const freshMs = now - FRESH_MS;
+      const freshIso = new Date(freshMs).toISOString();
       const dayStart = new Date();
       dayStart.setUTCHours(0, 0, 0, 0);
 
-      const [todayRes, waitRes] = await Promise.all([
+      const [todayRes, waitRes, liveRes] = await Promise.all([
         supabase
           .from("airmidi_links")
           .select("connected_at, ended_at, duration_seconds, last_heartbeat_at")
@@ -274,10 +356,18 @@ export default function AirLinkLauncher() {
           .is("connected_at", null)
           .is("ended_at", null)
           .gt("expires_at", nowIso),
+        supabase
+          .from("airmidi_links")
+          .select("id, sender_device_info")
+          .not("connected_at", "is", null)
+          .is("ended_at", null)
+          .gte("last_heartbeat_at", freshIso)
+          .order("connected_at", { ascending: false })
+          .limit(5),
       ]);
 
-      // both failed (no access / offline): keep whatever we had, stay on static messages
-      if (todayRes.error && waitRes.error) return;
+      // everything failed (no access / offline): keep whatever we had, stay on static messages
+      if (todayRes.error && waitRes.error && liveRes.error) return;
 
       let live = 0;
       let seconds = 0;
@@ -293,6 +383,13 @@ export default function AirLinkLauncher() {
           seconds += Math.max(0, ((Number.isNaN(hb) ? now : hb) - start) / 1000);
         }
       }
+
+      const liveList: LiveItem[] = (liveRes.data ?? []).map((r) => ({
+        id: String(r.id),
+        name: deviceName(r.sender_device_info),
+      }));
+      // if the "today" query couldn't count but the live query did
+      if (live === 0 && liveList.length > 0) live = liveList.length;
 
       // the signed-in user's own open link (if any)
       let own: Own = null;
@@ -323,6 +420,7 @@ export default function AirLinkLauncher() {
         waiting: waitRes.count ?? 0,
         sessions_today: rows.length,
         minutes_today: Math.round(seconds / 60),
+        liveList,
         own,
       });
     };
@@ -340,7 +438,7 @@ export default function AirLinkLauncher() {
     };
   }, [hiddenPage, signedIn, applyStats]);
 
-  // teaser loop: typing dots -> message -> hide -> next message
+  // teaser loop: typing dots -> message -> hide -> next message (live ones repeat often)
   useEffect(() => {
     if (open || dismissed || hiddenPage) {
       setTeaser((t) => ({ ...t, show: false, typing: false }));
@@ -354,22 +452,50 @@ export default function AirLinkLauncher() {
 
     const cycle = () => {
       let msg: Msg | null = null;
+
+      // 1) a fresh "just went live" always goes first
       const p = priorityRef.current;
       priorityRef.current = null;
       if (p && Date.now() - p.at < PRIORITY_TTL_MS) msg = p.msg;
 
+      // 2) while someone is live, repeat the "who" announcement regularly
+      if (!msg) {
+        const st = statsRef.current;
+        if (st && st.liveList.length > 0 && Date.now() - lastLiveAtRef.current > LIVE_REPEAT_MS) {
+          const named = st.liveList.filter((l) => l.name);
+          if (named.length > 0) {
+            const i = liveIdxRef.current++;
+            msg = liveNameMsg(named[i % named.length], i);
+          } else if (st.live_now > 0) {
+            msg = {
+              id: `live-repeat-${Date.now()}`,
+              kind: "live",
+              node: (
+                <>
+                  <b>{st.live_now}</b> {st.live_now === 1 ? "MIDI link is" : "MIDI links are"} on air 📡
+                </>
+              ),
+            };
+          }
+        }
+      }
+
+      // 3) otherwise the normal rotation
       if (!msg) {
         const list = messagesRef.current;
         msg = list[idxRef.current % list.length];
         idxRef.current = (idxRef.current + 1) % list.length;
       }
 
+      if (msg.kind === "live" || msg.kind === "burst") lastLiveAtRef.current = Date.now();
+
       const typingMs = msg.kind === "burst" ? 500 : 900;
+      const showMs = msg.kind === "burst" ? 6200 : 4800;
       const m = msg;
       setTeaser({ show: true, typing: true, msg: m });
       later(() => setTeaser({ show: true, typing: false, msg: m }), typingMs);
-      later(() => setTeaser({ show: false, typing: false, msg: m }), typingMs + 4800);
-      later(cycle, typingMs + 4800 + 5500);
+      later(() => setTeaser({ show: false, typing: false, msg: m }), typingMs + showMs);
+      later(cycle, typingMs + showMs + (m.kind === "live" || m.kind === "burst" ? 3500 : 5500));
     };
 
     const startDelay = fastStartRef.current ? 300 : 3500;
@@ -416,6 +542,7 @@ export default function AirLinkLauncher() {
   const isLive = msg?.kind === "live" || msg?.kind === "burst";
   const isBurst = msg?.kind === "burst";
   const showBubble = teaser.show && !open;
+  const signalOn = showBubble && isLive && !teaser.typing;
   const hasStats =
     !!stats && (stats.live_now > 0 || stats.sessions_today > 0 || stats.minutes_today > 0);
 
@@ -450,7 +577,7 @@ export default function AirLinkLauncher() {
         }
         .al-float { animation: al-float 1.9s ease-out both; }
 
-        /* the "just went live" bubble gives a little jolt + glow */
+        /* "just went live" bubble: jolt + glow */
         @keyframes al-burst {
           0% { transform: scale(.7); }
           35% { transform: scale(1.1); }
@@ -464,8 +591,20 @@ export default function AirLinkLauncher() {
         }
         .al-glow { animation: al-glow 1.6s ease-in-out infinite; }
 
+        /* signal waves radiating out of the message bubble, repeating */
+        @keyframes al-signal {
+          0%   { transform: scale(1); opacity: .65; }
+          100% { transform: scale(1.35, 1.9); opacity: 0; }
+        }
+        .al-signal { animation: al-signal 2s cubic-bezier(.2,.6,.3,1) infinite; }
+
+        /* broadcast icon arcs pulsing outwards */
+        @keyframes al-arc { 0%,100% { opacity: .2; } 50% { opacity: 1; } }
+        .al-arc1 { animation: al-arc 1.2s ease-in-out infinite; }
+        .al-arc2 { animation: al-arc 1.2s ease-in-out infinite .35s; }
+
         @media (prefers-reduced-motion: reduce) {
-          .al-pop, .al-ring, .al-wiggle, .al-fade, .al-badge, .al-typing, .al-float, .al-burst, .al-glow { animation: none; }
+          .al-pop, .al-ring, .al-wiggle, .al-fade, .al-badge, .al-typing, .al-float, .al-burst, .al-glow, .al-signal, .al-arc1, .al-arc2 { animation: none; }
         }
       `}</style>
 
@@ -542,7 +681,13 @@ export default function AirLinkLauncher() {
             open ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white" : ""
           }`}
         >
-          {!open && <span className="absolute inset-0 rounded-full bg-indigo-500/40 al-ring" />}
+          {!open && (
+            <span
+              className={`absolute inset-0 rounded-full al-ring ${
+                signalOn ? (isBurst ? "bg-rose-500/40" : "bg-emerald-500/40") : "bg-indigo-500/40"
+              }`}
+            />
+          )}
 
           {/* bubbles + note floating out of the icon when a message pops */}
           {showBubble && msg && (
@@ -605,7 +750,7 @@ export default function AirLinkLauncher() {
           )}
         </button>
 
-        {/* teaser bubble */}
+        {/* teaser bubble + signal waves */}
         <div
           aria-live="polite"
           className={`relative origin-left transition-all duration-500 ease-[cubic-bezier(.34,1.56,.64,1)] ${
@@ -614,6 +759,21 @@ export default function AirLinkLauncher() {
               : "opacity-0 -translate-x-3 scale-75 pointer-events-none"
           }`}
         >
+          {/* signal waves: 3 rings expanding from the bubble, repeating while a live message is up */}
+          {signalOn && (
+            <span aria-hidden className="pointer-events-none absolute inset-0">
+              {[0, 0.65, 1.3].map((d) => (
+                <span
+                  key={d}
+                  className={`al-signal absolute inset-0 rounded-2xl border-2 ${
+                    isBurst ? "border-rose-400" : "border-emerald-400"
+                  }`}
+                  style={{ animationDelay: `${d}s` }}
+                />
+              ))}
+            </span>
+          )}
+
           <span
             className={`absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-45 bg-white border-l border-b ${
               isLive ? "border-emerald-300" : "border-zinc-200"
@@ -646,7 +806,7 @@ export default function AirLinkLauncher() {
                 </span>
               ) : (
                 <span key={msg?.id} className="al-fade flex items-center gap-2 text-xs font-semibold text-zinc-800 leading-snug">
-                  {isLive && <LiveDot color={isBurst ? "rose" : "emerald"} />}
+                  {isLive && <Broadcast rose={isBurst} />}
                   <span>{msg?.node}</span>
                 </span>
               )}
