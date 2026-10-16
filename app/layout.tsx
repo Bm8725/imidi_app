@@ -16,13 +16,14 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import WhatsAppWidget from "@/components/WhatsAppWidget";
-import Script from "next/script";
 import AIChatWidget from "@/components/AIChatWidget";
 import CookieBanner from "@/components/CookieBanner";
- import MetaAuthListener from "@/components/MetaAuthListener";
+import MetaAuthListener from "@/components/MetaAuthListener";
 import { Analytics } from '@vercel/analytics/react';
 import { SessionTracker } from "@/lib/session-tracker";
 import AirLinkLauncher from "@/components/AirLinkLauncher";
+import PWA from "@/components/PWA";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -48,6 +49,7 @@ export const metadata: Metadata = {
   description: "The next generation of market place. Experience real-time cloud synergy, high-fidelity sound engines, and modern midi controls.",
   keywords: ["midi", "synth", "synthesizer", "digital music", "audio app", "next gen synth", "iMIDI"],
   authors: [{ name: "iMIDI Team" }],
+  applicationName: "iMIDI",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -57,7 +59,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "iMIDI App — Shape the Digital Music Future and Market",
     description: "The next generation of synthesizer technology. Experience real-time cloud synergy.",
-    url: "https://imidi.co.uk", // 
+    url: "https://imidi.co.uk",
     siteName: "iMIDI",
     locale: "en_US",
     type: "website",
@@ -87,22 +89,12 @@ export default function RootLayout({
         <SessionTracker />
         {children}
         {/*<WhatsAppWidget />*/}
-        <CookieBanner/>
-          <MetaAuthListener />
-          <Analytics/>
-           <AirLinkLauncher />
-        {/* Script nativ Next.js pentru înregistrarea silențioasă a sw.js în Production */}
-        <Script id="register-pwa-sw" strategy="afterInteractive">
-          {`
-            if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
-              window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js')
-                  .then(function(reg) { console.log('iMIDI PWA înregistrat cu succes:', reg.scope); })
-                  .catch(function(err) { console.error('Eroare înregistrare sw.js:', err); });
-              });
-            }
-          `}
-        </Script>
+        <CookieBanner />
+        <MetaAuthListener />
+        <Analytics />
+        <AirLinkLauncher />
+        {/* PWA: înregistrează sw.js (doar în production), banner de instalare și de update */}
+        <PWA />
       </body>
     </html>
   );

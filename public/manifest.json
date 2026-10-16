@@ -1,12 +1,14 @@
 {
+  "id": "/",
   "name": "iMIDI Digital Music, live performance and cloud synergy",
   "short_name": "iMIDI",
   "description": "Shape the digital music future",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#0D0E12",
   "theme_color": "#18181C",
-  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/icon.png",
