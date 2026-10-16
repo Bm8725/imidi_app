@@ -599,6 +599,13 @@ const IcBag = () => (
   </svg>
 );
 
+const IcPhoto = () => (
+  <svg className="w-5 h-5" {...svgProps}>
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+    <circle cx="12" cy="13" r="4" />
+  </svg>
+);
+
 const IcShare = () => (
   <svg className="w-4 h-4" {...svgProps}>
     <circle cx="18" cy="5" r="3" />
@@ -1563,7 +1570,17 @@ const SHARE_ICONS = {
   ),
 };
 
-function ShareModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+function ShareModal({
+  open,
+  onClose,
+  photo = null,
+  photoBlob = null,
+}: {
+  open: boolean;
+  onClose: () => void;
+  photo?: string | null;
+  photoBlob?: Blob | null;
+}) {
   const [copied, setCopied] = useState(false);
   const [canNative, setCanNative] = useState(false);
 
@@ -1608,7 +1625,15 @@ function ShareModal({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   const nativeShare = async () => {
     try {
-      await (navigator as any).share({ title: SHARE_TITLE, text: SHARE_TEXT, url: SHARE_URL });
+      const nav = navigator as any;
+      if (photoBlob) {
+        const file = new File([photoBlob], "airmidi-link.png", { type: "image/png" });
+        if (nav.canShare?.({ files: [file] })) {
+          await nav.share({ files: [file], title: SHARE_TITLE, text: `${SHARE_TEXT} ${SHARE_URL}` });
+          return;
+        }
+      }
+      await nav.share({ title: SHARE_TITLE, text: SHARE_TEXT, url: SHARE_URL });
     } catch {
       /* cancelled */
     }
@@ -1650,8 +1675,18 @@ function ShareModal({ open, onClose }: { open: boolean; onClose: () => void }) {
 
         {/* PREVIEW CARD: how the link looks when it is shared */}
         <div className="mx-5 rounded-2xl border border-slate-200 overflow-hidden shadow-[0_10px_30px_-12px_rgba(15,27,45,0.35)]">
+          {photo && (
+            <div className="relative aspect-video overflow-hidden bg-[#070B16]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photo} alt="Live frame of the session" className="w-full h-full object-cover" draggable={false} />
+              <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1.5 text-[10px] font-bold text-white bg-red-600/90 px-2 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                LIVE
+              </span>
+            </div>
+          )}
           <div
-            className="relative aspect-[1.91/1] overflow-hidden"
+            className={`relative aspect-[1.91/1] overflow-hidden ${photo ? "hidden" : ""}`}
             style={{
               background:
                 "radial-gradient(circle at 18% 15%, rgba(37,99,235,.95) 0%, transparent 55%), radial-gradient(circle at 88% 92%, rgba(13,148,136,.9) 0%, transparent 55%), #0F1B2D",
@@ -1816,6 +1851,9 @@ export default function AirMidiPage() {
   const [lowHours, setLowHours] = useState<number | null>(null);
   const [pricingOpen, setPricingOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [snap, setSnap] = useState<{ url: string; blob: Blob } | null>(null); // live photo of the session
+  const [flash, setFlash] = useState(false);
+  const [sharePhoto, setSharePhoto] = useState<{ url: string; blob: Blob } | null>(null); // live frame for the share card
   const [account, setAccount] = useState<{
     balance: number;
     free_seconds: number;
@@ -1850,6 +1888,7 @@ export default function AirMidiPage() {
     toggleKeyboard: () => void;
     toggleControls: () => void;
     panic: () => void;
+    snapshot: () => void;
   }>({
     connected: false,
     toggleMic: () => {},
@@ -1858,6 +1897,7 @@ export default function AirMidiPage() {
     toggleKeyboard: () => {},
     toggleControls: () => {},
     panic: () => {},
+    snapshot: () => {},
   });
 
   const wakeControls = useCallback(() => {
@@ -2293,6 +2333,7 @@ export default function AirMidiPage() {
       else if (k === "k") a.toggleKeyboard();
       else if (k === "c") a.toggleControls();
       else if (k === "p") a.panic();
+      else if (k === "s") a.snapshot();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -2434,6 +2475,7 @@ export default function AirMidiPage() {
     setStats({ count: 0, last: "—" });
     setChannels(Array(16).fill(0));
     setLowHours(null);
+    closeSnap();
   };
 
   const handlePanic = () => {
@@ -2592,6 +2634,182 @@ export default function AirMidiPage() {
     }
   };
 
+  /* ---- live photo: one frame of the session (video, names, MIDI) with the watermark burned in ---- */
+  const closeSnap = () => {
+    setSnap((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  };
+
+  const buildSnapshot = async (): Promise<Blob | null> => {
+    if (status !== "connected") return null;
+    const W = 1280;
+    const H = 720;
+    const BAR = 64; // branding strip under the picture
+    const cv = document.createElement("canvas");
+    cv.width = W;
+    cv.height = H + BAR;
+    const c = cv.getContext("2d");
+    if (!c) return null;
+
+    // background (same blue look as the stage)
+    const bgG = c.createLinearGradient(0, 0, W, H);
+    bgG.addColorStop(0, "#0F1B2D");
+    bgG.addColorStop(1, "#070B16");
+    c.fillStyle = bgG;
+    c.fillRect(0, 0, W, H);
+    const rg = c.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * 0.55);
+    rg.addColorStop(0, "rgba(37,99,235,.35)");
+    rg.addColorStop(1, "rgba(37,99,235,0)");
+    c.fillStyle = rg;
+    c.fillRect(0, 0, W, H);
+
+    const fit = (vw: number, vh: number, bx: number, by: number, bw: number, bh: number) => {
+      const r = Math.min(bw / vw, bh / vh);
+      const w = vw * r;
+      const h = vh * r;
+      return { x: bx + (bw - w) / 2, y: by + (bh - h) / 2, w, h };
+    };
+
+    const rv = remoteVideoRef.current;
+    const lv = localVideoRef.current;
+    const remoteShown = !!(remoteVideoOn && rv && rv.videoWidth);
+    const localShown = !!(cameraOn && lv && lv.videoWidth);
+    c.textAlign = "center";
+    if (remoteShown && rv) {
+      const f = fit(rv.videoWidth, rv.videoHeight, 0, 0, W, H);
+      c.drawImage(rv, f.x, f.y, f.w, f.h);
+    } else if (localShown && lv) {
+      // only your camera is on: it becomes the main picture (mirrored like on screen)
+      const f = fit(lv.videoWidth, lv.videoHeight, 0, 0, W, H);
+      c.save();
+      c.translate(f.x + f.w, f.y);
+      c.scale(-1, 1);
+      c.drawImage(lv, 0, 0, f.w, f.h);
+      c.restore();
+    } else {
+      c.fillStyle = "rgba(255,255,255,.9)";
+      c.font = "700 54px Inter, Arial, sans-serif";
+      c.fillText(peer ? peer.name : "AirMIDI Link", W / 2, H / 2 - 6);
+      c.fillStyle = "rgba(255,255,255,.55)";
+      c.font = "500 24px Inter, Arial, sans-serif";
+      c.fillText("MIDI is live", W / 2, H / 2 + 38);
+    }
+
+    // your own camera (picture in picture, mirrored like on screen)
+    if (remoteShown && localShown && lv) {
+      const pw = 280;
+      const ph = Math.round((pw * lv.videoHeight) / lv.videoWidth);
+      const px = W - pw - 28;
+      const py = 28;
+      c.save();
+      c.beginPath();
+      c.roundRect(px, py, pw, ph, 14);
+      c.clip();
+      c.translate(px + pw, py);
+      c.scale(-1, 1);
+      c.drawImage(lv, 0, 0, pw, ph);
+      c.restore();
+      c.strokeStyle = "rgba(255,255,255,.85)";
+      c.lineWidth = 3;
+      c.beginPath();
+      c.roundRect(px, py, pw, ph, 14);
+      c.stroke();
+    }
+
+    // footer bar under the picture: branding lives here, never on top of the live image
+    c.fillStyle = "#0B1020";
+    c.fillRect(0, H, W, BAR);
+    const accent = c.createLinearGradient(0, 0, W, 0);
+    accent.addColorStop(0, "#2563EB");
+    accent.addColorStop(1, "#0D9488");
+    c.fillStyle = accent;
+    c.fillRect(0, H, W, 3);
+    await new Promise<void>((res) => {
+      const im = new Image();
+      im.onload = () => {
+        c.save();
+        c.beginPath();
+        c.arc(24 + 20, H + 2 + BAR / 2, 20, 0, Math.PI * 2);
+        c.clip();
+        c.drawImage(im, 24, H + 2 + BAR / 2 - 20, 40, 40);
+        c.restore();
+        res();
+      };
+      im.onerror = () => res();
+      im.src = "/airlink-icon.png";
+    });
+    c.textBaseline = "middle";
+    c.textAlign = "left";
+    c.fillStyle = "#FFFFFF";
+    c.font = "700 24px Inter, Arial, sans-serif";
+    c.fillText("www.imidi.co.uk/airmidi-link", 78, H + 2 + BAR / 2);
+    c.textAlign = "right";
+    c.fillStyle = "rgba(255,255,255,.65)";
+    c.font = "600 22px Inter, Arial, sans-serif";
+    c.fillText(`${peer ? peer.name : "AirMIDI Link"}  ·  Live ${formatElapsed(elapsed)}`, W - 24, H + 2 + BAR / 2);
+    c.textBaseline = "alphabetic";
+
+    return new Promise<Blob | null>((res) => cv.toBlob((b) => res(b), "image/png"));
+  };
+
+  const takeSnapshot = async () => {
+    const blob = await buildSnapshot();
+    if (!blob) return;
+    setSnap((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return { url: URL.createObjectURL(blob), blob };
+    });
+    setFlash(true);
+    setTimeout(() => setFlash(false), 220);
+  };
+
+  // share: when a camera is on, the preview (and the shared picture) is a live frame of the session
+  const openShare = async () => {
+    setShareOpen(true);
+    if (status === "connected" && (remoteVideoOn || cameraOn)) {
+      const blob = await buildSnapshot();
+      if (blob) {
+        setSharePhoto((prev) => {
+          if (prev) URL.revokeObjectURL(prev.url);
+          return { url: URL.createObjectURL(blob), blob };
+        });
+      }
+    }
+  };
+
+  const closeShare = () => {
+    setShareOpen(false);
+    setSharePhoto((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  };
+
+  const saveSnap = () => {
+    if (!snap) return;
+    const a = document.createElement("a");
+    a.href = snap.url;
+    a.download = `airmidi-link-${Date.now()}.png`;
+    a.click();
+  };
+
+  const shareSnap = async () => {
+    if (!snap) return;
+    try {
+      const file = new File([snap.blob], "airmidi-link.png", { type: "image/png" });
+      const nav = navigator as any;
+      if (nav.canShare?.({ files: [file] })) {
+        await nav.share({ files: [file], title: SHARE_TITLE, text: SHARE_TEXT, url: SHARE_URL });
+      } else {
+        saveSnap(); // no file sharing on this browser: save it instead
+      }
+    } catch {
+      /* cancelled */
+    }
+  };
+
   const copyCode = async () => {
     try {
       await navigator.clipboard.writeText(roomCode);
@@ -2634,6 +2852,7 @@ export default function AirMidiPage() {
     toggleKeyboard,
     toggleControls,
     panic: handlePanic,
+    snapshot: takeSnapshot,
   };
 
   if (checkingAuth || !isLoggedIn) {
@@ -2703,8 +2922,8 @@ export default function AirMidiPage() {
         </p>
       </div>
 
-      {/* watermark over the video session AND over the blue idle background */}
-      <WatermarkTiles />
+      {/* watermark pattern only on the blue idle background: never over the live video */}
+      {!remoteVideoOn && <WatermarkTiles />}
 
       {/* link lost: repairing itself */}
       {status === "reconnecting" && (
@@ -2861,6 +3080,54 @@ export default function AirMidiPage() {
         </div>
       )}
 
+      {/* shutter flash */}
+      <div
+        aria-hidden
+        className={`pointer-events-none absolute inset-0 z-[45] bg-white transition-opacity duration-200 ${flash ? "opacity-70" : "opacity-0"}`}
+      />
+
+      {/* live photo preview: save or share */}
+      {snap && (
+        <div
+          className="am-fade-up absolute inset-0 z-[40] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={closeSnap}
+          style={{
+            paddingTop: "max(1rem, env(safe-area-inset-top))",
+            paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm max-h-full overflow-y-auto rounded-2xl bg-[#0F1B2D] border border-white/15 p-3 shadow-2xl"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={snap.url} alt="Session photo" className="w-full rounded-xl border border-white/10" draggable={false} />
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={saveSnap}
+                className="flex-1 h-11 rounded-xl bg-white/10 border border-white/15 text-white text-xs font-bold hover:bg-white/20 active:scale-95 transition-all"
+              >
+                Save
+              </button>
+              <button
+                onClick={shareSnap}
+                className="flex-1 h-11 rounded-xl text-white text-xs font-bold active:scale-95 transition-all"
+                style={{ background: "linear-gradient(135deg,#2563EB,#0D9488)" }}
+              >
+                Share
+              </button>
+              <button
+                onClick={closeSnap}
+                aria-label="Close"
+                className="w-11 h-11 rounded-xl bg-white/10 border border-white/15 text-white hover:bg-white/20 active:scale-95 transition-all"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* watermark (corner, with the logo) */}
       <Watermark
         className="right-3 sm:right-4 bottom-2"
@@ -2917,6 +3184,9 @@ export default function AirMidiPage() {
             </DockButton>
             <DockButton compact={compact} toggle onClick={toggleControls} active={showControls} label="MIDI controls (C)" caption="Controls">
               <IcSliders />
+            </DockButton>
+            <DockButton compact={compact} onClick={takeSnapshot} label="Take a photo (S)" caption="Photo">
+              <IcPhoto />
             </DockButton>
             <DockButton
               compact={compact}
@@ -3129,7 +3399,7 @@ export default function AirMidiPage() {
         account={account}
       />
 
-      <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} />
+      <ShareModal open={shareOpen} onClose={closeShare} photo={sharePhoto?.url ?? null} photoBlob={sharePhoto?.blob ?? null} />
 
       {!appMode && <Navbar />}
 
@@ -3224,7 +3494,7 @@ export default function AirMidiPage() {
               </span>
             )}
             <button
-              onClick={() => setShareOpen(true)}
+              onClick={openShare}
               aria-label="Share AirMIDI Link"
               title="Share"
               className="inline-flex items-center gap-2 text-[11px] font-bold px-3.5 h-10 sm:h-9 rounded-full border border-slate-200 bg-white text-slate-700 hover:text-blue-700 hover:border-blue-400 hover:shadow-md active:scale-95 transition-all"
@@ -3663,6 +3933,14 @@ export default function AirMidiPage() {
                         <IcExpand />
                         Full screen
                       </button>
+                      <button
+                        onClick={takeSnapshot}
+                        title="Take a photo (S)"
+                        className="h-11 px-4 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:border-blue-400 hover:text-blue-700 transition-all active:scale-[0.98] flex items-center gap-2"
+                      >
+                        <IcPhoto />
+                        Photo
+                      </button>
                       <span className="flex-1" />
                       <button
                         onClick={handlePanic}
@@ -3688,7 +3966,7 @@ export default function AirMidiPage() {
                       Camera and microphone stay off until you start them. Use headphones to avoid echo. Shortcuts:{" "}
                       <kbd className="corp-mono">V</kbd> camera · <kbd className="corp-mono">M</kbd> mic ·{" "}
                       <kbd className="corp-mono">F</kbd> full screen · <kbd className="corp-mono">K</kbd> keyboard ·{" "}
-                      <kbd className="corp-mono">C</kbd> controls · <kbd className="corp-mono">P</kbd> panic
+                      <kbd className="corp-mono">C</kbd> controls · <kbd className="corp-mono">S</kbd> photo · <kbd className="corp-mono">P</kbd> panic
                     </p>
 
                     {/* KEYBOARD (on/off) */}
