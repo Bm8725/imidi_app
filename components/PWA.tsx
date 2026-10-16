@@ -49,17 +49,16 @@ export default function PWA() {
     };
   }, []);
 
-  // Stiluri premium tip Glassmorphic
   const glassBar: React.CSSProperties = {
     position: 'fixed',
     left: '50%',
     transform: 'translateX(-50%)',
     bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
-    background: 'rgba(24, 24, 28, 0.65)',          // Fundal semi-transparent întunecat
-    backdropFilter: 'blur(16px) saturate(140%)',    // Efectul de sticlă (blur puternic)
+    background: 'rgba(24, 24, 28, 0.65)',
+    backdropFilter: 'blur(16px) saturate(140%)',
     WebkitBackdropFilter: 'blur(16px) saturate(140%)',
     color: '#F4F4F5',
-    border: '1px solid rgba(167, 139, 250, 0.25)',  // Bordură fină violet cu opacitate mică
+    border: '1px solid rgba(167, 139, 250, 0.25)',
     borderRadius: 16,
     padding: '12px 18px',
     font: '600 14px system-ui, -apple-system, sans-serif',
@@ -67,7 +66,7 @@ export default function PWA() {
     gap: 14,
     alignItems: 'center',
     zIndex: 99999,
-    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset', // Umbră soft + luciu interior
+    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset',
     animation: 'pwaSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
   };
 
@@ -95,14 +94,30 @@ export default function PWA() {
     transition: 'all 0.2s ease',
   };
 
+  const iconStyle: React.CSSProperties = {
+    width: 16,
+    height: 16,
+    display: 'block',
+    objectFit: 'contain',
+  };
+
+  const textWrapper: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  };
+
   if (waiting) {
     return (
       <>
         <style>{`@keyframes pwaSlideUp { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }`}</style>
         <div role="status" style={glassBar}>
-          <span style={{ marginRight: 4 }}>🎵 O nouă versiune iMIDI este disponibilă</span>
+          <div style={textWrapper}>
+            <img src="/favicon-16x16.png" alt="iMIDI" style={iconStyle} />
+            <span>A new version of iMIDI is available</span>
+          </div>
           <button style={mainBtn} onClick={() => waiting.postMessage('SKIP_WAITING')}>
-            Actualizează
+            Update
           </button>
         </div>
       </>
@@ -114,7 +129,10 @@ export default function PWA() {
       <>
         <style>{`@keyframes pwaSlideUp { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }`}</style>
         <div role="status" style={glassBar}>
-          <span style={{ marginRight: 4 }}>✨ Instalează aplicația iMIDI</span>
+          <div style={textWrapper}>
+            <img src="/favicon-16x16.png" alt="iMIDI" style={iconStyle} />
+            <span>Install iMIDI app</span>
+          </div>
           <button
             style={mainBtn}
             onClick={async () => {
