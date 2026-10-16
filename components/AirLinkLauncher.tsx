@@ -46,7 +46,26 @@ const POLL_MS = 15_000; // how often live data is refreshed
 const FRESH_MS = 60_000; // heartbeat newer than this = link is live
 const PRIORITY_TTL_MS = 30_000; // a "just went live" bubble expires after this
 const LIVE_REPEAT_MS = 20_000; // while someone is live, re-announce at least this often
-const SHOW_NAMES = true; // show the device name of live senders (set false to keep it anonymous)
+const SHOW_NAMES = true; // show the device name of live senders (false = anonymous)
+
+// ?al=demo  -> simulated live sessions (ignores the DB)
+// ?al=debug -> real data + console diagnostics
+const qp = (k: string) =>
+  typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get(k);
+const isDemo = () => qp("al") === "demo";
+const isDebug = () => qp("al") !== null;
+
+const CONFETTI_COLORS = ["#10b981", "#f43f5e", "#f59e0b", "#6366f1", "#22d3ee"];
+const CONFETTI = Array.from({ length: 12 }, (_, i) => {
+  const a = (i / 12) * Math.PI * 2;
+  const r = 52 + (i % 3) * 10;
+  return {
+    tx: `${Math.round(Math.cos(a) * r)}px`,
+    ty: `${Math.round(Math.sin(a) * r)}px`,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    delay: `${(i % 4) * 0.04}s`,
+  };
+});
 
 /* ───────────────────────── small helpers ───────────────────────── */
 
@@ -61,7 +80,8 @@ function deviceName(info: unknown): string | null {
   const clean = (v: unknown): string | null => {
     if (typeof v !== "string") return null;
     const t = v.trim();
-    return t && t.length <= 28 ? t : t.length > 28 ? t.slice(0, 27) + "…" : null;
+    if (!t) return null;
+    return t.length > 28 ? t.slice(0, 27) + "…" : t;
   };
   for (const k of keys) {
     const direct = clean(o[k]);
@@ -113,14 +133,12 @@ function CountUp({ value }: { value: number }) {
   return <span className="tabular-nums">{shown}</span>;
 }
 
-function LiveDot({ color = "emerald", size = 2 }: { color?: "emerald" | "rose"; size?: 1.5 | 2 }) {
+function LiveDot({ size = 2 }: { size?: 1.5 | 2 }) {
   const dim = size === 2 ? "h-2 w-2" : "h-1.5 w-1.5";
-  const ping = color === "emerald" ? "bg-emerald-400" : "bg-rose-400";
-  const core = color === "emerald" ? "bg-emerald-500" : "bg-rose-500";
   return (
     <span className={`relative flex shrink-0 ${dim}`}>
-      <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 motion-safe:animate-ping ${ping}`} />
-      <span className={`relative inline-flex rounded-full ${dim} ${core}`} />
+      <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 motion-safe:animate-ping bg-emerald-400`} />
+      <span className={`relative inline-flex rounded-full ${dim} bg-emerald-500`} />
     </span>
   );
 }
@@ -170,7 +188,6 @@ function buildMessages(s: Stats | null): Msg[] {
   const dyn: Msg[] = [];
 
   if (s) {
-    // the user's own link first
     if (s.own) {
       dyn.push(
         s.own.live
@@ -178,7 +195,6 @@ function buildMessages(s: Stats | null): Msg[] {
           : { id: `own-wait-${s.own.code}`, kind: "wait", node: <>Room <b>{s.own.code}</b> is waiting for a device ⚡</> }
       );
     }
-    // who is live
     s.liveList.slice(0, 3).forEach((item, i) => {
       const m = liveNameMsg(item, i);
       if (m) dyn.push(m);
@@ -229,7 +245,6 @@ function buildMessages(s: Stats | null): Msg[] {
 
   const stat: Msg[] = STATIC_MESSAGES.map((t, i) => ({ id: `s-${i}`, kind: "static", node: t }));
 
-  // interleave: dynamic, static, dynamic, static...
   const out: Msg[] = [];
   const n = Math.max(dyn.length, stat.length);
   for (let i = 0; i < n; i++) {
@@ -284,8 +299,12 @@ export default function AirLinkLauncher() {
     }
   };
 
-  // read once whether the teaser was already dismissed in this session
+  // read once whether the teaser was already dismissed in this session (demo ignores it)
   useEffect(() => {
+    if (isDemo()) {
+      setDismissed(false);
+      return;
+    }
     try {
       setDismissed(sessionStorage.getItem(DISMISS_KEY) === "1");
     } catch {
@@ -330,11 +349,38 @@ export default function AirLinkLauncher() {
     setStats(s);
   }, []);
 
-  // poll live data straight from the table (paused when tab hidden / on the AirMIDI page)
+  // poll live data (paused when tab hidden / on the AirMIDI page); ?al=demo simulates instead
   useEffect(() => {
     if (hiddenPage) return;
     let alive = true;
 
+    // ---------- DEMO MODE ----------
+    if (isDemo()) {
+      const names = ["Roland A-49", "Korg Minilogue", "Akai MPK Mini", "Novation Launchkey"];
+      let n = 0;
+      const mk = (count: number, cycle: number): Stats => ({
+        live_now: count,
+        waiting: 2,
+        sessions_today: 7 + n,
+        minutes_today: 93 + n * 3,
+        liveList: names.slice(0, count).map((name, i) => ({ id: `demo-${cycle}-${i}`, name })),
+        own: null,
+      });
+      applyStats(mk(0, 0)); // baseline, so the next one counts as "just went live"
+      const tick = () => {
+        n++;
+        applyStats(mk(((n - 1) % names.length) + 1, Math.floor((n - 1) / names.length)));
+      };
+      const t = setTimeout(tick, 2500);
+      const id = setInterval(tick, 14000);
+      return () => {
+        alive = false;
+        clearTimeout(t);
+        clearInterval(id);
+      };
+    }
+
+    // ---------- REAL DATA ----------
     const load = async () => {
       if (document.hidden) return;
       const now = Date.now();
@@ -366,7 +412,13 @@ export default function AirLinkLauncher() {
           .limit(5),
       ]);
 
-      // everything failed (no access / offline): keep whatever we had, stay on static messages
+      if (isDebug()) {
+        if (todayRes.error) console.warn("[AirLink] today query:", todayRes.error.message);
+        if (waitRes.error) console.warn("[AirLink] waiting query:", waitRes.error.message);
+        if (liveRes.error) console.warn("[AirLink] live query:", liveRes.error.message);
+      }
+
+      // everything failed (no access / offline): keep what we had, stay on static messages
       if (todayRes.error && waitRes.error && liveRes.error) return;
 
       let live = 0;
@@ -388,8 +440,17 @@ export default function AirLinkLauncher() {
         id: String(r.id),
         name: deviceName(r.sender_device_info),
       }));
-      // if the "today" query couldn't count but the live query did
       if (live === 0 && liveList.length > 0) live = liveList.length;
+
+      if (isDebug()) {
+        console.info("[AirLink] data", {
+          live,
+          waiting: waitRes.count,
+          sessionsToday: rows.length,
+          liveRows: liveRes.data,
+          names: liveList.map((l) => l.name),
+        });
+      }
 
       // the signed-in user's own open link (if any)
       let own: Own = null;
@@ -490,7 +551,7 @@ export default function AirLinkLauncher() {
       if (msg.kind === "live" || msg.kind === "burst") lastLiveAtRef.current = Date.now();
 
       const typingMs = msg.kind === "burst" ? 500 : 900;
-      const showMs = msg.kind === "burst" ? 6200 : 4800;
+      const showMs = msg.kind === "burst" ? 6500 : 4800;
       const m = msg;
       setTeaser({ show: true, typing: true, msg: m });
       later(() => setTeaser({ show: true, typing: false, msg: m }), typingMs);
@@ -553,6 +614,8 @@ export default function AirLinkLauncher() {
     { left: "38%", size: 10, dx: "-4px", delay: "0.54s" },
   ];
 
+  const ringColor = isBurst ? "border-rose-400" : "border-emerald-400";
+
   return (
     <div ref={wrapRef} className="fixed left-4 md:left-5 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-5 z-[60] flex flex-col items-start gap-3">
       <style>{`
@@ -569,7 +632,6 @@ export default function AirLinkLauncher() {
         @keyframes al-typing { 0%,80%,100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
         .al-typing { animation: al-typing 1s ease-in-out infinite; }
 
-        /* bubbles floating out of the icon */
         @keyframes al-float {
           0%   { opacity: 0; transform: translate(0, 0) scale(.3); }
           20%  { opacity: .95; }
@@ -577,34 +639,56 @@ export default function AirLinkLauncher() {
         }
         .al-float { animation: al-float 1.9s ease-out both; }
 
-        /* "just went live" bubble: jolt + glow */
         @keyframes al-burst {
-          0% { transform: scale(.7); }
-          35% { transform: scale(1.1); }
+          0% { transform: scale(.6); }
+          35% { transform: scale(1.14); }
           60% { transform: scale(.97); }
           100% { transform: scale(1); }
         }
-        .al-burst { animation: al-burst .6s cubic-bezier(.34,1.56,.64,1) both; }
+        .al-burst { animation: al-burst .65s cubic-bezier(.34,1.56,.64,1) both; }
         @keyframes al-glow {
-          0%,100% { box-shadow: 0 10px 30px rgba(16,185,129,.25); }
-          50% { box-shadow: 0 10px 36px rgba(16,185,129,.55); }
+          0%,100% { box-shadow: 0 10px 30px rgba(16,185,129,.3); }
+          50% { box-shadow: 0 10px 44px rgba(16,185,129,.7); }
         }
-        .al-glow { animation: al-glow 1.6s ease-in-out infinite; }
+        .al-glow { animation: al-glow 1.4s ease-in-out infinite; }
 
-        /* signal waves radiating out of the message bubble, repeating */
+        /* signal waves radiating from the message bubble, repeating */
         @keyframes al-signal {
-          0%   { transform: scale(1); opacity: .65; }
-          100% { transform: scale(1.35, 1.9); opacity: 0; }
+          0%   { transform: scale(1); opacity: .9; }
+          100% { transform: scale(1.5, 2.4); opacity: 0; }
         }
-        .al-signal { animation: al-signal 2s cubic-bezier(.2,.6,.3,1) infinite; }
+        .al-signal { animation: al-signal 1.8s cubic-bezier(.2,.6,.3,1) infinite; }
 
-        /* broadcast icon arcs pulsing outwards */
+        /* sonar rings radiating from the icon itself */
+        @keyframes al-sonar {
+          0%   { transform: scale(1); opacity: .85; }
+          100% { transform: scale(2.9); opacity: 0; }
+        }
+        .al-sonar { animation: al-sonar 2.1s cubic-bezier(.2,.6,.3,1) infinite; }
+
+        /* icon heartbeat while someone is live */
+        @keyframes al-heart {
+          0%,100% { transform: scale(1); }
+          15% { transform: scale(1.16); }
+          30% { transform: scale(1); }
+          45% { transform: scale(1.1); }
+        }
+        .al-heart { animation: al-heart 1.2s ease-in-out infinite; }
+
+        /* confetti explosion on "just went live" */
+        @keyframes al-confetti {
+          0%   { opacity: 1; transform: translate(0,0) scale(.4); }
+          100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(1.1) rotate(180deg); }
+        }
+        .al-confetti { animation: al-confetti 1.2s cubic-bezier(.15,.8,.3,1) both; }
+
         @keyframes al-arc { 0%,100% { opacity: .2; } 50% { opacity: 1; } }
         .al-arc1 { animation: al-arc 1.2s ease-in-out infinite; }
         .al-arc2 { animation: al-arc 1.2s ease-in-out infinite .35s; }
 
         @media (prefers-reduced-motion: reduce) {
-          .al-pop, .al-ring, .al-wiggle, .al-fade, .al-badge, .al-typing, .al-float, .al-burst, .al-glow, .al-signal, .al-arc1, .al-arc2 { animation: none; }
+          .al-pop, .al-ring, .al-wiggle, .al-fade, .al-badge, .al-typing, .al-float, .al-burst,
+          .al-glow, .al-signal, .al-sonar, .al-heart, .al-confetti, .al-arc1, .al-arc2 { animation: none; }
         }
       `}</style>
 
@@ -681,12 +765,41 @@ export default function AirLinkLauncher() {
             open ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white" : ""
           }`}
         >
-          {!open && (
-            <span
-              className={`absolute inset-0 rounded-full al-ring ${
-                signalOn ? (isBurst ? "bg-rose-500/40" : "bg-emerald-500/40") : "bg-indigo-500/40"
-              }`}
-            />
+          {!open && !signalOn && <span className="absolute inset-0 rounded-full bg-indigo-500/40 al-ring" />}
+
+          {/* SONAR: big rings radiating from the icon while someone is live */}
+          {signalOn && (
+            <span aria-hidden className="pointer-events-none absolute inset-0">
+              {[0, 0.7, 1.4].map((d) => (
+                <span
+                  key={d}
+                  className={`al-sonar absolute inset-0 rounded-full border-[3px] ${ringColor} ${
+                    isBurst ? "bg-rose-400/15" : "bg-emerald-400/15"
+                  }`}
+                  style={{ animationDelay: `${d}s` }}
+                />
+              ))}
+            </span>
+          )}
+
+          {/* CONFETTI: explosion when someone just went live */}
+          {signalOn && isBurst && msg && (
+            <span key={`c-${msg.id}`} aria-hidden className="pointer-events-none absolute left-1/2 top-1/2">
+              {CONFETTI.map((c, i) => (
+                <span
+                  key={i}
+                  className="al-confetti absolute -ml-[3px] -mt-[3px] w-[7px] h-[7px] rounded-sm"
+                  style={
+                    {
+                      background: c.color,
+                      animationDelay: c.delay,
+                      "--tx": c.tx,
+                      "--ty": c.ty,
+                    } as CSSProperties
+                  }
+                />
+              ))}
+            </span>
           )}
 
           {/* bubbles + note floating out of the icon when a message pops */}
@@ -730,7 +843,9 @@ export default function AirLinkLauncher() {
               alt="AirLink"
               width={56}
               height={56}
-              className={`relative w-14 h-14 rounded-full select-none ${teaser.show && teaser.typing ? "al-wiggle" : ""}`}
+              className={`relative w-14 h-14 rounded-full select-none ${
+                teaser.show && teaser.typing ? "al-wiggle" : signalOn ? "al-heart" : ""
+              }`}
               draggable={false}
             />
           )}
@@ -759,15 +874,12 @@ export default function AirLinkLauncher() {
               : "opacity-0 -translate-x-3 scale-75 pointer-events-none"
           }`}
         >
-          {/* signal waves: 3 rings expanding from the bubble, repeating while a live message is up */}
           {signalOn && (
             <span aria-hidden className="pointer-events-none absolute inset-0">
-              {[0, 0.65, 1.3].map((d) => (
+              {[0, 0.6, 1.2].map((d) => (
                 <span
                   key={d}
-                  className={`al-signal absolute inset-0 rounded-2xl border-2 ${
-                    isBurst ? "border-rose-400" : "border-emerald-400"
-                  }`}
+                  className={`al-signal absolute inset-0 rounded-2xl border-[3px] ${ringColor}`}
                   style={{ animationDelay: `${d}s` }}
                 />
               ))}
