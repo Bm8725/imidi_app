@@ -49,147 +49,65 @@ export default function PWA() {
     };
   }, []);
 
-  const mainBtn: React.CSSProperties = {
-    background: '#67E8F9',
-    color: '#0D0E12',
-    border: 0,
-    borderRadius: 10,
-    padding: '8px 14px',
-    fontWeight: 700,
-    cursor: 'pointer',
-    letterSpacing: '-0.01em',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 2px 8px rgba(103, 232, 249, 0.25)',
-    whiteSpace: 'nowrap',
-  };
-
-  const secBtn: React.CSSProperties = {
-    background: 'rgba(255, 255, 255, 0.06)',
-    color: '#E4E4E7',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: 10,
-    padding: '8px 14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    whiteSpace: 'nowrap',
-  };
-
-  const iconStyle: React.CSSProperties = {
-    width: 16,
-    height: 16,
-    display: 'block',
-    objectFit: 'contain',
-    flexShrink: 0,
-  };
-
-  const textWrapper: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    flexGrow: 1,
-  };
-
-  const actionsWrapper: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-  };
-
   if (!waiting && !installEvt) return null;
 
   return (
-    <>
+    <div 
+      role="status" 
+      className="fixed left-1/2 -translate-x-1/2 z-[999999] flex items-center justify-between sm:justify-start gap-3 sm:gap-4 p-3 sm:px-4 sm:py-3 font-sans font-semibold text-sm text-[#F4F4F5] border border-purple-500/25 bg-[#18181C]/75 backdrop-blur-xl saturate-140 shadow-[0_12px_40px_rgba(0,0,0,0.6),inset_0_0_0_1px_rgba(255,255,255,0.05)] animate-[pwaSlideDown_0.4s_cubic-bezier(0.16,1,0.3,1)_forwards]
+        top-[calc(64px+env(safe-area-inset-top,0px))] w-[calc(100%-24px)] max-w-[calc(100%-24px)] rounded-xl
+        sm:top-[calc(24px+env(safe-area-inset-top,0px))] sm:w-max sm:max-w-[90vw] sm:rounded-2xl"
+    >
+      {/* Stilul pentru animație (singurul lucru care nu e direct utilitar standard) */}
       <style>{`
-        /* Containerul principal - Setări implicite Desktop (Plutitor, Sus, Centrat) */
-        .pwa-glass-bar {
-          position: fixed;
-          left: 50%;
-          transform: translateX(-50%);
-          top: calc(16px + env(safe-area-inset-top, 0px));
-          background: rgba(24, 24, 28, 0.75);
-          backdrop-filter: blur(20px) saturate(140%);
-          -webkit-backdrop-filter: blur(20px) saturate(140%);
-          color: '#F4F4F5';
-          border: '1px solid rgba(167, 139, 250, 0.25)';
-          border-radius: 16px;
-          padding: 12px 18px;
-          font-family: '600 14px system-ui, -apple-system, sans-serif';
-          display: flex;
-          gap: 16px;
-          alignItems: center;
-          zIndex: 99999;
-          box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-          animation: pwaSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          width: max-content;
-          max-width: 90vw;
-        }
-
-        /* Animația de intrare de sus în jos */
         @keyframes pwaSlideDown {
-          from { opacity: 0; transform: translate(-50%, -20px); }
+          from { opacity: 0; transform: translate(-50%, -15px); }
           to { opacity: 1; transform: translate(-50%, 0); }
-        }
-
-        /* Regulă Responsive pentru Mobile (Ecrane sub 640px) */
-        @media (max-width: 640px) {
-          .pwa-glass-bar {
-            left: 0 !important;
-            right: 0 !important;
-            top: 0 !important;
-            transform: none !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            border-radius: 0 !important;
-            border-left: 0 !important;
-            border-right: 0 !important;
-            border-top: 0 !important;
-            border-bottom: 1px solid rgba(167, 139, 250, 0.2) !important;
-            padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px 16px !important;
-            font-size: 13px !important;
-            gap: 12px !important;
-            justify-content: space-between;
-          }
-          
-          @keyframes pwaSlideDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
         }
       `}</style>
 
-      <div role="status" className="pwa-glass-bar">
-        <div style={textWrapper}>
-          <img src="/favicon-16x16.png" alt="iMIDI" style={iconStyle} />
-          <span>
-            {waiting ? 'A new version of iMIDI is available' : 'Install iMIDI app'}
-          </span>
-        </div>
-        
-        <div style={actionsWrapper}>
-          {waiting ? (
-            <button style={mainBtn} onClick={() => waiting.postMessage('SKIP_WAITING')}>
-              Update
-            </button>
-          ) : (
-            <>
-              <button
-                style={mainBtn}
-                onClick={async () => {
-                  await installEvt!.prompt();
-                  await installEvt!.userChoice;
-                  setInstallEvt(null);
-                }}
-              >
-                Install
-              </button>
-              <button style={secBtn} onClick={() => setInstallEvt(null)}>
-                Later
-              </button>
-            </>
-          )}
-        </div>
+      {/* Secțiunea Text + Iconiță */}
+      <div className="flex items-center gap-2 grow">
+        <img 
+          src="/favicon-16x16.png" 
+          alt="iMIDI" 
+          className="w-4 h-4 block object-contain shrink-0" 
+        />
+        <span>
+          {waiting ? 'A new version of iMIDI is available' : 'Install iMIDI app'}
+        </span>
       </div>
-    </>
+      
+      {/* Secțiunea Butoane */}
+      <div className="flex items-center gap-2.5">
+        {waiting ? (
+          <button 
+            className="bg-[#67E8F9] color-[#0D0E12] border-0 rounded-xl px-3.5 py-2 font-bold cursor-pointer tracking-tight transition-all duration-200 ease-in-out shadow-[0_2px_8px_rgba(103,232,249,0.25)] whitespace-nowrap hover:opacity-90"
+            onClick={() => waiting.postMessage('SKIP_WAITING')}
+          >
+            Update
+          </button>
+        ) : (
+          <>
+            <button
+              className="bg-[#67E8F9] text-[#0D0E12] border-0 rounded-xl px-3.5 py-2 font-bold cursor-pointer tracking-tight transition-all duration-200 ease-in-out shadow-[0_2px_8px_rgba(103,232,249,0.25)] whitespace-nowrap hover:opacity-90"
+              onClick={async () => {
+                await installEvt!.prompt();
+                await installEvt!.userChoice;
+                setInstallEvt(null);
+              }}
+            >
+              Install
+            </button>
+            <button 
+              className="bg-white/5 text-[#E4E4E7] border border-white/10 rounded-xl px-3.5 py-2 font-semibold cursor-pointer transition-all duration-200 ease-in-out whitespace-nowrap hover:bg-white/10"
+              onClick={() => setInstallEvt(null)}
+            >
+              Later
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
