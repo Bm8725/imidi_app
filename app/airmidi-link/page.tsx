@@ -1575,11 +1575,15 @@ function ShareModal({
   onClose,
   photo = null,
   photoBlob = null,
+  photoLink = null,
+  photoStatus = "idle",
 }: {
   open: boolean;
   onClose: () => void;
   photo?: string | null;
   photoBlob?: Blob | null;
+  photoLink?: string | null;
+  photoStatus?: "idle" | "uploading" | "ready" | "failed";
 }) {
   const [copied, setCopied] = useState(false);
   const [canNative, setCanNative] = useState(false);
@@ -1603,14 +1607,16 @@ function ShareModal({
   if (!open) return null;
 
   const enc = encodeURIComponent;
+  // with a live picture the public link of the picture travels in the message
+  const shareText = photoLink ? `${SHARE_TEXT}\n${photoLink}` : SHARE_TEXT;
   const targets: { id: string; label: string; color: string; icon: React.ReactNode; href: string }[] = [
-    { id: "wa", label: "WhatsApp", color: "#25D366", icon: SHARE_ICONS.whatsapp, href: `https://wa.me/?text=${enc(`${SHARE_TEXT} ${SHARE_URL}`)}` },
-    { id: "tg", label: "Telegram", color: "#229ED9", icon: SHARE_ICONS.telegram, href: `https://t.me/share/url?url=${enc(SHARE_URL)}&text=${enc(SHARE_TEXT)}` },
+    { id: "wa", label: "WhatsApp", color: "#25D366", icon: SHARE_ICONS.whatsapp, href: `https://wa.me/?text=${enc(`${shareText} ${SHARE_URL}`)}` },
+    { id: "tg", label: "Telegram", color: "#229ED9", icon: SHARE_ICONS.telegram, href: `https://t.me/share/url?url=${enc(SHARE_URL)}&text=${enc(shareText)}` },
     { id: "fb", label: "Facebook", color: "#1877F2", icon: SHARE_ICONS.facebook, href: `https://www.facebook.com/sharer/sharer.php?u=${enc(SHARE_URL)}` },
-    { id: "x", label: "X", color: "#0F1419", icon: SHARE_ICONS.x, href: `https://twitter.com/intent/tweet?text=${enc(SHARE_TEXT)}&url=${enc(SHARE_URL)}` },
+    { id: "x", label: "X", color: "#0F1419", icon: SHARE_ICONS.x, href: `https://twitter.com/intent/tweet?text=${enc(shareText)}&url=${enc(SHARE_URL)}` },
     { id: "in", label: "LinkedIn", color: "#0A66C2", icon: SHARE_ICONS.linkedin, href: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(SHARE_URL)}` },
-    { id: "sms", label: "SMS", color: "#10B981", icon: SHARE_ICONS.sms, href: `sms:?&body=${enc(`${SHARE_TEXT} ${SHARE_URL}`)}` },
-    { id: "mail", label: "Email", color: "#64748B", icon: SHARE_ICONS.mail, href: `mailto:?subject=${enc(SHARE_TITLE)}&body=${enc(`${SHARE_TEXT}\n\n${SHARE_URL}`)}` },
+    { id: "sms", label: "SMS", color: "#10B981", icon: SHARE_ICONS.sms, href: `sms:?&body=${enc(`${shareText} ${SHARE_URL}`)}` },
+    { id: "mail", label: "Email", color: "#64748B", icon: SHARE_ICONS.mail, href: `mailto:?subject=${enc(SHARE_TITLE)}&body=${enc(`${shareText}\n\n${SHARE_URL}`)}` },
   ];
 
   const copyLink = async () => {
@@ -1633,7 +1639,7 @@ function ShareModal({
           return;
         }
       }
-      await nav.share({ title: SHARE_TITLE, text: SHARE_TEXT, url: SHARE_URL });
+      await nav.share({ title: SHARE_TITLE, text: photoLink ? `${SHARE_TEXT}\n${photoLink}` : SHARE_TEXT, url: SHARE_URL });
     } catch {
       /* cancelled */
     }
@@ -1749,6 +1755,18 @@ function ShareModal({
           </div>
         </div>
 
+        {photo && photoStatus !== "idle" && (
+          <p
+            className={`mx-5 mt-2 text-[11px] font-medium leading-relaxed ${
+              photoStatus === "failed" ? "text-amber-700" : photoStatus === "ready" ? "text-emerald-700" : "text-slate-500"
+            }`}
+          >
+            {photoStatus === "uploading" && "Preparing the picture link…"}
+            {photoStatus === "ready" && "✓ The picture link is included in the message."}
+            {photoStatus === "failed" && "The picture could not be uploaded, so only the AirMIDI link will be shared."}
+          </p>
+        )}
+
         {/* NATIVE SHARE SHEET (iPhone / Android / Safari) */}
         {canNative && (
           <div className="px-5 mt-4">
@@ -1854,6 +1872,8 @@ export default function AirMidiPage() {
   const [snap, setSnap] = useState<{ url: string; blob: Blob } | null>(null); // live photo of the session
   const [flash, setFlash] = useState(false);
   const [sharePhoto, setSharePhoto] = useState<{ url: string; blob: Blob } | null>(null); // live frame for the share card
+  const [shareLink, setShareLink] = useState<string | null>(null); // public link of that frame (Supabase Storage)
+  const [shareLinkState, setShareLinkState] = useState<"idle" | "uploading" | "ready" | "failed">("idle");
   const [account, setAccount] = useState<{
     balance: number;
     free_seconds: number;
@@ -2775,12 +2795,29 @@ export default function AirMidiPage() {
           if (prev) URL.revokeObjectURL(prev.url);
           return { url: URL.createObjectURL(blob), blob };
         });
+        // upload it, so the picture has a public link that WhatsApp, Telegram, X... can show
+        setShareLink(null);
+        setShareLinkState("uploading");
+        try {
+          const path = `live/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+          const { error: upErr } = await supabase.storage
+            .from("airmidi-share")
+            .upload(path, blob, { contentType: "image/png", cacheControl: "31536000" });
+          if (upErr) throw upErr;
+          const { data } = supabase.storage.from("airmidi-share").getPublicUrl(path);
+          setShareLink(data.publicUrl);
+          setShareLinkState("ready");
+        } catch {
+          setShareLinkState("failed");
+        }
       }
     }
   };
 
   const closeShare = () => {
     setShareOpen(false);
+    setShareLink(null);
+    setShareLinkState("idle");
     setSharePhoto((prev) => {
       if (prev) URL.revokeObjectURL(prev.url);
       return null;
@@ -3399,7 +3436,7 @@ export default function AirMidiPage() {
         account={account}
       />
 
-      <ShareModal open={shareOpen} onClose={closeShare} photo={sharePhoto?.url ?? null} photoBlob={sharePhoto?.blob ?? null} />
+      <ShareModal open={shareOpen} onClose={closeShare} photo={sharePhoto?.url ?? null} photoBlob={sharePhoto?.blob ?? null} photoLink={shareLink} photoStatus={shareLinkState} />
 
       {!appMode && <Navbar />}
 
