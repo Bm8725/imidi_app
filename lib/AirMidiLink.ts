@@ -1,4 +1,8 @@
-// lib/AirMidiLink.ts
+// lib/AirMidiLink.ts v1
+/**
+ * 
+ * authorȘ BM8725 2026
+ */
 import { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 
 export type AirMidiRole = 'sender' | 'receiver'

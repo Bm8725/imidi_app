@@ -40,10 +40,6 @@ const LEVEL_STYLE: Record<LogLevel, { tag: string; color: string }> = {
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const noteName = (n: number) => `${NOTE_NAMES[n % 12]}${Math.floor(n / 12) - 1}`;
 
-
-
-
-
 function decodeMidi(d: Uint8Array): string {
   const s = d[0];
   if (s >= 0xf0) {
@@ -595,6 +591,24 @@ const IcPanic = () => (
   </svg>
 );
 
+const IcBag = () => (
+  <svg className="w-3.5 h-3.5" {...svgProps}>
+    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <path d="M16 10a4 4 0 0 1-8 0" />
+  </svg>
+);
+
+const IcShare = () => (
+  <svg className="w-4 h-4" {...svgProps}>
+    <circle cx="18" cy="5" r="3" />
+    <circle cx="6" cy="12" r="3" />
+    <circle cx="18" cy="19" r="3" />
+    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+  </svg>
+);
+
 function DockButton({
   onClick,
   label,
@@ -737,15 +751,35 @@ function MidiHud({
   );
 }
 
-function Watermark({ className = "" }: { className?: string }) {
+function Watermark({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
-      className={`pointer-events-none select-none absolute z-20 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold tracking-wide text-white/75 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] ${className}`}
+      style={style}
+      className={`pointer-events-none select-none absolute z-20 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold tracking-wide text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] ${className}`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/airlink-icon.png" alt="" width={14} height={14} className="w-3.5 h-3.5 rounded-full opacity-90" draggable={false} />
       www.imidi.co.uk/airmidi-link
     </div>
+  );
+}
+
+// Diagonal tiled watermark: sits over the video AND over the blue idle background,
+// so it also ends up in screenshots and screen recordings of the session.
+const WM_TILE = `data:image/svg+xml;utf8,${encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='300' height='180'>" +
+    "<text x='150' y='90' text-anchor='middle' transform='rotate(-24 150 90)' font-family='Inter,Arial,sans-serif' font-size='13' font-weight='600' letter-spacing='0.4' " +
+    "fill='white' fill-opacity='0.17' stroke='black' stroke-opacity='0.14' stroke-width='0.6' paint-order='stroke'>" +
+    "www.imidi.co.uk/airmidi-link</text></svg>"
+)}`;
+
+function WatermarkTiles() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none select-none absolute inset-0 z-[15]"
+      style={{ backgroundImage: `url("${WM_TILE}")`, backgroundSize: "300px 180px", backgroundRepeat: "repeat" }}
+    />
   );
 }
 
@@ -1480,6 +1514,266 @@ function Panel({ title, children, className = "" }: { title: string; children: R
 }
 
 /* ---------------------------------------------------------------------- */
+/* Share                                                                   */
+/* ---------------------------------------------------------------------- */
+const SHARE_URL = "https://www.imidi.co.uk/airmidi-link";
+const SHARE_TITLE = "AirMIDI Link";
+const SHARE_DESC =
+  "Play MIDI together in real time: encrypted, low latency, with live video and voice. No installs, just a 6-digit code.";
+const SHARE_TEXT = `Come play with me on AirMIDI Link! ${SHARE_DESC}`;
+
+const glyph = (d: string) => (
+  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <path d={d} />
+  </svg>
+);
+
+const SHARE_ICONS = {
+  whatsapp: glyph(
+    "M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"
+  ),
+  telegram: glyph(
+    "M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"
+  ),
+  facebook: glyph(
+    "M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
+  ),
+  x: glyph(
+    "M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+  ),
+  linkedin: glyph(
+    "M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"
+  ),
+  mail: (
+    <svg className="w-6 h-6" {...svgProps}>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M22 7l-10 6L2 7" />
+    </svg>
+  ),
+  sms: (
+    <svg className="w-6 h-6" {...svgProps}>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  ),
+  copy: (
+    <svg className="w-6 h-6" {...svgProps}>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  ),
+};
+
+function ShareModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const [canNative, setCanNative] = useState(false);
+
+  useEffect(() => {
+    setCanNative(typeof navigator !== "undefined" && typeof (navigator as any).share === "function");
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const enc = encodeURIComponent;
+  const targets: { id: string; label: string; color: string; icon: React.ReactNode; href: string }[] = [
+    { id: "wa", label: "WhatsApp", color: "#25D366", icon: SHARE_ICONS.whatsapp, href: `https://wa.me/?text=${enc(`${SHARE_TEXT} ${SHARE_URL}`)}` },
+    { id: "tg", label: "Telegram", color: "#229ED9", icon: SHARE_ICONS.telegram, href: `https://t.me/share/url?url=${enc(SHARE_URL)}&text=${enc(SHARE_TEXT)}` },
+    { id: "fb", label: "Facebook", color: "#1877F2", icon: SHARE_ICONS.facebook, href: `https://www.facebook.com/sharer/sharer.php?u=${enc(SHARE_URL)}` },
+    { id: "x", label: "X", color: "#0F1419", icon: SHARE_ICONS.x, href: `https://twitter.com/intent/tweet?text=${enc(SHARE_TEXT)}&url=${enc(SHARE_URL)}` },
+    { id: "in", label: "LinkedIn", color: "#0A66C2", icon: SHARE_ICONS.linkedin, href: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(SHARE_URL)}` },
+    { id: "sms", label: "SMS", color: "#10B981", icon: SHARE_ICONS.sms, href: `sms:?&body=${enc(`${SHARE_TEXT} ${SHARE_URL}`)}` },
+    { id: "mail", label: "Email", color: "#64748B", icon: SHARE_ICONS.mail, href: `mailto:?subject=${enc(SHARE_TITLE)}&body=${enc(`${SHARE_TEXT}\n\n${SHARE_URL}`)}` },
+  ];
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(SHARE_URL);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
+
+  const nativeShare = async () => {
+    try {
+      await (navigator as any).share({ title: SHARE_TITLE, text: SHARE_TEXT, url: SHARE_URL });
+    } catch {
+      /* cancelled */
+    }
+  };
+
+  const litKeys = [1, 4, 5, 8, 11];
+
+  return (
+    <div
+      className="am-fade-up fixed inset-0 z-[90] flex items-end sm:items-center justify-center sm:p-4 bg-black/55 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Share AirMIDI Link"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-y-auto overscroll-contain"
+        style={{ maxHeight: "92dvh", paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
+      >
+        {/* grab handle (phones) */}
+        <div className="sm:hidden flex justify-center pt-2.5 pb-1">
+          <span className="w-10 h-1 rounded-full bg-slate-300" />
+        </div>
+
+        <div className="flex items-center justify-between px-5 pt-3 sm:pt-5 pb-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Invite friends</p>
+            <h3 className="text-lg font-bold text-slate-900 leading-tight">Share AirMIDI Link</h3>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* PREVIEW CARD: how the link looks when it is shared */}
+        <div className="mx-5 rounded-2xl border border-slate-200 overflow-hidden shadow-[0_10px_30px_-12px_rgba(15,27,45,0.35)]">
+          <div
+            className="relative aspect-[1.91/1] overflow-hidden"
+            style={{
+              background:
+                "radial-gradient(circle at 18% 15%, rgba(37,99,235,.95) 0%, transparent 55%), radial-gradient(circle at 88% 92%, rgba(13,148,136,.9) 0%, transparent 55%), #0F1B2D",
+            }}
+          >
+            <span
+              aria-hidden
+              className="absolute inset-0 opacity-40"
+              style={{
+                backgroundImage:
+                  "linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px)",
+                backgroundSize: "28px 28px",
+              }}
+            />
+            <div className="absolute inset-0 flex items-center justify-center gap-4 px-4">
+              <div className="relative shrink-0">
+                <span className="absolute inset-0 rounded-full bg-blue-400/40 am-ring" />
+                <div className="am-float relative rounded-full p-[3px] bg-gradient-to-br from-blue-300 to-teal-400">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/airlink-icon.png"
+                    alt=""
+                    width={64}
+                    height={64}
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#0B1020]"
+                    draggable={false}
+                  />
+                </div>
+              </div>
+              <div className="min-w-0 text-left">
+                <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/60">Live MIDI · Video · Voice</p>
+                <p className="text-xl sm:text-2xl font-extrabold text-white leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+                  {SHARE_TITLE}
+                </p>
+                <p className="text-[11px] text-white/75 font-medium">Play together, from anywhere</p>
+              </div>
+            </div>
+            {/* mini keyboard */}
+            <div className="absolute inset-x-4 bottom-0 flex h-5 gap-[2px]">
+              {Array.from({ length: 16 }).map((_, i) => (
+                <span
+                  key={i}
+                  className="flex-1 rounded-b-sm"
+                  style={{
+                    background: litKeys.includes(i % 12)
+                      ? i % 2
+                        ? "linear-gradient(#2dd4bf,#0d9488)"
+                        : "linear-gradient(#60a5fa,#2563eb)"
+                      : "rgba(255,255,255,.88)",
+                    boxShadow: litKeys.includes(i % 12) ? "0 0 10px rgba(96,165,250,.7)" : undefined,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">www.imidi.co.uk</p>
+            <p className="text-sm font-bold text-slate-900 leading-snug mt-0.5">{SHARE_TITLE}: play MIDI together, live</p>
+            <p className="text-xs text-slate-500 leading-relaxed mt-1">{SHARE_DESC}</p>
+          </div>
+        </div>
+
+        {/* NATIVE SHARE SHEET (iPhone / Android / Safari) */}
+        {canNative && (
+          <div className="px-5 mt-4">
+            <button
+              onClick={nativeShare}
+              className="w-full h-12 rounded-xl text-white text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+              style={{ background: "linear-gradient(135deg,#2563EB,#0D9488)", boxShadow: "0 10px 24px -10px rgba(37,99,235,.7)" }}
+            >
+              <IcShare />
+              Share…
+            </button>
+          </div>
+        )}
+
+        {/* APPS */}
+        <div className="px-5 mt-5 grid grid-cols-4 gap-x-2 gap-y-4">
+          {targets.map((t) => (
+            <a
+              key={t.id}
+              href={t.href}
+              target={t.href.startsWith("http") ? "_blank" : undefined}
+              rel="noopener noreferrer"
+              className="group flex flex-col items-center gap-1.5 min-w-0 active:scale-95 transition-transform"
+            >
+              <span
+                className="w-14 h-14 rounded-2xl text-white flex items-center justify-center shadow-md group-hover:-translate-y-0.5 transition-transform"
+                style={{ background: t.color }}
+              >
+                {t.icon}
+              </span>
+              <span className="text-[11px] font-semibold text-slate-600 truncate max-w-full">{t.label}</span>
+            </a>
+          ))}
+          <button onClick={copyLink} className="group flex flex-col items-center gap-1.5 min-w-0 active:scale-95 transition-transform">
+            <span
+              className="w-14 h-14 rounded-2xl text-white flex items-center justify-center shadow-md group-hover:-translate-y-0.5 transition-transform"
+              style={{ background: copied ? "#10B981" : "#2563EB" }}
+            >
+              {copied ? <Check /> : SHARE_ICONS.copy}
+            </span>
+            <span className="text-[11px] font-semibold text-slate-600">{copied ? "Copied" : "Copy link"}</span>
+          </button>
+        </div>
+
+        {/* LINK ROW */}
+        <div className="mx-5 mt-5 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 pl-3 pr-1.5 py-1.5">
+          <span className="flex-1 min-w-0 truncate text-xs corp-mono text-slate-600">{SHARE_URL}</span>
+          <button
+            onClick={copyLink}
+            className="shrink-0 h-9 px-4 rounded-lg bg-[#0F1B2D] text-white text-[11px] font-bold hover:bg-[#1E3050] active:scale-95 transition-all"
+          >
+            {copied ? "✓ Copied" : "Copy"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
 /* Page                                                                    */
 /* ---------------------------------------------------------------------- */
 export default function AirMidiPage() {
@@ -1521,6 +1815,7 @@ export default function AirMidiPage() {
   const [hoursLeft, setHoursLeft] = useState<number | null>(null); // sender's remaining streaming time (seconds)
   const [lowHours, setLowHours] = useState<number | null>(null);
   const [pricingOpen, setPricingOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [account, setAccount] = useState<{
     balance: number;
     free_seconds: number;
@@ -2408,6 +2703,9 @@ export default function AirMidiPage() {
         </p>
       </div>
 
+      {/* watermark over the video session AND over the blue idle background */}
+      <WatermarkTiles />
+
       {/* link lost: repairing itself */}
       {status === "reconnecting" && (
         <div className="am-fade-up absolute inset-0 z-[25] flex flex-col items-center justify-center gap-3 bg-[#070B16]/75 backdrop-blur-sm">
@@ -2563,8 +2861,18 @@ export default function AirMidiPage() {
         </div>
       )}
 
-      {/* watermark */}
-      <Watermark className="right-3 sm:right-4 bottom-2" />
+      {/* watermark (corner, with the logo) */}
+      <Watermark
+        className="right-3 sm:right-4 bottom-2"
+        style={
+          stageFull
+            ? {
+                bottom: "max(0.5rem, env(safe-area-inset-bottom))",
+                right: "max(0.75rem, env(safe-area-inset-right))",
+              }
+            : undefined
+        }
+      />
 
       {/* full screen dock: glass bar with labelled buttons (phones get a compact bar + "more" menu) */}
       {stageFull && (
@@ -2751,8 +3059,16 @@ export default function AirMidiPage() {
         .am-scroll::-webkit-scrollbar-thumb { background: rgba(120,120,140,.35); border-radius: 8px; }
         .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        .am-shop { transition: transform .2s ease, box-shadow .2s ease, filter .2s ease; }
+        .am-shop:hover { filter: brightness(1.06); }
+        .am-shine {
+          position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; pointer-events: none;
+          background: linear-gradient(100deg, transparent, rgba(255,255,255,.6), transparent);
+          transform: skewX(-20deg); animation: am-shine 3.2s ease-in-out infinite;
+        }
+        @keyframes am-shine { 0%, 55% { left: -60%; } 100% { left: 130%; } }
         @media (prefers-reduced-motion: reduce) {
-          .am-fade-up, .am-ring, .am-scan, .am-digit, .am-float, .am-dot, .am-flow, .am-orbit, .am-ring3d, .am-packet { animation: none; }
+          .am-fade-up, .am-ring, .am-scan, .am-digit, .am-float, .am-dot, .am-flow, .am-orbit, .am-ring3d, .am-packet, .am-shine { animation: none; }
         }
       `}</style>
       <style>{DARK_CSS}</style>
@@ -2812,6 +3128,8 @@ export default function AirMidiPage() {
         hoursLeft={hoursLeft}
         account={account}
       />
+
+      <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} />
 
       {!appMode && <Navbar />}
 
@@ -2905,27 +3223,30 @@ export default function AirMidiPage() {
                 Free plan · {Math.round(account.free_seconds / 60)} min sessions
               </span>
             )}
-<button
-  onClick={() => setPricingOpen(true)}
-  className="inline-flex items-center justify-center gap-2 text-[13px] font-bold px-5 py-2.5 rounded-full bg-[#FFD700] text-black border border-amber-400 shadow-md shadow-amber-500/10 hover:bg-[#FFE033] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-in-out"
->
-  <svg 
-    className="w-4 h-4 text-black" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2.5" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    viewBox="0 0 24 24"
-  >
-    <rect width="20" height="14" x="2" y="5" rx="2" />
-    <line x1="2" x2="22" y1="10" y2="10" />
-  </svg>
-  <span>Buy airMIDI Hours</span>
-</button>
-
-
-
+            <button
+              onClick={() => setShareOpen(true)}
+              aria-label="Share AirMIDI Link"
+              title="Share"
+              className="inline-flex items-center gap-2 text-[11px] font-bold px-3.5 h-10 sm:h-9 rounded-full border border-slate-200 bg-white text-slate-700 hover:text-blue-700 hover:border-blue-400 hover:shadow-md active:scale-95 transition-all"
+            >
+              <IcShare />
+              Share
+            </button>
+            <button
+              onClick={() => setPricingOpen(true)}
+              aria-label="Get hours"
+              className="am-shop group relative overflow-hidden inline-flex items-center gap-2 text-[12px] font-extrabold tracking-wide pl-2 pr-4 h-10 sm:h-9 rounded-full text-white hover:-translate-y-0.5 active:scale-95"
+              style={{
+                background: "linear-gradient(135deg,#FBBF24 0%,#F97316 55%,#EA580C 100%)",
+                boxShadow: "0 8px 20px -6px rgba(249,115,22,.75), inset 0 1px 0 rgba(255,255,255,.4)",
+              }}
+            >
+              <span className="flex w-6 h-6 rounded-full bg-white/25 items-center justify-center shrink-0">
+                <IcBag />
+              </span>
+              <span className="drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]">Get hours</span>
+              <span className="am-shine" aria-hidden />
+            </button>
             {hoursLeft !== null && hoursLeft > 0 && mode !== "receiver" && (
               <span
                 className={`inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1.5 rounded-full border corp-mono ${
@@ -3690,14 +4011,7 @@ export default function AirMidiPage() {
           </section>
           </div>
         </div>
-
-
-
-        
       </main>
-
-
-
     </div>
   );
 }
