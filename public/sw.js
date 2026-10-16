@@ -1,9 +1,13 @@
 /* iMIDI service worker (Next.js) */
-const VERSION = 'v1'; // schimbă la fiecare release important
+const VERSION = 'v2'; // schimbă la fiecare release important
 const CACHE_NAME = `imidi-${VERSION}`;
 const OFFLINE_URL = '/offline.html';
 
-const PRECACHE = ['/', OFFLINE_URL, '/manifest.json', '/icon.png'];
+const PRECACHE = [
+  '/', OFFLINE_URL, '/manifest.json',
+  '/favicon.svg', '/favicon.ico', '/favicon-32x32.png',
+  '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png'
+];
 
 // Niciodată cache-uite: API, auth, sync cloud
 const NETWORK_ONLY = [/^\/api\//, /^\/auth\//, /^\/sync\//, /^\/_next\/data\//];
