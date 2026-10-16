@@ -4278,6 +4278,7 @@ export default function AirMidiPage() {
               </svg>
             </button>
 
+
             <div className={`${showLog ? "flex" : "hidden"} flex-col border-t border-slate-200`}>
               <div className="shrink-0 flex flex-wrap items-center gap-3 px-4 py-2 bg-slate-50 border-b border-slate-200">
                 <label className="flex items-center gap-1.5 text-[11px] text-slate-600 font-medium cursor-pointer select-none">
