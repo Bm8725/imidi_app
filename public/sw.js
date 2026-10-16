@@ -1,5 +1,5 @@
 /* iMIDI service worker (Next.js) */
-const VERSION = 'v2'; // schimbă la fiecare release important
+const VERSION = 'v3'; 
 const CACHE_NAME = `imidi-${VERSION}`;
 const OFFLINE_URL = '/offline.html';
 
@@ -9,7 +9,6 @@ const PRECACHE = [
   '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png'
 ];
 
-// Niciodată cache-uite: API, auth, sync cloud
 const NETWORK_ONLY = [/^\/api\//, /^\/auth\//, /^\/sync\//, /^\/_next\/data\//];
 
 self.addEventListener('install', (event) => {
@@ -46,7 +45,7 @@ self.addEventListener('fetch', (event) => {
   if (NETWORK_ONLY.some((re) => re.test(url.pathname))) return;
   if (url.searchParams.has('_rsc') || request.headers.get('RSC')) return;
 
-  // Pagini: rețea întâi, apoi cache, apoi pagina offline
+  // Pagini: rețea întâi, cache, offline
   if (request.mode === 'navigate') {
     event.respondWith(
       (async () => {
@@ -66,7 +65,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Asset-uri Next cu hash în nume: cache-first
+  // Asset-uri Next statici
   if (url.pathname.startsWith('/_next/static/')) {
     event.respondWith(
       (async () => {
@@ -75,6 +74,21 @@ self.addEventListener('fetch', (event) => {
         if (hit) return hit;
         const res = await fetch(request);
         if (res.ok) cache.put(request, res.clone());
+        return res;
+      })()
+    );
+    return;
+  }
+
+  // Imagini (Rezolvare Desktop PWA)
+  if (url.pathname.endsWith('.png') || url.pathname.endsWith('.ico') || url.pathname.endsWith('.svg')) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        const hit = await cache.match(request);
+        if (hit) return hit;
+        const res = await fetch(request);
+        if (res && res.status === 200) cache.put(request, res.clone());
         return res;
       })()
     );
