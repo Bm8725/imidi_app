@@ -137,9 +137,45 @@ export default function AirLinkLauncher() {
   if (pathname?.startsWith("/airmidi-link")) return null;
 
   return (
-    <div ref={wrapRef} className="fixed left-4 md:left-5 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-5 z- flex flex-col items-start gap-3 select-none">
+    <div 
+      ref={wrapRef} 
+      className="fixed left-4 md:left-5 bottom-[calc(2rem+env(safe-area-inset-bottom))] md:bottom-5 z-[9999] flex flex-col-reverse items-start gap-4 select-none pointer-events-none"
+    >
+      {/* BUTONUL PRINCIPAL (Rămâne mereu la bază) */}
+      <div className="relative flex items-center gap-3 pointer-events-auto">
+        {open && <div className="absolute -inset-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 rounded-full blur opacity-40 animate-pulse -z-10" />}
+
+        <button
+          onClick={() => { setOpen((v) => !v); rememberDismiss(); }}
+          className={`relative w-14 h-14 rounded-full shadow-xl border border-zinc-100 flex items-center justify-center overflow-hidden transition-all duration-200 active:scale-95 ${open ? "bg-gradient-to-br from-indigo-600 to-violet-600" : "bg-white"}`}
+        >
+          {!open && <span className="absolute animate-ping inline-flex h-full w-full rounded-full bg-indigo-400/20 opacity-75" />}
+          <img src="/airlink-icon.png" alt="" width={56} height={56} className={`w-full h-full object-cover transition-transform duration-300 ${open ? "scale-90 rotate-6" : ""}`} draggable={false} />
+          {activeConnections > 0 && !open && (
+            <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-white"></span>
+            </span>
+          )}
+        </button>
+
+        {teaser.show && (
+          <div className="bg-white px-3 py-2 rounded-xl shadow-md border border-zinc-100 text-xs text-zinc-700 max-w-[200px] relative transition-all duration-200">
+            {activeConnections > 0 && <span className="absolute -top-2 -right-2 bg-emerald-500 text-white font-black text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-wider animate-bounce">Live</span>}
+            {teaser.typing ? (
+              <div className="flex gap-1 py-1">
+                <span className="animate-bounce w-1 h-1 bg-zinc-400 rounded-full [animation-delay:-0.3s]" />
+                <span className="animate-bounce w-1 h-1 bg-zinc-400 rounded-full [animation-delay:-0.15s]" />
+                <span className="animate-bounce w-1 h-1 bg-zinc-400 rounded-full" />
+              </div>
+            ) : MESSAGES[teaser.idx]}
+          </div>
+        )}
+      </div>
+
+      {/* DIALOGUL PRINCIPAL (Se deschide în sus, deasupra butonului) */}
       {open && (
-        <div role="dialog" className="transition-all duration-300 transform origin-bottom-left w-[min(300px,calc(100vw-2.5rem))] bg-white/95 backdrop-blur-xl border border-zinc-200 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden">
+        <div role="dialog" className="pointer-events-auto transition-all duration-300 transform scale-100 origin-bottom-left w-[min(300px,calc(100vw-2.5rem))] bg-white/95 backdrop-blur-xl border border-zinc-200 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden">
           <div className="px-5 pt-5 pb-4 bg-gradient-to-br from-indigo-50 via-violet-50 to-white border-b border-zinc-100">
             <div className="flex items-start justify-between">
               <img src="/airlink-icon.png" alt="" width={40} height={40} className="w-10 h-10 rounded-xl shadow-md shadow-indigo-500/30" draggable={false} />
@@ -175,37 +211,6 @@ export default function AirLinkLauncher() {
           </div>
         </div>
       )}
-
-      <div className="relative flex items-center gap-3">
-        {open && <div className="absolute -inset-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 rounded-full blur opacity-40 animate-pulse -z-10" />}
-
-        <button
-          onClick={() => { setOpen((v) => !v); rememberDismiss(); }}
-          className={`relative w-14 h-14 rounded-full shadow-lg border border-zinc-100 flex items-center justify-center overflow-hidden transition-all ${open ? "bg-gradient-to-br from-indigo-600 to-violet-600" : "bg-white"}`}
-        >
-          {!open && <span className="absolute animate-ping inline-flex h-full w-full rounded-full bg-indigo-400/30 opacity-75" />}
-          <img src="/airlink-icon.png" alt="" width={56} height={56} className={`w-full h-full object-cover transition-transform duration-300 ${open ? "scale-90 rotate-6" : ""}`} draggable={false} />
-          {activeConnections > 0 && !open && (
-            <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-white"></span>
-            </span>
-          )}
-        </button>
-
-        {teaser.show && (
-          <div className="bg-white px-3 py-2 rounded-xl shadow-md border border-zinc-100 text-xs text-zinc-700 max-w-[200px] relative transition-all">
-            {activeConnections > 0 && <span className="absolute -top-2 -right-2 bg-emerald-500 text-white font-black text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-wider animate-bounce">Live</span>}
-            {teaser.typing ? (
-              <div className="flex gap-1 py-1">
-                <span className="animate-bounce w-1 h-1 bg-zinc-400 rounded-full [animation-delay:-0.3s]" />
-                <span className="animate-bounce w-1 h-1 bg-zinc-400 rounded-full [animation-delay:-0.15s]" />
-                <span className="animate-bounce w-1 h-1 bg-zinc-400 rounded-full" />
-              </div>
-            ) : MESSAGES[teaser.idx]}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
