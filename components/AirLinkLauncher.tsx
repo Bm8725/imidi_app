@@ -34,18 +34,40 @@ type Msg = {
   kind: "static" | "live" | "wait" | "stats" | "idle" | "burst";
   node: ReactNode;
   sub?: ReactNode; // optional second line shown in the ON AIR card
+  flyText?: string; // plain text carried by the flying icon (burst messages only)
 };
 
+type FlightKind = "promo" | "live" | "burst";
+type Flight = { id: number; sx: number; flip: boolean; kind: FlightKind; text: string };
+
+// What AirMIDI Link really does (teachers, students, bands, producers)
 const STATIC_MESSAGES = [
-  "Hey 👋 Meet AirMIDI Link",
-  "Try new tech: MIDI over the cloud ☁️",
-  "Stream your USB MIDI anywhere 🎹",
-  "Pair any device with a 6-digit code ⚡",
-  "No cables between you and your band 🎶",
+  "Teach or learn live: MIDI, video and voice in one link 🎓",
+  "Receivers always join free. Only the sender spends hours 🎟️",
+  "Notes, knobs and pedals travel together: CC, pitch bend, sustain 🎛️",
+  "Every note lights up on both keyboards, with live chord names 🎼",
+  "Plug in a USB MIDI adapter: your real synth plays on their side 🎹",
+  "Pair in seconds with a 6-digit code ⚡",
+  "Camera and mic stay off until you start them 🔒",
+  "Encrypted WebRTC link between your two devices 🔐",
+  "Stuck note? One tap on Panic sends All Notes Off 🛑",
+  "Snap a photo of your session and share it 📸",
+  "Best in Chrome or Edge, on computer or Android 🧭",
+  "Start free: you get free sessions every day 🎁",
 ];
 
-const DISMISS_KEY = "airlink-teaser-dismissed"; // silences promo messages only
+// short lines carried by the flying icon
+const FLY_LINES = [
+  "Live lessons: MIDI + video 🎓",
+  "Students join free ✨",
+  "Play together from anywhere 🌍",
+  "Notes, knobs and pedals, live 🎛️",
+  "Pair in seconds with a code ⚡",
+];
+
+const DISMISS_KEY = "airlink-teaser-dismissed"; // silences promo messages (and promo flights)
 const MUTE_KEY = "airlink-live-muted-until"; // silences live announcements temporarily
+const FLY_KEY = "airlink-fly-n"; // promo flights already done this visit
 const MUTE_CLOSE_MS = 10 * 60_000; // after ✕ on the ON AIR card
 const MUTE_OPEN_MS = 3 * 60_000; // after the user opened the panel
 const POLL_MS = 15_000;
@@ -53,12 +75,18 @@ const FRESH_MS = 60_000; // heartbeat newer than this = link is live
 const PRIORITY_TTL_MS = 30_000;
 const LIVE_REPEAT_MS = 20_000;
 const SHOW_NAMES = true; // show the device name of live senders (false = anonymous)
+const FLY_MS = 2900; // one flight, from the icon to the top of the screen
+const FLY_CAP = 4; // promo flights per visit
+const FLY_FIRST_MS = 9000; // first promo flight after load
+const FLY_EVERY_MS = 55000; // then about every minute (+ up to 25s random)
 
 // ?al=demo  -> simulated sessions (clearly a preview, only for you), animations forced
+// ?al=fly   -> real data, but the icon flies every 7s and ignores all caps/limits (to see it)
 // ?al=debug -> real data + console diagnostics + reduce-motion warning
 const qp = (k: string) =>
   typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get(k);
 const isDemo = () => qp("al") === "demo";
+const isFly = () => qp("al") === "fly";
 const isDebug = () => qp("al") !== null;
 
 const CONFETTI_COLORS = ["#10b981", "#f43f5e", "#f59e0b", "#6366f1", "#22d3ee", "#ffffff"];
@@ -71,6 +99,29 @@ const CONFETTI = Array.from({ length: 16 }, (_, i) => {
     color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
     delay: `${(i % 4) * 0.04}s`,
   };
+});
+
+// the comet trail behind the flying icon
+const TRAIL_GLYPHS = ["♪", "♫", "♬", "♪", "✦"];
+const TRAIL_COLORS: Record<FlightKind, string[]> = {
+  promo: ["#818cf8", "#a78bfa", "#22d3ee", "#818cf8", "#f0abfc"],
+  live: ["#34d399", "#2dd4bf", "#6ee7b7", "#34d399", "#a7f3d0"],
+  burst: ["#fb7185", "#e879f9", "#fbbf24", "#fb7185", "#fda4af"],
+};
+const PILL_TONE: Record<FlightKind, string> = {
+  promo: "bg-gradient-to-r from-indigo-600 to-violet-600",
+  live: "bg-gradient-to-r from-emerald-500 to-teal-600",
+  burst: "bg-gradient-to-r from-rose-500 to-fuchsia-600",
+};
+const GLOW_TONE: Record<FlightKind, string> = {
+  promo: "bg-indigo-500/60",
+  live: "bg-emerald-400/60",
+  burst: "bg-rose-500/60",
+};
+const SPARKS = Array.from({ length: 10 }, (_, i) => {
+  const a = (i / 10) * Math.PI * 2;
+  const r = 46 + (i % 3) * 14;
+  return { tx: `${Math.round(Math.cos(a) * r)}px`, ty: `${Math.round(Math.sin(a) * r)}px`, c: CONFETTI_COLORS[i % CONFETTI_COLORS.length] };
 });
 
 /* ───────────────────────── small helpers ───────────────────────── */
@@ -160,6 +211,28 @@ function Stat({ label, value, live }: { label: string; value: number; live?: boo
       </div>
       <div className="text-[9px] uppercase tracking-widest text-zinc-400 mt-0.5">{label}</div>
     </div>
+  );
+}
+
+// one layer of the flight: it travels up (eased), sways left-right and fades/shrinks at the end.
+// Three nested layers give a smooth S-curve instead of a jerky polyline.
+function Fly({
+  delay = 0,
+  style,
+  children,
+}: {
+  delay?: number;
+  style?: CSSProperties;
+  children: ReactNode;
+}) {
+  return (
+    <span className="al-travel absolute inset-0 block" style={{ animationDelay: `${delay}ms`, ...style }}>
+      <span className="al-sway block h-full w-full" style={{ animationDelay: `${delay - 360}ms` }}>
+        <span className="al-fx relative block h-full w-full" style={{ animationDelay: `${delay}ms` }}>
+          {children}
+        </span>
+      </span>
+    </span>
   );
 }
 
@@ -294,6 +367,8 @@ export default function AirLinkLauncher() {
   const [reduced, setReduced] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
   const [burstKey, setBurstKey] = useState(0);
+  const [flight, setFlight] = useState<Flight | null>(null);
+  const [launching, setLaunching] = useState(false);
   const [teaser, setTeaser] = useState<{ show: boolean; typing: boolean; msg: Msg | null }>({
     show: false,
     typing: false,
@@ -309,6 +384,14 @@ export default function AirLinkLauncher() {
   const prevOwnLiveRef = useRef<boolean | null>(null);
   const priorityRef = useRef<{ msg: Msg; at: number } | null>(null);
   const fastStartRef = useRef(false);
+  const flightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const launchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flyIdx = useRef(0);
+  const flyCount = useRef(0);
+
+  // latest values for timers (so they never use stale state)
+  const liveRef = useRef({ open: false, dismissed: true, reduced: false, demo: false });
+  liveRef.current = { open, dismissed, reduced, demo };
 
   const messages = useMemo(() => buildMessages(stats), [stats]);
   const messagesRef = useRef<Msg[]>(messages);
@@ -322,7 +405,7 @@ export default function AirLinkLauncher() {
 
   const hideTeaser = () => setTeaser((t) => ({ ...t, show: false, typing: false }));
 
-  // ✕ on a normal bubble / opening the panel: silence promo messages for this session
+  // ✕ on a normal bubble / opening the panel: silence promo messages and promo flights for this session
   const rememberDismiss = () => {
     setDismissed(true);
     hideTeaser();
@@ -347,6 +430,28 @@ export default function AirLinkLauncher() {
     }
   };
 
+  // the icon takes off and flies up across the screen, then disappears
+  const launch = useCallback((kind: FlightKind, text: string) => {
+    if (typeof window === "undefined") return;
+    const w = window.innerWidth;
+    const sx = Math.round(Math.min(w - 96, 120 + Math.random() * Math.max(120, w * 0.55)));
+    const flip = 20 + sx + 38 + 64 + 200 > w; // label on the left when there is no room on the right
+    setFlight({ id: Date.now(), sx, flip, kind, text });
+    setLaunching(true);
+    if (flightTimer.current) clearTimeout(flightTimer.current);
+    flightTimer.current = setTimeout(() => setFlight(null), FLY_MS + 400);
+    if (launchTimer.current) clearTimeout(launchTimer.current);
+    launchTimer.current = setTimeout(() => setLaunching(false), 800);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (flightTimer.current) clearTimeout(flightTimer.current);
+      if (launchTimer.current) clearTimeout(launchTimer.current);
+    },
+    []
+  );
+
   // read modes + stored state (demo ignores it)
   useEffect(() => {
     setDemo(isDemo());
@@ -364,6 +469,45 @@ export default function AirLinkLauncher() {
       setDismissed(false);
     }
   }, []);
+
+  // promo flights: first one shortly after load, then about once a minute (a few per visit, never nagging)
+  useEffect(() => {
+    if (hiddenPage) return;
+    let alive = true;
+    let id: ReturnType<typeof setTimeout>;
+    const demoMode = isDemo();
+    const flyMode = isFly();
+    try {
+      flyCount.current = Number(sessionStorage.getItem(FLY_KEY)) || 0;
+    } catch {
+      /* storage unavailable */
+    }
+    const run = () => {
+      if (!alive) return;
+      const s = liveRef.current;
+      const forced = demoMode || flyMode;
+      const allowed =
+        (forced || !s.reduced) &&
+        !s.open &&
+        !document.hidden &&
+        (forced || (!s.dismissed && flyCount.current < FLY_CAP));
+      if (allowed) {
+        launch("promo", FLY_LINES[flyIdx.current++ % FLY_LINES.length]);
+        flyCount.current += 1;
+        try {
+          sessionStorage.setItem(FLY_KEY, String(flyCount.current));
+        } catch {
+          /* storage unavailable */
+        }
+      }
+      id = setTimeout(run, demoMode ? 14000 : flyMode ? 7000 : FLY_EVERY_MS + Math.random() * 25000);
+    };
+    id = setTimeout(run, demoMode ? 2000 : flyMode ? 3000 : FLY_FIRST_MS);
+    return () => {
+      alive = false;
+      clearTimeout(id);
+    };
+  }, [hiddenPage, launch]);
 
   // new data arrived: detect who just went live, count changes, and sessions ending
   const applyStats = useCallback((s: Stats) => {
@@ -384,6 +528,7 @@ export default function AirLinkLauncher() {
         kind: "burst",
         node: <>Your link just connected! 🔴</>,
         sub: nowSub,
+        flyText: "Your link just connected! 🔴",
       };
     } else if (prevIds) {
       const fresh = s.liveList.filter((l) => !prevIds.has(l.id));
@@ -402,6 +547,7 @@ export default function AirLinkLauncher() {
             <>New MIDI link just went live! 🔴</>
           ),
           sub: nowSub,
+          flyText: first.name ? `${first.name} just went live! 🔴` : "New MIDI link just went live! 🔴",
         };
       } else if (prevCount !== null && s.live_now < prevCount) {
         // someone left
@@ -675,6 +821,12 @@ export default function AirLinkLauncher() {
 
       if (msg.kind === "live" || msg.kind === "burst") lastLiveAtRef.current = now;
 
+      // someone just went live: the icon also flies up the screen to get attention
+      if (msg.kind === "burst" && msg.flyText && liveOk) {
+        const s = liveRef.current;
+        if (!s.reduced || s.demo) launch("burst", msg.flyText);
+      }
+
       const typingMs = msg.kind === "burst" ? 400 : 900;
       const showMs = msg.kind === "burst" ? 7000 : msg.kind === "live" ? 5500 : 4800;
       const m = msg;
@@ -692,7 +844,7 @@ export default function AirLinkLauncher() {
       alive = false;
       timers.forEach(clearTimeout);
     };
-  }, [open, dismissed, mutedUntil, hiddenPage, burstKey]);
+  }, [open, dismissed, mutedUntil, hiddenPage, burstKey, launch]);
 
   // know if the user is signed in (changes the button label + own-link lookup)
   useEffect(() => {
@@ -751,387 +903,494 @@ export default function AirLinkLauncher() {
     : "bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 shadow-[0_14px_44px_rgba(16,185,129,0.6)]";
 
   return (
-    <div
-      ref={wrapRef}
-      data-motion={demo ? "force" : "safe"}
-      className="fixed left-4 md:left-5 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-5 z-[60] flex flex-col items-start gap-3"
-    >
-      <style>{`
-        @keyframes al-pop { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
-        .al-pop { animation: al-pop .28s cubic-bezier(.2,.8,.2,1) both; transform-origin: bottom left; }
-        @keyframes al-ring { 0% { transform: scale(.9); opacity: .5; } 100% { transform: scale(1.8); opacity: 0; } }
-        .al-ring { animation: al-ring 2.4s ease-out infinite; }
-        @keyframes al-wiggle { 0%,100% { transform: rotate(0) translateY(0); } 20% { transform: rotate(-10deg) translateY(-4px); } 40% { transform: rotate(8deg) translateY(-2px); } 60% { transform: rotate(-5deg) translateY(-3px); } 80% { transform: rotate(3deg); } }
-        .al-wiggle { animation: al-wiggle .8s ease-in-out; }
-        @keyframes al-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-        .al-fade { animation: al-fade .35s ease-out both; }
-        @keyframes al-badge { 0% { transform: scale(0); } 70% { transform: scale(1.25); } 100% { transform: scale(1); } }
-        .al-badge { animation: al-badge .4s cubic-bezier(.2,.8,.2,1) both; }
-        @keyframes al-typing { 0%,80%,100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
-        .al-typing { animation: al-typing 1s ease-in-out infinite; }
+    <>
+      <div
+        ref={wrapRef}
+        data-motion={demo ? "force" : "safe"}
+        className="fixed left-4 md:left-5 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-5 z-[60] flex flex-col items-start gap-3"
+      >
+        <style>{`
+          @keyframes al-pop { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
+          .al-pop { animation: al-pop .28s cubic-bezier(.2,.8,.2,1) both; transform-origin: bottom left; }
+          @keyframes al-ring { 0% { transform: scale(.9); opacity: .5; } 100% { transform: scale(1.8); opacity: 0; } }
+          .al-ring { animation: al-ring 2.4s ease-out infinite; }
+          @keyframes al-wiggle { 0%,100% { transform: rotate(0) translateY(0); } 20% { transform: rotate(-10deg) translateY(-4px); } 40% { transform: rotate(8deg) translateY(-2px); } 60% { transform: rotate(-5deg) translateY(-3px); } 80% { transform: rotate(3deg); } }
+          .al-wiggle { animation: al-wiggle .8s ease-in-out; }
+          @keyframes al-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+          .al-fade { animation: al-fade .35s ease-out both; }
+          @keyframes al-badge { 0% { transform: scale(0); } 70% { transform: scale(1.25); } 100% { transform: scale(1); } }
+          .al-badge { animation: al-badge .4s cubic-bezier(.2,.8,.2,1) both; }
+          @keyframes al-typing { 0%,80%,100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+          .al-typing { animation: al-typing 1s ease-in-out infinite; }
 
-        @keyframes al-float {
-          0%   { opacity: 0; transform: translate(0, 0) scale(.3); }
-          20%  { opacity: .95; }
-          100% { opacity: 0; transform: translate(var(--dx, 0), -70px) scale(1.15); }
-        }
-        .al-float { animation: al-float 1.9s ease-out both; }
+          @keyframes al-float {
+            0%   { opacity: 0; transform: translate(0, 0) scale(.3); }
+            20%  { opacity: .95; }
+            100% { opacity: 0; transform: translate(var(--dx, 0), -70px) scale(1.15); }
+          }
+          .al-float { animation: al-float 1.9s ease-out both; }
 
-        /* the ON AIR card shoots out of the icon with a springy overshoot */
-        @keyframes al-emerge {
-          0%   { opacity: 0; transform: translateX(-48px) scale(.2); }
-          55%  { opacity: 1; transform: translateX(6px) scale(1.1); }
-          100% { opacity: 1; transform: none; }
-        }
-        .al-emerge { animation: al-emerge .75s cubic-bezier(.2,.9,.3,1.15) both; transform-origin: left center; }
+          /* the ON AIR card shoots out of the icon with a springy overshoot */
+          @keyframes al-emerge {
+            0%   { opacity: 0; transform: translateX(-48px) scale(.2); }
+            55%  { opacity: 1; transform: translateX(6px) scale(1.1); }
+            100% { opacity: 1; transform: none; }
+          }
+          .al-emerge { animation: al-emerge .75s cubic-bezier(.2,.9,.3,1.15) both; transform-origin: left center; }
 
-        /* light sweep across the card */
-        @keyframes al-shine {
-          0%   { transform: translateX(-130%) skewX(-20deg); }
-          55%,100% { transform: translateX(420%) skewX(-20deg); }
-        }
-        .al-shine { animation: al-shine 2s ease-in-out infinite; }
+          /* light sweep across the card */
+          @keyframes al-shine {
+            0%   { transform: translateX(-130%) skewX(-20deg); }
+            55%,100% { transform: translateX(420%) skewX(-20deg); }
+          }
+          .al-shine { animation: al-shine 2s ease-in-out infinite; }
 
-        /* equalizer bars */
-        @keyframes al-eq { 0%,100% { transform: scaleY(.2); } 50% { transform: scaleY(1); } }
-        .al-eq { animation: al-eq .8s ease-in-out infinite; transform-origin: bottom; }
+          /* equalizer bars */
+          @keyframes al-eq { 0%,100% { transform: scaleY(.2); } 50% { transform: scaleY(1); } }
+          .al-eq { animation: al-eq .8s ease-in-out infinite; transform-origin: bottom; }
 
-        /* signal waves radiating from the card */
-        @keyframes al-signal {
-          0%   { transform: scale(1); opacity: .9; }
-          100% { transform: scale(1.5, 2.4); opacity: 0; }
-        }
-        .al-signal { animation: al-signal 1.8s cubic-bezier(.2,.6,.3,1) infinite; }
+          /* signal waves radiating from the card */
+          @keyframes al-signal {
+            0%   { transform: scale(1); opacity: .9; }
+            100% { transform: scale(1.5, 2.4); opacity: 0; }
+          }
+          .al-signal { animation: al-signal 1.8s cubic-bezier(.2,.6,.3,1) infinite; }
 
-        /* sonar rings radiating from the icon */
-        @keyframes al-sonar {
-          0%   { transform: scale(1); opacity: .85; }
-          100% { transform: scale(3); opacity: 0; }
-        }
-        .al-sonar { animation: al-sonar 2.1s cubic-bezier(.2,.6,.3,1) infinite; }
+          /* sonar rings radiating from the icon */
+          @keyframes al-sonar {
+            0%   { transform: scale(1); opacity: .85; }
+            100% { transform: scale(3); opacity: 0; }
+          }
+          .al-sonar { animation: al-sonar 2.1s cubic-bezier(.2,.6,.3,1) infinite; }
 
-        /* icon heartbeat */
-        @keyframes al-heart {
-          0%,100% { transform: scale(1); }
-          15% { transform: scale(1.18); }
-          30% { transform: scale(1); }
-          45% { transform: scale(1.1); }
-        }
-        .al-heart { animation: al-heart 1.1s ease-in-out infinite; }
+          /* icon heartbeat */
+          @keyframes al-heart {
+            0%,100% { transform: scale(1); }
+            15% { transform: scale(1.18); }
+            30% { transform: scale(1); }
+            45% { transform: scale(1.1); }
+          }
+          .al-heart { animation: al-heart 1.1s ease-in-out infinite; }
 
-        /* confetti */
-        @keyframes al-confetti {
-          0%   { opacity: 1; transform: translate(0,0) scale(.4); }
-          100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(1.1) rotate(200deg); }
-        }
-        .al-confetti { animation: al-confetti 1.3s cubic-bezier(.15,.8,.3,1) both; }
+          /* confetti */
+          @keyframes al-confetti {
+            0%   { opacity: 1; transform: translate(0,0) scale(.4); }
+            100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(1.1) rotate(200deg); }
+          }
+          .al-confetti { animation: al-confetti 1.3s cubic-bezier(.15,.8,.3,1) both; }
 
-        /* OS "reduce motion" only applies when NOT in ?al=demo */
-        @media (prefers-reduced-motion: reduce) {
-          [data-motion="safe"] .al-pop, [data-motion="safe"] .al-ring, [data-motion="safe"] .al-wiggle,
-          [data-motion="safe"] .al-fade, [data-motion="safe"] .al-badge, [data-motion="safe"] .al-typing,
-          [data-motion="safe"] .al-float, [data-motion="safe"] .al-emerge, [data-motion="safe"] .al-shine,
-          [data-motion="safe"] .al-eq, [data-motion="safe"] .al-signal, [data-motion="safe"] .al-sonar,
-          [data-motion="safe"] .al-heart, [data-motion="safe"] .al-confetti { animation: none; }
-        }
-      `}</style>
+          /* ───── the flying icon: travel (eased) + sway (S-curve) + fx (fade/shrink) ───── */
+          @keyframes al-travel {
+            from { transform: translate(0, 0); }
+            to   { transform: translate(var(--sx), var(--fy)); }
+          }
+          .al-travel { animation: al-travel ${FLY_MS}ms cubic-bezier(.35,0,.4,1) both; }
+          @keyframes al-sway {
+            from { transform: translateX(-38px) rotate(-10deg); }
+            to   { transform: translateX(38px) rotate(10deg); }
+          }
+          .al-sway { animation: al-sway .72s ease-in-out infinite alternate both; }
+          @keyframes al-fx {
+            0%   { opacity: 0; transform: scale(.4); }
+            8%   { opacity: 1; transform: scale(1.2); }
+            14%  { transform: scale(1); }
+            86%  { opacity: 1; transform: scale(.85); }
+            100% { opacity: 0; transform: scale(.3); }
+          }
+          .al-fx { animation: al-fx ${FLY_MS}ms ease-out both; }
+          @keyframes al-pill {
+            0%   { opacity: 0; transform: translateX(-6px); }
+            10%  { opacity: 1; transform: none; }
+            60%  { opacity: 1; }
+            80%, 100% { opacity: 0; }
+          }
+          .al-pill { animation: al-pill ${FLY_MS}ms ease-out both; }
+          @keyframes al-poof {
+            0%   { opacity: 0; transform: scale(.3); }
+            20%  { opacity: .9; }
+            100% { opacity: 0; transform: scale(3); }
+          }
+          .al-poof { animation: al-poof 900ms ease-out both; animation-delay: ${Math.round(FLY_MS * 0.8)}ms; }
+          @keyframes al-spark {
+            0%   { opacity: 0; transform: translate(0, 0) scale(.3); }
+            15%  { opacity: 1; }
+            100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(1); }
+          }
+          .al-spark { animation: al-spark 900ms ease-out both; animation-delay: ${Math.round(FLY_MS * 0.8)}ms; }
 
-      {debug && reduced && !demo && (
-        <div className="max-w-[260px] rounded-lg bg-rose-600 text-white text-[10px] font-semibold px-2.5 py-1.5 leading-snug">
-          Your OS has &quot;reduce motion&quot; ON, so animations are off. Add ?al=demo to force them.
-        </div>
-      )}
+          /* OS "reduce motion" only applies when NOT in ?al=demo */
+          @media (prefers-reduced-motion: reduce) {
+            [data-motion="safe"] .al-pop, [data-motion="safe"] .al-ring, [data-motion="safe"] .al-wiggle,
+            [data-motion="safe"] .al-fade, [data-motion="safe"] .al-badge, [data-motion="safe"] .al-typing,
+            [data-motion="safe"] .al-float, [data-motion="safe"] .al-emerge, [data-motion="safe"] .al-shine,
+            [data-motion="safe"] .al-eq, [data-motion="safe"] .al-signal, [data-motion="safe"] .al-sonar,
+            [data-motion="safe"] .al-heart, [data-motion="safe"] .al-confetti { animation: none; }
+          }
+        `}</style>
 
-      {demo && (
-        <div className="max-w-[260px] rounded-lg bg-zinc-900 text-white text-[10px] font-semibold px-2.5 py-1.5 leading-snug">
-          Preview mode: simulated sessions, only visible to you.
-        </div>
-      )}
-
-      {open && (
-        <div
-          role="dialog"
-          aria-label="AirLink"
-          className="al-pop w-[min(300px,calc(100vw-2.5rem))] bg-white/95 backdrop-blur-xl border border-zinc-200 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden"
-        >
-          <div className="px-5 pt-5 pb-4 bg-gradient-to-br from-indigo-50 via-violet-50 to-white border-b border-zinc-100">
-            <div className="flex items-start justify-between">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/airlink-icon.png" alt="" width={40} height={40} className="w-10 h-10 rounded-xl shadow-md shadow-indigo-500/30" draggable={false} />
-              <button
-                onClick={() => setOpen(false)}
-                className="text-zinc-400 hover:text-zinc-700 transition-colors text-sm"
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <h3 className="mt-3 text-sm font-extrabold text-zinc-900">AirMIDI Link</h3>
-            <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
-              Stream MIDI from a USB adapter to any device, live and peer-to-peer.
-            </p>
+        {debug && reduced && !demo && (
+          <div className="max-w-[260px] rounded-lg bg-rose-600 text-white text-[10px] font-semibold px-2.5 py-1.5 leading-snug">
+            Your OS has &quot;reduce motion&quot; ON, so animations are off. Add ?al=demo (or ?al=fly) to force them.
           </div>
+        )}
 
-          <div className="px-5 py-4 space-y-3">
-            {hasStats && stats && (
-              <div className="grid grid-cols-3 gap-2">
-                <Stat label="live now" value={stats.live_now} live />
-                <Stat label="sessions today" value={stats.sessions_today} />
-                <Stat label="min today" value={stats.minutes_today} />
-              </div>
-            )}
-
-            <ul className="space-y-2 text-xs text-zinc-600">
-              {[
-                "Detects your USB MIDI adapter",
-                "Pair with a 6-digit code",
-                "Encrypted WebRTC transport",
-              ].map((t) => (
-                <li key={t} className="flex items-center gap-2">
-                  <span className="w-4 h-4 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 13l4 4L19 7" />
-                    </svg>
-                  </span>
-                  {t}
-                </li>
-              ))}
-            </ul>
-
-            <Link
-              href="/airmidi-link"
-              className="group w-full h-10 bg-black text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-neutral-800 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5"
-            >
-              {signedIn ? "Open AirMIDI Link" : "Sign in to continue"}
-              <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
-            </Link>
+        {demo && (
+          <div className="max-w-[260px] rounded-lg bg-zinc-900 text-white text-[10px] font-semibold px-2.5 py-1.5 leading-snug">
+            Preview mode: simulated sessions, only visible to you.
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => {
-            if (open) {
-              setOpen(false);
-            } else {
-              openPanelFromTeaser();
-            }
-          }}
-          aria-label="Open AirLink"
-          aria-expanded={open}
-          className={`relative w-14 h-14 rounded-full shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-transform duration-200 flex items-center justify-center ${
-            open ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white" : ""
-          }`}
-        >
-          {!open && !onAir && <span className="absolute inset-0 rounded-full bg-indigo-500/40 al-ring" />}
-
-          {/* SONAR: big rings radiating from the icon while someone is live */}
-          {onAir && (
-            <span aria-hidden className="pointer-events-none absolute inset-0">
-              {[0, 0.7, 1.4].map((d) => (
-                <span
-                  key={d}
-                  className={`al-sonar absolute inset-0 rounded-full border-[3px] ${ringColor} ${
-                    isBurst ? "bg-rose-400/20" : "bg-emerald-400/20"
-                  }`}
-                  style={{ animationDelay: `${d}s` }}
-                />
-              ))}
-            </span>
-          )}
-
-          {/* CONFETTI: explosion when someone just went live */}
-          {onAir && isBurst && msg && (
-            <span key={`c-${msg.id}`} aria-hidden className="pointer-events-none absolute left-1/2 top-1/2">
-              {CONFETTI.map((c, i) => (
-                <span
-                  key={i}
-                  className="al-confetti absolute -ml-[4px] -mt-[4px] w-[8px] h-[8px] rounded-sm"
-                  style={
-                    {
-                      background: c.color,
-                      animationDelay: c.delay,
-                      "--tx": c.tx,
-                      "--ty": c.ty,
-                    } as CSSProperties
-                  }
-                />
-              ))}
-            </span>
-          )}
-
-          {/* bubbles + note floating out of the icon when a message pops */}
-          {showBubble && msg && (
-            <span key={`p-${msg.id}`} aria-hidden className="pointer-events-none absolute inset-0">
-              {particles.map((p, i) => (
-                <span
-                  key={i}
-                  className={`al-float absolute top-1 rounded-full border ${
-                    isLive ? "bg-emerald-300/60 border-emerald-200" : "bg-indigo-300/60 border-white/80"
-                  }`}
-                  style={
-                    {
-                      left: p.left,
-                      width: p.size,
-                      height: p.size,
-                      animationDelay: p.delay,
-                      "--dx": p.dx,
-                    } as CSSProperties
-                  }
-                />
-              ))}
-              <span
-                className="al-float absolute top-0 left-1/2 text-sm text-indigo-500"
-                style={{ animationDelay: "0.1s", "--dx": "16px" } as CSSProperties}
-              >
-                ♪
-              </span>
-            </span>
-          )}
-
-          {open ? (
-            <svg className="relative w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={teaser.typing ? `w-${msg?.id ?? "x"}` : "idle"}
-              src="/airlink-icon.png"
-              alt="AirLink"
-              width={56}
-              height={56}
-              className={`relative w-14 h-14 rounded-full select-none ${
-                teaser.show && teaser.typing ? "al-wiggle" : onAir ? "al-heart" : ""
-              }`}
-              draggable={false}
-            />
-          )}
-
-          {/* notification badge while a normal message is showing */}
-          {!open && teaser.show && !onAir && (
-            <span className="al-badge absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-pink-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">
-              1
-            </span>
-          )}
-
-          {/* LIVE pill: visible whenever someone is live and the card is not on screen */}
-          {!open && !onAir && stats && stats.live_now > 0 && (
-            <span className="al-badge absolute -top-2 -right-3 flex items-center gap-1 rounded-full bg-emerald-500 text-white text-[9px] font-extrabold tracking-wider pl-1.5 pr-2 h-[18px] ring-2 ring-white shadow-md">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-white opacity-80 animate-ping" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
-              </span>
-              {stats.live_now} LIVE
-            </span>
-          )}
-        </button>
-
-        {/* message area */}
-        <div
-          aria-live="polite"
-          className={`relative origin-left transition-all duration-500 ease-[cubic-bezier(.34,1.56,.64,1)] ${
-            showBubble
-              ? "opacity-100 translate-x-0 scale-100"
-              : "opacity-0 -translate-x-3 scale-75 pointer-events-none"
-          }`}
-        >
-          {onAir && msg ? (
-            /* ───────── ON AIR CARD (live / just went live / count changed) ───────── */
-            <div key={msg.id} className="relative">
-              <span aria-hidden className="pointer-events-none absolute inset-0">
-                {[0, 0.6, 1.2].map((d) => (
-                  <span
-                    key={d}
-                    className={`al-signal absolute inset-0 rounded-2xl border-[3px] ${ringColor}`}
-                    style={{ animationDelay: `${d}s` }}
-                  />
-                ))}
-              </span>
-
-              <span
-                className={`absolute -left-1 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 ${
-                  isBurst ? "bg-rose-500" : "bg-emerald-500"
-                }`}
-              />
-
-              <button
-                onClick={openPanelFromTeaser}
-                className={`al-emerge relative overflow-hidden text-left rounded-2xl px-4 py-3 text-white min-w-[210px] max-w-[min(270px,calc(100vw-7rem))] ${cardGradient}`}
-              >
-                <span aria-hidden className="al-shine pointer-events-none absolute inset-y-0 left-0 w-1/4 bg-white/35" />
-
-                <span className="relative flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-1.5 rounded-full bg-black/25 px-2 py-0.5 text-[10px] font-extrabold tracking-widest">
-                    <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full rounded-full bg-white opacity-80 animate-ping" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
-                    </span>
-                    {isBurst ? "JUST WENT LIVE" : "ON AIR"}
-                  </span>
-                  <span className="flex items-end gap-[3px] h-4" aria-hidden>
-                    {[0, 0.15, 0.3, 0.1, 0.25].map((d, i) => (
-                      <span
-                        key={i}
-                        className="al-eq w-[3px] h-full rounded-full bg-white/90"
-                        style={{ animationDelay: `${d}s` }}
-                      />
-                    ))}
-                  </span>
-                </span>
-
-                <span className="relative block mt-2 text-sm font-bold leading-snug">{msg.node}</span>
-                {msg.sub && (
-                  <span className="relative block mt-0.5 text-xs font-semibold text-white/90">{msg.sub}</span>
-                )}
-                <span className="relative block mt-1 text-[10px] uppercase tracking-widest text-white/80">
-                  Tap to listen →
-                </span>
-              </button>
-
-              <button
-                onClick={() => muteLive(MUTE_CLOSE_MS)}
-                aria-label="Dismiss live alerts for 10 minutes"
-                className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white text-zinc-600 text-[10px] shadow-md flex items-center justify-center hover:bg-zinc-100"
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            /* ───────── normal small bubble ───────── */
-            <>
-              <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-45 bg-white border-l border-b border-zinc-200" />
-              <div className="relative flex items-center gap-1 pl-4 pr-2 py-2.5 rounded-2xl bg-white border border-zinc-200 shadow-[0_10px_30px_rgba(79,70,229,0.18)] max-w-[min(260px,calc(100vw-7rem))]">
-                <button onClick={openPanelFromTeaser} className="text-left min-h-[1rem]">
-                  {teaser.typing ? (
-                    <span className="flex items-center gap-1 py-1">
-                      {[0, 1, 2].map((i) => (
-                        <span
-                          key={i}
-                          style={{ animationDelay: `${i * 0.15}s` }}
-                          className="al-typing w-1.5 h-1.5 rounded-full bg-indigo-500"
-                        />
-                      ))}
-                    </span>
-                  ) : (
-                    <span key={msg?.id} className="al-fade block text-xs font-semibold text-zinc-800 leading-snug">
-                      {msg?.node}
-                    </span>
-                  )}
-                </button>
+        {open && (
+          <div
+            role="dialog"
+            aria-label="AirLink"
+            className="al-pop w-[min(300px,calc(100vw-2.5rem))] bg-white/95 backdrop-blur-xl border border-zinc-200 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden"
+          >
+            <div className="px-5 pt-5 pb-4 bg-gradient-to-br from-indigo-50 via-violet-50 to-white border-b border-zinc-100">
+              <div className="flex items-start justify-between">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/airlink-icon.png" alt="" width={40} height={40} className="w-10 h-10 rounded-xl shadow-md shadow-indigo-500/30" draggable={false} />
                 <button
-                  onClick={rememberDismiss}
-                  aria-label="Dismiss"
-                  className="text-zinc-300 hover:text-zinc-600 transition-colors text-[11px] px-1.5 self-start"
+                  onClick={() => setOpen(false)}
+                  className="text-zinc-400 hover:text-zinc-700 transition-colors text-sm"
+                  aria-label="Close"
                 >
                   ✕
                 </button>
               </div>
-            </>
-          )}
+              <h3 className="mt-3 text-sm font-extrabold text-zinc-900">AirMIDI Link</h3>
+              <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                Play MIDI together in real time, with live video and voice. For lessons, jams and remote sessions.
+              </p>
+            </div>
+
+            <div className="px-5 py-4 space-y-3">
+              {hasStats && stats && (
+                <div className="grid grid-cols-3 gap-2">
+                  <Stat label="live now" value={stats.live_now} live />
+                  <Stat label="sessions today" value={stats.sessions_today} />
+                  <Stat label="min today" value={stats.minutes_today} />
+                </div>
+              )}
+
+              <ul className="space-y-2 text-xs text-zinc-600">
+                {[
+                  "MIDI, video and voice in one link",
+                  "Keys, knobs and pedals reach their synth",
+                  "Receivers always join free",
+                ].map((t) => (
+                  <li key={t} className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                      <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                    {t}
+                  </li>
+                ))}
+              </ul>
+
+              <Link
+                href="/airmidi-link"
+                className="group w-full h-10 bg-black text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-neutral-800 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5"
+              >
+                {signedIn ? "Open AirMIDI Link" : "Sign in to continue"}
+                <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+              </Link>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              if (open) {
+                setOpen(false);
+              } else {
+                openPanelFromTeaser();
+              }
+            }}
+            aria-label="Open AirLink"
+            aria-expanded={open}
+            className={`relative w-14 h-14 rounded-full shadow-lg shadow-indigo-500/40 hover:scale-105 active:scale-95 transition-transform duration-200 flex items-center justify-center ${
+              open ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white" : ""
+            }`}
+          >
+            {!open && !onAir && <span className="absolute inset-0 rounded-full bg-indigo-500/40 al-ring" />}
+
+            {/* SONAR: big rings radiating from the icon while someone is live */}
+            {onAir && (
+              <span aria-hidden className="pointer-events-none absolute inset-0">
+                {[0, 0.7, 1.4].map((d) => (
+                  <span
+                    key={d}
+                    className={`al-sonar absolute inset-0 rounded-full border-[3px] ${ringColor} ${
+                      isBurst ? "bg-rose-400/20" : "bg-emerald-400/20"
+                    }`}
+                    style={{ animationDelay: `${d}s` }}
+                  />
+                ))}
+              </span>
+            )}
+
+            {/* CONFETTI: explosion when someone just went live */}
+            {onAir && isBurst && msg && (
+              <span key={`c-${msg.id}`} aria-hidden className="pointer-events-none absolute left-1/2 top-1/2">
+                {CONFETTI.map((c, i) => (
+                  <span
+                    key={i}
+                    className="al-confetti absolute -ml-[4px] -mt-[4px] w-[8px] h-[8px] rounded-sm"
+                    style={
+                      {
+                        background: c.color,
+                        animationDelay: c.delay,
+                        "--tx": c.tx,
+                        "--ty": c.ty,
+                      } as CSSProperties
+                    }
+                  />
+                ))}
+              </span>
+            )}
+
+            {/* bubbles + note floating out of the icon when a message pops */}
+            {showBubble && msg && (
+              <span key={`p-${msg.id}`} aria-hidden className="pointer-events-none absolute inset-0">
+                {particles.map((p, i) => (
+                  <span
+                    key={i}
+                    className={`al-float absolute top-1 rounded-full border ${
+                      isLive ? "bg-emerald-300/60 border-emerald-200" : "bg-indigo-300/60 border-white/80"
+                    }`}
+                    style={
+                      {
+                        left: p.left,
+                        width: p.size,
+                        height: p.size,
+                        animationDelay: p.delay,
+                        "--dx": p.dx,
+                      } as CSSProperties
+                    }
+                  />
+                ))}
+                <span
+                  className="al-float absolute top-0 left-1/2 text-sm text-indigo-500"
+                  style={{ animationDelay: "0.1s", "--dx": "16px" } as CSSProperties}
+                >
+                  ♪
+                </span>
+              </span>
+            )}
+
+            {open ? (
+              <svg className="relative w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={teaser.typing ? `w-${msg?.id ?? "x"}` : launching ? "launch" : "idle"}
+                src="/airlink-icon.png"
+                alt="AirLink"
+                width={56}
+                height={56}
+                className={`relative w-14 h-14 rounded-full select-none ${
+                  (teaser.show && teaser.typing) || launching ? "al-wiggle" : onAir ? "al-heart" : ""
+                }`}
+                draggable={false}
+              />
+            )}
+
+            {/* notification badge while a normal message is showing */}
+            {!open && teaser.show && !onAir && (
+              <span className="al-badge absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-pink-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">
+                1
+              </span>
+            )}
+
+            {/* LIVE pill: visible whenever someone is live and the card is not on screen */}
+            {!open && !onAir && stats && stats.live_now > 0 && (
+              <span className="al-badge absolute -top-2 -right-3 flex items-center gap-1 rounded-full bg-emerald-500 text-white text-[9px] font-extrabold tracking-wider pl-1.5 pr-2 h-[18px] ring-2 ring-white shadow-md">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-white opacity-80 animate-ping" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
+                </span>
+                {stats.live_now} LIVE
+              </span>
+            )}
+          </button>
+
+          {/* message area */}
+          <div
+            aria-live="polite"
+            className={`relative origin-left transition-all duration-500 ease-[cubic-bezier(.34,1.56,.64,1)] ${
+              showBubble
+                ? "opacity-100 translate-x-0 scale-100"
+                : "opacity-0 -translate-x-3 scale-75 pointer-events-none"
+            }`}
+          >
+            {onAir && msg ? (
+              /* ───────── ON AIR CARD (live / just went live / count changed) ───────── */
+              <div key={msg.id} className="relative">
+                <span aria-hidden className="pointer-events-none absolute inset-0">
+                  {[0, 0.6, 1.2].map((d) => (
+                    <span
+                      key={d}
+                      className={`al-signal absolute inset-0 rounded-2xl border-[3px] ${ringColor}`}
+                      style={{ animationDelay: `${d}s` }}
+                    />
+                  ))}
+                </span>
+
+                <span
+                  className={`absolute -left-1 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 ${
+                    isBurst ? "bg-rose-500" : "bg-emerald-500"
+                  }`}
+                />
+
+                <button
+                  onClick={openPanelFromTeaser}
+                  className={`al-emerge relative overflow-hidden text-left rounded-2xl px-4 py-3 text-white min-w-[210px] max-w-[min(270px,calc(100vw-7rem))] ${cardGradient}`}
+                >
+                  <span aria-hidden className="al-shine pointer-events-none absolute inset-y-0 left-0 w-1/4 bg-white/35" />
+
+                  <span className="relative flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-1.5 rounded-full bg-black/25 px-2 py-0.5 text-[10px] font-extrabold tracking-widest">
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full rounded-full bg-white opacity-80 animate-ping" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                      </span>
+                      {isBurst ? "JUST WENT LIVE" : "ON AIR"}
+                    </span>
+                    <span className="flex items-end gap-[3px] h-4" aria-hidden>
+                      {[0, 0.15, 0.3, 0.1, 0.25].map((d, i) => (
+                        <span
+                          key={i}
+                          className="al-eq w-[3px] h-full rounded-full bg-white/90"
+                          style={{ animationDelay: `${d}s` }}
+                        />
+                      ))}
+                    </span>
+                  </span>
+
+                  <span className="relative block mt-2 text-sm font-bold leading-snug">{msg.node}</span>
+                  {msg.sub && (
+                    <span className="relative block mt-0.5 text-xs font-semibold text-white/90">{msg.sub}</span>
+                  )}
+                  <span className="relative block mt-1 text-[10px] uppercase tracking-widest text-white/80">
+                    Tap to listen →
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => muteLive(MUTE_CLOSE_MS)}
+                  aria-label="Dismiss live alerts for 10 minutes"
+                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white text-zinc-600 text-[10px] shadow-md flex items-center justify-center hover:bg-zinc-100"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              /* ───────── normal small bubble ───────── */
+              <>
+                <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-45 bg-white border-l border-b border-zinc-200" />
+                <div className="relative flex items-center gap-1 pl-4 pr-2 py-2.5 rounded-2xl bg-white border border-zinc-200 shadow-[0_10px_30px_rgba(79,70,229,0.18)] max-w-[min(260px,calc(100vw-7rem))]">
+                  <button onClick={openPanelFromTeaser} className="text-left min-h-[1rem]">
+                    {teaser.typing ? (
+                      <span className="flex items-center gap-1 py-1">
+                        {[0, 1, 2].map((i) => (
+                          <span
+                            key={i}
+                            style={{ animationDelay: `${i * 0.15}s` }}
+                            className="al-typing w-1.5 h-1.5 rounded-full bg-indigo-500"
+                          />
+                        ))}
+                      </span>
+                    ) : (
+                      <span key={msg?.id} className="al-fade block text-xs font-semibold text-zinc-800 leading-snug">
+                        {msg?.node}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={rememberDismiss}
+                    aria-label="Dismiss"
+                    className="text-zinc-300 hover:text-zinc-600 transition-colors text-[11px] px-1.5 self-start"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* ───────── THE FLYING ICON: leaves the launcher, swoops up across the screen and pops at the top ───────── */}
+      {flight && (
+        <div
+          key={flight.id}
+          aria-hidden
+          className="pointer-events-none fixed left-4 md:left-5 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-5 z-[61] w-14 h-14"
+          style={{ "--sx": `${flight.sx}px`, "--fy": "calc(-100vh + 160px)" } as CSSProperties}
+        >
+          {/* comet trail: notes and sparkles following the same path, a little later */}
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Fly key={i} delay={i * 85} style={{ opacity: 0.9 - i * 0.14 }}>
+              <span
+                className="flex h-full w-full items-center justify-center font-bold leading-none"
+                style={{
+                  color: TRAIL_COLORS[flight.kind][i - 1],
+                  fontSize: 32 - i * 3,
+                  textShadow: "0 0 10px currentColor",
+                }}
+              >
+                {TRAIL_GLYPHS[i - 1]}
+              </span>
+            </Fly>
+          ))}
+
+          {/* the icon itself, with its message */}
+          <Fly>
+            <span className={`absolute -inset-2 rounded-full blur-md ${GLOW_TONE[flight.kind]}`} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/airlink-icon.png"
+              alt=""
+              width={56}
+              height={56}
+              className="relative h-14 w-14 rounded-full ring-2 ring-white/90 shadow-xl"
+              draggable={false}
+            />
+            <span
+              className={`al-pill absolute top-1/2 -translate-y-1/2 max-w-[60vw] truncate whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-bold text-white shadow-lg ${
+                flight.flip ? "right-[64px]" : "left-[64px]"
+              } ${PILL_TONE[flight.kind]}`}
+            >
+              {flight.text}
+            </span>
+          </Fly>
+
+          {/* pop at the top of the screen */}
+          <span
+            className="absolute left-1/2 top-1/2"
+            style={{ transform: "translate(var(--sx), var(--fy))" }}
+          >
+            <span
+              className={`al-poof absolute -ml-7 -mt-7 h-14 w-14 rounded-full border-4 ${
+                flight.kind === "burst" ? "border-rose-400" : flight.kind === "live" ? "border-emerald-400" : "border-indigo-400"
+              }`}
+            />
+            {SPARKS.map((s, i) => (
+              <span
+                key={i}
+                className="al-spark absolute -ml-[4px] -mt-[4px] h-[8px] w-[8px] rounded-sm"
+                style={{ background: s.c, "--tx": s.tx, "--ty": s.ty } as CSSProperties}
+              />
+            ))}
+          </span>
+        </div>
+      )}
+    </>
   );
 }
