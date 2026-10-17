@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useKeepAwake } from "@/lib/useKeepAwake";
 import AirMidiPricing from "@/components/AirMidiPricing";
 import { AirMidiLink, AirMidiStatus, AirMidiLogLevel, AirMidiPeer, VideoQuality, peerFromUser } from "@/lib/AirMidiLink";
+import AirLinkPromo from "@/components/AirLinkPromo";
 
 /* ---------------------------------------------------------------------- */
 /* Types & helpers                                                         */
@@ -3772,6 +3773,7 @@ export default function AirMidiPage() {
                         </span>
                       </button>
                     </div>
+                      <AirLinkPromo paused={pricingOpen || shareOpen || !!joinRequest} />
                   </div>
                 )}
 
