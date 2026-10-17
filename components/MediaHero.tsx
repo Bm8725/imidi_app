@@ -256,6 +256,7 @@ export default function MediaHero({
             Watch the demo
           </button>
         )}
+        
       </div>
     </div>
   );
