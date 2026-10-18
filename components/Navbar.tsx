@@ -60,26 +60,54 @@ const links: NavLink[] = [
 ];
 
 /* ------------------------------------------------------------------ */
-/*  Shared styles (animations)                                        */
+/*  Styles                                                            */
 /* ------------------------------------------------------------------ */
 
 const NavStyles = () => (
   <style>{`
     .aw-nav-scrim {
-      background: linear-gradient(to bottom, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.16) 60%, rgba(0,0,0,0) 100%);
+      background: linear-gradient(to bottom, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.18) 55%, rgba(0,0,0,0) 100%);
     }
+
+    /* AirMIDI */
     @keyframes nv-sonar {
-      0% { transform: scale(.85); opacity: .55; }
-      100% { transform: scale(1.9); opacity: 0; }
+      0% { transform: scale(0.85); opacity: 0.6; }
+      100% { transform: scale(2.1); opacity: 0; }
     }
-    .nv-sonar { animation: nv-sonar 2.4s ease-out infinite; }
+    .nv-sonar { animation: nv-sonar 2.2s ease-out infinite; }
+
     @keyframes nv-eq {
-      0%, 100% { transform: scaleY(.3); }
+      0%, 100% { transform: scaleY(0.25); }
       50% { transform: scaleY(1); }
     }
-    .nv-eq { animation: nv-eq .9s ease-in-out infinite; transform-origin: bottom; }
+    .nv-eq { animation: nv-eq 0.85s ease-in-out infinite; transform-origin: bottom; }
+
+    @keyframes nv-glow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.35); }
+      50% { box-shadow: 0 0 12px 2px rgba(99, 102, 241, 0.45); }
+    }
+    .nv-glow { animation: nv-glow 2.8s ease-in-out infinite; }
+
+    /* Active underline */
+    @keyframes nv-underline {
+      from { transform: scaleX(0); }
+      to { transform: scaleX(1); }
+    }
+    .nv-underline {
+      transform-origin: left;
+      animation: nv-underline 0.25s ease-out forwards;
+    }
+
+    /* Logo hover */
+    .logo-dot {
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .group:hover .logo-dot {
+      transform: scale(1.35) rotate(8deg);
+    }
+
     @media (prefers-reduced-motion: reduce) {
-      .nv-sonar, .nv-eq { animation: none !important; }
+      .nv-sonar, .nv-eq, .nv-glow, .nv-underline { animation: none !important; }
     }
   `}</style>
 );
@@ -109,7 +137,6 @@ function NotificationDropdown({
           onClick={onClose}
         />
       )}
-
       <div
         className={
           isMobile
@@ -157,7 +184,7 @@ function NotificationDropdown({
 }
 
 /* ------------------------------------------------------------------ */
-/*  AirMIDI Link (desktop)                                            */
+/*  AirMIDI Desktop                                                   */
 /* ------------------------------------------------------------------ */
 
 function AirMidiDesktopLink({
@@ -174,17 +201,17 @@ function AirMidiDesktopLink({
   return (
     <Link
       href={href}
-      className={`group relative flex items-center gap-2 text-xs font-semibold uppercase tracking-wider py-1.5 pl-1.5 pr-4 rounded-full ring-1 transition-all duration-200 ${
+      className={`group relative flex items-center gap-2 text-xs font-semibold uppercase tracking-wider py-1.5 pl-1.5 pr-4 rounded-full ring-1 transition-all duration-300 ${
         active
           ? scrolled
-            ? "text-blue-600 bg-blue-50 ring-blue-200"
-            : "text-white bg-white/15 backdrop-blur-sm ring-white/30"
+            ? "text-blue-600 bg-blue-50 ring-blue-200 shadow-sm"
+            : "text-white bg-white/20 backdrop-blur-sm ring-white/40 shadow-[0_0_20px_rgba(255,255,255,0.15)]"
           : scrolled
-          ? "text-slate-600 hover:text-slate-950 hover:bg-slate-100 ring-indigo-200"
-          : "text-white/90 hover:text-white hover:bg-white/10 ring-white/25"
+          ? "text-slate-600 hover:text-slate-950 hover:bg-slate-100 ring-indigo-200 hover:ring-indigo-300"
+          : "text-white/90 hover:text-white hover:bg-white/15 ring-white/25 hover:ring-white/40"
       }`}
     >
-      <span className="relative flex h-6 w-6 shrink-0">
+      <span className={`relative flex h-6 w-6 shrink-0 rounded-full ${active ? "nv-glow" : ""}`}>
         <span
           aria-hidden
           className="nv-sonar absolute inset-0 rounded-full bg-indigo-400/50"
@@ -198,11 +225,11 @@ function AirMidiDesktopLink({
       </span>
       <span className="relative z-10">{label}</span>
       <span aria-hidden className="flex h-3 items-end gap-[2px]">
-        {[0, 0.2, 0.1].map((d, i) => (
+        {[0, 0.18, 0.08].map((d, i) => (
           <span
             key={i}
-            className={`nv-eq h-full w-[2px] rounded-full ${
-              scrolled ? "bg-indigo-500" : "bg-white/80"
+            className={`nv-eq h-full w-[2.5px] rounded-full ${
+              scrolled ? "bg-indigo-500" : "bg-white/85"
             }`}
             style={{ animationDelay: `${d}s` }}
           />
@@ -213,7 +240,7 @@ function AirMidiDesktopLink({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Desktop Navigation                                                */
+/*  Desktop Nav                                                       */
 /* ------------------------------------------------------------------ */
 
 function DesktopNav({
@@ -239,7 +266,7 @@ function DesktopNav({
     <nav
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 hidden md:block ${
         scrolled
-          ? "bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm h-16"
+          ? "bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm h-16"
           : "bg-transparent border-b border-transparent h-20"
       }`}
     >
@@ -252,11 +279,11 @@ function DesktopNav({
             className={`w-auto object-contain transition-all duration-300 ${
               scrolled
                 ? "h-[5.25rem]"
-                : "h-24 drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)]"
+                : "h-24 drop-shadow-[0_1px_8px_rgba(0,0,0,0.4)]"
             }`}
           />
           <span
-            className={`ml-0.5 inline-block group-hover:scale-125 transition-transform duration-200 font-black text-xl ${
+            className={`logo-dot ml-0.5 inline-block font-black text-xl ${
               scrolled ? "text-blue-600" : "text-[#FF5CA1]"
             }`}
           >
@@ -265,7 +292,7 @@ function DesktopNav({
         </Link>
 
         {/* Links */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1">
           {links.slice(1).map((l) => {
             if (l.isAirMidi) {
               return (
@@ -280,6 +307,9 @@ function DesktopNav({
             }
 
             const active = pathname === l.href;
+            const base =
+              "relative text-xs font-semibold uppercase tracking-wider transition-all duration-200 py-2 px-4 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
+
             const activeClass = scrolled
               ? "text-blue-600 bg-blue-50"
               : "text-white bg-white/15 backdrop-blur-sm";
@@ -287,9 +317,26 @@ function DesktopNav({
               ? "text-slate-500 hover:text-slate-950 hover:bg-slate-100"
               : "text-white/80 hover:text-white hover:bg-white/10";
 
-            const className = `text-xs font-semibold uppercase tracking-wider transition-all duration-200 relative py-2 px-4 rounded-full ${
-              active ? activeClass : idleClass
-            }`;
+            const className = `${base} ${active ? activeClass : idleClass}`;
+
+            const inner = (
+              <>
+                <span className="relative z-10">{l.label}</span>
+                {l.isNew && (
+                  <span className="ml-1.5 px-1.5 py-0.5 text-[8px] font-bold bg-emerald-100 text-emerald-700 rounded-md">
+                    NEW
+                  </span>
+                )}
+                {/* Active underline */}
+                {active && (
+                  <span
+                    className={`nv-underline absolute bottom-1 left-4 right-4 h-[2px] rounded-full ${
+                      scrolled ? "bg-blue-500" : "bg-white"
+                    }`}
+                  />
+                )}
+              </>
+            );
 
             if (l.external) {
               return (
@@ -300,37 +347,27 @@ function DesktopNav({
                   rel="noopener noreferrer"
                   className={className}
                 >
-                  <span className="relative z-10">{l.label}</span>
-                  {l.isNew && (
-                    <span className="ml-1.5 px-1.5 py-0.5 text-[8px] font-bold bg-emerald-100 text-emerald-700 rounded-md">
-                      NEW
-                    </span>
-                  )}
+                  {inner}
                 </a>
               );
             }
 
             return (
               <Link key={l.href} href={l.href} className={className}>
-                <span className="relative z-10">{l.label}</span>
-                {l.isNew && (
-                  <span className="ml-1.5 px-1.5 py-0.5 text-[8px] font-bold bg-emerald-100 text-emerald-700 rounded-md">
-                    NEW
-                  </span>
-                )}
+                {inner}
               </Link>
             );
           })}
         </div>
 
-        {/* Right side: notifications + auth */}
-        <div className="flex items-center space-x-4">
+        {/* Right side */}
+        <div className="flex items-center space-x-3">
           {user && (
             <div className="relative">
               <button
                 onClick={onToggleNotif}
                 aria-label="Notificări"
-                className={`relative p-2 rounded-full transition-colors ${
+                className={`relative p-2 rounded-full transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                   scrolled
                     ? "text-slate-500 hover:text-slate-950 hover:bg-slate-100"
                     : "text-white/80 hover:text-white hover:bg-white/10"
@@ -349,8 +386,11 @@ function DesktopNav({
                     d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
                   />
                 </svg>
+                {/* Badge cu număr */}
                 {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#FF5CA1]" />
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-[#FF5CA1] text-[9px] font-bold text-white shadow-sm">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
                 )}
               </button>
 
@@ -369,7 +409,7 @@ function DesktopNav({
                 className="flex items-center space-x-2 group"
               >
                 <div
-                  className={`w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-bold uppercase ${
+                  className={`w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-bold uppercase transition-transform duration-200 group-hover:scale-105 ${
                     scrolled
                       ? "bg-blue-600"
                       : "bg-white/20 backdrop-blur-sm border border-white/30"
@@ -412,7 +452,7 @@ function DesktopNav({
               </Link>
               <Link
                 href="/register"
-                className={`text-xs font-bold uppercase tracking-wider px-5 py-2.5 rounded-full transition-all transform active:scale-95 shadow-sm ${
+                className={`text-xs font-bold uppercase tracking-wider px-5 py-2.5 rounded-full transition-all duration-200 transform active:scale-95 shadow-sm hover:shadow-md ${
                   scrolled
                     ? "bg-blue-600 text-white hover:bg-blue-700"
                     : "bg-white text-[#131316] hover:bg-white/90"
@@ -453,26 +493,28 @@ function MobileHeader({
 }) {
   return (
     <div
-      className={`md:hidden fixed top-0 left-0 right-0 w-full h-14 z-50 flex items-center px-5 justify-between transition-all duration-300 transform-gpu [webkit-backdrop-filter:blur(12px)] ${
+      className={`md:hidden fixed top-0 left-0 right-0 w-full h-14 z-50 flex items-center px-5 justify-between transition-all duration-300 ${
         scrolled
-          ? "bg-white/75 backdrop-blur-md border-b border-slate-200 shadow-sm"
+          ? "bg-white/80 backdrop-blur-md border-b border-slate-200/80 shadow-sm"
           : "bg-transparent border-b border-transparent"
       }`}
     >
       <Link
         href="/"
         onClick={() => setIsMenuOpen(false)}
-        className="flex items-center py-1"
+        className="flex items-center py-1 group"
       >
         <img
           src="/iiimidi.png"
           alt="iMIDI Logo"
           className="h-[4.25rem] w-auto object-contain"
         />
-        <span className="text-blue-600 ml-0.5 font-black text-lg">.</span>
+        <span className="logo-dot text-blue-600 ml-0.5 font-black text-lg">
+          .
+        </span>
       </Link>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         {user && (
           <div className="relative">
             <button
@@ -494,7 +536,9 @@ function MobileHeader({
                 />
               </svg>
               {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#FF5CA1]" />
+                <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 flex items-center justify-center rounded-full bg-[#FF5CA1] text-[8px] font-bold text-white">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
               )}
             </button>
 
@@ -514,11 +558,11 @@ function MobileHeader({
         >
           {user ? (
             <div className="flex items-center gap-1.5">
-              <div className="relative w-6 h-6 shrink-0">
-                <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-bold uppercase">
+              <div className="relative w-7 h-7 shrink-0">
+                <div className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center text-[11px] font-bold uppercase">
                   {(user.name || user.email || "U").charAt(0)}
                 </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
               </div>
               <span className="text-[11px] font-semibold text-slate-700 max-w-[80px] truncate">
                 {user.name || user.email}
@@ -566,10 +610,10 @@ function MobileAccountOverlay({
 }) {
   return (
     <div
-      className={`md:hidden fixed inset-0 bg-white/98 backdrop-blur-2xl z-40 px-6 flex flex-col justify-center transition-all duration-500 ease-in-out transform ${
+      className={`md:hidden fixed inset-0 bg-white/98 backdrop-blur-2xl z-40 px-6 flex flex-col justify-center transition-all duration-500 ease-out ${
         isOpen
           ? "opacity-100 translate-y-0"
-          : "opacity-0 -translate-y-4 pointer-events-none"
+          : "opacity-0 -translate-y-6 pointer-events-none"
       }`}
     >
       <div className="absolute top-24 left-6 right-6 border-b border-slate-100 pb-2">
@@ -582,7 +626,7 @@ function MobileAccountOverlay({
         {user ? (
           <>
             <div className="flex flex-col items-center space-y-3 text-center">
-              <div className="w-14 h-14 rounded-full bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center text-lg font-bold uppercase">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-xl font-bold uppercase shadow-lg">
                 {(user.name || user.email || "U").charAt(0)}
               </div>
               <div>
@@ -636,7 +680,7 @@ function MobileAccountOverlay({
               <Link
                 href="/register"
                 onClick={onClose}
-                className="w-full text-center py-3.5 rounded-full text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98] transition-all shadow-sm"
+                className="w-full text-center py-3.5 rounded-full text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98] transition-all shadow-md"
               >
                 Get Started
               </Link>
@@ -649,7 +693,7 @@ function MobileAccountOverlay({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Mobile Bottom Navigation                                          */
+/*  Mobile Bottom Nav                                                 */
 /* ------------------------------------------------------------------ */
 
 function MobileBottomNav({
@@ -669,8 +713,8 @@ function MobileBottomNav({
           : "translate-y-28 opacity-0 pointer-events-none"
       }`}
     >
-      <div className="bg-white/95 border border-slate-300 backdrop-blur-xl rounded-2xl p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
-        <div className="flex items-center justify-between relative">
+      <div className="bg-white/95 border border-slate-200/80 backdrop-blur-xl rounded-2xl p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
+        <div className="flex items-center justify-between">
           {links.map((l) => {
             if (l.isAirMidi) {
               const on = !!pathname?.startsWith("/airmidi-link");
@@ -679,12 +723,12 @@ function MobileBottomNav({
                   key={l.href}
                   href={l.href}
                   aria-label="AirMIDI Link"
-                  className="flex flex-col items-center justify-center py-1.5 flex-1 relative group active:scale-95 transition-transform"
+                  className="flex flex-col items-center justify-center py-1.5 flex-1 relative active:scale-95 transition-transform"
                   onClick={onNavigate}
                 >
                   <div
                     className={`p-1.5 rounded-xl transition-all duration-200 ${
-                      on ? "bg-blue-50/60 scale-105" : ""
+                      on ? "bg-blue-50 scale-110" : ""
                     }`}
                   >
                     <span className="relative block h-5 w-5">
@@ -692,8 +736,8 @@ function MobileBottomNav({
                         src="/airlink-icon.png"
                         alt=""
                         draggable={false}
-                        className={`h-5 w-5 rounded-full object-cover ${
-                          on ? "ring-2 ring-blue-500" : ""
+                        className={`h-5 w-5 rounded-full object-cover transition-all ${
+                          on ? "ring-2 ring-blue-500 ring-offset-1" : ""
                         }`}
                       />
                       {!on && (
@@ -708,8 +752,8 @@ function MobileBottomNav({
                     </span>
                   </div>
                   <span
-                    className={`text-[8px] font-semibold uppercase tracking-wider mt-1 transition-colors duration-200 ${
-                      on ? "text-blue-600 font-bold" : "text-slate-600"
+                    className={`text-[8px] font-semibold uppercase tracking-wider mt-0.5 transition-colors ${
+                      on ? "text-blue-600 font-bold" : "text-slate-500"
                     }`}
                   >
                     AirMIDI
@@ -723,15 +767,15 @@ function MobileBottomNav({
             const content = (
               <>
                 <div
-                  className={`p-2 rounded-xl transition-all duration-200 ${
+                  className={`relative p-2 rounded-xl transition-all duration-200 ${
                     cur
-                      ? "text-blue-600 bg-blue-50/60 scale-105"
-                      : "text-slate-700 hover:text-slate-950"
+                      ? "text-blue-600 bg-blue-50 scale-110"
+                      : "text-slate-600"
                   }`}
                 >
                   <svg
                     viewBox="0 0 24 24"
-                    strokeWidth={cur ? "1.5" : "2.5"}
+                    strokeWidth={cur ? "1.5" : "2"}
                     stroke="currentColor"
                     fill={cur ? "currentColor" : "none"}
                     className="w-4 h-4"
@@ -744,19 +788,22 @@ function MobileBottomNav({
                   </svg>
                 </div>
                 <span
-                  className={`text-[8px] font-semibold uppercase tracking-wider mt-1 transition-colors duration-200 ${
-                    cur ? "text-blue-600 font-bold" : "text-slate-600"
+                  className={`text-[8px] font-semibold uppercase tracking-wider mt-0.5 transition-colors ${
+                    cur ? "text-blue-600 font-bold" : "text-slate-500"
                   }`}
                 >
                   {l.label}
                 </span>
                 {l.isNew && !cur && (
-                  <span className="absolute top-1.5 right-4 px-1.5 py-0.5 text-[6px] font-bold bg-emerald-100 text-emerald-700 rounded-md scale-90">
+                  <span className="absolute top-1 right-3 px-1 py-0.5 text-[6px] font-bold bg-emerald-100 text-emerald-700 rounded">
                     NEW
                   </span>
                 )}
               </>
             );
+
+            const wrapperClass =
+              "flex flex-col items-center justify-center py-1.5 flex-1 relative active:scale-95 transition-transform";
 
             if (l.external) {
               return (
@@ -765,7 +812,7 @@ function MobileBottomNav({
                   href={l.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-col items-center justify-center py-1.5 flex-1 relative group active:scale-95 transition-transform"
+                  className={wrapperClass}
                   onClick={onNavigate}
                 >
                   {content}
@@ -777,7 +824,7 @@ function MobileBottomNav({
               <Link
                 key={l.href}
                 href={l.href}
-                className="flex flex-col items-center justify-center py-1.5 flex-1 relative group active:scale-95 transition-transform"
+                className={wrapperClass}
                 onClick={onNavigate}
               >
                 {content}
@@ -791,7 +838,7 @@ function MobileBottomNav({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Main Navbar                                                       */
+/*  Main                                                              */
 /* ------------------------------------------------------------------ */
 
 export default function Navbar() {
@@ -807,7 +854,6 @@ export default function Navbar() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  // Notifications
   useEffect(() => {
     const cleanup = initNotifications(setNotifications);
     return cleanup;
@@ -821,7 +867,6 @@ export default function Navbar() {
     }
   };
 
-  // Auth
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -851,9 +896,7 @@ export default function Navbar() {
       }
     );
 
-    return () => {
-      listener.subscription.unsubscribe();
-    };
+    return () => listener.subscription.unsubscribe();
   }, []);
 
   const handleLogout = async () => {
@@ -861,23 +904,25 @@ export default function Navbar() {
     setUser(null);
   };
 
-  // Scroll (optimizat cu useRef)
   useEffect(() => {
     const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      setScrolled(currentScrollY > 15);
+      const current = window.scrollY;
+      setScrolled(current > 15);
 
-      if (currentScrollY > lastScrollY.current && currentScrollY > 60) {
+      if (current > lastScrollY.current && current > 60) {
         setIsVisible(false);
         setIsMenuOpen(false);
       } else {
         setIsVisible(true);
       }
-      lastScrollY.current = currentScrollY;
+      lastScrollY.current = current;
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsMenuOpen(false);
+      if (e.key === "Escape") {
+        setIsMenuOpen(false);
+        setIsNotifOpen(false);
+      }
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -888,7 +933,6 @@ export default function Navbar() {
     };
   }, []);
 
-  // Body overflow
   useEffect(() => {
     document.body.style.overflow = isMenuOpen ? "hidden" : "unset";
   }, [isMenuOpen]);
@@ -897,7 +941,6 @@ export default function Navbar() {
     <>
       <NavStyles />
 
-      {/* Scrim (doar desktop, doar când nu e scrolled) */}
       <div
         aria-hidden
         className={`fixed top-0 inset-x-0 h-36 pointer-events-none z-40 hidden md:block transition-opacity duration-300 aw-nav-scrim ${
