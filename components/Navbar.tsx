@@ -9,6 +9,10 @@ import { initNotifications, markAllNotificationsRead, type AppNotification } fro
 const links = [
   { href: "/", label: "Home", icon: "M2.25 12 11.204 3.045a1.125 1.125 0 0 1 1.592 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21.75h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21.75h2.25" },
   { href: "/products", label: "i-volution", icon: "M7 5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7zM3 9h2v2H3V9zm0 4h2v2H3v-2zm16-4h2v2h-2V9zm0 4h2v2h-2v-2zM9 3h2v2H9V3zm4 0h2v2H3zm-4 16h2v2H9v-2zm4 0h2v2h-2v-2z" },
+
+  // AIRMIDI: special entry (own look in both menus, see the isAirMidi branches below)
+  { href: "/airmidi-link", label: "AirMIDI Link", icon: "", isAirMidi: true },
+
   { href: "/e-market", label: "Market", icon: "M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z", isNew: true },
   
 { 
@@ -127,6 +131,30 @@ export default function Navbar() {
         .aw-nav-scrim {
           background: linear-gradient(to bottom, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.16) 60%, rgba(0,0,0,0) 100%);
         }
+
+        /* AIRMIDI: animatiile pentru butonul AirMIDI Link (desktop + mobil) */
+        @keyframes nv-sonar { 0% { transform: scale(.85); opacity: .55; } 100% { transform: scale(1.9); opacity: 0; } }
+        .nv-sonar { animation: nv-sonar 2.4s ease-out infinite; }
+        @keyframes nv-spin { to { transform: rotate(360deg); } }
+        .nv-spin { animation: nv-spin 5s linear infinite; }
+        @keyframes nv-nudge {
+          0%, 86%, 100% { transform: rotate(0) scale(1); }
+          90% { transform: rotate(-12deg) scale(1.08); }
+          94% { transform: rotate(10deg) scale(1.08); }
+          97% { transform: rotate(-5deg) scale(1.03); }
+        }
+        .nv-nudge { animation: nv-nudge 7s ease-in-out infinite; }
+        @keyframes nv-eq { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
+        .nv-eq { animation: nv-eq .9s ease-in-out infinite; transform-origin: bottom; }
+        @keyframes nv-pop {
+          0% { transform: translateY(14px) scale(.6); opacity: 0; }
+          70% { transform: translateY(-3px) scale(1.06); opacity: 1; }
+          100% { transform: none; opacity: 1; }
+        }
+        .nv-pop { animation: nv-pop .7s cubic-bezier(.2,.9,.3,1.2) .3s both; }
+        @media (prefers-reduced-motion: reduce) {
+          .nv-sonar, .nv-spin, .nv-nudge, .nv-eq, .nv-pop { animation: none !important; }
+        }
       `}</style>
 
       {/* Scrim discret: intunecare graduala doar sus, doar la desktop, doar cand nescrollat */}
@@ -154,6 +182,41 @@ export default function Navbar() {
 
           <div className="flex items-center space-x-2">
             {links.slice(1).map((l) => {
+              // AIRMIDI: pilula speciala (iconita animata + bare de equalizer)
+              if (l.isAirMidi) {
+                const on = !!pathname?.startsWith("/airmidi-link");
+                return (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    className={`group relative flex items-center gap-2 text-xs font-semibold uppercase tracking-wider py-1.5 pl-1.5 pr-4 rounded-full ring-1 transition-all duration-200 ${
+                      on
+                        ? scrolled
+                          ? "text-blue-600 bg-blue-50 ring-blue-200"
+                          : "text-white bg-white/15 backdrop-blur-sm ring-white/30"
+                        : scrolled
+                        ? "text-slate-600 hover:text-slate-950 hover:bg-slate-100 ring-indigo-200"
+                        : "text-white/90 hover:text-white hover:bg-white/10 ring-white/25"
+                    }`}
+                  >
+                    <span className="relative flex h-6 w-6 shrink-0">
+                      <span aria-hidden className="nv-sonar absolute inset-0 rounded-full bg-indigo-400/50" />
+                      <img src="/airlink-icon.png" alt="" className="relative h-6 w-6 rounded-full" draggable={false} />
+                    </span>
+                    <span className="relative z-10">{l.label}</span>
+                    <span aria-hidden className="flex h-3 items-end gap-[2px]">
+                      {[0, 0.2, 0.1].map((d, i) => (
+                        <span
+                          key={i}
+                          className={`nv-eq h-full w-[2px] rounded-full ${scrolled ? "bg-indigo-500" : "bg-white/80"}`}
+                          style={{ animationDelay: `${d}s` }}
+                        />
+                      ))}
+                    </span>
+                  </Link>
+                );
+              }
+
               const active = pathname === l.href;
               const activeClass = scrolled
                 ? "text-blue-600 bg-blue-50"
@@ -433,6 +496,47 @@ export default function Navbar() {
         <div className="bg-white/95 border border-slate-300 backdrop-blur-xl rounded-2xl p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
           <div className="flex items-center justify-between relative">
             {links.map((l) => {
+              // AIRMIDI: butonul "wow" din bara de jos (cerc care iese din bara, inel colorat rotitor, unde de sonar)
+              if (l.isAirMidi) {
+                const on = !!pathname?.startsWith("/airmidi-link");
+                return (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    aria-label="AirMIDI Link"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="relative flex flex-1 flex-col items-center justify-between self-stretch py-1.5 group active:scale-95 transition-transform"
+                  >
+                    <span className="nv-pop relative -mt-7 block h-12 w-12">
+                      <span aria-hidden className="nv-sonar absolute inset-0 rounded-full bg-indigo-500/30" />
+                      <span aria-hidden className="nv-sonar absolute inset-0 rounded-full bg-cyan-400/25" style={{ animationDelay: "1.2s" }} />
+                      {/* "decupajul" din bara: cerc alb cu aceeasi margine ca bara */}
+                      <span
+                        aria-hidden
+                        className={`absolute -inset-1.5 rounded-full bg-white shadow-[0_8px_20px_rgba(79,70,229,0.35)] border ${
+                          on ? "border-blue-500 border-2" : "border-slate-300"
+                        }`}
+                      />
+                      <span
+                        aria-hidden
+                        className="nv-spin absolute inset-0 rounded-full"
+                        style={{ background: "conic-gradient(from 0deg,#6366f1,#22d3ee,#a78bfa,#f472b6,#6366f1)" }}
+                      />
+                      <span aria-hidden className="absolute inset-[3px] rounded-full bg-white" />
+                      <img
+                        src="/airlink-icon.png"
+                        alt=""
+                        draggable={false}
+                        className="nv-nudge absolute inset-[5px] h-[38px] w-[38px] rounded-full object-cover"
+                      />
+                    </span>
+                    <span className={`text-[8px] font-extrabold uppercase tracking-wider ${on ? "text-blue-600" : "text-indigo-600"}`}>
+                      AirMIDI
+                    </span>
+                  </Link>
+                );
+              }
+
               const cur = pathname === l.href;
               return (
                 <Link 
