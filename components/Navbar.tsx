@@ -497,6 +497,7 @@ export default function Navbar() {
           <div className="flex items-center justify-between relative">
             {links.map((l) => {
               // AIRMIDI: butonul "wow" din bara de jos (cerc care iese din bara, inel colorat rotitor, unde de sonar)
+              // AIRMIDI: varianta discreta pe mobil: aceeasi dimensiune ca celelalte, doar iconita colorata + un punct mic
               if (l.isAirMidi) {
                 const on = !!pathname?.startsWith("/airmidi-link");
                 return (
@@ -504,33 +505,26 @@ export default function Navbar() {
                     key={l.href}
                     href={l.href}
                     aria-label="AirMIDI Link"
+                    className="flex flex-col items-center justify-center py-1.5 flex-1 relative group active:scale-95 transition-transform"
                     onClick={() => setIsMenuOpen(false)}
-                    className="relative flex flex-1 flex-col items-center justify-between self-stretch py-1.5 group active:scale-95 transition-transform"
                   >
-                    <span className="nv-pop relative -mt-7 block h-12 w-12">
-                      <span aria-hidden className="nv-sonar absolute inset-0 rounded-full bg-indigo-500/30" />
-                      <span aria-hidden className="nv-sonar absolute inset-0 rounded-full bg-cyan-400/25" style={{ animationDelay: "1.2s" }} />
-                      {/* "decupajul" din bara: cerc alb cu aceeasi margine ca bara */}
-                      <span
-                        aria-hidden
-                        className={`absolute -inset-1.5 rounded-full bg-white shadow-[0_8px_20px_rgba(79,70,229,0.35)] border ${
-                          on ? "border-blue-500 border-2" : "border-slate-300"
-                        }`}
-                      />
-                      <span
-                        aria-hidden
-                        className="nv-spin absolute inset-0 rounded-full"
-                        style={{ background: "conic-gradient(from 0deg,#6366f1,#22d3ee,#a78bfa,#f472b6,#6366f1)" }}
-                      />
-                      <span aria-hidden className="absolute inset-[3px] rounded-full bg-white" />
-                      <img
-                        src="/airlink-icon.png"
-                        alt=""
-                        draggable={false}
-                        className="nv-nudge absolute inset-[5px] h-[38px] w-[38px] rounded-full object-cover"
-                      />
-                    </span>
-                    <span className={`text-[8px] font-extrabold uppercase tracking-wider ${on ? "text-blue-600" : "text-indigo-600"}`}>
+                    <div className={`p-1.5 rounded-xl transition-all duration-200 ${on ? "bg-blue-50/60 scale-105" : ""}`}>
+                      <span className="relative block h-5 w-5">
+                        <img
+                          src="/airlink-icon.png"
+                          alt=""
+                          draggable={false}
+                          className={`h-5 w-5 rounded-full object-cover ${on ? "ring-2 ring-blue-500" : ""}`}
+                        />
+                        {!on && (
+                          <span aria-hidden className="absolute -right-0.5 -top-0.5 flex h-2 w-2">
+                            <span className="nv-sonar absolute inline-flex h-full w-full rounded-full bg-indigo-400" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-500 ring-1 ring-white" />
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <span className={`text-[8px] font-semibold uppercase tracking-wider mt-1 transition-colors duration-200 ${on ? "text-blue-600 font-bold" : "text-slate-600"}`}>
                       AirMIDI
                     </span>
                   </Link>
