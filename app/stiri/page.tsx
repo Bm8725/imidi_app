@@ -6,9 +6,9 @@ import { supabase } from "@/lib/supabase";
 const SITE_URL = "https://imidi.co.uk";
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-stiri.jpg`; 
 
-const DEFAULT_TITLE = "Știri & Comunitate iMIDI";
+const DEFAULT_TITLE = "News & Community iMIDI";
 const DEFAULT_DESCRIPTION =
-  "Află ultimele noutăți despre MIDI routing, hardware patches și actualizări de sistem de la iMIDI.";
+  "Stay updated with the latest news about MIDI routing, hardware patches and system updates from iMIDI.";
 
 type SearchParams = Promise<{ post?: string }>;
 
