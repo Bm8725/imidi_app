@@ -27,10 +27,11 @@ interface Post {
   replies: Reply[];
 }
 
-export default function StiriClient() {
+export default function StiriClient({ initialPosts }: { initialPosts: Post[] }) {
   const [user, setUser] = useState<any>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [posts, setPosts] = useState<Post[]>(initialPosts || []);
+  const [loading] = useState(false);
+
   const [newPost, setNewPost] = useState({ title: "", content: "" });
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
