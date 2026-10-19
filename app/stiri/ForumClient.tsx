@@ -1,5 +1,5 @@
 /**
- * app/stiri/StiriClient.tsx
+ * app/stiri/ForumClient.tsx
  */
 
 "use client";
@@ -61,7 +61,7 @@ export default function StiriClient({ initialPosts }: { initialPosts: Post[] }) 
           replies: (r || []).filter((rep: any) => rep.post_id === post.id),
         }))
       );
-      setLoading(false);
+ 
     })();
   }, []);
 
