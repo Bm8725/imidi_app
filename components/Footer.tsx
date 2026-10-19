@@ -44,7 +44,7 @@ export default function Footer() {
         <div className="flex items-center gap-6 text-[12px] lowercase tracking-normal flex-wrap justify-center font-sans font-medium">
           
           {/* LINK FORUM CU BADGE ANIMAT ROZ */}
-          <Link href="/forum" className="text-[#7E8FAD] hover:text-pink-300 transition-all duration-300 flex items-center gap-2 group relative">
+          <Link href="/stiri" className="text-[#7E8FAD] hover:text-pink-300 transition-all duration-300 flex items-center gap-2 group relative">
             forum
             <span className="relative inline-flex items-center justify-center px-1.5 py-0.5 text-[8px] font-bold lowercase tracking-normal text-pink-400 bg-pink-500/10 border border-pink-400/30 rounded-sm overflow-hidden group-hover:bg-pink-300 group-hover:text-[#0B1528] transition-colors duration-300">
               {/* Puls discret pe fundalul badge-ului */}
