@@ -3,12 +3,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /* ════════════════════════════════════════════════════════════════
-   iMIDI · Privacy & cookie control panel
-   Full-screen sheet. Same public API as before:
-   readConsent(), hasConsent(), openCookieSettings(), default export <CookieBanner/>
+   iMIDI · Privacy & cookie control panel (light theme)
+   - Full-screen sheet on phones, large centered sheet on desktop
+   - Floating icon (bottom-left) always available to reopen the settings
+   - Single source of truth: the privacy page imports CONSENT_CATEGORIES,
+     SESSION_FIELDS and UI_PREF_KEYS from here, so both always match.
+   Accent colour: #0070F3 (find & replace to rebrand).
    ════════════════════════════════════════════════════════════════ */
 
-interface CookieSettings {
+export interface CookieSettings {
   essential: boolean;
   preferences: boolean; // remembers UI choices (theme, keyboard, controls, screen-awake)
   midiAndPresets: boolean; // in-browser audio pre-listening + synth mapping
@@ -27,7 +30,7 @@ const ALL_OFF: CookieSettings = { essential: true, preferences: false, midiAndPr
 const ALL_ON: CookieSettings = { essential: true, preferences: true, midiAndPresets: true, mediaUpload: true, analytics: true };
 
 // localStorage keys written by the AirMIDI page for "Remember my settings": removed when that choice is off
-const UI_PREF_KEYS = ["airmidi-theme", "airmidi-kb-on", "airmidi-kb-size", "airmidi-ctl-on", "airmidi-ctl-hidden", "airmidi-awake"];
+export const UI_PREF_KEYS = ["airmidi-theme", "airmidi-kb-on", "airmidi-kb-size", "airmidi-ctl-on", "airmidi-ctl-hidden", "airmidi-awake"];
 
 /* ───────────── helpers other parts of the app can import ───────────── */
 export function readConsent(): CookieSettings | null {
@@ -53,13 +56,13 @@ export function hasConsent(key: keyof CookieSettings): boolean {
   return !!readConsent()?.[key];
 }
 
-// call it from a footer link: <button onClick={openCookieSettings}>Cookie settings</button>
+// call it from any link/button: <button onClick={openCookieSettings}>Cookie settings</button>
 export function openCookieSettings() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(OPEN_EVENT));
 }
 
-/* ───────────── content ───────────── */
-const CATEGORIES: {
+/* ───────────── content (shared with /privacy) ───────────── */
+export const CONSENT_CATEGORIES: {
   key: OptionalKey;
   title: string;
   text: string;
@@ -101,6 +104,13 @@ const CATEGORIES: {
   },
 ];
 
+export const SESSION_FIELDS: [string, string][] = [
+  ["Room code", "Pairs the devices in a session"],
+  ["Device names", "Shown to the other person"],
+  ["Start and end time", "Used to count your hours"],
+  ["Duration", "Used to count your hours"],
+];
+
 type Tab = "choices" | "airmidi" | "device";
 
 const TABS: { id: Tab; label: string; hint: string }[] = [
@@ -109,19 +119,14 @@ const TABS: { id: Tab; label: string; hint: string }[] = [
   { id: "device", label: "On this device", hint: "What is stored right now" },
 ];
 
-const SESSION_FIELDS: [string, string][] = [
-  ["Room code", "Pairs the devices in a session"],
-  ["Device names", "Shown to the other person"],
-  ["Start and end time", "Used to count your hours"],
-  ["Duration", "Used to count your hours"],
-];
-
 /* ───────────── small UI pieces ───────────── */
 const ico = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
-function Icon({ name }: { name: "video" | "mic" | "keys" | "db" | "photo" | "lock" | "close" }) {
+type IconName = "video" | "mic" | "keys" | "db" | "photo" | "lock" | "close" | "cookie";
+
+function Icon({ name, className = "h-4 w-4" }: { name: IconName; className?: string }) {
   return (
-    <svg className="h-4 w-4" {...ico} aria-hidden>
+    <svg className={className} {...ico} aria-hidden>
       {name === "video" && (
         <>
           <path d="M23 7l-7 5 7 5V7z" />
@@ -160,9 +165,17 @@ function Icon({ name }: { name: "video" | "mic" | "keys" | "db" | "photo" | "loc
         </>
       )}
       {name === "close" && <path d="M18 6L6 18M6 6l12 12" />}
+      {name === "cookie" && (
+        <>
+          <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5z" />
+          <path d="M8.5 8.5v.01M16 15.5v.01M12 12v.01M11 17v.01M7 13v.01" />
+        </>
+      )}
     </svg>
   );
 }
+
+const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0070F3] focus-visible:ring-offset-2 focus-visible:ring-offset-white";
 
 function Switch({ on, label, onChange }: { on: boolean; label: string; onChange: () => void }) {
   return (
@@ -172,12 +185,12 @@ function Switch({ on, label, onChange }: { on: boolean; label: string; onChange:
       aria-checked={on}
       aria-label={label}
       onClick={onChange}
-      className={`relative h-7 w-12 shrink-0 cursor-pointer rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E58A5F] focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
-        on ? "border-[#B4592F] bg-[#B4592F]" : "border-white/25 bg-white/10"
+      className={`relative h-7 w-12 shrink-0 cursor-pointer rounded-full border transition-colors ${FOCUS} ${
+        on ? "border-[#0070F3] bg-[#0070F3]" : "border-[#CFCFCF] bg-[#E5E5E5]"
       }`}
     >
       <span
-        className={`absolute left-[3px] top-[3px] h-5 w-5 rounded-full bg-white transition-transform motion-reduce:transition-none ${
+        className={`absolute left-[3px] top-[3px] h-5 w-5 rounded-full bg-white shadow transition-transform motion-reduce:transition-none ${
           on ? "translate-x-5" : ""
         }`}
       />
@@ -188,35 +201,27 @@ function Switch({ on, label, onChange }: { on: boolean; label: string; onChange:
 function Meta({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
-      <dt className="w-16 shrink-0 text-[11px] text-white/40">{k}</dt>
-      <dd className="min-w-0 break-words font-mono text-[11px] leading-relaxed text-white/70">{v}</dd>
+      <dt className="w-16 shrink-0 text-[11px] text-[#8A8A8A]">{k}</dt>
+      <dd className="min-w-0 break-words font-mono text-[11px] leading-relaxed text-[#444]">{v}</dd>
     </div>
   );
 }
 
-function ChoiceCard({
-  cat,
-  on,
-  onChange,
-}: {
-  cat: (typeof CATEGORIES)[number];
-  on: boolean;
-  onChange: () => void;
-}) {
+function ChoiceCard({ cat, on, onChange }: { cat: (typeof CONSENT_CATEGORIES)[number]; on: boolean; onChange: () => void }) {
   return (
     <section
       className={`rounded-2xl border p-4 transition-colors sm:p-5 ${
-        on ? "border-[#B4592F]/60 bg-[#B4592F]/[0.07]" : "border-white/10 bg-white/[0.02]"
+        on ? "border-[#0070F3]/40 bg-[#0070F3]/[0.04]" : "border-[#EAEAEA] bg-white"
       }`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h3 className="text-[15px] font-semibold text-white">{cat.title}</h3>
-          <p className="mt-1 max-w-[62ch] text-[13px] leading-relaxed text-white/60">{cat.text}</p>
+          <h3 className="text-[15px] font-semibold text-black">{cat.title}</h3>
+          <p className="mt-1 max-w-[62ch] text-[13px] leading-relaxed text-[#666]">{cat.text}</p>
         </div>
         <Switch on={on} label={cat.title} onChange={onChange} />
       </div>
-      <dl className="mt-4 flex flex-col gap-1.5 border-t border-white/10 pt-3">
+      <dl className="mt-4 flex flex-col gap-1.5 border-t border-[#EAEAEA] pt-3">
         <Meta k="Stores" v={cat.stores} />
         <Meta k="Kept" v={cat.kept} />
         <Meta k="If off" v={cat.off} />
@@ -264,43 +269,32 @@ const PERM_LABEL: Record<PermState, string> = {
   unknown: "Status not available here",
 };
 const PERM_DOT: Record<PermState, string> = {
-  granted: "bg-[#25D366]",
-  denied: "bg-red-400",
-  prompt: "bg-white/30",
-  unknown: "bg-white/20",
+  granted: "bg-[#1A9F4B]",
+  denied: "bg-[#E5484D]",
+  prompt: "bg-[#BDBDBD]",
+  unknown: "bg-[#DADADA]",
 };
 
-function PermissionRow({
-  icon,
-  title,
-  text,
-  state,
-}: {
-  icon: "video" | "mic" | "keys";
-  title: string;
-  text: string;
-  state: PermState;
-}) {
+function PermissionRow({ icon, title, text, state }: { icon: "video" | "mic" | "keys"; title: string; text: string; state: PermState }) {
   return (
     <li className="flex items-start gap-3 py-3.5">
-      <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-[#E58A5F]">
+      <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0070F3]/10 text-[#0070F3]">
         <Icon name={icon} />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-          <h4 className="text-sm font-semibold text-white">{title}</h4>
-          <span className="flex items-center gap-2 text-[11px] text-white/60">
+          <h4 className="text-sm font-semibold text-black">{title}</h4>
+          <span className="flex items-center gap-2 text-[11px] text-[#666]">
             <span className={`h-2 w-2 rounded-full ${PERM_DOT[state]}`} aria-hidden />
             {PERM_LABEL[state]}
           </span>
         </div>
-        <p className="mt-1 max-w-[62ch] text-[13px] leading-relaxed text-white/55">{text}</p>
+        <p className="mt-1 max-w-[62ch] text-[13px] leading-relaxed text-[#666]">{text}</p>
       </div>
     </li>
   );
 }
 
-/* the path a private call takes, drawn once, no animation */
 function CallPath() {
   const nodes = ["Your device", "Browser permission", "Encrypted, device to device", "Other person"];
   return (
@@ -309,12 +303,12 @@ function CallPath() {
         <li key={n} className="flex flex-1 items-center sm:flex-row">
           <div
             className={`flex-1 rounded-xl border px-3 py-2.5 text-center text-xs font-medium ${
-              i === 2 ? "border-[#B4592F]/70 bg-[#B4592F]/10 text-white" : "border-white/10 bg-white/[0.03] text-white/70"
+              i === 2 ? "border-[#0070F3]/50 bg-[#0070F3]/[0.06] text-black" : "border-[#EAEAEA] bg-[#FAFAFA] text-[#555]"
             }`}
           >
             {n}
           </div>
-          {i < nodes.length - 1 && <span className="hidden h-px w-4 shrink-0 bg-white/25 sm:block" aria-hidden />}
+          {i < nodes.length - 1 && <span className="hidden h-px w-4 shrink-0 bg-[#CFCFCF] sm:block" aria-hidden />}
         </li>
       ))}
     </ol>
@@ -330,17 +324,17 @@ function AirMidiPane({ active }: { active: boolean }) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h3 className="text-lg font-semibold text-white">Private calls and live sessions</h3>
-        <p className="mt-1.5 max-w-[66ch] text-[13px] leading-relaxed text-white/60">
+        <h3 className="text-lg font-semibold text-black">Private calls and live sessions</h3>
+        <p className="mt-1.5 max-w-[66ch] text-[13px] leading-relaxed text-[#666]">
           Camera, microphone and MIDI are not cookies. Your browser asks you separately, and you can change or revoke each one in its site
-          settings at any time. Nothing below depends on the cookie choices on the previous tab.
+          settings at any time. Nothing here depends on the cookie choices on the first tab.
         </p>
       </div>
 
       <CallPath />
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 sm:px-5">
-        <ul className="divide-y divide-white/10">
+      <section className="rounded-2xl border border-[#EAEAEA] bg-white px-4 sm:px-5">
+        <ul className="divide-y divide-[#EAEAEA]">
           <PermissionRow
             icon="video"
             title="Camera"
@@ -368,30 +362,30 @@ function AirMidiPane({ active }: { active: boolean }) {
         </ul>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-5">
-        <div className="flex items-center gap-2 text-white">
+      <section className="rounded-2xl border border-[#EAEAEA] bg-white p-4 sm:p-5">
+        <div className="flex items-center gap-2 text-black">
           <Icon name="db" />
           <h4 className="text-sm font-semibold">Session details we keep</h4>
         </div>
-        <p className="mt-1.5 max-w-[62ch] text-[13px] leading-relaxed text-white/55">
+        <p className="mt-1.5 max-w-[62ch] text-[13px] leading-relaxed text-[#666]">
           To pair devices and count your hours, we keep these details for each session, linked to your account.
         </p>
         <dl className="mt-3 grid gap-x-8 gap-y-2 sm:grid-cols-2">
           {SESSION_FIELDS.map(([k, v]) => (
-            <div key={k} className="flex flex-col border-t border-white/10 pt-2">
-              <dt className="text-[13px] font-medium text-white/90">{k}</dt>
-              <dd className="text-[12px] text-white/50">{v}</dd>
+            <div key={k} className="flex flex-col border-t border-[#EAEAEA] pt-2">
+              <dt className="text-[13px] font-medium text-black">{k}</dt>
+              <dd className="text-[12px] text-[#777]">{v}</dd>
             </div>
           ))}
         </dl>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-5">
-        <div className="flex items-center gap-2 text-white">
+      <section className="rounded-2xl border border-[#EAEAEA] bg-white p-4 sm:p-5">
+        <div className="flex items-center gap-2 text-black">
           <Icon name="photo" />
           <h4 className="text-sm font-semibold">Photos</h4>
         </div>
-        <p className="mt-1.5 max-w-[62ch] text-[13px] leading-relaxed text-white/55">
+        <p className="mt-1.5 max-w-[62ch] text-[13px] leading-relaxed text-[#666]">
           The Photo button saves a picture on your device. It is uploaded to a public link only if you press Share with a live picture.
         </p>
       </section>
@@ -425,36 +419,36 @@ function DevicePane({ draft, active }: { draft: CookieSettings; active: boolean 
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h3 className="text-lg font-semibold text-white">Stored on this device</h3>
-        <p className="mt-1.5 max-w-[66ch] text-[13px] leading-relaxed text-white/60">
+        <h3 className="text-lg font-semibold text-black">Stored on this device</h3>
+        <p className="mt-1.5 max-w-[66ch] text-[13px] leading-relaxed text-[#666]">
           A live read of the local storage keys iMIDI uses in this browser. Nothing here is sent to anyone by this panel.
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-white/10">
+      <div className="overflow-x-auto rounded-2xl border border-[#EAEAEA] bg-white">
         <table className="w-full min-w-[420px] text-left text-[12px]">
-          <thead className="bg-white/[0.04] text-white/50">
+          <thead className="bg-[#FAFAFA] text-[#666]">
             <tr>
               <th className="px-4 py-2.5 font-medium">Key</th>
               <th className="px-4 py-2.5 font-medium">Status</th>
               <th className="px-4 py-2.5 text-right font-medium">Size</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/10">
+          <tbody className="divide-y divide-[#EAEAEA]">
             {rows.map((r) => (
               <tr key={r.key}>
-                <td className="px-4 py-2.5 font-mono text-white/80">{r.key}</td>
-                <td className="px-4 py-2.5 text-white/60">
+                <td className="px-4 py-2.5 font-mono text-[#222]">{r.key}</td>
+                <td className="px-4 py-2.5 text-[#666]">
                   {r.present ? (willRemove(r.key) ? "Stored, will be deleted on save" : "Stored") : "Empty"}
                 </td>
-                <td className="px-4 py-2.5 text-right font-mono text-white/60">{r.present ? `${r.bytes} B` : "–"}</td>
+                <td className="px-4 py-2.5 text-right font-mono text-[#666]">{r.present ? `${r.bytes} B` : "–"}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <p className="max-w-[66ch] text-[12px] leading-relaxed text-white/45">
+      <p className="max-w-[66ch] text-[12px] leading-relaxed text-[#777]">
         Required storage: the sign-in session, account security, the 6-digit pairing code and this consent record. Without it the site and AirMIDI
         Link cannot work, so it has no switch.
       </p>
@@ -464,6 +458,7 @@ function DevicePane({ draft, active }: { draft: CookieSettings; active: boolean 
 
 /* ───────────── component ───────────── */
 export default function CookieBanner() {
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
   const [tab, setTab] = useState<Tab>("choices");
@@ -471,6 +466,7 @@ export default function CookieBanner() {
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    setMounted(true);
     let timer: ReturnType<typeof setTimeout> | undefined;
     const saved = readConsent();
     if (saved) {
@@ -480,7 +476,7 @@ export default function CookieBanner() {
     } else {
       timer = setTimeout(() => setIsOpen(true), 1200);
     }
-    // "Cookie settings" link in the footer: reopen with the current choices
+    // any "Cookie settings" link/button (footer, privacy page, floating icon): reopen with current choices
     const reopen = () => {
       const current = readConsent();
       setSettings(current ?? ALL_OFF);
@@ -531,7 +527,7 @@ export default function CookieBanner() {
   };
 
   const flip = (k: OptionalKey) => setSettings((s) => ({ ...s, [k]: !s[k] }));
-  const enabledCount = useMemo(() => CATEGORIES.filter((c) => settings[c.key]).length, [settings]);
+  const enabledCount = useMemo(() => CONSENT_CATEGORIES.filter((c) => settings[c.key]).length, [settings]);
 
   /* dialog behaviour: scroll lock, focus, Esc, focus trap */
   const close = useCallback(() => {
@@ -570,11 +566,27 @@ export default function CookieBanner() {
     }
   };
 
-  if (!isOpen) return null;
+  if (!mounted) return null;
+
+  /* closed: persistent floating icon, always reachable */
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        onClick={openCookieSettings}
+        aria-label="Open cookie and privacy settings"
+        title="Cookie and privacy settings"
+        className={`fixed left-4 z-[90] flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[#EAEAEA] bg-white text-[#111] shadow-[0_4px_16px_rgba(0,0,0,0.12)] transition-all hover:border-[#0070F3]/50 hover:text-[#0070F3] hover:shadow-[0_6px_20px_rgba(0,0,0,0.16)] active:scale-95 motion-reduce:transition-none ${FOCUS}`}
+        style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      >
+        <Icon name="cookie" className="h-5 w-5" />
+      </button>
+    );
+  }
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-stretch justify-center bg-black/80 backdrop-blur-sm md:items-center md:p-6 lg:p-10"
+      className="fixed inset-0 z-[100] flex items-stretch justify-center bg-black/40 backdrop-blur-sm md:items-center md:p-6 lg:p-10"
       onKeyDown={onKeyDown}
     >
       <div
@@ -583,21 +595,21 @@ export default function CookieBanner() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="imidi-consent-title"
-        className="relative flex h-full w-full max-w-[1180px] flex-col overflow-hidden bg-[#0A0A0A] text-white outline-none animate-in fade-in zoom-in-95 duration-300 motion-reduce:animate-none md:h-auto md:max-h-full md:rounded-3xl md:border md:border-white/10 md:shadow-[0_40px_120px_-20px_rgba(0,0,0,0.9)]"
+        className="relative flex h-full w-full max-w-[1180px] flex-col overflow-hidden bg-white text-[#111] outline-none animate-in fade-in zoom-in-95 duration-300 motion-reduce:animate-none md:h-auto md:max-h-full md:rounded-3xl md:border md:border-[#EAEAEA] md:shadow-[0_40px_120px_-20px_rgba(0,0,0,0.35)]"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         {/* header */}
-        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-white/10 px-5 py-5 sm:px-8">
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-[#EAEAEA] px-5 py-5 sm:px-8">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[13px] text-white/50">
-              <span className="font-semibold text-white">iMIDI</span>
+            <div className="flex items-center gap-2 text-[13px] text-[#777]">
+              <span className="font-semibold text-black">iMIDI</span>
               <span aria-hidden>/</span>
               <span>Privacy and storage</span>
             </div>
-            <h2 id="imidi-consent-title" className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+            <h2 id="imidi-consent-title" className="mt-2 text-2xl font-semibold tracking-tight text-black sm:text-3xl">
               You decide what stays on your device.
             </h2>
-            <p className="mt-2 max-w-[68ch] text-[13px] leading-relaxed text-white/60">
+            <p className="mt-2 max-w-[68ch] text-[13px] leading-relaxed text-[#666]">
               Optional storage is off until you turn it on. This applies to imidi.co.uk and AirMIDI Link, including private video calls and live
               MIDI sessions.
             </p>
@@ -607,7 +619,7 @@ export default function CookieBanner() {
               type="button"
               onClick={close}
               aria-label="Close without changing"
-              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-white/15 text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E58A5F]"
+              className={`flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-[#E0E0E0] text-[#555] transition-colors hover:bg-[#F2F2F2] hover:text-black ${FOCUS}`}
             >
               <Icon name="close" />
             </button>
@@ -619,7 +631,7 @@ export default function CookieBanner() {
           {/* nav: tab strip on phones, side rail from md */}
           <nav
             aria-label="Privacy sections"
-            className="flex shrink-0 gap-1 overflow-x-auto border-b border-white/10 px-3 py-2 md:w-64 md:flex-col md:overflow-visible md:border-b-0 md:border-r md:px-4 md:py-5"
+            className="flex shrink-0 gap-1 overflow-x-auto border-b border-[#EAEAEA] bg-[#FAFAFA] px-3 py-2 md:w-64 md:flex-col md:overflow-visible md:border-b-0 md:border-r md:px-4 md:py-5"
           >
             <div role="tablist" aria-orientation="vertical" className="flex gap-1 md:flex-col">
               {TABS.map((t) => {
@@ -630,23 +642,25 @@ export default function CookieBanner() {
                     role="tab"
                     aria-selected={sel}
                     onClick={() => setTab(t.id)}
-                    className={`shrink-0 cursor-pointer rounded-xl px-3.5 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E58A5F] ${
-                      sel ? "bg-white/10 text-white" : "text-white/55 hover:bg-white/[0.05] hover:text-white"
+                    className={`shrink-0 cursor-pointer rounded-xl border px-3.5 py-2.5 text-left transition-colors ${FOCUS} ${
+                      sel
+                        ? "border-[#EAEAEA] bg-white text-black shadow-sm"
+                        : "border-transparent text-[#666] hover:bg-black/[0.04] hover:text-black"
                     }`}
                   >
                     <span className="block text-sm font-semibold">{t.label}</span>
-                    <span className="mt-0.5 hidden text-[12px] leading-snug text-white/45 md:block">{t.hint}</span>
+                    <span className="mt-0.5 hidden text-[12px] leading-snug text-[#8A8A8A] md:block">{t.hint}</span>
                   </button>
                 );
               })}
             </div>
 
-            <div className="mt-auto hidden rounded-xl border border-white/10 bg-white/[0.03] p-3.5 md:block">
-              <div className="flex items-center gap-2 text-[12px] font-semibold text-white">
+            <div className="mt-auto hidden rounded-xl border border-[#EAEAEA] bg-white p-3.5 md:block">
+              <div className="flex items-center gap-2 text-[12px] font-semibold text-black">
                 <Icon name="lock" />
                 Required storage is always on
               </div>
-              <p className="mt-1.5 text-[12px] leading-relaxed text-white/50">
+              <p className="mt-1.5 text-[12px] leading-relaxed text-[#777]">
                 Sign-in, account security and device pairing cannot work without it.
               </p>
             </div>
@@ -657,32 +671,34 @@ export default function CookieBanner() {
             {tab === "choices" && (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="text-lg font-semibold text-white">Optional storage</h3>
-                  <span className="text-[12px] text-white/50">
-                    {enabledCount} of {CATEGORIES.length} on
+                  <h3 className="text-lg font-semibold text-black">Optional storage</h3>
+                  <span className="text-[12px] text-[#777]">
+                    {enabledCount} of {CONSENT_CATEGORIES.length} on
                   </span>
                 </div>
-                {CATEGORIES.map((c) => (
+                {CONSENT_CATEGORIES.map((c) => (
                   <ChoiceCard key={c.key} cat={c} on={settings[c.key]} onChange={() => flip(c.key)} />
                 ))}
               </div>
             )}
-            <div hidden={tab !== "airmidi"}>{<AirMidiPane active={isOpen && tab === "airmidi"} />}</div>
+            <div hidden={tab !== "airmidi"}>
+              <AirMidiPane active={isOpen && tab === "airmidi"} />
+            </div>
             {tab === "device" && <DevicePane draft={settings} active={tab === "device"} />}
           </div>
         </div>
 
         {/* actions: Reject and Accept carry the same weight on purpose */}
         <footer
-          className="flex shrink-0 flex-col gap-3 border-t border-white/10 bg-black/60 px-5 py-4 sm:px-8 md:flex-row md:items-center md:justify-between"
+          className="flex shrink-0 flex-col gap-3 border-t border-[#EAEAEA] bg-[#FAFAFA] px-5 py-4 sm:px-8 md:flex-row md:items-center md:justify-between"
           style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
         >
-          <p className="text-[12px] leading-relaxed text-white/45">
-            Change this any time from Cookie settings in the footer.
+          <p className="text-[12px] leading-relaxed text-[#777]">
+            Change this any time with the cookie icon at the bottom left of every page.
             {PRIVACY_URL && (
               <>
                 {" "}
-                <a href={PRIVACY_URL} className="text-white/75 underline underline-offset-2 hover:text-white">
+                <a href={PRIVACY_URL} className="text-[#0070F3] underline-offset-2 hover:underline">
                   Privacy policy
                 </a>
               </>
@@ -691,19 +707,19 @@ export default function CookieBanner() {
           <div className="grid grid-cols-3 gap-2 md:flex md:gap-3">
             <button
               onClick={() => savePreferences(ALL_OFF)}
-              className="cursor-pointer rounded-xl border border-white/25 px-3 py-3 text-[13px] font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E58A5F] md:px-5"
+              className={`cursor-pointer rounded-xl border border-[#CFCFCF] bg-white px-3 py-3 text-[13px] font-semibold text-black transition-colors hover:bg-[#F2F2F2] md:px-5 ${FOCUS}`}
             >
               Reject all
             </button>
             <button
               onClick={() => savePreferences(settings)}
-              className="cursor-pointer rounded-xl bg-white px-3 py-3 text-[13px] font-semibold text-black transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E58A5F] focus-visible:ring-offset-2 focus-visible:ring-offset-black md:px-6"
+              className={`cursor-pointer rounded-xl bg-black px-3 py-3 text-[13px] font-semibold text-white transition-colors hover:bg-[#333] md:px-6 ${FOCUS}`}
             >
               Save choices
             </button>
             <button
               onClick={() => savePreferences(ALL_ON)}
-              className="cursor-pointer rounded-xl border border-white/25 px-3 py-3 text-[13px] font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E58A5F] md:px-5"
+              className={`cursor-pointer rounded-xl border border-[#CFCFCF] bg-white px-3 py-3 text-[13px] font-semibold text-black transition-colors hover:bg-[#F2F2F2] md:px-5 ${FOCUS}`}
             >
               Accept all
             </button>
