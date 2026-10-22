@@ -129,15 +129,7 @@ export default function Footer() {
               >
                 iMIDI<span className="text-pink-300">.co.uk</span>
               </Link>
-              <span aria-hidden className="flex h-5 items-end gap-[3px]">
-                {[0, 0.2, 0.1, 0.3, 0.15].map((d, i) => (
-                  <span
-                    key={i}
-                    className="ft-eq h-full w-[3px] rounded-full bg-gradient-to-t from-pink-400/60 to-pink-200"
-                    style={{ animationDelay: `${d}s` }}
-                  />
-                ))}
-              </span>
+
             </div>
             <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-[#9AA9C4]">
               MIDI hardware, cloud space and live sessions, together in one platform.
