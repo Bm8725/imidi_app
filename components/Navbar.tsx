@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -9,6 +9,7 @@ import {
   markAllNotificationsRead,
   type AppNotification,
 } from "@/lib/notifications";
+import { openCookieSettings } from "@/components/CookieBanner";
 
 /* ------------------------------------------------------------------ */
 /*  Config                                                            */
@@ -21,6 +22,8 @@ type NavLink = {
   isAirMidi?: boolean;
   isNew?: boolean;
   external?: boolean;
+  /** Path prefix that keeps this item highlighted (defaults to href) */
+  match?: string;
 };
 
 const links: NavLink[] = [
@@ -55,9 +58,58 @@ const links: NavLink[] = [
   {
     href: "/dashboard/cloud-db",
     label: "mySpace",
+    match: "/dashboard",
     icon: "M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z",
   },
 ];
+
+const FOCUS =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
+
+const BELL_PATH =
+  "M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0";
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                           */
+/* ------------------------------------------------------------------ */
+
+function isActive(pathname: string | null, l: NavLink) {
+  if (!pathname || l.external) return false;
+  const base = l.match ?? l.href;
+  if (base === "/") return pathname === "/";
+  return pathname === base || pathname.startsWith(base + "/");
+}
+
+function timeAgo(value: unknown): string {
+  const t = new Date(value as string | number).getTime();
+  if (!isFinite(t)) return "";
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 60) return "now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  return new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
+const nKey = (n: AppNotification) => `${n.id}-${n.createdAt}`;
+
+function useOutsideClose<T extends HTMLElement>(open: boolean, onClose: () => void) {
+  const ref = useRef<T>(null);
+  const cb = useRef(onClose);
+  cb.current = onClose;
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) cb.current();
+    };
+    document.addEventListener("pointerdown", handler);
+    return () => document.removeEventListener("pointerdown", handler);
+  }, [open]);
+  return ref;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Styles                                                            */
@@ -98,6 +150,13 @@ const NavStyles = () => (
       animation: nv-underline 0.25s ease-out forwards;
     }
 
+    /* Dropdowns */
+    @keyframes nv-pop {
+      from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+      to { opacity: 1; transform: none; }
+    }
+    .nv-pop { animation: nv-pop 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both; transform-origin: top right; }
+
     /* Logo hover */
     .logo-dot {
       transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -107,79 +166,257 @@ const NavStyles = () => (
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .nv-sonar, .nv-eq, .nv-glow, .nv-underline { animation: none !important; }
+      .nv-sonar, .nv-eq, .nv-glow, .nv-underline, .nv-pop { animation: none !important; }
     }
   `}</style>
 );
 
 /* ------------------------------------------------------------------ */
-/*  Notification Dropdown                                             */
+/*  Notifications                                                     */
 /* ------------------------------------------------------------------ */
 
-function NotificationDropdown({
+function NotificationPanel({
   notifications,
-  isOpen,
+  fresh,
   onClose,
-  isMobile = false,
+  isMobile,
 }: {
   notifications: AppNotification[];
-  isOpen: boolean;
+  fresh: Set<string>;
   onClose: () => void;
-  isMobile?: boolean;
+  isMobile: boolean;
 }) {
-  if (!isOpen) return null;
+  const freshCount = notifications.filter((n) => fresh.has(nKey(n))).length;
 
   return (
-    <>
-      {isMobile && (
-        <div
-          className="fixed inset-0 bg-transparent z-40 md:hidden"
-          onClick={onClose}
-        />
-      )}
-      <div
-        className={
-          isMobile
-            ? "fixed top-16 left-4 right-4 w-[calc(100vw-2rem)] max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50"
-            : "absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50"
-        }
-      >
-        {notifications.length === 0 ? (
-          <p className="px-4 py-6 text-center text-xs text-slate-400">
-            No notifications yet.
-          </p>
-        ) : (
-          notifications.map((n) => (
-            <Link
-              key={n.id + n.createdAt}
-              href={n.href || "#"}
-              onClick={onClose}
-              className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
-            >
-              {n.image ? (
-                <img
-                  src={n.image}
-                  alt=""
-                  className="w-9 h-9 rounded-lg object-cover shrink-0"
-                />
-              ) : (
-                <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center text-[10px] text-slate-400 font-bold">
-                  iM
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-slate-800 truncate">
-                  {n.title}
-                </p>
-                <p className="text-[11px] text-slate-500 truncate">
-                  {n.message}
-                </p>
-              </div>
-            </Link>
-          ))
+    <div
+      role="dialog"
+      aria-label="Notifications"
+      className={`nv-pop z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_20px_50px_-12px_rgba(15,23,42,0.28)] ${
+        isMobile ? "fixed inset-x-3 top-[3.75rem]" : "absolute right-0 mt-3 w-[22rem]"
+      }`}
+    >
+      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+        <h2 className="text-sm font-semibold text-slate-900">Notifications</h2>
+        {freshCount > 0 && (
+          <span className="rounded-full bg-[#FF5CA1]/10 px-2 py-0.5 text-[11px] font-semibold text-[#D6277A]">
+            {freshCount} new
+          </span>
         )}
       </div>
-    </>
+
+      <div className="max-h-[min(24rem,60vh)] overflow-y-auto overscroll-contain">
+        {notifications.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+              <svg viewBox="0 0 24 24" strokeWidth="1.6" stroke="currentColor" fill="none" className="h-5 w-5" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d={BELL_PATH} />
+              </svg>
+            </span>
+            <p className="text-sm font-semibold text-slate-700">All caught up</p>
+            <p className="text-xs text-slate-400">New activity will show up here.</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {notifications.map((n) => {
+              const isFresh = fresh.has(nKey(n));
+              const when = timeAgo(n.createdAt);
+              return (
+                <li key={nKey(n)}>
+                  <Link
+                    href={n.href || "#"}
+                    onClick={onClose}
+                    className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none ${
+                      isFresh ? "bg-blue-50/50" : ""
+                    }`}
+                  >
+                    {n.image ? (
+                      <img src={n.image} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
+                    ) : (
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-[11px] font-bold text-slate-400">
+                        iM
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="truncate text-[13px] font-semibold text-slate-900">{n.title}</p>
+                        {when && <span className="shrink-0 text-[11px] text-slate-400">{when}</span>}
+                      </div>
+                      <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-500">{n.message}</p>
+                    </div>
+                    {isFresh && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#FF5CA1]" aria-label="New" />}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NotificationBell({
+  variant,
+  scrolled = true,
+  notifications,
+  fresh,
+  isOpen,
+  unreadCount,
+  onToggle,
+  onClose,
+}: {
+  variant: "desktop" | "mobile";
+  scrolled?: boolean;
+  notifications: AppNotification[];
+  fresh: Set<string>;
+  isOpen: boolean;
+  unreadCount: number;
+  onToggle: () => void;
+  onClose: () => void;
+}) {
+  const ref = useOutsideClose<HTMLDivElement>(isOpen, onClose);
+  const isMobile = variant === "mobile";
+  const tone = isMobile
+    ? "text-slate-600 hover:text-slate-900"
+    : scrolled
+    ? "text-slate-500 hover:bg-slate-100 hover:text-slate-950"
+    : "text-white/80 hover:bg-white/10 hover:text-white";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+        className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-colors md:h-10 md:w-10 ${tone} ${FOCUS}`}
+      >
+        <svg viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" fill="none" className="h-5 w-5" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d={BELL_PATH} />
+        </svg>
+        {unreadCount > 0 && (
+          <span className="absolute right-0.5 top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#FF5CA1] px-1 text-[9px] font-bold text-white shadow-sm ring-2 ring-white/90">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {isOpen && <NotificationPanel notifications={notifications} fresh={fresh} onClose={onClose} isMobile={isMobile} />}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  User menu (desktop)                                               */
+/* ------------------------------------------------------------------ */
+
+function UserMenu({
+  user,
+  scrolled,
+  onLogout,
+}: {
+  user: { name?: string; email?: string };
+  scrolled: boolean;
+  onLogout: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const ref = useOutsideClose<HTMLDivElement>(open, close);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        btnRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const label = user.name || user.email || "User";
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Account menu for ${label}`}
+        className={`flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition-colors xl:pr-3 ${
+          scrolled ? "hover:bg-slate-100" : "hover:bg-white/10"
+        } ${FOCUS}`}
+      >
+        <span
+          className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold uppercase text-white ${
+            scrolled ? "bg-blue-600" : "border border-white/30 bg-white/20 backdrop-blur-sm"
+          }`}
+        >
+          {label.charAt(0)}
+        </span>
+        <span
+          className={`hidden max-w-[120px] truncate text-xs font-semibold xl:inline ${
+            scrolled ? "text-slate-700" : "text-white/90"
+          }`}
+        >
+          {label}
+        </span>
+        <svg
+          viewBox="0 0 24 24"
+          strokeWidth="2"
+          stroke="currentColor"
+          fill="none"
+          className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""} ${
+            scrolled ? "text-slate-400" : "text-white/70"
+          }`}
+          aria-hidden
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          aria-label="Account"
+          className="nv-pop absolute right-0 z-50 mt-3 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1.5 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.28)]"
+        >
+          <div className="border-b border-slate-100 px-4 pb-3 pt-2">
+            <p className="truncate text-sm font-semibold text-slate-900">{label}</p>
+            {user.name && user.email && <p className="truncate text-xs text-slate-400">{user.email}</p>}
+          </div>
+          <Link
+            href="/dashboard/cloud-db"
+            role="menuitem"
+            className="block px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none"
+          >
+            mySpace
+          </Link>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onLogout();
+            }}
+            className="block w-full px-4 py-2.5 text-left text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:bg-slate-50 focus-visible:outline-none"
+          >
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -201,7 +438,8 @@ function AirMidiDesktopLink({
   return (
     <Link
       href={href}
-      className={`group relative flex items-center gap-2 text-xs font-semibold uppercase tracking-wider py-1.5 pl-1.5 pr-4 rounded-full ring-1 transition-all duration-300 ${
+      aria-current={active ? "page" : undefined}
+      className={`group relative flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3 text-xs font-semibold uppercase tracking-wider ring-1 transition-all duration-300 lg:pr-4 ${FOCUS} ${
         active
           ? scrolled
             ? "text-blue-600 bg-blue-50 ring-blue-200 shadow-sm"
@@ -212,25 +450,15 @@ function AirMidiDesktopLink({
       }`}
     >
       <span className={`relative flex h-6 w-6 shrink-0 rounded-full ${active ? "nv-glow" : ""}`}>
-        <span
-          aria-hidden
-          className="nv-sonar absolute inset-0 rounded-full bg-indigo-400/50"
-        />
-        <img
-          src="/airlink-icon.png"
-          alt=""
-          className="relative h-6 w-6 rounded-full"
-          draggable={false}
-        />
+        <span aria-hidden className="nv-sonar absolute inset-0 rounded-full bg-indigo-400/50" />
+        <img src="/airlink-icon.png" alt="" className="relative h-6 w-6 rounded-full" draggable={false} />
       </span>
       <span className="relative z-10">{label}</span>
       <span aria-hidden className="flex h-3 items-end gap-[2px]">
         {[0, 0.18, 0.08].map((d, i) => (
           <span
             key={i}
-            className={`nv-eq h-full w-[2.5px] rounded-full ${
-              scrolled ? "bg-indigo-500" : "bg-white/85"
-            }`}
+            className={`nv-eq h-full w-[2.5px] rounded-full ${scrolled ? "bg-indigo-500" : "bg-white/85"}`}
             style={{ animationDelay: `${d}s` }}
           />
         ))}
@@ -247,39 +475,42 @@ function DesktopNav({
   scrolled,
   user,
   notifications,
+  fresh,
   isNotifOpen,
   unreadCount,
   onToggleNotif,
+  onCloseNotif,
   onLogout,
 }: {
   scrolled: boolean;
   user: { name?: string; email?: string } | null;
   notifications: AppNotification[];
+  fresh: Set<string>;
   isNotifOpen: boolean;
   unreadCount: number;
   onToggleNotif: () => void;
+  onCloseNotif: () => void;
   onLogout: () => void;
 }) {
   const pathname = usePathname();
 
   return (
     <nav
+      aria-label="Main"
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 hidden md:block ${
         scrolled
           ? "bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm h-16"
           : "bg-transparent border-b border-transparent h-20"
       }`}
     >
-      <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto h-full px-4 lg:px-6 flex items-center justify-between gap-2">
         {/* Logo */}
-        <Link href="/" className="flex items-center group relative py-1">
+        <Link href="/" aria-label="iMIDI home" className="flex items-center group relative py-1 shrink-0">
           <img
             src="/iiimidi.png"
             alt="iMIDI Logo"
             className={`w-auto object-contain transition-all duration-300 ${
-              scrolled
-                ? "h-[5.25rem]"
-                : "h-24 drop-shadow-[0_1px_8px_rgba(0,0,0,0.4)]"
+              scrolled ? "h-[5.25rem]" : "h-24 drop-shadow-[0_1px_8px_rgba(0,0,0,0.4)]"
             }`}
           />
           <span
@@ -292,31 +523,21 @@ function DesktopNav({
         </Link>
 
         {/* Links */}
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center gap-0.5 lg:gap-1">
           {links.slice(1).map((l) => {
+            const active = isActive(pathname, l);
+
             if (l.isAirMidi) {
               return (
-                <AirMidiDesktopLink
-                  key={l.href}
-                  href={l.href}
-                  label={l.label}
-                  active={!!pathname?.startsWith("/airmidi-link")}
-                  scrolled={scrolled}
-                />
+                <AirMidiDesktopLink key={l.href} href={l.href} label={l.label} active={active} scrolled={scrolled} />
               );
             }
 
-            const active = pathname === l.href;
-            const base =
-              "relative text-xs font-semibold uppercase tracking-wider transition-all duration-200 py-2 px-4 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
-
-            const activeClass = scrolled
-              ? "text-blue-600 bg-blue-50"
-              : "text-white bg-white/15 backdrop-blur-sm";
+            const base = `relative text-xs font-semibold uppercase tracking-wider transition-all duration-200 py-2 px-3 lg:px-4 rounded-full ${FOCUS}`;
+            const activeClass = scrolled ? "text-blue-600 bg-blue-50" : "text-white bg-white/15 backdrop-blur-sm";
             const idleClass = scrolled
               ? "text-slate-500 hover:text-slate-950 hover:bg-slate-100"
               : "text-white/80 hover:text-white hover:bg-white/10";
-
             const className = `${base} ${active ? activeClass : idleClass}`;
 
             const inner = (
@@ -327,10 +548,9 @@ function DesktopNav({
                     NEW
                   </span>
                 )}
-                {/* Active underline */}
                 {active && (
                   <span
-                    className={`nv-underline absolute bottom-1 left-4 right-4 h-[2px] rounded-full ${
+                    className={`nv-underline absolute bottom-1 left-3 right-3 h-[2px] rounded-full lg:left-4 lg:right-4 ${
                       scrolled ? "bg-blue-500" : "bg-white"
                     }`}
                   />
@@ -340,20 +560,15 @@ function DesktopNav({
 
             if (l.external) {
               return (
-                <a
-                  key={l.href}
-                  href={l.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={className}
-                >
+                <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className={className}>
                   {inner}
+                  <span className="sr-only"> (opens in a new tab)</span>
                 </a>
               );
             }
 
             return (
-              <Link key={l.href} href={l.href} className={className}>
+              <Link key={l.href} href={l.href} aria-current={active ? "page" : undefined} className={className}>
                 {inner}
               </Link>
             );
@@ -361,101 +576,36 @@ function DesktopNav({
         </div>
 
         {/* Right side */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-1.5 lg:gap-3 shrink-0">
           {user && (
-            <div className="relative">
-              <button
-                onClick={onToggleNotif}
-                aria-label="Notificări"
-                className={`relative p-2 rounded-full transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                  scrolled
-                    ? "text-slate-500 hover:text-slate-950 hover:bg-slate-100"
-                    : "text-white/80 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  strokeWidth="1.8"
-                  stroke="currentColor"
-                  fill="none"
-                  className="w-5 h-5"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
-                  />
-                </svg>
-                {/* Badge cu număr */}
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-[#FF5CA1] text-[9px] font-bold text-white shadow-sm">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
-              </button>
-
-              <NotificationDropdown
-                notifications={notifications}
-                isOpen={isNotifOpen}
-                onClose={onToggleNotif}
-              />
-            </div>
+            <NotificationBell
+              variant="desktop"
+              scrolled={scrolled}
+              notifications={notifications}
+              fresh={fresh}
+              isOpen={isNotifOpen}
+              unreadCount={unreadCount}
+              onToggle={onToggleNotif}
+              onClose={onCloseNotif}
+            />
           )}
 
           {user ? (
-            <div className="flex items-center space-x-3">
-              <Link
-                href="/dashboard/cloud-db"
-                className="flex items-center space-x-2 group"
-              >
-                <div
-                  className={`w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-bold uppercase transition-transform duration-200 group-hover:scale-105 ${
-                    scrolled
-                      ? "bg-blue-600"
-                      : "bg-white/20 backdrop-blur-sm border border-white/30"
-                  }`}
-                >
-                  {(user.name || user.email || "U").charAt(0)}
-                </div>
-                <span
-                  className={`text-xs font-semibold transition-colors max-w-[120px] truncate ${
-                    scrolled
-                      ? "text-slate-700 group-hover:text-slate-950"
-                      : "text-white/90 group-hover:text-white"
-                  }`}
-                >
-                  {user.name || user.email}
-                </span>
-              </Link>
-              <button
-                onClick={onLogout}
-                className={`text-xs font-semibold uppercase tracking-wider transition-colors ${
-                  scrolled
-                    ? "text-slate-500 hover:text-slate-950"
-                    : "text-white/70 hover:text-white"
-                }`}
-              >
-                Sign Out
-              </button>
-            </div>
+            <UserMenu user={user} scrolled={scrolled} onLogout={onLogout} />
           ) : (
             <>
               <Link
                 href="/login"
-                className={`text-xs font-semibold uppercase tracking-wider transition-colors ${
-                  scrolled
-                    ? "text-slate-500 hover:text-slate-950"
-                    : "text-white/80 hover:text-white"
+                className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-wider transition-colors ${FOCUS} ${
+                  scrolled ? "text-slate-500 hover:text-slate-950" : "text-white/80 hover:text-white"
                 }`}
               >
                 Sign In
               </Link>
               <Link
                 href="/register"
-                className={`text-xs font-bold uppercase tracking-wider px-5 py-2.5 rounded-full transition-all duration-200 transform active:scale-95 shadow-sm hover:shadow-md ${
-                  scrolled
-                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                    : "bg-white text-[#131316] hover:bg-white/90"
+                className={`text-xs font-bold uppercase tracking-wider px-4 lg:px-5 py-2.5 rounded-full transition-all duration-200 transform active:scale-95 shadow-sm hover:shadow-md ${FOCUS} ${
+                  scrolled ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-white text-[#131316] hover:bg-white/90"
                 }`}
               >
                 Get Started
@@ -478,22 +628,26 @@ function MobileHeader({
   isMenuOpen,
   setIsMenuOpen,
   notifications,
+  fresh,
   isNotifOpen,
   unreadCount,
   onToggleNotif,
+  onCloseNotif,
 }: {
   scrolled: boolean;
   user: { name?: string; email?: string } | null;
   isMenuOpen: boolean;
   setIsMenuOpen: (v: boolean) => void;
   notifications: AppNotification[];
+  fresh: Set<string>;
   isNotifOpen: boolean;
   unreadCount: number;
   onToggleNotif: () => void;
+  onCloseNotif: () => void;
 }) {
   return (
     <div
-      className={`md:hidden fixed top-0 left-0 right-0 w-full h-14 z-50 flex items-center px-5 justify-between transition-all duration-300 ${
+      className={`md:hidden fixed top-0 left-0 right-0 w-full h-14 z-50 flex items-center px-4 justify-between transition-all duration-300 ${
         scrolled
           ? "bg-white/80 backdrop-blur-md border-b border-slate-200/80 shadow-sm"
           : "bg-transparent border-b border-transparent"
@@ -501,60 +655,34 @@ function MobileHeader({
     >
       <Link
         href="/"
+        aria-label="iMIDI home"
         onClick={() => setIsMenuOpen(false)}
         className="flex items-center py-1 group"
       >
-        <img
-          src="/iiimidi.png"
-          alt="iMIDI Logo"
-          className="h-[4.25rem] w-auto object-contain"
-        />
-        <span className="logo-dot text-blue-600 ml-0.5 font-black text-lg">
-          .
-        </span>
+        <img src="/iiimidi.png" alt="iMIDI Logo" className="h-[4.25rem] w-auto object-contain" />
+        <span className="logo-dot text-blue-600 ml-0.5 font-black text-lg">.</span>
       </Link>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center">
         {user && (
-          <div className="relative">
-            <button
-              onClick={onToggleNotif}
-              aria-label="Notificări"
-              className="relative p-2 text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                strokeWidth="1.8"
-                stroke="currentColor"
-                fill="none"
-                className="w-5 h-5"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
-                />
-              </svg>
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 flex items-center justify-center rounded-full bg-[#FF5CA1] text-[8px] font-bold text-white">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </button>
-
-            <NotificationDropdown
-              notifications={notifications}
-              isOpen={isNotifOpen}
-              onClose={onToggleNotif}
-              isMobile
-            />
-          </div>
+          <NotificationBell
+            variant="mobile"
+            notifications={notifications}
+            fresh={fresh}
+            isOpen={isNotifOpen}
+            unreadCount={unreadCount}
+            onToggle={onToggleNotif}
+            onClose={onCloseNotif}
+          />
         )}
 
         <button
+          type="button"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 text-slate-600 hover:text-slate-900 focus:outline-none transition-colors"
-          aria-label="Toggle Account Menu"
+          className={`flex h-11 items-center justify-center rounded-full px-2 text-slate-600 transition-colors hover:text-slate-900 ${FOCUS}`}
+          aria-label={isMenuOpen ? "Close account menu" : "Open account menu"}
+          aria-expanded={isMenuOpen}
+          aria-controls="mobile-account-menu"
         >
           {user ? (
             <div className="flex items-center gap-1.5">
@@ -610,16 +738,17 @@ function MobileAccountOverlay({
 }) {
   return (
     <div
+      id="mobile-account-menu"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Account menu"
+      aria-hidden={!isOpen}
       className={`md:hidden fixed inset-0 bg-white/98 backdrop-blur-2xl z-40 px-6 flex flex-col justify-center transition-all duration-500 ease-out ${
-        isOpen
-          ? "opacity-100 translate-y-0"
-          : "opacity-0 -translate-y-6 pointer-events-none"
+        isOpen ? "visible opacity-100 translate-y-0" : "invisible opacity-0 -translate-y-6 pointer-events-none"
       }`}
     >
       <div className="absolute top-24 left-6 right-6 border-b border-slate-100 pb-2">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-          iMIDI
-        </p>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">iMIDI</p>
       </div>
 
       <div className="flex flex-col space-y-6 w-full max-w-sm mx-auto">
@@ -630,12 +759,8 @@ function MobileAccountOverlay({
                 {(user.name || user.email || "U").charAt(0)}
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-800">
-                  {user.name || user.email}
-                </p>
-                {user.name && (
-                  <p className="text-[11px] text-slate-400">{user.email}</p>
-                )}
+                <p className="text-sm font-semibold text-slate-800">{user.name || user.email}</p>
+                {user.name && <p className="text-[11px] text-slate-400">{user.email}</p>}
               </div>
             </div>
 
@@ -643,18 +768,19 @@ function MobileAccountOverlay({
               <Link
                 href="/dashboard/cloud-db"
                 onClick={onClose}
-                className="w-full text-center py-3.5 rounded-full text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-[0.98] transition-all"
+                className={`w-full text-center py-3.5 rounded-full text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-[0.98] transition-all ${FOCUS}`}
               >
                 mySpace
               </Link>
               <button
+                type="button"
                 onClick={() => {
                   onLogout();
                   onClose();
                 }}
-                className="w-full text-center py-3 rounded-full text-xs font-medium text-slate-400 hover:text-slate-700 transition-colors"
+                className={`w-full text-center py-3 rounded-full text-xs font-medium text-slate-400 hover:text-slate-700 transition-colors ${FOCUS}`}
               >
-                Sign Out
+                Sign out
               </button>
             </div>
           </>
@@ -662,31 +788,46 @@ function MobileAccountOverlay({
           <>
             <div className="text-center space-y-1">
               <h2 className="text-2xl font-black tracking-tight text-slate-950">
-                Welcome Back<span className="text-blue-600">.</span>
+                Welcome back<span className="text-blue-600">.</span>
               </h2>
-              <p className="text-xs font-medium text-slate-500">
-                Access your cloud space
-              </p>
+              <p className="text-xs font-medium text-slate-500">Access your cloud space</p>
             </div>
 
             <div className="flex flex-col space-y-3">
               <Link
                 href="/login"
                 onClick={onClose}
-                className="w-full text-center py-3.5 rounded-full text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] transition-all"
+                className={`w-full text-center py-3.5 rounded-full text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] transition-all ${FOCUS}`}
               >
                 Sign In
               </Link>
               <Link
                 href="/register"
                 onClick={onClose}
-                className="w-full text-center py-3.5 rounded-full text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98] transition-all shadow-md"
+                className={`w-full text-center py-3.5 rounded-full text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98] transition-all shadow-md ${FOCUS}`}
               >
                 Get Started
               </Link>
             </div>
           </>
         )}
+
+        <div className="flex items-center justify-center gap-4 border-t border-slate-100 pt-5 text-xs text-slate-400">
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              openCookieSettings();
+            }}
+            className={`rounded-md px-1 py-1 font-medium hover:text-slate-700 ${FOCUS}`}
+          >
+            Cookie settings
+          </button>
+          <span aria-hidden>·</span>
+          <Link href="/privacy" onClick={onClose} className={`rounded-md px-1 py-1 font-medium hover:text-slate-700 ${FOCUS}`}>
+            Privacy
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -704,47 +845,44 @@ function MobileBottomNav({
   onNavigate: () => void;
 }) {
   const pathname = usePathname();
+  const wrapperClass =
+    "flex flex-col items-center justify-center py-1.5 flex-1 min-w-0 relative active:scale-95 transition-transform rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
 
   return (
     <nav
-      className={`md:hidden fixed bottom-5 inset-x-4 z-50 transition-all duration-300 ${
-        isVisible
-          ? "translate-y-0 opacity-100"
-          : "translate-y-28 opacity-0 pointer-events-none"
+      aria-label="Main"
+      className={`md:hidden fixed inset-x-3 z-50 transition-all duration-300 ${
+        isVisible ? "translate-y-0 opacity-100" : "translate-y-28 opacity-0 pointer-events-none"
       }`}
+      style={{ bottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
     >
       <div className="bg-white/95 border border-slate-200/80 backdrop-blur-xl rounded-2xl p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
         <div className="flex items-center justify-between">
           {links.map((l) => {
+            const cur = isActive(pathname, l);
+
             if (l.isAirMidi) {
-              const on = !!pathname?.startsWith("/airmidi-link");
               return (
                 <Link
                   key={l.href}
                   href={l.href}
                   aria-label="AirMIDI Link"
-                  className="flex flex-col items-center justify-center py-1.5 flex-1 relative active:scale-95 transition-transform"
+                  aria-current={cur ? "page" : undefined}
+                  className={wrapperClass}
                   onClick={onNavigate}
                 >
-                  <div
-                    className={`p-1.5 rounded-xl transition-all duration-200 ${
-                      on ? "bg-blue-50 scale-110" : ""
-                    }`}
-                  >
+                  <div className={`p-1.5 rounded-xl transition-all duration-200 ${cur ? "bg-blue-50 scale-110" : ""}`}>
                     <span className="relative block h-5 w-5">
                       <img
                         src="/airlink-icon.png"
                         alt=""
                         draggable={false}
                         className={`h-5 w-5 rounded-full object-cover transition-all ${
-                          on ? "ring-2 ring-blue-500 ring-offset-1" : ""
+                          cur ? "ring-2 ring-blue-500 ring-offset-1" : ""
                         }`}
                       />
-                      {!on && (
-                        <span
-                          aria-hidden
-                          className="absolute -right-0.5 -top-0.5 flex h-2 w-2"
-                        >
+                      {!cur && (
+                        <span aria-hidden className="absolute -right-0.5 -top-0.5 flex h-2 w-2">
                           <span className="nv-sonar absolute inline-flex h-full w-full rounded-full bg-indigo-400" />
                           <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-500 ring-1 ring-white" />
                         </span>
@@ -752,8 +890,8 @@ function MobileBottomNav({
                     </span>
                   </div>
                   <span
-                    className={`text-[8px] font-semibold uppercase tracking-wider mt-0.5 transition-colors ${
-                      on ? "text-blue-600 font-bold" : "text-slate-500"
+                    className={`mt-0.5 text-[10px] leading-tight font-semibold transition-colors ${
+                      cur ? "text-blue-600 font-bold" : "text-slate-500"
                     }`}
                   >
                     AirMIDI
@@ -762,15 +900,11 @@ function MobileBottomNav({
               );
             }
 
-            const cur = pathname === l.href;
-
             const content = (
               <>
                 <div
                   className={`relative p-2 rounded-xl transition-all duration-200 ${
-                    cur
-                      ? "text-blue-600 bg-blue-50 scale-110"
-                      : "text-slate-600"
+                    cur ? "text-blue-600 bg-blue-50 scale-110" : "text-slate-600"
                   }`}
                 >
                   <svg
@@ -779,31 +913,29 @@ function MobileBottomNav({
                     stroke="currentColor"
                     fill={cur ? "currentColor" : "none"}
                     className="w-4 h-4"
+                    aria-hidden
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d={l.icon}
-                    />
+                    <path strokeLinecap="round" strokeLinejoin="round" d={l.icon} />
                   </svg>
                 </div>
                 <span
-                  className={`text-[8px] font-semibold uppercase tracking-wider mt-0.5 transition-colors ${
+                  className={`mt-0.5 max-w-full truncate text-[10px] leading-tight font-semibold transition-colors ${
                     cur ? "text-blue-600 font-bold" : "text-slate-500"
                   }`}
                 >
                   {l.label}
                 </span>
                 {l.isNew && !cur && (
-                  <span className="absolute top-1 right-3 px-1 py-0.5 text-[6px] font-bold bg-emerald-100 text-emerald-700 rounded">
-                    NEW
-                  </span>
+                  <>
+                    <span
+                      aria-hidden
+                      className="absolute right-[22%] top-1.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white"
+                    />
+                    <span className="sr-only">New</span>
+                  </>
                 )}
               </>
             );
-
-            const wrapperClass =
-              "flex flex-col items-center justify-center py-1.5 flex-1 relative active:scale-95 transition-transform";
 
             if (l.external) {
               return (
@@ -816,6 +948,7 @@ function MobileBottomNav({
                   onClick={onNavigate}
                 >
                   {content}
+                  <span className="sr-only"> (opens in a new tab)</span>
                 </a>
               );
             }
@@ -824,6 +957,7 @@ function MobileBottomNav({
               <Link
                 key={l.href}
                 href={l.href}
+                aria-current={cur ? "page" : undefined}
                 className={wrapperClass}
                 onClick={onNavigate}
               >
@@ -842,16 +976,17 @@ function MobileBottomNav({
 /* ------------------------------------------------------------------ */
 
 export default function Navbar() {
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const lastScrollY = useRef(0);
 
-  const [user, setUser] = useState<{ name?: string; email?: string } | null>(
-    null
-  );
+  const [user, setUser] = useState<{ name?: string; email?: string } | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  // ids that were unread when the panel opened: they stay highlighted while it is open
+  const [fresh, setFresh] = useState<Set<string>>(new Set());
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
@@ -859,10 +994,16 @@ export default function Navbar() {
     return cleanup;
   }, []);
 
-  const handleOpenNotifications = () => {
-    const next = !isNotifOpen;
-    setIsNotifOpen(next);
-    if (next && unreadCount > 0) {
+  const closeNotifications = useCallback(() => setIsNotifOpen(false), []);
+
+  const toggleNotifications = () => {
+    if (isNotifOpen) {
+      setIsNotifOpen(false);
+      return;
+    }
+    setFresh(new Set(notifications.filter((n) => !n.read).map(nKey)));
+    setIsNotifOpen(true);
+    if (unreadCount > 0) {
       setNotifications(markAllNotificationsRead());
     }
   };
@@ -871,9 +1012,7 @@ export default function Navbar() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser({
-          name:
-            session.user.user_metadata?.full_name ||
-            session.user.user_metadata?.name,
+          name: session.user.user_metadata?.full_name || session.user.user_metadata?.name,
           email: session.user.email,
         });
       } else {
@@ -881,20 +1020,16 @@ export default function Navbar() {
       }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session?.user) {
-          setUser({
-            name:
-              session.user.user_metadata?.full_name ||
-              session.user.user_metadata?.name,
-            email: session.user.email,
-          });
-        } else {
-          setUser(null);
-        }
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          name: session.user.user_metadata?.full_name || session.user.user_metadata?.name,
+          email: session.user.email,
+        });
+      } else {
+        setUser(null);
       }
-    );
+    });
 
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -904,18 +1039,37 @@ export default function Navbar() {
     setUser(null);
   };
 
+  // close everything on navigation
   useEffect(() => {
-    const handleScroll = () => {
-      const current = window.scrollY;
-      setScrolled(current > 15);
+    setIsMenuOpen(false);
+    setIsNotifOpen(false);
+  }, [pathname]);
 
-      if (current > lastScrollY.current && current > 60) {
-        setIsVisible(false);
-        setIsMenuOpen(false);
-      } else {
-        setIsVisible(true);
+  useEffect(() => {
+    let ticking = false;
+
+    const update = () => {
+      const y = window.scrollY;
+      setScrolled(y > 15);
+
+      const delta = y - lastScrollY.current;
+      // ignore tiny movements (iOS rubber-banding, trackpad jitter)
+      if (Math.abs(delta) > 8) {
+        if (delta > 0 && y > 60) {
+          setIsVisible(false);
+          setIsMenuOpen(false);
+        } else {
+          setIsVisible(true);
+        }
+        lastScrollY.current = y;
       }
-      lastScrollY.current = current;
+      ticking = false;
+    };
+
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -933,13 +1087,27 @@ export default function Navbar() {
     };
   }, []);
 
+  // scroll lock only while the mobile menu is open, restoring whatever was there before
   useEffect(() => {
-    document.body.style.overflow = isMenuOpen ? "hidden" : "unset";
+    if (!isMenuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [isMenuOpen]);
 
   return (
     <>
       <NavStyles />
+
+      {/* give id="main-content" to the <main> element of your pages */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[120] focus:rounded-full focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-black focus:shadow-lg"
+      >
+        Skip to content
+      </a>
 
       <div
         aria-hidden
@@ -952,9 +1120,11 @@ export default function Navbar() {
         scrolled={scrolled}
         user={user}
         notifications={notifications}
+        fresh={fresh}
         isNotifOpen={isNotifOpen}
         unreadCount={unreadCount}
-        onToggleNotif={handleOpenNotifications}
+        onToggleNotif={toggleNotifications}
+        onCloseNotif={closeNotifications}
         onLogout={handleLogout}
       />
 
@@ -964,9 +1134,11 @@ export default function Navbar() {
         isMenuOpen={isMenuOpen}
         setIsMenuOpen={setIsMenuOpen}
         notifications={notifications}
+        fresh={fresh}
         isNotifOpen={isNotifOpen}
         unreadCount={unreadCount}
-        onToggleNotif={handleOpenNotifications}
+        onToggleNotif={toggleNotifications}
+        onCloseNotif={closeNotifications}
       />
 
       <MobileAccountOverlay
@@ -976,10 +1148,7 @@ export default function Navbar() {
         onLogout={handleLogout}
       />
 
-      <MobileBottomNav
-        isVisible={isVisible}
-        onNavigate={() => setIsMenuOpen(false)}
-      />
+      <MobileBottomNav isVisible={isVisible} onNavigate={() => setIsMenuOpen(false)} />
     </>
   );
 }
