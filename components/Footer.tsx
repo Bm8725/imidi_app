@@ -2,81 +2,216 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+// adjust the path if CookieBanner lives elsewhere
+import { openCookieSettings } from "@/components/CookieBanner";
+
+type FooterLink = { href: string; label: string; external?: boolean; badge?: string };
+
+const VERSION = "v0.1.13";
+
+const COLUMNS: { title: string; links: FooterLink[] }[] = [
+  {
+    title: "Platform",
+    links: [
+      { href: "/products", label: "i-volution" },
+      { href: "/airmidi-link", label: "AirMIDI Link" },
+      { href: "/e-market", label: "Market" },
+      { href: "https://docs.imidi.co.uk", label: "Docs", external: true },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { href: "/hub-services", label: "HUB development" },
+      { href: "/stiri", label: "Forum", badge: "new" },
+      { href: "/support", label: "Contact" },
+    ],
+  },
+];
+
+const LEGAL: FooterLink[] = [
+  { href: "/privacy", label: "Privacy" },
+  { href: "/terms", label: "Terms" },
+];
+
+const FOCUS =
+  "rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1528]";
+
+const LINK =
+  "group relative inline-flex items-center gap-2 py-1.5 text-[14px] font-medium text-[#9AA9C4] transition-colors duration-200 hover:text-white focus-visible:text-white";
+
+function Underline() {
+  return (
+    <span
+      aria-hidden
+      className="absolute bottom-0.5 left-0 h-px w-0 bg-pink-300/70 transition-all duration-300 group-hover:w-full group-focus-visible:w-full"
+    />
+  );
+}
+
+function NewBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="relative inline-flex items-center justify-center overflow-hidden rounded px-1.5 py-0.5 text-[9px] font-bold lowercase text-pink-300 ring-1 ring-pink-300/30 transition-colors duration-300 group-hover:bg-pink-300 group-hover:text-[#0B1528]">
+      <span aria-hidden className="absolute inset-0 animate-ping rounded bg-pink-400/20 motion-reduce:animate-none" />
+      <span className="relative">{children}</span>
+    </span>
+  );
+}
+
+function FooterAnchor({ link }: { link: FooterLink }) {
+  const inner = (
+    <>
+      {link.label}
+      {link.badge && <NewBadge>{link.badge}</NewBadge>}
+      {link.external && (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 opacity-60" aria-hidden>
+          <path d="M7 17 17 7M8 7h9v9" />
+        </svg>
+      )}
+      <Underline />
+    </>
+  );
+
+  if (link.external) {
+    return (
+      <a href={link.href} target="_blank" rel="noopener noreferrer" className={`${LINK} ${FOCUS}`}>
+        {inner}
+        <span className="sr-only"> (opens in a new tab)</span>
+      </a>
+    );
+  }
+  return (
+    <Link href={link.href} className={`${LINK} ${FOCUS}`}>
+      {inner}
+    </Link>
+  );
+}
 
 export default function Footer() {
   const [year, setYear] = useState(2026);
-  const version = "v0.1.13";
 
   useEffect(() => {
     setYear(new Date().getFullYear());
   }, []);
 
+  const backToTop = () => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+  };
+
   return (
-    <footer className="w-full max-w-5xl mx-auto px-6 md:px-8 mt-auto pt-12 pb-6 font-mono text-[11px] text-[#7E8FAD] selection:bg-pink-300/20 overflow-hidden relative">
-      
-      {/* LINIE TRANSVERSALĂ GLOWING - Stil Waveform Audio Roz */}
-      <div className="relative w-full h-[1px] bg-gradient-to-r from-transparent via-pink-300/30 to-transparent mb-8">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-[1px] bg-pink-300 blur-[1px]" />
-      </div>
+    <footer className="relative mt-auto w-full overflow-hidden bg-[#0B1528] text-[#7E8FAD] selection:bg-pink-300/20">
+      <style>{`
+        @keyframes ft-eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+        .ft-eq { animation: ft-eq 1.1s ease-in-out infinite; transform-origin: bottom; }
+        @media (prefers-reduced-motion: reduce) { .ft-eq { animation: none; transform: scaleY(0.7); } }
+      `}</style>
 
-      {/* STRUCUTRA PRINCIPALĂ */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
-        
-        {/* STRUCTURA STÂNGA: BRAND & COPYRIGHT CYBER ROZ */}
-        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
-          <div className="relative group">
-            <span className="text-pink-300 font-sans font-extrabold tracking-tight text-xs transition-colors duration-300 group-hover:text-white">
-              iMIDI.co.uk
-            </span>
-            <span className="absolute -bottom-1 left-0 w-0 h-[1px] bg-pink-300 transition-all duration-300 group-hover:w-full" />
+      {/* top glow line, audio-waveform style */}
+      <div aria-hidden className="relative h-px w-full bg-gradient-to-r from-transparent via-pink-300/30 to-transparent">
+        <div className="absolute left-1/2 top-0 h-px w-32 -translate-x-1/2 bg-pink-300 blur-[1px]" />
+      </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[40rem] max-w-full -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(249,168,212,0.10),transparent)]"
+      />
+
+      {/* bottom padding on phones clears the fixed bottom navigation */}
+      <div className="relative mx-auto w-full max-w-6xl px-6 pb-28 pt-14 md:px-8 md:pb-8">
+        <div className="grid gap-12 md:grid-cols-12">
+          {/* brand */}
+          <div className="md:col-span-5">
+            <div className="flex items-center gap-3">
+              <Link
+                href="/"
+                aria-label="iMIDI home"
+                className={`font-sans text-2xl font-extrabold tracking-tight text-white ${FOCUS}`}
+              >
+                iMIDI<span className="text-pink-300">.co.uk</span>
+              </Link>
+              <span aria-hidden className="flex h-5 items-end gap-[3px]">
+                {[0, 0.2, 0.1, 0.3, 0.15].map((d, i) => (
+                  <span
+                    key={i}
+                    className="ft-eq h-full w-[3px] rounded-full bg-gradient-to-t from-pink-400/60 to-pink-200"
+                    style={{ animationDelay: `${d}s` }}
+                  />
+                ))}
+              </span>
+            </div>
+            <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-[#9AA9C4]">
+              MIDI hardware, cloud space and live sessions, together in one platform.
+            </p>
           </div>
-          <span className="hidden sm:inline text-[#7E8FAD]/40">|</span>
-          <span className="text-[#7E8FAD]/80 tracking-tight">
-            © {year} Copyright. Platform developed with{" "}
-            <span className="text-white font-semibold">NI</span>{" "}
-            <span className="inline-block px-1.5 py-0.5 ml-1 rounded bg-[#0B1528] text-pink-300 text-[9px] border border-pink-300/20 font-bold">
-              {version}
-            </span>
-          </span>
+
+          {/* links */}
+          <nav aria-label="Footer" className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 md:col-span-7 md:justify-items-start lg:pl-8">
+            {COLUMNS.map((col) => (
+              <div key={col.title}>
+                <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-pink-300/80">{col.title}</h2>
+                <ul className="mt-3 flex flex-col">
+                  {col.links.map((l) => (
+                    <li key={l.href}>
+                      <FooterAnchor link={l} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+
+            <div>
+              <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-pink-300/80">Legal</h2>
+              <ul className="mt-3 flex flex-col">
+                {LEGAL.map((l) => (
+                  <li key={l.href}>
+                    <FooterAnchor link={l} />
+                  </li>
+                ))}
+                <li>
+                  <button type="button" onClick={openCookieSettings} className={`${LINK} cursor-pointer ${FOCUS}`}>
+                    Cookie settings
+                    <Underline />
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </nav>
         </div>
 
-        {/* STRUCTURA DREAPTA: PAGINI ȘI DOCUMENTE COMPLIANCE */}
-        <div className="flex items-center gap-6 text-[12px] lowercase tracking-normal flex-wrap justify-center font-sans font-medium">
-          
-          {/* LINK FORUM CU BADGE ANIMAT ROZ */}
-          <Link href="/stiri" className="text-[#7E8FAD] hover:text-pink-300 transition-all duration-300 flex items-center gap-2 group relative">
-            forum
-            <span className="relative inline-flex items-center justify-center px-1.5 py-0.5 text-[8px] font-bold lowercase tracking-normal text-pink-400 bg-pink-500/10 border border-pink-400/30 rounded-sm overflow-hidden group-hover:bg-pink-300 group-hover:text-[#0B1528] transition-colors duration-300">
-              {/* Puls discret pe fundalul badge-ului */}
-              <span className="absolute inset-0 bg-pink-400/20 animate-ping rounded-sm" />
-              <span className="relative z-10">new</span>
+        {/* bottom bar */}
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/[0.07] pt-6 text-center sm:flex-row sm:text-left">
+          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 font-mono text-[11px] tracking-tight text-[#7E8FAD] sm:justify-start">
+            <span>© {year} iMIDI.co.uk</span>
+            <span aria-hidden className="text-[#7E8FAD]/40">
+              ·
             </span>
-          </Link>
+            <span>
+              Platform developed with <span className="font-semibold text-white">NI</span>
+            </span>
+            <span className="rounded border border-pink-300/20 bg-[#0F1D36] px-1.5 py-0.5 text-[9px] font-bold text-pink-300">{VERSION}</span>
+          </p>
 
-               <Link href="/hub-services" className="text-[#e91a1a] hover:text-red-300 transition-all duration-300 relative group py-1">
-            HUB development
-            <span className="absolute bottom-0 left-0 w-0 h-[1px] bg-pink-300/50 transition-all duration-300 group-hover:w-full" />
-          </Link>
-
-          <Link href="/support" className="text-[#7E8FAD] hover:text-pink-300 transition-all duration-300 relative group py-1">
-            contact
-            <span className="absolute bottom-0 left-0 w-0 h-[1px] bg-pink-300/50 transition-all duration-300 group-hover:w-full" />
-          </Link>
-
-          <Link href="/privacy" className="text-[#7E8FAD] hover:text-pink-300 transition-all duration-300 relative group py-1">
-            privacy
-            <span className="absolute bottom-0 left-0 w-0 h-[1px] bg-pink-300/50 transition-all duration-300 group-hover:w-full" />
-          </Link>
-
-          <Link href="/terms" className="text-[#7E8FAD] hover:text-pink-300 transition-all duration-300 relative group py-1">
-            terms
-            <span className="absolute bottom-0 left-0 w-0 h-[1px] bg-pink-300/50 transition-all duration-300 group-hover:w-full" />
-          </Link>
-
+          <button
+            type="button"
+            onClick={backToTop}
+            className={`group inline-flex cursor-pointer items-center gap-2 px-1 py-1.5 font-mono text-[11px] text-[#9AA9C4] transition-colors hover:text-white ${FOCUS}`}
+          >
+            Back to top
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-3.5 w-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 motion-reduce:transition-none"
+              aria-hidden
+            >
+              <path d="M12 19V5M5 12l7-7 7 7" />
+            </svg>
+          </button>
         </div>
-
       </div>
-
     </footer>
   );
 }
