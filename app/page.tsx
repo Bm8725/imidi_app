@@ -1,12 +1,19 @@
 // app/page.tsx
 'use client';
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import MediaHero from "@/components/MediaHero";
 import Footer from "@/components/Footer";
-import AIChatWidget from "@/components/AIChatWidget";
+
+/* ------------------------------------------------------------------ */
+/*  Content                                                           */
+/* ------------------------------------------------------------------ */
+
+const PINK = "#FF5CA1";
+const ORANGE = "#FF8A3D";
+const PURPLE = "#B47CFF";
 
 const FAQS = [
   {
@@ -31,487 +38,648 @@ const FAQS = [
   },
 ];
 
+const FAQ_LD = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQS.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: { "@type": "Answer", text: f.a },
+  })),
+};
+
+const HERO_TAGS = ["Transfer fast", "Secure", "Cloud", "AI", "E-Market"];
+
+const VALUES = [
+  { t: "Innovative", d: "High-performance MIDI interfaces tailored for stage and studio setups.", c: "from-[#FF5CA1] to-[#FF8A3D]" },
+  { t: "Ultra fast", d: "Guaranteed real-time response, with no deployment friction.", c: "from-[#FF8A3D] to-[#FFC24D]" },
+  { t: "Connected", d: "Cloud-synced global access for files, presets and device templates.", c: "from-[#B47CFF] to-[#FF5CA1]" },
+  { t: "AI intelligence", d: "Smart data handling that scales your workflow automation.", c: "from-[#FF5CA1] to-[#B47CFF]" },
+];
+
 const PILLARS = [
   {
-    eyebrow: "SOFTWARE",
+    eyebrow: "Software",
     title: "TS4X Synth Engine",
-    desc: "A live-performance synth built for the stage, not just the studio. Sub-1.8ms latency, standalone on desktop and mobile.",
+    desc: "A live-performance synth built for the stage, not just the studio. Standalone on desktop and mobile.",
+    chips: ["Sub-1.8ms latency", "Loopers and samplers", "Lossless cloud sync"],
     href: "/ts4x",
     cta: "Explore TS4X",
-    color: "#FF5CA1",
+    color: PINK,
+    icon: "M3 12h3l3-8 4 16 3-8h5",
   },
   {
-    eyebrow: "MARKETPLACE",
+    eyebrow: "Marketplace",
     title: "E-Market",
-    desc: "Buy and sell presets, sound banks, scripts and instruments directly with other artists. Free to list for 14 days.",
+    desc: "Buy and sell presets, sound banks, scripts and instruments directly with other artists.",
+    chips: ["Free to list for 14 days", "Found via AI Smith", "Direct messages"],
     href: "/e-market",
     cta: "Browse E-Market",
-    color: "#FF8A3D",
+    color: ORANGE,
+    icon: "M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007Z",
   },
   {
-    eyebrow: "HARDWARE",
+    eyebrow: "Hardware",
     title: "i-volution Controller",
-    desc: "A universal MIDI controller purpose-built for accordion — velocity-sensitive SOLO/BASS mapping on any MIDI channel.",
+    desc: "A universal MIDI controller purpose-built for accordion, on any MIDI channel.",
+    chips: ["SOLO and BASS mapping", "Velocity-sensitive", "Any MIDI controller works"],
     href: "/products",
     cta: "See i-volution",
-    color: "#B47CFF",
+    color: PURPLE,
+    icon: "M7 5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7zM3 9h2M3 13h2M19 9h2M19 13h2M9 3v2M13 3v2M9 19v2M13 19v2",
   },
 ];
+
+const FLOW = [
+  { label: "Input", title: "MIDI controller", desc: "i-volution, or any MIDI controller you already play.", hot: false },
+  { label: "Processing", title: "TS4X Core DSP", desc: "Sub-1.8ms local processing, built for real-time stage use.", hot: true },
+  { label: "Output", title: "Cloud platform", desc: "MyCloud sync and E-Market, available on every device.", hot: false },
+];
+
+const SPECS = [
+  {
+    label: "Processors",
+    color: PINK,
+    text: "Apple Silicon (M1/M2/M3), Intel x86_64 up to 4.0 GHz, or ARM Cortex-A72 (3nm architectural process).",
+  },
+  {
+    label: "Memory and storage",
+    color: ORANGE,
+    text: "8GB LPDDR4/5 RAM minimum for stable core execution. 512GB NVMe SSD optimization tailored for high-speed patch loading.",
+  },
+  {
+    label: "Audio output",
+    color: PURPLE,
+    text: "24-bit / 192kHz stereo DACs, native multi-channel USB audio interface compatibility, and ultra-low latency Bluetooth 5.0 IO.",
+  },
+];
+
+const PLANS = [
+  {
+    eyebrow: "Core engine",
+    color: PINK,
+    title: "TS4X Synth Pro License",
+    desc: "Full access to the hardware-accelerated DSP core. Delivers multi-channel execution, sub-1.8ms latency, and priority firmware updates.",
+    price: "$199.90",
+    unit: "/ year",
+    cta: "Purchase license",
+    href: "/ts4x",
+    primary: true,
+  },
+  {
+    eyebrow: "Creator hub",
+    color: ORANGE,
+    title: "Sell on E-Market",
+    desc: "Distribute custom sound banks, MIDI maps, scripts, or physical units. Keep 100% of your earnings during your initial trial period.",
+    price: "Free",
+    unit: "for 14 days",
+    cta: "Start selling",
+    href: "/e-market",
+    primary: false,
+  },
+  {
+    eyebrow: "Cloud sync",
+    color: PURPLE,
+    title: "MyCloud Storage",
+    desc: "Secure 30 GB container optimized for active audio profiles. Back up performance maps, synth patches, and system states directly from the stage.",
+    price: "$49.90",
+    unit: "/ year",
+    cta: "Upgrade storage",
+    href: "/mycloud",
+    primary: false,
+  },
+];
+
+/* ------------------------------------------------------------------ */
+/*  Small building blocks                                             */
+/* ------------------------------------------------------------------ */
+
+const FOCUS =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5CA1] focus-visible:ring-offset-2 focus-visible:ring-offset-[#131316]";
+
+/** Fades content in when it scrolls into view. Content already on screen, or with reduced motion, is never hidden. */
+function Reveal({
+  children,
+  delay = 0,
+  className = "",
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (el.getBoundingClientRect().top < window.innerHeight * 0.92) return;
+
+    setHidden(true);
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setHidden(false);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -6% 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={`transition-[opacity,transform] duration-700 ease-out ${
+        hidden ? "translate-y-5 opacity-0" : "translate-y-0 opacity-100"
+      } ${className}`}
+      style={{ transitionDelay: hidden ? "0ms" : `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SectionHead({
+  eyebrow,
+  title,
+  sub,
+  color = PINK,
+}: {
+  eyebrow: string;
+  title: string;
+  sub?: string;
+  color?: string;
+}) {
+  return (
+    <div className="mb-12 max-w-2xl">
+      <p className="aw-mono text-xs uppercase tracking-[0.16em]" style={{ color }}>
+        {eyebrow}
+      </p>
+      <h2 className="aw-display mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">{title}</h2>
+      {sub && <p className="mt-3 text-[15px] leading-relaxed text-[#9A9AA3]">{sub}</p>}
+    </div>
+  );
+}
+
+function Section({
+  id,
+  children,
+  first = false,
+}: {
+  id?: string;
+  children: React.ReactNode;
+  first?: boolean;
+}) {
+  return (
+    <section
+      id={id}
+      className={`relative scroll-mt-24 px-5 py-20 sm:px-6 sm:py-24 ${first ? "" : "border-t border-white/[0.06]"}`}
+    >
+      <div className="mx-auto w-full max-w-6xl">{children}</div>
+    </section>
+  );
+}
+
+function Arrow() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-6 w-6 rotate-90 md:rotate-0"
+      aria-hidden
+    >
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Page                                                              */
+/* ------------------------------------------------------------------ */
 
 export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
-    <div className="aw-root bg-[#131316] text-[#F2F2F4] min-h-screen flex flex-col items-center px-5 sm:px-6 pt-28 pb-20 selection:bg-[#FF5CA1]/40 selection:text-white overflow-x-hidden relative">
-
+    <div className="aw-root flex min-h-screen flex-col bg-[#131316] text-[#F2F2F4] selection:bg-[#FF5CA1]/40 selection:text-white">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
-        .aw-root { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+        .aw-root { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
         .aw-display { font-family: 'Sora', ui-sans-serif, system-ui, sans-serif; }
         .aw-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
         @keyframes aw-fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes aw-float-a { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(20px, -24px); } }
         @keyframes aw-float-b { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-24px, 18px); } }
-        @keyframes aw-float-c { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(16px, 20px); } }
         @keyframes aw-glow-pulse { 0%, 100% { box-shadow: 0 10px 30px -10px rgba(255,92,161,0.45); } 50% { box-shadow: 0 14px 40px -8px rgba(255,138,61,0.5); } }
 
         .aw-hero-item { opacity: 0; animation: aw-fade-up 0.7s ease-out forwards; }
         .aw-blob-a { animation: aw-float-a 14s ease-in-out infinite; }
         .aw-blob-b { animation: aw-float-b 17s ease-in-out infinite; }
-        .aw-blob-c { animation: aw-float-c 12s ease-in-out infinite; }
         .aw-cta-glow { animation: aw-glow-pulse 3.5s ease-in-out infinite; }
 
         .aw-faq-wrap { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.35s ease; }
         .aw-faq-wrap.open { grid-template-rows: 1fr; }
         .aw-faq-inner { overflow: hidden; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .aw-hero-item { opacity: 1; animation: none; }
+          .aw-blob-a, .aw-blob-b, .aw-cta-glow { animation: none; }
+          .aw-faq-wrap { transition: none; }
+        }
       `}</style>
 
-      {/* Meniul premium AWOWO cu efect de sticlă */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_LD).replace(/</g, "\\u003c") }}
+      />
+
       <Navbar />
 
-      {/* Glow ambiental — roz / portocaliu, jucăuș, în ton cu gri-ul de fundal */}
-      <div className="aw-blob-b absolute top-[58%] right-0 w-[250px] sm:w-[450px] h-[250px] sm:h-[450px] bg-[#FF5CA1]/10 blur-[110px] sm:blur-[150px] rounded-full pointer-events-none" />
-      <div className="aw-blob-c absolute top-[8%] left-0 w-[220px] sm:w-[350px] h-[220px] sm:h-[350px] bg-[#FF8A3D]/10 blur-[100px] sm:blur-[130px] rounded-full pointer-events-none" />
-
-      {/* Main Container */}
-      <div className="relative max-w-4xl w-full text-center z-10 space-y-20 sm:space-y-24">
-
-        {/* HERO SECTION — full-bleed cu media de fundal */}
-        <div className="relative left-1/2 -translate-x-1/2 w-screen min-h-[560px] sm:min-h-[680px] flex items-center overflow-hidden">
+      <main id="main-content" className="flex-1 overflow-x-clip">
+        {/* ================= HERO ================= */}
+        <section className="relative isolate flex min-h-[max(600px,86svh)] items-center overflow-hidden pb-24 pt-28">
           <MediaHero />
-          <div className="relative z-10 w-full max-w-4xl mx-auto px-5 sm:px-6 space-y-10 sm:space-y-12 py-16 sm:py-20">
-            <div className="space-y-2 aw-hero-item" style={{ animationDelay: "0.05s" }}>
-              <h1 className="aw-display text-5xl sm:text-6xl md:text-8xl font-semibold tracking-tight text-[#F2F2F4]">
-                iMIDI
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D]">.</span>
-              </h1>
-            </div>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-48 bg-gradient-to-t from-[#131316] to-transparent"
+          />
 
-            <div className="max-w-2xl mx-auto space-y-4 aw-hero-item" style={{ animationDelay: "0.15s" }}>
-              <p className="text-lg sm:text-xl md:text-2xl font-light text-[#B4B4BC] tracking-wide leading-relaxed px-1">
-               The global digital standard for modern digitalization e-market. Premium, audio samples/presets/content/ delivered 
-               instantly anywhere in the world through the cloud  powered by AI.
+          <div className="relative z-10 mx-auto w-full max-w-4xl space-y-9 px-5 text-center sm:space-y-10 sm:px-6">
+            <h1
+              className="aw-display aw-hero-item text-6xl font-semibold tracking-tight text-[#F2F2F4] sm:text-7xl md:text-8xl"
+              style={{ animationDelay: "0.05s" }}
+            >
+              iMIDI
+              <span className="bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] bg-clip-text text-transparent">.</span>
+            </h1>
+
+            <div className="aw-hero-item mx-auto max-w-2xl space-y-5" style={{ animationDelay: "0.15s" }}>
+              <p className="px-1 text-lg font-light leading-relaxed tracking-wide text-[#C4C4CC] sm:text-xl md:text-2xl">
+                The global digital standard for modern digitalization e-market. Premium audio samples, presets and
+                content delivered instantly anywhere in the world through the cloud, powered by AI.
               </p>
 
-              <p className="aw-mono text-xs sm:text-sm text-[#7C7C86] tracking-widest uppercase">
-                TRANSFER FAST - SECURE- CLOUD- AI - E-MARKET
-              </p>
+              <ul className="flex flex-wrap items-center justify-center gap-2" aria-label="Highlights">
+                {HERO_TAGS.map((t) => (
+                  <li
+                    key={t}
+                    className="aw-mono rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] uppercase tracking-wider text-[#B4B4BC] backdrop-blur-sm"
+                  >
+                    {t}
+                  </li>
+                ))}
+              </ul>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 aw-hero-item" style={{ animationDelay: "0.25s" }}>
+            <div
+              className="aw-hero-item flex flex-col items-center justify-center gap-3 sm:flex-row"
+              style={{ animationDelay: "0.25s" }}
+            >
               <Link
                 href="/register"
-                className="aw-cta-glow w-full sm:w-auto h-12 px-8 bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] text-white aw-mono text-xs font-semibold uppercase tracking-wide rounded-xl flex items-center justify-center hover:scale-[1.03] active:scale-[0.98] transition-transform duration-300"
+                className={`aw-cta-glow aw-mono flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] px-8 text-xs font-semibold uppercase tracking-wide text-white transition-transform duration-300 hover:scale-[1.03] active:scale-[0.98] sm:w-auto ${FOCUS}`}
               >
-                Get Started Free
+                Get started free
               </Link>
               <Link
                 href="/e-market"
-                className="w-full sm:w-auto h-12 px-8 bg-white/[0.04] text-[#D4D4D9] border border-white/[0.1] aw-mono text-xs font-semibold uppercase tracking-wide rounded-xl flex items-center justify-center hover:bg-white/[0.08] hover:border-white/[0.2] transition-all duration-300"
+                className={`aw-mono flex h-12 w-full items-center justify-center rounded-xl border border-white/[0.12] bg-white/[0.04] px-8 text-xs font-semibold uppercase tracking-wide text-[#D4D4D9] backdrop-blur-sm transition-all duration-300 hover:border-white/25 hover:bg-white/[0.08] sm:w-auto ${FOCUS}`}
               >
-                 E-Market
+                E-Market
               </Link>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* ================= SECTION: THE 3 PILLARS — raspunde direct la "ce e iMIDI" ================= */}
-        {/* ================= SECTION: PILLARS / BENEFITS ================= */}
-        <div className="pt-20 border-t border-white/10 text-left max-w-7xl mx-auto px-4 sm:px-6">
-          
-          {/* Header */}
-          <div className="mb-12">
-            <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-white">
-              What you get with iMIDI
-            </h2>
-            <p className="mt-3 text-sm text-[#A1A1AA] max-w-xl leading-relaxed">
-              One unified account giving you seamless access to three production-grade utilities.
-            </p>
-          </div>
-
-          {/* Grilă cu animație de apariție la încărcare */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch animate-[fadeIn_0.6s_ease-out_both]">
-            {PILLARS.map((p, index) => (
-              <Link
-                key={p.title}
-                href={p.href}
-                className="group relative bg-transparent pt-6 pb-4 flex flex-col justify-between h-full transition-all duration-300 overflow-hidden"
-              >
-                {/* LINIA DE SUS CU LUMINE FLUENTĂ AUTONOMĂ (Rulată în loop infinit pe rând) */}
-                <div 
-                  className="absolute top-0 left-0 h-[1.5px] bg-white/10 w-full overflow-hidden"
-                >
-                  <div 
-                    className="h-full w-1/2 opacity-80 animate-[shimmerLine_4s_infinite_ease-in-out]"
-                    style={{
-                      background: `linear-gradient(90deg, transparent, ${p.color}, transparent)`,
-                      animationDelay: `${index * 1.2}s` /* Pornește pe rând pentru fiecare card */
-                    }}
-                  />
-                </div>
-
-                {/* LUMINA AMBIENTALĂ AUTONOMĂ: Un puls discret din spate care pulsează în loop */}
-                <div 
-                  className="absolute inset-0 opacity-40 pointer-events-none blur-3xl animate-[pulseAmbient_6s_infinite_ease-in-out]"
-                  style={{
-                    background: `radial-gradient(300px circle at 50% 20%, ${p.color}06, transparent 50%)`,
-                    animationDelay: `${index * 0.8}s`
-                  }}
-                />
-
-                <div className="space-y-4 relative z-10">
-                  {/* Eyebrow */}
-                  <div className="text-xs font-bold uppercase tracking-widest" style={{ color: p.color }}>
-                    {p.eyebrow}
-                  </div>
-                  
-                  {/* Conținut */}
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-white tracking-tight">
-                      {p.title}
-                    </h3>
-                    <p className="text-sm text-[#A1A1AA] font-normal leading-relaxed">
-                      {p.desc}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Buton Link cu micro-mișcare fluidă în loop */}
-                <div className="pt-6 mt-8 relative z-10">
-                  <span className="inline-flex items-center text-xs font-bold uppercase tracking-wide text-white/90">
-                    {p.cta}
-                    <svg 
-                      className="w-3.5 h-3.5 ml-1.5 transform transition-transform duration-300 ease-out group-hover:translate-x-1" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor" 
-                      strokeWidth="3"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
-                  </span>
-                </div>
-              </Link>
+        {/* ================= VALUES STRIP ================= */}
+        <section aria-label="Why iMIDI" className="border-y border-white/[0.07] bg-[#16161A]">
+          <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-8 px-5 py-10 sm:px-6 md:grid-cols-4">
+            {VALUES.map((v, i) => (
+              <Reveal key={v.t} delay={i * 70} className="space-y-2">
+                <div className={`h-[2px] w-8 rounded-full bg-gradient-to-r ${v.c}`} />
+                <h2 className="aw-display text-base font-medium text-[#F2F2F4]">{v.t}</h2>
+                <p className="text-[13px] leading-relaxed text-[#9A9AA3]">{v.d}</p>
+              </Reveal>
             ))}
           </div>
+        </section>
 
-          {/* STYLE BLOCK NECESAR PENTRU TAILWIND (Adaugă-l în fișierul tău global CSS sau lasă-l aici) */}
-          <style jsx global>{`
-            @keyframes shimmerLine {
-              0% { transform: translateX(-150%); }
-              50%, 100% { transform: translateX(250%); }
-            }
-            @keyframes pulseAmbient {
-              0%, 100% { opacity: 0.2; transform: scale(0.95); }
-              50% { opacity: 0.6; transform: scale(1.05); }
-            }
-          `}</style>
-        </div>
+        {/* ================= PLATFORM ================= */}
+        <Section id="platform">
+          <div
+            aria-hidden
+            className="aw-blob-b pointer-events-none absolute right-0 top-1/3 h-[260px] w-[260px] rounded-full bg-[#FF5CA1]/10 blur-[110px] sm:h-[420px] sm:w-[420px] sm:blur-[150px]"
+          />
+          <div className="relative">
+            <SectionHead
+              eyebrow="Platform"
+              title="What you get with iMIDI"
+              sub="One unified account giving you seamless access to three production-grade utilities."
+            />
 
-
-
-        {/* ================= SECTION: COMMERCE NODES ================= */}
-        <div className="pt-20 border-t border-white/10 text-left max-w-7xl mx-auto px-4 sm:px-6">
-          
-          {/* Header complet curat, fără descrieri inutile */}
-          <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-white mb-12">
-            Expand Your iMIDI Setup
-          </h2>
-
-          {/* Grilă curată, 100% transparentă, fără fundaluri gri care să se bată cu restul paginii */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-
-            {/* CARD 1: TS4X LICENSE */}
-            <div className="bg-transparent border-t border-white/20 pt-6 flex flex-col justify-between h-full transition-all duration-200 hover:border-white/40">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2 text-xs font-semibold uppercase tracking-wider text-[#FF5CA1]">
-                  <span>Core Engine</span>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-white tracking-tight">
-                    TS4X Synth Pro License
-                  </h3>
-                  <p className="text-sm text-[#A1A1AA] font-normal leading-relaxed">
-                    Full access to the hardware-accelerated DSP core. Delivers multi-channel execution, sub-1.8ms latency, and priority firmware updates.
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-6 mt-8">
-                <div className="text-2xl font-bold text-white tracking-tight">
-                  $199.9<span className="text-xs text-[#71717A] font-normal ml-1">/ year</span>
-                </div>
-                <Link
-                  href="/ts4x"
-                  className="w-full h-11 bg-white text-black text-xs font-bold uppercase rounded-lg hover:bg-[#E4E4E7] transition-colors duration-200 active:scale-[0.99] flex items-center justify-center tracking-wide"
-                >
-                  Purchase License
-                </Link>
-              </div>
-            </div>
-
-            {/* CARD 2: E-MARKET */}
-            <div className="bg-transparent border-t border-white/20 pt-6 flex flex-col justify-between h-full transition-all duration-200 hover:border-white/40">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2 text-xs font-semibold uppercase tracking-wider text-[#FF8A3D]">
-                  <span>Creator Hub</span>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-white tracking-tight">
-                    Sell on E-Market
-                  </h3>
-                  <p className="text-sm text-[#A1A1AA] font-normal leading-relaxed">
-                    Distribute custom sound banks, MIDI maps, scripts, or physical units. Keep 100% of your earnings during your initial trial period.
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-6 mt-8">
-                <div className="text-2xl font-bold text-white tracking-tight">
-                  Free<span className="text-xs text-[#71717A] font-normal ml-1.5">for 14 days</span>
-                </div>
-                <Link
-                  href="/e-market"
-                  className="w-full h-11 bg-transparent text-white border border-white/20 text-xs font-bold uppercase rounded-lg hover:bg-white/5 hover:border-white/40 transition-all duration-200 active:scale-[0.99] flex items-center justify-center tracking-wide"
-                >
-                  Start Selling
-                </Link>
-              </div>
-            </div>
-
-            {/* CARD 3: CLOUD STORAGE */}
-            <div className="bg-transparent border-t border-white/20 pt-6 flex flex-col justify-between h-full transition-all duration-200 hover:border-white/40">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2 text-xs font-semibold uppercase tracking-wider text-[#B47CFF]">
-                  <span>Cloud Sync</span>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-white tracking-tight">
-                    MyCloud Storage
-                  </h3>
-                  <p className="text-sm text-[#A1A1AA] font-normal leading-relaxed">
-                    Secure 30 GB container optimized for active audio profiles. Backup performance maps, synth patches, and system states directly from the stage.
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-6 mt-8">
-                <div className="text-2xl font-bold text-white tracking-tight">
-                  $49.9<span className="text-xs text-[#71717A] font-normal ml-1">/ year</span>
-                </div>
-                <Link
-                  href="/mycloud"
-                  className="w-full h-11 bg-transparent text-white border border-white/20 text-xs font-bold uppercase rounded-lg hover:bg-white/5 hover:border-white/40 transition-all duration-200 active:scale-[0.99] flex items-center justify-center tracking-wide"
-                >
-                  Upgrade Storage
-                </Link>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-
-        {/* CORE ENGINE DETAILS — TS4X + i-volution sunt paralele, nu secventiale, deci fara numerotare [01]/[02] */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 sm:gap-12 pt-12 border-t border-white/[0.06] text-left">
-          <div className="space-y-3">
-            <span className="aw-mono text-xs text-[#FF5CA1] tracking-wider uppercase">Software</span>
-            <h3 className="aw-display text-xl font-medium text-[#F2F2F4]">TS4X Synth Engine</h3>
-            <p className="text-sm text-[#9A9AA3] font-light leading-relaxed">
-              Ultra-low 1.8ms latency audio engine built for mobile and desktop systems. Features lossless cloud synchronization, integrated loopers, and step-based samplers.
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            <span className="aw-mono text-xs text-[#FF8A3D] tracking-wider uppercase">Hardware</span>
-            <h3 className="aw-display text-xl font-medium text-[#F2F2F4]">i-volution MIDI System</h3>
-            <p className="text-sm text-[#9A9AA3] font-light leading-relaxed">
-              Universal hardware controller designed specifically for accordions. Complete velocity-sensitive integration for both SOLO and BASS sections across all MIDI channels.
-            </p>
-          </div>
-        </div>
-
-        {/* CONCEPTUAL FLOW (MIDI 3.0 Ecosystem) — ordinea aici chiar conteaza (semnal audio), ramane cu sageti */}
-        <div className="space-y-8 pt-12 border-t border-white/[0.06] text-left">
-          <div className="space-y-2">
-            <span className="aw-mono text-xs text-[#7C7C86] tracking-wider uppercase">Architecture // Flow</span>
-            <h2 className="aw-display text-2xl sm:text-3xl font-semibold tracking-tight text-[#F2F2F4]">The MIDI 3.0 Interconnection Concept</h2>
-          </div>
-          <p className="text-sm text-[#9A9AA3] font-light leading-relaxed max-w-2xl">
-            A unified system redefining interaction. The architecture bridges physical controller articulation with next-gen local DSP processing, extending into cloud sharing channels.
-          </p>
-
-          <div className="bg-[#18181C] border border-white/[0.06] p-6 rounded-2xl aw-mono text-xs text-[#9A9AA3] space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 sm:gap-4 text-center items-center">
-              <div className="p-3 border border-white/[0.06] bg-white/[0.02] rounded-xl text-[#D4D4D9]">[MIDI Controller]</div>
-              <div className="text-[#4A4A52] hidden md:block">→</div>
-              <div className="p-3 border border-[#FF5CA1]/30 bg-gradient-to-br from-[#FF5CA1]/10 to-[#FF8A3D]/10 rounded-xl bg-clip-text text-transparent bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] font-semibold">
-                [TS4X Core DSP]
-              </div>
-              <div className="text-[#4A4A52] hidden md:block">→</div>
-              <div className="p-3 border border-white/[0.06] bg-white/[0.02] rounded-xl text-[#D4D4D9]">[Cloud Platform]</div>
-            </div>
-            <p className="text-[11px] text-[#6A6A73] text-center pt-2 italic">
-              *Concept developed by iMIDI.co.uk to fulfill modern architectural and performance ecosystem needs.
-            </p>
-          </div>
-        </div>
-
-        {/* ================= SECTION: ENGINEERED SPECS (Dashboard Approach) ================= */}
-        <div className="pt-24 border-t border-white/10 text-left max-w-7xl mx-auto px-4 sm:px-6">
-          
-          {/* Header complet curat și clasic */}
-          <div className="mb-14">
-            <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-white">
-              Engineered Specs
-            </h2>
-            <p className="mt-3 text-sm text-[#A1A1AA] max-w-xl leading-relaxed">
-              Recommended hardware architecture optimized for real-time TS4X signal processing.
-            </p>
-          </div>
-
-          {/* Abordare Dashboard / Listă industrială — Fără cutii gri sau gradiente AI */}
-          <div className="space-y-0 animate-[fadeIn_0.6s_ease-out_both]">
-            
-            {/* Rândul 1: PROCESSORS */}
-            <div className="border-t border-white/10 py-6 grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-8 items-start relative group">
-              {/* Mic punct tehnic care pulsează autonom în stânga */}
-              <div className="absolute left-0 top-7 w-1 h-1 rounded-full bg-[#FF5CA1] opacity-60 animate-ping" />
-              
-              <div className="md:col-span-1 pl-4">
-                <span className="aw-mono text-xs font-bold tracking-widest text-[#FF5CA1]/90 uppercase">
-                  Processors
-                </span>
-              </div>
-              <div className="md:col-span-3">
-                <p className="text-base text-[#E4E4E7] font-medium leading-relaxed tracking-tight">
-                  Apple Silicon (M1/M2/M3), Intel x86_64 up to 4.0 GHz, or ARM Cortex-A72 (3nm architectural process).
-                </p>
-              </div>
-            </div>
-
-            {/* Rândul 2: MEMORY & STORAGE */}
-            <div className="border-t border-white/10 py-6 grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-8 items-start relative group">
-              <div className="absolute left-0 top-7 w-1 h-1 rounded-full bg-[#FF8A3D] opacity-60 animate-ping [animation-delay:0.4s]" />
-              
-              <div className="md:col-span-1 pl-4">
-                <span className="aw-mono text-xs font-bold tracking-widest text-[#FF8A3D]/90 uppercase">
-                  Memory & Storage
-                </span>
-              </div>
-              <div className="md:col-span-3">
-                <p className="text-base text-[#E4E4E7] font-medium leading-relaxed tracking-tight">
-                  8GB LPDDR4/5 RAM minimum for stable core execution. 512GB NVMe SSD optimization tailored for high-speed patch loading.
-                </p>
-              </div>
-            </div>
-
-            {/* Rândul 3: AUDIO OUT */}
-            <div className="border-t border-b border-white/10 py-6 grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-8 items-start relative group">
-              <div className="absolute left-0 top-7 w-1 h-1 rounded-full bg-[#B47CFF] opacity-60 animate-ping [animation-delay:0.8s]" />
-              
-              <div className="md:col-span-1 pl-4">
-                <span className="aw-mono text-xs font-bold tracking-widest text-[#B47CFF]/90 uppercase">
-                  Audio Output
-                </span>
-              </div>
-              <div className="md:col-span-3">
-                <p className="text-base text-[#E4E4E7] font-medium leading-relaxed tracking-tight">
-                  24-bit / 192kHz stereo DACs, native multi-channel USB audio interface compatibility, and ultra-low latency Bluetooth 5.0 IO.
-                </p>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-
-        {/* ================= SECTION: FAQ ================= */}
-        <div className="space-y-8 pt-12 border-t border-white/[0.06] text-left">
-          <div className="space-y-2">
-            <span className="aw-mono text-xs text-[#7C7C86] tracking-wider uppercase">Support // Answers</span>
-            <h2 className="aw-display text-2xl sm:text-3xl font-semibold tracking-tight text-[#F2F2F4]">Frequently Asked Questions</h2>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {FAQS.map((item, i) => {
-              const isOpen = openFaq === i;
-              return (
-                <div
-                  key={item.q}
-                  className={`rounded-2xl border transition-colors duration-300 overflow-hidden ${
-                    isOpen ? "border-[#FF5CA1]/30 bg-[#1A1A1F]" : "border-white/[0.06] bg-[#18181C]"
-                  }`}
-                >
-                  <button
-                    onClick={() => setOpenFaq(isOpen ? null : i)}
-                    className="w-full flex items-center justify-between gap-4 text-left px-5 py-4"
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+              {PILLARS.map((p, i) => (
+                <Reveal key={p.title} delay={i * 90} className="h-full">
+                  <Link
+                    href={p.href}
+                    className={`group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-white/[0.04] motion-reduce:transform-none ${FOCUS}`}
                   >
-                    <span className={`text-sm sm:text-base font-normal transition-colors ${isOpen ? "text-[#F2F2F4]" : "text-[#B4B4BC]"}`}>
-                      {item.q}
-                    </span>
                     <span
-                      className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full border border-white/[0.1] text-[#7C7C86] transition-transform duration-300"
-                      style={{ transform: isOpen ? "rotate(135deg)" : "rotate(0deg)" }}
-                    >
-                      +
+                      aria-hidden
+                      className="pointer-events-none absolute inset-x-0 top-0 h-px"
+                      style={{ background: `linear-gradient(90deg, transparent, ${p.color}, transparent)` }}
+                    />
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute -top-24 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100"
+                      style={{ background: `${p.color}33` }}
+                    />
+
+                    <div className="relative space-y-5">
+                      <span
+                        className="flex h-11 w-11 items-center justify-center rounded-xl"
+                        style={{ background: `${p.color}1F`, color: p.color }}
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={1.8}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-5 w-5"
+                          aria-hidden
+                        >
+                          <path d={p.icon} />
+                        </svg>
+                      </span>
+
+                      <div className="space-y-2">
+                        <p className="aw-mono text-[11px] uppercase tracking-[0.16em]" style={{ color: p.color }}>
+                          {p.eyebrow}
+                        </p>
+                        <h3 className="aw-display text-xl font-semibold tracking-tight text-white">{p.title}</h3>
+                        <p className="text-sm leading-relaxed text-[#A1A1AA]">{p.desc}</p>
+                      </div>
+
+                      <ul className="flex flex-wrap gap-1.5">
+                        {p.chips.map((c) => (
+                          <li
+                            key={c}
+                            className="rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[11px] text-[#B4B4BC]"
+                          >
+                            {c}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <span className="relative mt-8 inline-flex items-center text-xs font-semibold uppercase tracking-wide text-white/90">
+                      {p.cta}
+                      <svg
+                        className="ml-1.5 h-3.5 w-3.5 transition-transform duration-300 ease-out group-hover:translate-x-1 motion-reduce:transition-none"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        aria-hidden
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
                     </span>
-                  </button>
-                  <div className={`aw-faq-wrap ${isOpen ? "open" : ""}`}>
-                    <div className="aw-faq-inner">
-                      <p className="px-5 pb-4 text-xs sm:text-sm text-[#9A9AA3] font-light leading-relaxed">
-                        {item.a}
+                  </Link>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </Section>
+
+        {/* ================= ARCHITECTURE ================= */}
+        <Section id="architecture">
+          <SectionHead
+            eyebrow="Architecture"
+            title="The MIDI 3.0 interconnection concept"
+            sub="A unified system redefining interaction. The architecture bridges physical controller articulation with next-gen local DSP processing, extending into cloud sharing channels."
+            color={PURPLE}
+          />
+
+          <Reveal>
+            <ol className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:gap-4">
+              {FLOW.map((n, i) => (
+                <li key={n.title} className="contents">
+                  {n.hot ? (
+                    <div className="rounded-2xl bg-gradient-to-br from-[#FF5CA1] to-[#FF8A3D] p-px">
+                      <div className="h-full rounded-[15px] bg-[#1A1A1F] p-5">
+                        <p className="aw-mono text-[11px] uppercase tracking-[0.16em] text-[#FF8A3D]">{n.label}</p>
+                        <h3 className="aw-display mt-2 text-lg font-semibold text-white">{n.title}</h3>
+                        <p className="mt-1.5 text-[13px] leading-relaxed text-[#A1A1AA]">{n.desc}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-white/[0.08] bg-[#18181C] p-5">
+                      <p className="aw-mono text-[11px] uppercase tracking-[0.16em] text-[#8E8E98]">{n.label}</p>
+                      <h3 className="aw-display mt-2 text-lg font-semibold text-white">{n.title}</h3>
+                      <p className="mt-1.5 text-[13px] leading-relaxed text-[#A1A1AA]">{n.desc}</p>
+                    </div>
+                  )}
+                  {i < FLOW.length - 1 && (
+                    <div aria-hidden className="flex items-center justify-center text-[#4A4A52]">
+                      <Arrow />
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </Reveal>
+
+          <p className="mt-5 text-xs italic text-[#8E8E98]">
+            *Concept developed by iMIDI.co.uk to fulfill modern architectural and performance ecosystem needs.
+          </p>
+        </Section>
+
+        {/* ================= SPECS ================= */}
+        <Section id="specs">
+          <SectionHead
+            eyebrow="Requirements"
+            title="Engineered specs"
+            sub="Recommended hardware architecture optimized for real-time TS4X signal processing."
+            color={ORANGE}
+          />
+
+          <dl className="border-b border-white/10">
+            {SPECS.map((s, i) => (
+              <Reveal key={s.label} delay={i * 80}>
+                <div className="grid grid-cols-1 gap-2 border-t border-white/10 py-6 md:grid-cols-4 md:gap-8">
+                  <dt className="flex items-center gap-3 md:col-span-1">
+                    <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: s.color }} />
+                    <span className="aw-mono text-xs font-semibold uppercase tracking-widest" style={{ color: s.color }}>
+                      {s.label}
+                    </span>
+                  </dt>
+                  <dd className="text-base font-medium leading-relaxed tracking-tight text-[#E4E4E7] md:col-span-3">
+                    {s.text}
+                  </dd>
+                </div>
+              </Reveal>
+            ))}
+          </dl>
+        </Section>
+
+        {/* ================= PLANS ================= */}
+        <Section id="plans">
+          <div
+            aria-hidden
+            className="aw-blob-a pointer-events-none absolute left-0 top-1/4 h-[240px] w-[240px] rounded-full bg-[#FF8A3D]/10 blur-[100px] sm:h-[360px] sm:w-[360px] sm:blur-[130px]"
+          />
+          <div className="relative">
+            <SectionHead
+              eyebrow="Plans"
+              title="Expand your iMIDI setup"
+              sub="Start free, add what you need."
+              color={PINK}
+            />
+
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+              {PLANS.map((p, i) => (
+                <Reveal key={p.title} delay={i * 90} className="h-full">
+                  <div className="flex h-full flex-col justify-between rounded-2xl border border-white/[0.08] bg-[#18181C] p-6 transition-colors duration-300 hover:border-white/20">
+                    <div className="space-y-4">
+                      <p className="flex items-center gap-2 aw-mono text-[11px] uppercase tracking-[0.16em]" style={{ color: p.color }}>
+                        <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: p.color }} />
+                        {p.eyebrow}
                       </p>
+                      <div className="space-y-2">
+                        <h3 className="aw-display text-xl font-semibold tracking-tight text-white">{p.title}</h3>
+                        <p className="text-sm leading-relaxed text-[#A1A1AA]">{p.desc}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-8 space-y-4">
+                      <p className="aw-display text-3xl font-semibold tracking-tight text-white">
+                        {p.price}
+                        <span className="ml-1.5 text-xs font-normal text-[#8E8E98]">{p.unit}</span>
+                      </p>
+                      <Link
+                        href={p.href}
+                        className={`flex h-11 w-full items-center justify-center rounded-lg text-xs font-bold uppercase tracking-wide transition-all duration-200 active:scale-[0.99] ${
+                          p.primary
+                            ? "bg-white text-black hover:bg-[#E4E4E7]"
+                            : "border border-white/20 bg-transparent text-white hover:border-white/40 hover:bg-white/5"
+                        } ${FOCUS}`}
+                      >
+                        {p.cta}
+                      </Link>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* MISSION STATEMENTS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 pt-12 border-t border-white/[0.06] text-left">
-          {[
-            { t: "Innovative", d: "High-performance MIDI interfaces tailored for stage and studio setups.", c: "from-[#FF5CA1] to-[#FF8A3D]" },
-            { t: "Ultra Fast", d: "Guaranteed real-time response parameters avoiding deployment friction.", c: "from-[#FF8A3D] to-[#FFC24D]" },
-            { t: "Connected", d: "Cloud-synced global access nodes for files, presets, and device templates.", c: "from-[#B47CFF] to-[#FF5CA1]" },
-            { t: "AI Intel", d: "Smart structural data handling to scale workflow automation boundaries.", c: "from-[#FF5CA1] to-[#B47CFF]" },
-          ].map((item) => (
-            <div key={item.t} className="space-y-1.5">
-              <div className={`h-[2px] w-6 rounded-full bg-gradient-to-r ${item.c} mb-2`} />
-              <div className="aw-display text-base text-[#F2F2F4]">{item.t}</div>
-              <p className="text-xs text-[#8A8A93] font-light">{item.d}</p>
+                </Reveal>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        </Section>
 
-        
-      </div>
-      <Footer />   
+        {/* ================= FAQ ================= */}
+        <Section id="faq">
+          <div className="mx-auto max-w-3xl">
+            <SectionHead eyebrow="Support" title="Frequently asked questions" color={PURPLE} />
+
+            <div className="flex flex-col gap-3">
+              {FAQS.map((item, i) => {
+                const isOpen = openFaq === i;
+                return (
+                  <div
+                    key={item.q}
+                    className={`overflow-hidden rounded-2xl border transition-colors duration-300 ${
+                      isOpen ? "border-[#FF5CA1]/30 bg-[#1A1A1F]" : "border-white/[0.07] bg-[#18181C]"
+                    }`}
+                  >
+                    <h3>
+                      <button
+                        type="button"
+                        onClick={() => setOpenFaq(isOpen ? null : i)}
+                        aria-expanded={isOpen}
+                        aria-controls={`faq-panel-${i}`}
+                        id={`faq-trigger-${i}`}
+                        className={`flex w-full cursor-pointer items-center justify-between gap-4 px-5 py-4 text-left ${FOCUS}`}
+                      >
+                        <span
+                          className={`text-sm font-normal transition-colors sm:text-base ${
+                            isOpen ? "text-[#F2F2F4]" : "text-[#B4B4BC]"
+                          }`}
+                        >
+                          {item.q}
+                        </span>
+                        <span
+                          aria-hidden
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 text-[#8E8E98] transition-transform duration-300"
+                          style={{ transform: isOpen ? "rotate(135deg)" : "rotate(0deg)" }}
+                        >
+                          +
+                        </span>
+                      </button>
+                    </h3>
+                    <div
+                      id={`faq-panel-${i}`}
+                      role="region"
+                      aria-labelledby={`faq-trigger-${i}`}
+                      className={`aw-faq-wrap ${isOpen ? "open" : ""}`}
+                    >
+                      <div className="aw-faq-inner">
+                        <p className="px-5 pb-5 text-sm font-light leading-relaxed text-[#A1A1AA]">{item.a}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Section>
+
+        {/* ================= FINAL CTA ================= */}
+        <section className="px-5 pb-24 sm:px-6 sm:pb-28">
+          <Reveal>
+            <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-white/[0.08] bg-[#18181C] px-6 py-14 text-center sm:px-12 sm:py-16">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -top-32 left-1/2 h-64 w-[36rem] max-w-full -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(255,92,161,0.22),transparent)]"
+              />
+              <div className="relative space-y-4">
+                <h2 className="aw-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                  Create your free iMIDI account.
+                </h2>
+                <p className="mx-auto max-w-xl text-[15px] leading-relaxed text-[#A1A1AA]">
+                  One account for TS4X, E-Market, i-volution and MyCloud.
+                </p>
+                <div className="flex flex-col items-center justify-center gap-3 pt-3 sm:flex-row">
+                  <Link
+                    href="/register"
+                    className={`aw-mono flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] px-8 text-xs font-semibold uppercase tracking-wide text-white transition-transform duration-300 hover:scale-[1.03] active:scale-[0.98] sm:w-auto ${FOCUS}`}
+                  >
+                    Get started free
+                  </Link>
+                  <Link
+                    href="/e-market"
+                    className={`aw-mono flex h-12 w-full items-center justify-center rounded-xl border border-white/[0.12] bg-white/[0.04] px-8 text-xs font-semibold uppercase tracking-wide text-[#D4D4D9] transition-all duration-300 hover:border-white/25 hover:bg-white/[0.08] sm:w-auto ${FOCUS}`}
+                  >
+                    Browse E-Market
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </Reveal>
+        </section>
+      </main>
+
+      <Footer />
     </div>
-     
   );
 }
