@@ -694,12 +694,12 @@ export default function CookieBanner() {
         <button
           type="button"
           onClick={openCookieSettings}
-          aria-label="Open cookie and privacy settings"
+          aria-label="Open cookie settings"
           className={`group flex h-12 cursor-pointer items-center rounded-full border border-[#E6E6E6] bg-white pl-[13px] pr-[13px] text-[#111] shadow-[0_6px_24px_rgba(0,0,0,0.12)] transition-all duration-200 hover:border-[#0070F3]/50 hover:text-[#0070F3] hover:shadow-[0_8px_28px_rgba(0,0,0,0.16)] active:scale-95 motion-reduce:transition-none md:hover:pr-4 md:focus-visible:pr-4 ${FOCUS}`}
         >
           <Icon name="cookie" className="h-[22px] w-[22px] shrink-0" />
           <span className="max-w-0 overflow-hidden whitespace-nowrap text-[13px] font-medium opacity-0 transition-all duration-200 md:group-hover:ml-2.5 md:group-hover:max-w-[10rem] md:group-hover:opacity-100 md:group-focus-visible:ml-2.5 md:group-focus-visible:max-w-[10rem] md:group-focus-visible:opacity-100">
-            Privacy settings
+            Cookie settings
           </span>
         </button>
         {toast && (
@@ -716,7 +716,7 @@ export default function CookieBanner() {
   }
 
   const TAB_ITEMS: { id: Tab; label: string; hint: string; icon: IconName; badge?: string }[] = [
-    { id: "choices", label: "Your choices", hint: "Cookies and local storage", icon: "sliders", badge: `${enabledCount}/${CONSENT_CATEGORIES.length} on` },
+    { id: "choices", label: "Cookies", hint: "Choose what is stored on this device", icon: "sliders", badge: `${enabledCount}/${CONSENT_CATEGORIES.length} on` },
     { id: "airmidi", label: "AirMIDI Link", hint: "Private video calls and live sessions", icon: "video" },
     { id: "device", label: "On this device", hint: "What is stored right now", icon: "db" },
   ];
@@ -744,21 +744,23 @@ export default function CookieBanner() {
           />
           <div className="relative flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <div className="flex items-center gap-2.5 text-[13px] text-[#777]">
-                <Mark />
-                <span className="font-semibold text-black">iMIDI</span>
-                <span aria-hidden className="text-[#CFCFCF]">
-                  /
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span className="flex items-center gap-2.5 text-[14px] font-semibold text-black">
+                  <Mark />
+                  iMIDI
                 </span>
-                <span>Privacy and storage</span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-[#0070F3]/10 px-3.5 py-1.5 text-[13px] font-semibold text-[#0058C2]">
+                  <Icon name="cookie" className="h-4 w-4" />
+                  Cookies, privacy and live sessions
+                </span>
               </div>
-              <h2 id="imidi-consent-title" className="cc-display mt-4 text-[28px] font-bold leading-[1.1] text-black sm:text-[38px]">
-                You decide what stays
-                <br className="hidden sm:block" /> on your device.
+              <h2 id="imidi-consent-title" className="cc-display mt-5 text-[34px] font-bold leading-[1.05] text-black sm:text-[52px]">
+                Cookies.
+                <span className="block text-[#0070F3]">You decide what stays.</span>
               </h2>
-              <p className="mt-3 max-w-[62ch] text-[14px] leading-relaxed text-[#5C5C5C] sm:text-[15px]">
-                Optional storage is off until you turn it on. This covers imidi.co.uk and AirMIDI Link, including private video calls and live MIDI
-                sessions.
+              <p className="mt-4 max-w-[62ch] text-[14px] leading-relaxed text-[#5C5C5C] sm:text-[16px]">
+                Cookies and local storage on imidi.co.uk and AirMIDI Link, including private video calls and live MIDI sessions. Everything optional
+                is off until you turn it on.
               </p>
             </div>
             {hasSaved && (
@@ -778,7 +780,7 @@ export default function CookieBanner() {
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           {/* nav: tab bar on phones, side rail from md */}
           <nav
-            aria-label="Privacy sections"
+            aria-label="Cookie and privacy sections"
             className="shrink-0 border-b border-[#EDEDED] bg-[#FAFAFA] px-3 py-2.5 md:flex md:w-72 md:flex-col md:border-b-0 md:border-r md:px-4 md:py-5"
           >
             <div role="tablist" aria-orientation="vertical" className="grid grid-cols-3 gap-1 md:flex md:flex-col md:gap-1.5">
@@ -833,7 +835,7 @@ export default function CookieBanner() {
             {tab === "choices" && (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="cc-display text-[22px] font-semibold text-black">Optional storage</h3>
+                  <h3 className="cc-display text-[22px] font-semibold text-black">Optional cookies</h3>
                   <Presets count={enabledCount} onNone={() => setSettings(ALL_OFF)} onAll={() => setSettings(ALL_ON)} />
                 </div>
                 {CONSENT_CATEGORIES.map((c, i) => (
