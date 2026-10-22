@@ -508,9 +508,10 @@ export default function HomePage() {
           ))}
         </div>
 
-        <Footer />
+        
       </div>
-        <Footer />
+      <Footer />   
     </div>
+     
   );
 }
