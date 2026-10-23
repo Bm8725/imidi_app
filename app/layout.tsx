@@ -92,7 +92,7 @@ export default function RootLayout({
         <CookieBanner />
         <MetaAuthListener />
         <Analytics />
-        <AirLinkLauncher />
+       {/* <AirLinkLauncher /> */}  
         {/* PWA: înregistrează sw.js (doar în production), banner de instalare și de update */}
         <PWA />
       </body>
