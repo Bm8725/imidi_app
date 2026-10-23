@@ -116,14 +116,14 @@ const SPECS = [
 
 const PLANS = [
   {
-    eyebrow: "Core engine",
-    color: PINK,
-    title: "TS4X Synth Pro License",
-    desc: "Full access to the hardware-accelerated DSP core. Delivers multi-channel execution, sub-1.8ms latency, and priority firmware updates.",
-    price: "$199.90",
-    unit: "/ year",
+    eyebrow: "Airmidi Link",
+    color: PURPLE,
+    title: "AirMidi Link License",
+    desc: "telemetry-learn application AirMIDI link available. Full responsive over cloud to local. Video+audio stream to see.",
+    price: "$19.0",
+    unit: "/ 30 h",
     cta: "Purchase license",
-    href: "/ts4x",
+    href: "/airmidi-link",
     primary: true,
   },
   {
