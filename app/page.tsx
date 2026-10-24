@@ -99,17 +99,7 @@ color: PINK, // sau ORANGE
 // SD card + download arrow
 icon: "M6 4a2 2 0 0 1 2-2h7l3 3v13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4zm9 0v2h2M12 10v6m0 0-2.5-2.5M12 16l2.5-2.5",
 },
-{
-eyebrow: "Tools",
-title: "USB Writer",
-desc: "Connect your arranger via USB cable, paste the secure link, and deploy .SET or sound packages directly into the hardware memory without desktop fragmentation.",
-chips: ["Direct PA-Connection", "Anti-piracy stream", "Sequential writing"],
-href: "/usb-writer",
-cta: "Open USB Writer",
-color: PINK,
-// USB connector + direct transfer path icon
-icon: "M6 2h12v4H6V2zm3 4v6l-3 3v6h12v-6l-3-3V6H9zm3 11a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z",
-},
+
 ];
 
 const FLOW = [
