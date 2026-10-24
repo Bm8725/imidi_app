@@ -141,32 +141,32 @@ function NotificationDropdown({
     <>
       {isMobile && <div className="fixed inset-0 z-40 bg-transparent md:hidden" onClick={onClose} />}
       <div
-        className={`z-50 overflow-y-auto rounded-2xl border border-white/10 bg-[#0F1D36]/95 py-2 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.6)] backdrop-blur-xl ${
+        className={`z-50 overflow-y-auto rounded-2xl border py-2 backdrop-blur-xl ${
           isMobile
-            ? "fixed left-4 right-4 top-16 max-h-80"
-            : "absolute right-0 mt-4 max-h-96 w-80"
+            ? "fixed left-4 right-4 top-16 max-h-80 border-slate-200 bg-white/95 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.25)]"
+            : "absolute right-0 mt-4 max-h-96 w-80 border-white/10 bg-[#0F1D36]/95 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.6)]"
         }`}
       >
         {notifications.length === 0 ? (
-          <p className="px-4 py-6 text-center text-xs text-[#7E8FAD]">No notifications yet.</p>
+          <p className={`px-4 py-6 text-center text-xs ${isMobile ? "text-slate-400" : "text-[#7E8FAD]"}`}>No notifications yet.</p>
         ) : (
           notifications.map((n) => (
             <Link
               key={n.id + n.createdAt}
               href={n.href || "#"}
               onClick={onClose}
-              className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/[0.06]"
+              className={`flex items-start gap-3 px-4 py-3 transition-colors ${isMobile ? "hover:bg-slate-50" : "hover:bg-white/[0.06]"}`}
             >
               {n.image ? (
                 <img src={n.image} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
               ) : (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-[10px] font-bold text-pink-300">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${isMobile ? "bg-pink-50 text-pink-500" : "bg-white/10 text-pink-300"}`}>
                   iM
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-semibold text-white">{n.title}</p>
-                <p className="truncate text-[11px] text-[#9AA9C4]">{n.message}</p>
+                <p className={`truncate text-xs font-semibold ${isMobile ? "text-slate-800" : "text-white"}`}>{n.title}</p>
+                <p className={`truncate text-[11px] ${isMobile ? "text-slate-500" : "text-[#9AA9C4]"}`}>{n.message}</p>
               </div>
             </Link>
           ))
@@ -382,7 +382,7 @@ function MobileHeader({
     <div
       className={`fixed inset-x-0 top-0 z-50 flex h-14 w-full items-center justify-between px-5 transition-all duration-300 md:hidden ${
         scrolled
-          ? "border-b border-white/10 bg-[#0B1528]/85 shadow-[0_8px_30px_-10px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+          ? "border-b border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-xl"
           : "border-b border-transparent bg-transparent"
       }`}
     >
@@ -391,10 +391,10 @@ function MobileHeader({
         <span className="logo-dot ml-0.5 text-lg font-black text-[#FF5CA1]">.</span>
       </Link>
 
-      <div className="flex items-center gap-1 text-white/85">
+      <div className="flex items-center gap-1 text-slate-600">
         {user && (
           <div className="relative">
-            <button onClick={onToggleNotif} aria-label="Notificări" className="relative p-2 transition-colors hover:text-white">
+            <button onClick={onToggleNotif} aria-label="Notificări" className="relative p-2 transition-colors hover:text-slate-900">
               <BellIcon />
               <Badge n={unreadCount} />
             </button>
@@ -404,7 +404,7 @@ function MobileHeader({
 
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 transition-colors hover:text-white focus:outline-none"
+          className="p-2 transition-colors hover:text-slate-900 focus:outline-none"
           aria-label="Toggle Account Menu"
           aria-expanded={isMenuOpen}
         >
@@ -412,9 +412,9 @@ function MobileHeader({
             <div className="flex items-center gap-1.5">
               <div className="relative shrink-0">
                 <Avatar user={user} size="h-7 w-7" />
-                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0B1528] bg-emerald-400" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500" />
               </div>
-              <span className="max-w-[80px] truncate text-[11px] font-semibold">{user.name || user.email}</span>
+              <span className="max-w-[80px] truncate text-[11px] font-semibold text-slate-700">{user.name || user.email}</span>
             </div>
           ) : (
             <div className="relative flex h-4 w-5 flex-col items-center justify-between">
@@ -445,32 +445,32 @@ function MobileAccountOverlay({
   onLogout: () => void;
 }) {
   const ghost =
-    "w-full rounded-full border border-white/15 py-3.5 text-center text-sm font-semibold text-white transition-all hover:border-pink-300/60 active:scale-[0.98]";
+    "w-full rounded-full border border-slate-200 bg-white py-3.5 text-center text-sm font-semibold text-slate-700 shadow-sm transition-all hover:border-pink-300 hover:text-slate-900 active:scale-[0.98]";
   const solid =
-    "w-full rounded-full bg-gradient-to-r from-pink-300 to-[#FF5CA1] py-3.5 text-center text-sm font-bold text-[#0B1528] shadow-[0_0_30px_rgba(255,92,161,0.4)] transition-all active:scale-[0.98]";
+    "w-full rounded-full bg-gradient-to-r from-pink-300 to-[#FF5CA1] py-3.5 text-center text-sm font-bold text-[#0B1528] shadow-[0_8px_24px_rgba(255,92,161,0.35)] transition-all active:scale-[0.98]";
 
   return (
     <div
-      className={`fixed inset-0 z-40 flex flex-col justify-center bg-[#070E1E]/95 px-6 backdrop-blur-2xl transition-all duration-500 ease-out md:hidden ${
+      className={`fixed inset-0 z-40 flex flex-col justify-center bg-white/95 px-6 backdrop-blur-2xl transition-all duration-500 ease-out md:hidden ${
         isOpen ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-6 opacity-0"
       }`}
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[30rem] max-w-full -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(249,168,212,0.22),transparent)]"
+        className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[30rem] max-w-full -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(249,168,212,0.40),transparent)]"
       />
-      <div className="absolute left-6 right-6 top-24 border-b border-white/10 pb-2">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-pink-300/80">iMIDI</p>
+      <div className="absolute left-6 right-6 top-24 border-b border-slate-100 pb-2">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-pink-500">iMIDI</p>
       </div>
 
       <div className="relative mx-auto flex w-full max-w-sm flex-col space-y-6">
         {user ? (
           <>
             <div className="flex flex-col items-center space-y-3 text-center">
-              <Avatar user={user} size="h-16 w-16 text-xl shadow-[0_0_40px_rgba(249,168,212,0.4)]" />
+              <Avatar user={user} size="h-16 w-16 text-xl shadow-[0_8px_30px_rgba(249,168,212,0.55)]" />
               <div>
-                <p className="text-sm font-semibold text-white">{user.name || user.email}</p>
-                {user.name && <p className="text-[11px] text-[#7E8FAD]">{user.email}</p>}
+                <p className="text-sm font-semibold text-slate-800">{user.name || user.email}</p>
+                {user.name && <p className="text-[11px] text-slate-400">{user.email}</p>}
               </div>
             </div>
             <div className="flex flex-col space-y-3">
@@ -482,7 +482,7 @@ function MobileAccountOverlay({
                   onLogout();
                   onClose();
                 }}
-                className="w-full rounded-full py-3 text-center text-xs font-medium text-[#7E8FAD] transition-colors hover:text-white"
+                className="w-full rounded-full py-3 text-center text-xs font-medium text-slate-400 transition-colors hover:text-slate-700"
               >
                 Sign Out
               </button>
@@ -491,10 +491,10 @@ function MobileAccountOverlay({
         ) : (
           <>
             <div className="space-y-1 text-center">
-              <h2 className="bg-gradient-to-b from-white to-[#9AA9C4] bg-clip-text text-3xl font-black tracking-tight text-transparent">
+              <h2 className="bg-gradient-to-b from-slate-950 to-slate-600 bg-clip-text text-3xl font-black tracking-tight text-transparent">
                 Welcome Back<span className="text-[#FF5CA1]">.</span>
               </h2>
-              <p className="text-xs font-medium text-[#9AA9C4]">Access your cloud space</p>
+              <p className="text-xs font-medium text-slate-500">Access your cloud space</p>
             </div>
             <div className="flex flex-col space-y-3">
               <Link href="/login" onClick={onClose} className={ghost}>
@@ -530,12 +530,12 @@ function MobileBottomNav({ isVisible, onNavigate }: { isVisible: boolean; onNavi
         isVisible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-28 opacity-0"
       }`}
     >
-      <div className="rounded-2xl border border-white/10 bg-[#0B1528]/90 p-1.5 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.7),0_0_0_1px_rgba(249,168,212,0.08)] backdrop-blur-xl">
+      <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-1.5 shadow-[0_8px_30px_rgba(15,23,42,0.10)] backdrop-blur-xl">
         <div className="relative flex items-center justify-between">
           {/* sliding indicator */}
           <span
             aria-hidden
-            className="absolute inset-y-0 left-0 rounded-xl bg-gradient-to-b from-pink-300/25 to-pink-300/5 ring-1 ring-pink-300/30 transition-all duration-300 ease-out"
+            className="absolute inset-y-0 left-0 rounded-xl bg-gradient-to-b from-pink-100 to-pink-50 ring-1 ring-pink-200 transition-all duration-300 ease-out"
             style={{
               width: `${100 / links.length}%`,
               transform: `translateX(${Math.max(activeIdx, 0) * 100}%)`,
@@ -545,7 +545,7 @@ function MobileBottomNav({ isVisible, onNavigate }: { isVisible: boolean; onNavi
 
           {links.map((l, i) => {
             const cur = i === activeIdx;
-            const color = cur ? "text-pink-300" : "text-white/65";
+            const color = cur ? "text-pink-600" : "text-slate-500";
 
             const label = (
               <span className={`mt-0.5 text-[8px] font-semibold uppercase tracking-wider transition-colors ${color} ${cur ? "font-bold" : ""}`}>
@@ -562,12 +562,12 @@ function MobileBottomNav({ isVisible, onNavigate }: { isVisible: boolean; onNavi
                         src="/airlink-icon.png"
                         alt=""
                         draggable={false}
-                        className={`h-4 w-4 rounded-full object-cover ${cur ? "ring-2 ring-pink-300 ring-offset-1 ring-offset-[#0B1528]" : ""}`}
+                        className={`h-4 w-4 rounded-full object-cover ${cur ? "ring-2 ring-pink-400 ring-offset-1 ring-offset-white" : ""}`}
                       />
                       {!cur && (
                         <span aria-hidden className="absolute -right-0.5 -top-0.5 flex h-2 w-2">
                           <span className="nv-sonar absolute inline-flex h-full w-full rounded-full bg-indigo-400" />
-                          <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-400 ring-1 ring-[#0B1528]" />
+                          <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-500 ring-1 ring-white" />
                         </span>
                       )}
                     </span>
@@ -593,7 +593,7 @@ function MobileBottomNav({ isVisible, onNavigate }: { isVisible: boolean; onNavi
                 </div>
                 {label}
                 {l.isNew && !cur && (
-                  <span className="absolute right-2 top-1 h-1.5 w-1.5 rounded-full bg-pink-300 shadow-[0_0_8px_rgba(249,168,212,1)]">
+                  <span className="absolute right-2 top-1 h-1.5 w-1.5 rounded-full bg-pink-400 shadow-[0_0_6px_rgba(244,114,182,0.8)]">
                     <span className="sr-only">New</span>
                   </span>
                 )}
