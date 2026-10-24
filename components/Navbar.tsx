@@ -34,11 +34,7 @@ const links: NavLink[] = [
     label: "i-volution",
     icon: "M7 5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7zM3 9h2v2H3V9zm0 4h2v2H3v-2zm16-4h2v2h-2V9zm0 4h2v2h-2v-2zM9 3h2v2H9V3zm4 0h2v2h-2V3zm-4 16h2v2H9v-2zm4 0h2v2h-2v-2z",
   },
-  {
-    href: "/airmidi-link",
-    label: "AirMIDI Link",
-    isAirMidi: true,
-  },
+  { href: "/airmidi-link", label: "AirMIDI Link", isAirMidi: true },
   {
     href: "/e-market",
     label: "Market",
@@ -59,58 +55,70 @@ const links: NavLink[] = [
   },
 ];
 
+const BELL =
+  "M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0";
+
+const FOCUS =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1528]";
+
 /* ------------------------------------------------------------------ */
 /*  Styles                                                            */
 /* ------------------------------------------------------------------ */
 
 const NavStyles = () => (
   <style>{`
-    .aw-nav-scrim {
-      background: linear-gradient(to bottom, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.18) 55%, rgba(0,0,0,0) 100%);
-    }
-
-    /* AirMIDI */
-    @keyframes nv-sonar {
-      0% { transform: scale(0.85); opacity: 0.6; }
-      100% { transform: scale(2.1); opacity: 0; }
-    }
+    @keyframes nv-sonar { 0% { transform: scale(0.85); opacity: 0.6; } 100% { transform: scale(2.1); opacity: 0; } }
     .nv-sonar { animation: nv-sonar 2.2s ease-out infinite; }
 
-    @keyframes nv-eq {
-      0%, 100% { transform: scaleY(0.25); }
-      50% { transform: scaleY(1); }
-    }
+    @keyframes nv-eq { 0%, 100% { transform: scaleY(0.25); } 50% { transform: scaleY(1); } }
     .nv-eq { animation: nv-eq 0.85s ease-in-out infinite; transform-origin: bottom; }
 
-    @keyframes nv-glow {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.35); }
-      50% { box-shadow: 0 0 12px 2px rgba(99, 102, 241, 0.45); }
-    }
-    .nv-glow { animation: nv-glow 2.8s ease-in-out infinite; }
+    @keyframes nv-shine { 0% { transform: translateX(-120%) skewX(-20deg); } 60%, 100% { transform: translateX(260%) skewX(-20deg); } }
+    .nv-shine { animation: nv-shine 3.6s ease-in-out infinite; }
 
-    /* Active underline */
-    @keyframes nv-underline {
-      from { transform: scaleX(0); }
-      to { transform: scaleX(1); }
-    }
-    .nv-underline {
-      transform-origin: left;
-      animation: nv-underline 0.25s ease-out forwards;
-    }
-
-    /* Logo hover */
-    .logo-dot {
-      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    .group:hover .logo-dot {
-      transform: scale(1.35) rotate(8deg);
-    }
+    .logo-dot { transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .group:hover .logo-dot { transform: scale(1.35) rotate(8deg); }
 
     @media (prefers-reduced-motion: reduce) {
-      .nv-sonar, .nv-eq, .nv-glow, .nv-underline { animation: none !important; }
+      .nv-sonar, .nv-eq, .nv-shine { animation: none !important; }
     }
   `}</style>
 );
+
+/* ------------------------------------------------------------------ */
+/*  Small pieces                                                      */
+/* ------------------------------------------------------------------ */
+
+function BellIcon() {
+  return (
+    <svg viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" fill="none" className="h-5 w-5" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d={BELL} />
+    </svg>
+  );
+}
+
+function Badge({ n }: { n: number }) {
+  if (n <= 0) return null;
+  return (
+    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#FF5CA1] px-1 text-[9px] font-bold text-white shadow-[0_0_10px_rgba(255,92,161,0.8)]">
+      {n > 9 ? "9+" : n}
+    </span>
+  );
+}
+
+function NewPill() {
+  return (
+    <span className="ml-1.5 rounded-full bg-pink-300 px-1.5 py-0.5 text-[8px] font-bold text-[#0B1528]">NEW</span>
+  );
+}
+
+function Avatar({ user, size }: { user: { name?: string; email?: string }; size: string }) {
+  return (
+    <div className={`${size} flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-300 to-indigo-400 text-xs font-bold uppercase text-[#0B1528]`}>
+      {(user.name || user.email || "U").charAt(0)}
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Notification Dropdown                                             */
@@ -131,49 +139,34 @@ function NotificationDropdown({
 
   return (
     <>
-      {isMobile && (
-        <div
-          className="fixed inset-0 bg-transparent z-40 md:hidden"
-          onClick={onClose}
-        />
-      )}
+      {isMobile && <div className="fixed inset-0 z-40 bg-transparent md:hidden" onClick={onClose} />}
       <div
-        className={
+        className={`z-50 overflow-y-auto rounded-2xl border border-white/10 bg-[#0F1D36]/95 py-2 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.6)] backdrop-blur-xl ${
           isMobile
-            ? "fixed top-16 left-4 right-4 w-[calc(100vw-2rem)] max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50"
-            : "absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50"
-        }
+            ? "fixed left-4 right-4 top-16 max-h-80"
+            : "absolute right-0 mt-4 max-h-96 w-80"
+        }`}
       >
         {notifications.length === 0 ? (
-          <p className="px-4 py-6 text-center text-xs text-slate-400">
-            No notifications yet.
-          </p>
+          <p className="px-4 py-6 text-center text-xs text-[#7E8FAD]">No notifications yet.</p>
         ) : (
           notifications.map((n) => (
             <Link
               key={n.id + n.createdAt}
               href={n.href || "#"}
               onClick={onClose}
-              className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
+              className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/[0.06]"
             >
               {n.image ? (
-                <img
-                  src={n.image}
-                  alt=""
-                  className="w-9 h-9 rounded-lg object-cover shrink-0"
-                />
+                <img src={n.image} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
               ) : (
-                <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0 flex items-center justify-center text-[10px] text-slate-400 font-bold">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-[10px] font-bold text-pink-300">
                   iM
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-slate-800 truncate">
-                  {n.title}
-                </p>
-                <p className="text-[11px] text-slate-500 truncate">
-                  {n.message}
-                </p>
+                <p className="truncate text-xs font-semibold text-white">{n.title}</p>
+                <p className="truncate text-[11px] text-[#9AA9C4]">{n.message}</p>
               </div>
             </Link>
           ))
@@ -184,67 +177,14 @@ function NotificationDropdown({
 }
 
 /* ------------------------------------------------------------------ */
-/*  AirMIDI Desktop                                                   */
-/* ------------------------------------------------------------------ */
-
-function AirMidiDesktopLink({
-  href,
-  label,
-  active,
-  scrolled,
-}: {
-  href: string;
-  label: string;
-  active: boolean;
-  scrolled: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`group relative flex items-center gap-2 text-xs font-semibold uppercase tracking-wider py-1.5 pl-1.5 pr-4 rounded-full ring-1 transition-all duration-300 ${
-        active
-          ? scrolled
-            ? "text-blue-600 bg-blue-50 ring-blue-200 shadow-sm"
-            : "text-white bg-white/20 backdrop-blur-sm ring-white/40 shadow-[0_0_20px_rgba(255,255,255,0.15)]"
-          : scrolled
-          ? "text-slate-600 hover:text-slate-950 hover:bg-slate-100 ring-indigo-200 hover:ring-indigo-300"
-          : "text-white/90 hover:text-white hover:bg-white/15 ring-white/25 hover:ring-white/40"
-      }`}
-    >
-      <span className={`relative flex h-6 w-6 shrink-0 rounded-full ${active ? "nv-glow" : ""}`}>
-        <span
-          aria-hidden
-          className="nv-sonar absolute inset-0 rounded-full bg-indigo-400/50"
-        />
-        <img
-          src="/airlink-icon.png"
-          alt=""
-          className="relative h-6 w-6 rounded-full"
-          draggable={false}
-        />
-      </span>
-      <span className="relative z-10">{label}</span>
-      <span aria-hidden className="flex h-3 items-end gap-[2px]">
-        {[0, 0.18, 0.08].map((d, i) => (
-          <span
-            key={i}
-            className={`nv-eq h-full w-[2.5px] rounded-full ${
-              scrolled ? "bg-indigo-500" : "bg-white/85"
-            }`}
-            style={{ animationDelay: `${d}s` }}
-          />
-        ))}
-      </span>
-    </Link>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  Desktop Nav                                                       */
 /* ------------------------------------------------------------------ */
 
+type Hl = { left: number; width: number } | null;
+
 function DesktopNav({
   scrolled,
+  progress,
   user,
   notifications,
   isNotifOpen,
@@ -253,6 +193,7 @@ function DesktopNav({
   onLogout,
 }: {
   scrolled: boolean;
+  progress: number;
   user: { name?: string; email?: string } | null;
   notifications: AppNotification[];
   isNotifOpen: boolean;
@@ -261,99 +202,90 @@ function DesktopNav({
   onLogout: () => void;
 }) {
   const pathname = usePathname();
+  const [hl, setHl] = useState<Hl>(null);
+  const track = (e: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>) =>
+    setHl({ left: e.currentTarget.offsetLeft, width: e.currentTarget.offsetWidth });
 
   return (
-    <nav
-      className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 hidden md:block ${
-        scrolled
-          ? "bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm h-16"
-          : "bg-transparent border-b border-transparent h-20"
+    <div
+      className={`pointer-events-none fixed inset-x-0 top-0 z-50 hidden justify-center px-6 transition-all duration-500 md:flex ${
+        scrolled ? "pt-3" : "pt-5"
       }`}
     >
-      <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
+      <nav
+        className={`pointer-events-auto relative flex h-14 w-full items-center justify-between rounded-full border border-white/10 pl-5 pr-2.5 backdrop-blur-xl transition-all duration-500 ${
+          scrolled
+            ? "max-w-5xl bg-[#0B1528]/85 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(249,168,212,0.12)]"
+            : "max-w-6xl bg-[#0B1528]/45 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.4)]"
+        }`}
+      >
         {/* Logo */}
-        <Link href="/" className="flex items-center group relative py-1">
-          <img
-            src="/iiimidi.png"
-            alt="iMIDI Logo"
-            className={`w-auto object-contain transition-all duration-300 ${
-              scrolled
-                ? "h-[5.25rem]"
-                : "h-24 drop-shadow-[0_1px_8px_rgba(0,0,0,0.4)]"
-            }`}
-          />
-          <span
-            className={`logo-dot ml-0.5 inline-block font-black text-xl ${
-              scrolled ? "text-blue-600" : "text-[#FF5CA1]"
-            }`}
-          >
-            .
-          </span>
+        <Link href="/" className={`group flex items-center rounded-full ${FOCUS}`}>
+          <img src="/iiimidi.png" alt="iMIDI Logo" className="h-14 w-auto object-contain" />
+          <span className="logo-dot ml-0.5 inline-block text-xl font-black text-[#FF5CA1]">.</span>
         </Link>
 
-        {/* Links */}
-        <div className="flex items-center space-x-1">
+        {/* Links with magnetic highlight */}
+        <div className="relative flex items-center" onMouseLeave={() => setHl(null)}>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 rounded-full bg-white/10 ring-1 ring-white/10 transition-all duration-300 ease-out"
+            style={{ left: hl?.left ?? 0, width: hl?.width ?? 0, opacity: hl ? 1 : 0 }}
+          />
           {links.slice(1).map((l) => {
             if (l.isAirMidi) {
+              const active = !!pathname?.startsWith("/airmidi-link");
               return (
-                <AirMidiDesktopLink
+                <Link
                   key={l.href}
                   href={l.href}
-                  label={l.label}
-                  active={!!pathname?.startsWith("/airmidi-link")}
-                  scrolled={scrolled}
-                />
+                  onMouseEnter={track}
+                  onFocus={track}
+                  className={`relative z-10 flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-4 text-xs font-semibold uppercase tracking-wider transition-colors ${FOCUS} ${
+                    active ? "text-pink-300" : "text-white/80 hover:text-white"
+                  }`}
+                >
+                  <span className="relative flex h-6 w-6 shrink-0 rounded-full">
+                    <span aria-hidden className="nv-sonar absolute inset-0 rounded-full bg-indigo-400/50" />
+                    <img src="/airlink-icon.png" alt="" className="relative h-6 w-6 rounded-full" draggable={false} />
+                  </span>
+                  {l.label}
+                  <span aria-hidden className="flex h-3 items-end gap-[2px]">
+                    {[0, 0.18, 0.08].map((d, i) => (
+                      <span
+                        key={i}
+                        className="nv-eq h-full w-[2.5px] rounded-full bg-pink-300/90"
+                        style={{ animationDelay: `${d}s` }}
+                      />
+                    ))}
+                  </span>
+                </Link>
               );
             }
 
             const active = pathname === l.href;
-            const base =
-              "relative text-xs font-semibold uppercase tracking-wider transition-all duration-200 py-2 px-4 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
-
-            const activeClass = scrolled
-              ? "text-blue-600 bg-blue-50"
-              : "text-white bg-white/15 backdrop-blur-sm";
-            const idleClass = scrolled
-              ? "text-slate-500 hover:text-slate-950 hover:bg-slate-100"
-              : "text-white/80 hover:text-white hover:bg-white/10";
-
-            const className = `${base} ${active ? activeClass : idleClass}`;
-
+            const cls = `relative z-10 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${FOCUS} ${
+              active ? "text-pink-300" : "text-white/80 hover:text-white"
+            }`;
             const inner = (
               <>
-                <span className="relative z-10">{l.label}</span>
-                {l.isNew && (
-                  <span className="ml-1.5 px-1.5 py-0.5 text-[8px] font-bold bg-emerald-100 text-emerald-700 rounded-md">
-                    NEW
-                  </span>
-                )}
-                {/* Active underline */}
+                {l.label}
+                {l.isNew && <NewPill />}
                 {active && (
                   <span
-                    className={`nv-underline absolute bottom-1 left-4 right-4 h-[2px] rounded-full ${
-                      scrolled ? "bg-blue-500" : "bg-white"
-                    }`}
+                    aria-hidden
+                    className="absolute -bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-pink-300 shadow-[0_0_8px_rgba(249,168,212,1)]"
                   />
                 )}
               </>
             );
 
-            if (l.external) {
-              return (
-                <a
-                  key={l.href}
-                  href={l.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={className}
-                >
-                  {inner}
-                </a>
-              );
-            }
-
-            return (
-              <Link key={l.href} href={l.href} className={className}>
+            return l.external ? (
+              <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" onMouseEnter={track} onFocus={track} className={cls}>
+                {inner}
+              </a>
+            ) : (
+              <Link key={l.href} href={l.href} onMouseEnter={track} onFocus={track} className={cls}>
                 {inner}
               </Link>
             );
@@ -361,110 +293,65 @@ function DesktopNav({
         </div>
 
         {/* Right side */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-2">
           {user && (
             <div className="relative">
               <button
                 onClick={onToggleNotif}
                 aria-label="Notificări"
-                className={`relative p-2 rounded-full transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                  scrolled
-                    ? "text-slate-500 hover:text-slate-950 hover:bg-slate-100"
-                    : "text-white/80 hover:text-white hover:bg-white/10"
-                }`}
+                className={`relative rounded-full p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white ${FOCUS}`}
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  strokeWidth="1.8"
-                  stroke="currentColor"
-                  fill="none"
-                  className="w-5 h-5"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
-                  />
-                </svg>
-                {/* Badge cu număr */}
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-[#FF5CA1] text-[9px] font-bold text-white shadow-sm">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
+                <BellIcon />
+                <Badge n={unreadCount} />
               </button>
-
-              <NotificationDropdown
-                notifications={notifications}
-                isOpen={isNotifOpen}
-                onClose={onToggleNotif}
-              />
+              <NotificationDropdown notifications={notifications} isOpen={isNotifOpen} onClose={onToggleNotif} />
             </div>
           )}
 
           {user ? (
-            <div className="flex items-center space-x-3">
+            <>
               <Link
                 href="/dashboard/cloud-db"
-                className="flex items-center space-x-2 group"
+                className={`group flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition-colors hover:bg-white/10 ${FOCUS}`}
               >
-                <div
-                  className={`w-8 h-8 rounded-full text-white flex items-center justify-center text-xs font-bold uppercase transition-transform duration-200 group-hover:scale-105 ${
-                    scrolled
-                      ? "bg-blue-600"
-                      : "bg-white/20 backdrop-blur-sm border border-white/30"
-                  }`}
-                >
-                  {(user.name || user.email || "U").charAt(0)}
-                </div>
-                <span
-                  className={`text-xs font-semibold transition-colors max-w-[120px] truncate ${
-                    scrolled
-                      ? "text-slate-700 group-hover:text-slate-950"
-                      : "text-white/90 group-hover:text-white"
-                  }`}
-                >
-                  {user.name || user.email}
-                </span>
+                <Avatar user={user} size="h-8 w-8" />
+                <span className="max-w-[120px] truncate text-xs font-semibold text-white/90">{user.name || user.email}</span>
               </Link>
               <button
                 onClick={onLogout}
-                className={`text-xs font-semibold uppercase tracking-wider transition-colors ${
-                  scrolled
-                    ? "text-slate-500 hover:text-slate-950"
-                    : "text-white/70 hover:text-white"
-                }`}
+                className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white/60 transition-colors hover:text-white ${FOCUS}`}
               >
                 Sign Out
               </button>
-            </div>
+            </>
           ) : (
             <>
               <Link
                 href="/login"
-                className={`text-xs font-semibold uppercase tracking-wider transition-colors ${
-                  scrolled
-                    ? "text-slate-500 hover:text-slate-950"
-                    : "text-white/80 hover:text-white"
-                }`}
+                className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white/80 transition-colors hover:text-white ${FOCUS}`}
               >
                 Sign In
               </Link>
               <Link
                 href="/register"
-                className={`text-xs font-bold uppercase tracking-wider px-5 py-2.5 rounded-full transition-all duration-200 transform active:scale-95 shadow-sm hover:shadow-md ${
-                  scrolled
-                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                    : "bg-white text-[#131316] hover:bg-white/90"
-                }`}
+                className={`relative overflow-hidden rounded-full bg-gradient-to-r from-pink-300 to-[#FF5CA1] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[#0B1528] shadow-[0_0_24px_rgba(255,92,161,0.4)] transition-transform active:scale-95 hover:shadow-[0_0_32px_rgba(255,92,161,0.65)] ${FOCUS}`}
               >
-                Get Started
+                <span aria-hidden className="nv-shine absolute inset-y-0 left-0 w-1/3 bg-white/50 blur-sm" />
+                <span className="relative">Get Started</span>
               </Link>
             </>
           )}
         </div>
-      </div>
-    </nav>
+
+        {/* scroll progress */}
+        <div aria-hidden className="pointer-events-none absolute inset-x-10 -bottom-px h-px">
+          <div
+            className="h-full origin-left bg-gradient-to-r from-pink-300 via-[#FF5CA1] to-indigo-400 shadow-[0_0_10px_rgba(249,168,212,0.9)]"
+            style={{ transform: `scaleX(${progress})` }}
+          />
+        </div>
+      </nav>
+    </div>
   );
 }
 
@@ -493,98 +380,47 @@ function MobileHeader({
 }) {
   return (
     <div
-      className={`md:hidden fixed top-0 left-0 right-0 w-full h-14 z-50 flex items-center px-5 justify-between transition-all duration-300 ${
+      className={`fixed inset-x-0 top-0 z-50 flex h-14 w-full items-center justify-between px-5 transition-all duration-300 md:hidden ${
         scrolled
-          ? "bg-white/80 backdrop-blur-md border-b border-slate-200/80 shadow-sm"
-          : "bg-transparent border-b border-transparent"
+          ? "border-b border-white/10 bg-[#0B1528]/85 shadow-[0_8px_30px_-10px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+          : "border-b border-transparent bg-transparent"
       }`}
     >
-      <Link
-        href="/"
-        onClick={() => setIsMenuOpen(false)}
-        className="flex items-center py-1 group"
-      >
-        <img
-          src="/iiimidi.png"
-          alt="iMIDI Logo"
-          className="h-[4.25rem] w-auto object-contain"
-        />
-        <span className="logo-dot text-blue-600 ml-0.5 font-black text-lg">
-          .
-        </span>
+      <Link href="/" onClick={() => setIsMenuOpen(false)} className="group flex items-center py-1">
+        <img src="/iiimidi.png" alt="iMIDI Logo" className="h-[4.25rem] w-auto object-contain" />
+        <span className="logo-dot ml-0.5 text-lg font-black text-[#FF5CA1]">.</span>
       </Link>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 text-white/85">
         {user && (
           <div className="relative">
-            <button
-              onClick={onToggleNotif}
-              aria-label="Notificări"
-              className="relative p-2 text-slate-600 hover:text-slate-900 transition-colors"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                strokeWidth="1.8"
-                stroke="currentColor"
-                fill="none"
-                className="w-5 h-5"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"
-                />
-              </svg>
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 flex items-center justify-center rounded-full bg-[#FF5CA1] text-[8px] font-bold text-white">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
+            <button onClick={onToggleNotif} aria-label="Notificări" className="relative p-2 transition-colors hover:text-white">
+              <BellIcon />
+              <Badge n={unreadCount} />
             </button>
-
-            <NotificationDropdown
-              notifications={notifications}
-              isOpen={isNotifOpen}
-              onClose={onToggleNotif}
-              isMobile
-            />
+            <NotificationDropdown notifications={notifications} isOpen={isNotifOpen} onClose={onToggleNotif} isMobile />
           </div>
         )}
 
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 text-slate-600 hover:text-slate-900 focus:outline-none transition-colors"
+          className="p-2 transition-colors hover:text-white focus:outline-none"
           aria-label="Toggle Account Menu"
+          aria-expanded={isMenuOpen}
         >
           {user ? (
             <div className="flex items-center gap-1.5">
-              <div className="relative w-7 h-7 shrink-0">
-                <div className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center text-[11px] font-bold uppercase">
-                  {(user.name || user.email || "U").charAt(0)}
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
+              <div className="relative shrink-0">
+                <Avatar user={user} size="h-7 w-7" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0B1528] bg-emerald-400" />
               </div>
-              <span className="text-[11px] font-semibold text-slate-700 max-w-[80px] truncate">
-                {user.name || user.email}
-              </span>
+              <span className="max-w-[80px] truncate text-[11px] font-semibold">{user.name || user.email}</span>
             </div>
           ) : (
-            <div className="w-5 h-4 flex flex-col justify-between items-center relative">
-              <span
-                className={`w-5 h-0.5 bg-current rounded-full transition-all duration-300 origin-left ${
-                  isMenuOpen ? "rotate-45 translate-x-0.5" : ""
-                }`}
-              />
-              <span
-                className={`w-5 h-0.5 bg-current rounded-full transition-all duration-200 ${
-                  isMenuOpen ? "opacity-0" : ""
-                }`}
-              />
-              <span
-                className={`w-5 h-0.5 bg-current rounded-full transition-all duration-300 origin-left ${
-                  isMenuOpen ? "-rotate-45 translate-x-0.5" : ""
-                }`}
-              />
+            <div className="relative flex h-4 w-5 flex-col items-center justify-between">
+              <span className={`h-0.5 w-5 origin-left rounded-full bg-current transition-all duration-300 ${isMenuOpen ? "translate-x-0.5 rotate-45" : ""}`} />
+              <span className={`h-0.5 w-5 rounded-full bg-current transition-all duration-200 ${isMenuOpen ? "opacity-0" : ""}`} />
+              <span className={`h-0.5 w-5 origin-left rounded-full bg-current transition-all duration-300 ${isMenuOpen ? "-rotate-45 translate-x-0.5" : ""}`} />
             </div>
           )}
         </button>
@@ -608,43 +444,37 @@ function MobileAccountOverlay({
   onClose: () => void;
   onLogout: () => void;
 }) {
+  const ghost =
+    "w-full rounded-full border border-white/15 py-3.5 text-center text-sm font-semibold text-white transition-all hover:border-pink-300/60 active:scale-[0.98]";
+  const solid =
+    "w-full rounded-full bg-gradient-to-r from-pink-300 to-[#FF5CA1] py-3.5 text-center text-sm font-bold text-[#0B1528] shadow-[0_0_30px_rgba(255,92,161,0.4)] transition-all active:scale-[0.98]";
+
   return (
     <div
-      className={`md:hidden fixed inset-0 bg-white/98 backdrop-blur-2xl z-40 px-6 flex flex-col justify-center transition-all duration-500 ease-out ${
-        isOpen
-          ? "opacity-100 translate-y-0"
-          : "opacity-0 -translate-y-6 pointer-events-none"
+      className={`fixed inset-0 z-40 flex flex-col justify-center bg-[#070E1E]/95 px-6 backdrop-blur-2xl transition-all duration-500 ease-out md:hidden ${
+        isOpen ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-6 opacity-0"
       }`}
     >
-      <div className="absolute top-24 left-6 right-6 border-b border-slate-100 pb-2">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-          iMIDI
-        </p>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[30rem] max-w-full -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(249,168,212,0.22),transparent)]"
+      />
+      <div className="absolute left-6 right-6 top-24 border-b border-white/10 pb-2">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-pink-300/80">iMIDI</p>
       </div>
 
-      <div className="flex flex-col space-y-6 w-full max-w-sm mx-auto">
+      <div className="relative mx-auto flex w-full max-w-sm flex-col space-y-6">
         {user ? (
           <>
             <div className="flex flex-col items-center space-y-3 text-center">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-xl font-bold uppercase shadow-lg">
-                {(user.name || user.email || "U").charAt(0)}
-              </div>
+              <Avatar user={user} size="h-16 w-16 text-xl shadow-[0_0_40px_rgba(249,168,212,0.4)]" />
               <div>
-                <p className="text-sm font-semibold text-slate-800">
-                  {user.name || user.email}
-                </p>
-                {user.name && (
-                  <p className="text-[11px] text-slate-400">{user.email}</p>
-                )}
+                <p className="text-sm font-semibold text-white">{user.name || user.email}</p>
+                {user.name && <p className="text-[11px] text-[#7E8FAD]">{user.email}</p>}
               </div>
             </div>
-
             <div className="flex flex-col space-y-3">
-              <Link
-                href="/dashboard/cloud-db"
-                onClick={onClose}
-                className="w-full text-center py-3.5 rounded-full text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-[0.98] transition-all"
-              >
+              <Link href="/dashboard/cloud-db" onClick={onClose} className={ghost}>
                 mySpace
               </Link>
               <button
@@ -652,7 +482,7 @@ function MobileAccountOverlay({
                   onLogout();
                   onClose();
                 }}
-                className="w-full text-center py-3 rounded-full text-xs font-medium text-slate-400 hover:text-slate-700 transition-colors"
+                className="w-full rounded-full py-3 text-center text-xs font-medium text-[#7E8FAD] transition-colors hover:text-white"
               >
                 Sign Out
               </button>
@@ -660,28 +490,17 @@ function MobileAccountOverlay({
           </>
         ) : (
           <>
-            <div className="text-center space-y-1">
-              <h2 className="text-2xl font-black tracking-tight text-slate-950">
-                Welcome Back<span className="text-blue-600">.</span>
+            <div className="space-y-1 text-center">
+              <h2 className="bg-gradient-to-b from-white to-[#9AA9C4] bg-clip-text text-3xl font-black tracking-tight text-transparent">
+                Welcome Back<span className="text-[#FF5CA1]">.</span>
               </h2>
-              <p className="text-xs font-medium text-slate-500">
-                Access your cloud space
-              </p>
+              <p className="text-xs font-medium text-[#9AA9C4]">Access your cloud space</p>
             </div>
-
             <div className="flex flex-col space-y-3">
-              <Link
-                href="/login"
-                onClick={onClose}
-                className="w-full text-center py-3.5 rounded-full text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] transition-all"
-              >
+              <Link href="/login" onClick={onClose} className={ghost}>
                 Sign In
               </Link>
-              <Link
-                href="/register"
-                onClick={onClose}
-                className="w-full text-center py-3.5 rounded-full text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98] transition-all shadow-md"
-              >
+              <Link href="/register" onClick={onClose} className={solid}>
                 Get Started
               </Link>
             </div>
@@ -693,140 +512,100 @@ function MobileAccountOverlay({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Mobile Bottom Nav                                                 */
+/*  Mobile Bottom Nav (dock with sliding indicator)                   */
 /* ------------------------------------------------------------------ */
 
-function MobileBottomNav({
-  isVisible,
-  onNavigate,
-}: {
-  isVisible: boolean;
-  onNavigate: () => void;
-}) {
+function MobileBottomNav({ isVisible, onNavigate }: { isVisible: boolean; onNavigate: () => void }) {
   const pathname = usePathname();
+
+  const activeIdx = links.findIndex((l) =>
+    l.external ? false : l.isAirMidi ? !!pathname?.startsWith("/airmidi-link") : pathname === l.href
+  );
+
+  const wrapper = "relative z-10 flex flex-1 flex-col items-center justify-center py-1.5 transition-transform active:scale-95";
 
   return (
     <nav
-      className={`md:hidden fixed bottom-5 inset-x-4 z-50 transition-all duration-300 ${
-        isVisible
-          ? "translate-y-0 opacity-100"
-          : "translate-y-28 opacity-0 pointer-events-none"
+      className={`fixed inset-x-4 bottom-5 z-50 transition-all duration-300 md:hidden ${
+        isVisible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-28 opacity-0"
       }`}
     >
-      <div className="bg-white/95 border border-slate-200/80 backdrop-blur-xl rounded-2xl p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.08)]">
-        <div className="flex items-center justify-between">
-          {links.map((l) => {
+      <div className="rounded-2xl border border-white/10 bg-[#0B1528]/90 p-1.5 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.7),0_0_0_1px_rgba(249,168,212,0.08)] backdrop-blur-xl">
+        <div className="relative flex items-center justify-between">
+          {/* sliding indicator */}
+          <span
+            aria-hidden
+            className="absolute inset-y-0 left-0 rounded-xl bg-gradient-to-b from-pink-300/25 to-pink-300/5 ring-1 ring-pink-300/30 transition-all duration-300 ease-out"
+            style={{
+              width: `${100 / links.length}%`,
+              transform: `translateX(${Math.max(activeIdx, 0) * 100}%)`,
+              opacity: activeIdx >= 0 ? 1 : 0,
+            }}
+          />
+
+          {links.map((l, i) => {
+            const cur = i === activeIdx;
+            const color = cur ? "text-pink-300" : "text-white/65";
+
+            const label = (
+              <span className={`mt-0.5 text-[8px] font-semibold uppercase tracking-wider transition-colors ${color} ${cur ? "font-bold" : ""}`}>
+                {l.isAirMidi ? "AirMIDI" : l.label}
+              </span>
+            );
+
             if (l.isAirMidi) {
-              const on = !!pathname?.startsWith("/airmidi-link");
               return (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  aria-label="AirMIDI Link"
-                  className="flex flex-col items-center justify-center py-1.5 flex-1 relative active:scale-95 transition-transform"
-                  onClick={onNavigate}
-                >
-                  <div
-                    className={`p-1.5 rounded-xl transition-all duration-200 ${
-                      on ? "bg-blue-50 scale-110" : ""
-                    }`}
-                  >
-                    <span className="relative block h-5 w-5">
+                <Link key={l.href} href={l.href} aria-label="AirMIDI Link" className={wrapper} onClick={onNavigate}>
+                  <div className="p-2">
+                    <span className="relative block h-4 w-4">
                       <img
                         src="/airlink-icon.png"
                         alt=""
                         draggable={false}
-                        className={`h-5 w-5 rounded-full object-cover transition-all ${
-                          on ? "ring-2 ring-blue-500 ring-offset-1" : ""
-                        }`}
+                        className={`h-4 w-4 rounded-full object-cover ${cur ? "ring-2 ring-pink-300 ring-offset-1 ring-offset-[#0B1528]" : ""}`}
                       />
-                      {!on && (
-                        <span
-                          aria-hidden
-                          className="absolute -right-0.5 -top-0.5 flex h-2 w-2"
-                        >
+                      {!cur && (
+                        <span aria-hidden className="absolute -right-0.5 -top-0.5 flex h-2 w-2">
                           <span className="nv-sonar absolute inline-flex h-full w-full rounded-full bg-indigo-400" />
-                          <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-500 ring-1 ring-white" />
+                          <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-400 ring-1 ring-[#0B1528]" />
                         </span>
                       )}
                     </span>
                   </div>
-                  <span
-                    className={`text-[8px] font-semibold uppercase tracking-wider mt-0.5 transition-colors ${
-                      on ? "text-blue-600 font-bold" : "text-slate-500"
-                    }`}
-                  >
-                    AirMIDI
-                  </span>
+                  {label}
                 </Link>
               );
             }
 
-            const cur = pathname === l.href;
-
             const content = (
               <>
-                <div
-                  className={`relative p-2 rounded-xl transition-all duration-200 ${
-                    cur
-                      ? "text-blue-600 bg-blue-50 scale-110"
-                      : "text-slate-600"
-                  }`}
-                >
+                <div className={`p-2 transition-colors ${color}`}>
                   <svg
                     viewBox="0 0 24 24"
                     strokeWidth={cur ? "1.5" : "2"}
                     stroke="currentColor"
                     fill={cur ? "currentColor" : "none"}
-                    className="w-4 h-4"
+                    className="h-4 w-4"
+                    aria-hidden
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d={l.icon}
-                    />
+                    <path strokeLinecap="round" strokeLinejoin="round" d={l.icon} />
                   </svg>
                 </div>
-                <span
-                  className={`text-[8px] font-semibold uppercase tracking-wider mt-0.5 transition-colors ${
-                    cur ? "text-blue-600 font-bold" : "text-slate-500"
-                  }`}
-                >
-                  {l.label}
-                </span>
+                {label}
                 {l.isNew && !cur && (
-                  <span className="absolute top-1 right-3 px-1 py-0.5 text-[6px] font-bold bg-emerald-100 text-emerald-700 rounded">
-                    NEW
+                  <span className="absolute right-2 top-1 h-1.5 w-1.5 rounded-full bg-pink-300 shadow-[0_0_8px_rgba(249,168,212,1)]">
+                    <span className="sr-only">New</span>
                   </span>
                 )}
               </>
             );
 
-            const wrapperClass =
-              "flex flex-col items-center justify-center py-1.5 flex-1 relative active:scale-95 transition-transform";
-
-            if (l.external) {
-              return (
-                <a
-                  key={l.href}
-                  href={l.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={wrapperClass}
-                  onClick={onNavigate}
-                >
-                  {content}
-                </a>
-              );
-            }
-
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={wrapperClass}
-                onClick={onNavigate}
-              >
+            return l.external ? (
+              <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className={wrapper} onClick={onNavigate}>
+                {content}
+              </a>
+            ) : (
+              <Link key={l.href} href={l.href} className={wrapper} onClick={onNavigate}>
                 {content}
               </Link>
             );
@@ -843,13 +622,12 @@ function MobileBottomNav({
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const lastScrollY = useRef(0);
 
-  const [user, setUser] = useState<{ name?: string; email?: string } | null>(
-    null
-  );
+  const [user, setUser] = useState<{ name?: string; email?: string } | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -868,34 +646,19 @@ export default function Navbar() {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const apply = (session: { user?: { user_metadata?: Record<string, string>; email?: string } } | null) => {
       if (session?.user) {
         setUser({
-          name:
-            session.user.user_metadata?.full_name ||
-            session.user.user_metadata?.name,
+          name: session.user.user_metadata?.full_name || session.user.user_metadata?.name,
           email: session.user.email,
         });
       } else {
         setUser(null);
       }
-    });
+    };
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session?.user) {
-          setUser({
-            name:
-              session.user.user_metadata?.full_name ||
-              session.user.user_metadata?.name,
-            email: session.user.email,
-          });
-        } else {
-          setUser(null);
-        }
-      }
-    );
-
+    supabase.auth.getSession().then(({ data: { session } }) => apply(session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => apply(session));
     return () => listener.subscription.unsubscribe();
   }, []);
 
@@ -908,6 +671,9 @@ export default function Navbar() {
     const handleScroll = () => {
       const current = window.scrollY;
       setScrolled(current > 15);
+
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      setProgress(max > 0 ? Math.min(1, Math.max(0, current / max)) : 0);
 
       if (current > lastScrollY.current && current > 60) {
         setIsVisible(false);
@@ -925,6 +691,7 @@ export default function Navbar() {
       }
     };
 
+    handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("keydown", handleKeyDown);
     return () => {
@@ -941,15 +708,9 @@ export default function Navbar() {
     <>
       <NavStyles />
 
-      <div
-        aria-hidden
-        className={`fixed top-0 inset-x-0 h-36 pointer-events-none z-40 hidden md:block transition-opacity duration-300 aw-nav-scrim ${
-          scrolled ? "opacity-0" : "opacity-100"
-        }`}
-      />
-
       <DesktopNav
         scrolled={scrolled}
+        progress={progress}
         user={user}
         notifications={notifications}
         isNotifOpen={isNotifOpen}
@@ -976,10 +737,7 @@ export default function Navbar() {
         onLogout={handleLogout}
       />
 
-      <MobileBottomNav
-        isVisible={isVisible}
-        onNavigate={() => setIsMenuOpen(false)}
-      />
+      <MobileBottomNav isVisible={isVisible} onNavigate={() => setIsMenuOpen(false)} />
     </>
   );
 }
