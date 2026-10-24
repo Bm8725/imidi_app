@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+// adjust the path if CookieBanner lives elsewhere
 import { openCookieSettings } from "@/components/CookieBanner";
 
 type FooterLink = { href: string; label: string; external?: boolean; badge?: string };
@@ -15,8 +16,8 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
       { href: "/products", label: "i-volution" },
       { href: "/airmidi-link", label: "AirMIDI Link" },
       { href: "/e-market", label: "Market" },
-      { href: "/sd-writer", label: "SD-Writer" },
-      { href: "https://imidi.co.uk", label: "Docs", external: true },
+       { href: "/sd-writer", label: "SD-Writer" },
+      { href: "https://docs.imidi.co.uk", label: "Docs", external: true },
     ],
   },
   {
@@ -35,23 +36,23 @@ const LEGAL: FooterLink[] = [
 ];
 
 const FOCUS =
-  "rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B0A0A]";
+  "rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1528]";
 
 const LINK =
-  "group relative inline-flex items-center gap-2 py-1.5 text-[14px] font-medium text-[#BFAF9F] transition-colors duration-200 hover:text-[#E6E1D5] focus-visible:text-[#E6E1D5]";
+  "group relative inline-flex items-center gap-2 py-1.5 text-[14px] font-medium text-[#9AA9C4] transition-colors duration-200 hover:text-white focus-visible:text-white";
 
 function Underline() {
   return (
     <span
       aria-hidden
-      className="absolute bottom-0.5 left-0 h-px w-0 bg-pink-400/60 transition-all duration-300 group-hover:w-full group-focus-visible:w-full"
+      className="absolute bottom-0.5 left-0 h-px w-0 bg-pink-300/70 transition-all duration-300 group-hover:w-full group-focus-visible:w-full"
     />
   );
 }
 
 function NewBadge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="relative inline-flex items-center justify-center overflow-hidden rounded px-1.5 py-0.5 text-[9px] font-bold lowercase text-pink-400 ring-1 ring-pink-400/30 transition-colors duration-300 group-hover:bg-pink-400 group-hover:text-[#0B0A0A]">
+    <span className="relative inline-flex items-center justify-center overflow-hidden rounded px-1.5 py-0.5 text-[9px] font-bold lowercase text-pink-300 ring-1 ring-pink-300/30 transition-colors duration-300 group-hover:bg-pink-300 group-hover:text-[#0B1528]">
       <span aria-hidden className="absolute inset-0 animate-ping rounded bg-pink-400/20 motion-reduce:animate-none" />
       <span className="relative">{children}</span>
     </span>
@@ -100,53 +101,47 @@ export default function Footer() {
   };
 
   return (
-    /* Glassmorphism wrapper: bg-white/[0.02] + backdrop-blur-md + border-t alb transparent */
-    <footer className="relative mt-auto w-full overflow-hidden border-t border-white/[0.05] bg-white/[0.02] text-[#BFAF9F] backdrop-blur-md selection:bg-pink-400/20">
+    <footer className="relative mt-auto w-full overflow-hidden bg-[#0B1528] text-[#7E8FAD] selection:bg-pink-300/20">
       <style>{`
         @keyframes ft-eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
         .ft-eq { animation: ft-eq 1.1s ease-in-out infinite; transform-origin: bottom; }
         @media (prefers-reduced-motion: reduce) { .ft-eq { animation: none; transform: scaleY(0.7); } }
       `}</style>
 
-      {/* Linie superioara subtila tip audio waveform */}
-      <div aria-hidden className="relative h-px w-full bg-gradient-to-r from-transparent via-pink-500/30 to-transparent">
-        <div className="absolute left-1/2 top-0 h-px w-40 -translate-x-1/2 bg-gradient-to-r from-transparent via-pink-400 to-transparent blur-[1px]" />
+      {/* top glow line, audio-waveform style */}
+      <div aria-hidden className="relative h-px w-full bg-gradient-to-r from-transparent via-pink-300/30 to-transparent">
+        <div className="absolute left-1/2 top-0 h-px w-32 -translate-x-1/2 bg-pink-300 blur-[1px]" />
       </div>
-      
-      {/* Lumini ambientale difuze pozitionate in spatele sticlei */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-32 left-1/4 h-64 w-[30rem] rounded-full bg-[radial-gradient(closest-side,rgba(244,63,94,0.04),transparent)] blur-xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-32 right-1/4 h-64 w-[30rem] rounded-full bg-[radial-gradient(closest-side,rgba(249,115,22,0.03),transparent)] blur-xl"
+        className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[40rem] max-w-full -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(249,168,212,0.10),transparent)]"
       />
 
+      {/* bottom padding on phones clears the fixed bottom navigation */}
       <div className="relative mx-auto w-full max-w-6xl px-6 pb-28 pt-14 md:px-8 md:pb-8">
         <div className="grid gap-12 md:grid-cols-12">
-          
-          {/* Brand */}
+          {/* brand */}
           <div className="md:col-span-5">
             <div className="flex items-center gap-3">
               <Link
                 href="/"
                 aria-label="iMIDI home"
-                className={`font-sans text-2xl font-extrabold tracking-tight text-[#E6E1D5] ${FOCUS}`}
+                className={`font-sans text-2xl font-extrabold tracking-tight text-white ${FOCUS}`}
               >
-                iMIDI<span className="text-pink-400/90">.co.uk</span>
+                iMIDI<span className="text-pink-300">.co.uk</span>
               </Link>
+
             </div>
-            <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-[#BFAF9F]/80">
+            <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-[#9AA9C4]">
               MIDI hardware, cloud space and live sessions, together in one platform.
             </p>
           </div>
 
-          {/* Navigare */}
+          {/* links */}
           <nav aria-label="Footer" className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 md:col-span-7 md:justify-items-start lg:pl-8">
             {COLUMNS.map((col) => (
               <div key={col.title}>
-                <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-pink-400/70">{col.title}</h2>
+                <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-pink-300/80">{col.title}</h2>
                 <ul className="mt-3 flex flex-col">
                   {col.links.map((l) => (
                     <li key={l.href}>
@@ -158,7 +153,7 @@ export default function Footer() {
             ))}
 
             <div>
-              <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-pink-400/70">Legal</h2>
+              <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-pink-300/80">Legal</h2>
               <ul className="mt-3 flex flex-col">
                 {LEGAL.map((l) => (
                   <li key={l.href}>
@@ -176,19 +171,23 @@ export default function Footer() {
           </nav>
         </div>
 
-        {/* Zona inferioara */}
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/[0.04] pt-6 text-center sm:flex-row sm:text-left">
-          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 font-mono text-[11px] tracking-tight text-[#BFAF9F]/60 sm:justify-start">
+        {/* bottom bar */}
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/[0.07] pt-6 text-center sm:flex-row sm:text-left">
+          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 font-mono text-[11px] tracking-tight text-[#7E8FAD] sm:justify-start">
             <span>© {year} iMIDI.co.uk</span>
-            <span aria-hidden className="text-[#BFAF9F]/20">·</span>
-            <span>Platform developed with <span className="font-semibold text-[#E6E1D5]">NI</span></span>
-            <span className="rounded border border-pink-400/20 bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-bold text-pink-400 backdrop-blur-sm">{VERSION}</span>
+            <span aria-hidden className="text-[#7E8FAD]/40">
+              ·
+            </span>
+            <span>
+              Platform developed with <span className="font-semibold text-white">NI</span>
+            </span>
+            <span className="rounded border border-pink-300/20 bg-[#0F1D36] px-1.5 py-0.5 text-[9px] font-bold text-pink-300">{VERSION}</span>
           </p>
 
           <button
             type="button"
             onClick={backToTop}
-            className={`group inline-flex cursor-pointer items-center gap-2 px-1 py-1.5 font-mono text-[11px] text-[#BFAF9F] transition-colors hover:text-[#E6E1D5] ${FOCUS}`}
+            className={`group inline-flex cursor-pointer items-center gap-2 px-1 py-1.5 font-mono text-[11px] text-[#9AA9C4] transition-colors hover:text-white ${FOCUS}`}
           >
             Back to top
             <svg
