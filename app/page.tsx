@@ -58,48 +58,58 @@ const VALUES = [
 ];
 
 const PILLARS = [
-
-  {
-    eyebrow: "Connectivity",
-    title: "AirMIDI Link",
-    desc: "Private video calls and live MIDI sessions in the browser. Play together in real time, anywhere.",
-    chips: ["Low-latency MIDI", "Private sessions", "Works in the browser"],
-    href: "/airmidi-link",
-    cta: "Open AirMIDI Link",
-    color: PURPLE, // sau culoarea pe care o folosești pentru AirMIDI
-    icon: "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1.5-3-1-1-1.5-1.62-1.5-3a2.5 2.5 0 0 1 5 0c0 1.38-.5 2-1.5 3-1 1-1.5 1.62-1.5 3a2.5 2.5 0 0 0 2.5 2.5M12 20v-2M8 20h8M4.5 9.5c0-2 .8-3.5 2-4.5M19.5 9.5c0-2-.8-3.5-2-4.5",
-  },
-  {
-    eyebrow: "Marketplace",
-    title: "E-Market",
-    desc: "Buy and sell presets, sound banks, scripts and instruments directly with other artists.",
-    chips: ["Free to list for 14 days", "Found via AI Smith", "Direct messages"],
-    href: "/e-market",
-    cta: "Browse E-Market",
-    color: ORANGE,
-    icon: "M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007Z",
-  },
-  {
-    eyebrow: "Hardware",
-    title: "i-volution Controller",
-    desc: "A universal MIDI controller purpose-built for accordion, on any MIDI channel.",
-    chips: ["SOLO and BASS mapping", "Velocity-sensitive", "Any MIDI controller works"],
-    href: "/products",
-    cta: "See i-volution",
-    color: PURPLE,
-    icon: "M7 5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7zM3 9h2M3 13h2M19 9h2M19 13h2M9 3v2M13 3v2M9 19v2M13 19v2",
-  },
-  {
-    eyebrow: "Tools",
-    title: "SD Writer",
-    desc: "Paste a seller link and code, plug in the card, and write the package straight to the SD card with verification.",
-    chips: ["One-time links", "Checksum verified", "Chrome & Edge"],
-    href: "/sd-writer",
-    cta: "Open SD Writer",
-    color: PINK, // sau ORANGE
-    // SD card + download arrow
-    icon: "M6 4a2 2 0 0 1 2-2h7l3 3v13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4zm9 0v2h2M12 10v6m0 0-2.5-2.5M12 16l2.5-2.5",
-  },
+{
+eyebrow: "Connectivity",
+title: "AirMIDI Link",
+desc: "Private video calls and live MIDI sessions in the browser. Play together in real time, anywhere.",
+chips: ["Low-latency MIDI", "Private sessions", "Works in the browser"],
+href: "/airmidi-link",
+cta: "Open AirMIDI Link",
+color: PURPLE, // sau culoarea pe care o folosești pentru AirMIDI
+icon: "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1.5-3-1-1-1.5-1.62-1.5-3a2.5 2.5 0 0 1 5 0c0 1.38-.5 2-1.5 3-1 1-1.5 1.62-1.5 3a2.5 2.5 0 0 0 2.5 2.5M12 20v-2M8 20h8M4.5 9.5c0-2 .8-3.5 2-4.5M19.5 9.5c0-2-.8-3.5-2-4.5",
+},
+{
+eyebrow: "Marketplace",
+title: "E-Market",
+desc: "Buy and sell presets, sound banks, scripts and instruments directly with other artists.",
+chips: ["Free to list for 14 days", "Found via AI Smith", "Direct messages"],
+href: "/e-market",
+cta: "Browse E-Market",
+color: ORANGE,
+icon: "M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007Z",
+},
+{
+eyebrow: "Hardware",
+title: "i-volution Controller",
+desc: "A universal MIDI controller purpose-built for accordion, on any MIDI channel.",
+chips: ["SOLO and BASS mapping", "Velocity-sensitive", "Any MIDI controller works"],
+href: "/products",
+cta: "See i-volution",
+color: PURPLE,
+icon: "M7 5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7zM3 9h2M3 13h2M19 9h2M19 13h2M9 3v2M13 3v2M9 19v2M13 19v2",
+},
+{
+eyebrow: "Tools",
+title: "SD Writer",
+desc: "Paste a seller link and code, plug in the card, and write the package straight to the SD card with verification.",
+chips: ["One-time links", "Checksum verified", "Chrome & Edge"],
+href: "/sd-writer",
+cta: "Open SD Writer",
+color: PINK, // sau ORANGE
+// SD card + download arrow
+icon: "M6 4a2 2 0 0 1 2-2h7l3 3v13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4zm9 0v2h2M12 10v6m0 0-2.5-2.5M12 16l2.5-2.5",
+},
+{
+eyebrow: "Tools",
+title: "USB Writer",
+desc: "Connect your arranger via USB cable, paste the secure link, and deploy .SET or sound packages directly into the hardware memory without desktop fragmentation.",
+chips: ["Direct PA-Connection", "Anti-piracy stream", "Sequential writing"],
+href: "/usb-writer",
+cta: "Open USB Writer",
+color: PINK,
+// USB connector + direct transfer path icon
+icon: "M6 2h12v4H6V2zm3 4v6l-3 3v6h12v-6l-3-3V6H9zm3 11a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z",
+},
 ];
 
 const FLOW = [

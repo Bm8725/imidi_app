@@ -77,6 +77,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     ...listingUrls,
-    ...stiriUrls, // Adăugate dinamic aici pentru indexarea Google normală
+    ...stiriUrls, // 
   ];
 }
