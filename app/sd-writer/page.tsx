@@ -561,11 +561,27 @@ export default function SdWritePage() {
         <div aria-hidden className="pointer-events-none absolute left-0 top-1/3 h-[260px] w-[260px] rounded-full bg-[#FF8A3D]/[0.07] blur-[110px]" />
 
         <div ref={topRef} className="relative mx-auto w-full max-w-3xl scroll-mt-24">
-          <p className="aw-mono text-xs uppercase tracking-[0.16em] text-[#FF5CA1]">iMIDI · SD writer</p>
-          <h1 className="aw-display mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Write your package to an SD card</h1>
-          <p className="mt-3 text-[15px] leading-relaxed text-[#A1A1AA]">
-            Paste the link and the code you got from the seller, plug in the card, and press write. The file goes straight to the card and is checked afterwards.
-          </p>
+     <div className="flex items-start gap-4 sm:gap-5">
+  <img
+    src="/UOTOB.jpg"
+    alt="SD Writer"
+    width={56}
+    height={56}
+    className="mt-1 h-12 w-12 shrink-0 rounded-xl sm:h-14 sm:w-14 object-cover"
+  />
+  <div className="min-w-0">
+    <p className="aw-mono text-xs uppercase tracking-[0.16em] text-[#FF5CA1]">
+      iMIDI · SD writer
+    </p>
+    <h1 className="aw-display mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+      Write your package to an SD card
+    </h1>
+    <p className="mt-3 text-[15px] leading-relaxed text-[#A1A1AA]">
+      Paste the link and the code you got from the seller, plug in the card, and press write. The file goes
+      straight to the card and is checked afterwards.
+    </p>
+  </div>
+</div>
 
           {!supported && (
             <p role="alert" className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">

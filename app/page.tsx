@@ -94,7 +94,7 @@ const PILLARS = [
     title: "SD Writer",
     desc: "Paste a seller link and code, plug in the card, and write the package straight to the SD card with verification.",
     chips: ["One-time links", "Checksum verified", "Chrome & Edge"],
-    href: "/sd-write",
+    href: "/sd-writer",
     cta: "Open SD Writer",
     color: PINK, // sau ORANGE
     // SD card + download arrow
