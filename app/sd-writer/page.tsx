@@ -1,4 +1,4 @@
-// app/sd-write/page.tsx  ·  real version: seller link + code  ->  /api/cloud/redeem  ->  written straight to an SD card
+// app/sd-write/page.tsx  ·  one package code (SD-<token>.<code>)  ->  /api/cloud/redeem  ->  written straight to an SD card
 // Needs:  npm i hash-wasm
 'use client';
 
@@ -87,23 +87,13 @@ const waitOnline = () =>
         window.addEventListener("online", h);
       });
 
-/** token from a pasted link, a path or a bare token; "" if it doesn't look right */
-function parseToken(input: string): string {
-  const s = input.trim();
-  if (!s) return "";
-  const m = s.match(/\/download\/([A-Za-z0-9_-]{3,})/);
-  if (m) return m[1];
-  return /^[A-Za-z0-9_-]{3,}$/.test(s) ? s : "";
+/** The package code looks like  SD-<token>.<code>  (the seller's dashboard makes it). null if it doesn't. */
+function parsePackageCode(input: string): { token: string; code: string } | null {
+  const clean = input.replace(/[\u200B-\u200D\uFEFF]/g, "").trim().replace(/^["'“”‘’]+|["'“”‘’]+$/g, "");
+  const m = clean.match(/^SD-([A-Za-z0-9_-]{3,})\.(.+)$/i);
+  return m ? { token: m[1], code: m[2] } : null;
 }
-
-function linkHostOk(input: string): boolean {
-  try {
-    const h = new URL(input.trim()).hostname;
-    return h === window.location.hostname || h === "imidi.co.uk" || h.endsWith(".imidi.co.uk");
-  } catch {
-    return true; // a bare token has no host to check
-  }
-}
+const looksLikeLink = (s: string) => /:\/\/|\/download\//i.test(s);
 
 /** exact size of the file in bytes, 0 if the server doesn't tell (then it is read from the download itself) */
 async function probeSize(url: string): Promise<number> {
@@ -195,8 +185,7 @@ function StepHead({ n, title, done, hint }: { n: number; title: string; done: bo
    ════════════════════════════════════════════════════════════════ */
 export default function SdWritePage() {
   // 1. package
-  const [linkInput, setLinkInput] = useState("");
-  const [code, setCode] = useState("");
+  const [codeInput, setCodeInput] = useState("");
   const [showCode, setShowCode] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewing, setPreviewing] = useState(false);
@@ -228,8 +217,10 @@ export default function SdWritePage() {
   const partialRef = useRef<{ name: string; size: number } | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
 
-  const token = useMemo(() => parseToken(linkInput), [linkInput]);
-  const hostBad = linkInput.trim().length > 0 && !linkHostOk(linkInput);
+  const parsed = useMemo(() => parsePackageCode(codeInput), [codeInput]);
+  const token = parsed?.token ?? "";
+  const code = parsed?.code ?? "";
+  const isLink = codeInput.trim().length > 0 && !parsed && looksLikeLink(codeInput);
   const writing = phase === "writing";
   const hasSession = !!token && typeof window !== "undefined" && !!loadSession(token);
   const cardReady = !!cardName && formatted;
@@ -244,7 +235,7 @@ export default function SdWritePage() {
   useEffect(() => {
     setPreview(null);
     setPreviewError("");
-    if (!token || hostBad) return;
+    if (!token) return;
     const ac = new AbortController();
     setPreviewing(true);
     const id = setTimeout(async () => {
@@ -261,7 +252,7 @@ export default function SdWritePage() {
       ac.abort();
       setPreviewing(false);
     };
-  }, [token, hostBad]);
+  }, [token]);
 
   /* remaining time of an unlocked link */
   useEffect(() => {
@@ -295,10 +286,10 @@ export default function SdWritePage() {
   const goContinue = (e?: React.FormEvent) => {
     e?.preventDefault();
     setFormError("");
-    if (!token) return setFormError("Paste the full link from the seller (it contains /download/…).");
-    if (hostBad) return setFormError("This doesn't look like an iMIDI link.");
+    if (isLink) return setFormError("That is a link. Paste the package code from the seller instead, it starts with SD-.");
+    if (!parsed) return setFormError("Paste the package code from the seller. It starts with SD- and has a dot in it.");
     if (previewError) return setFormError(previewError);
-    if (!hasSession && code.trim().length < MIN_CODE) return setFormError(`The code has at least ${MIN_CODE} characters.`);
+    if (!hasSession && code.trim().length < MIN_CODE) return setFormError("This code looks incomplete. Paste the whole code.");
     setConfirmed(true);
   };
 
@@ -354,7 +345,7 @@ export default function SdWritePage() {
     abortRef.current = ac;
     setMessage("");
     setPhase("writing");
-    setStepText("Unlocking the link");
+    setStepText("Unlocking the package");
 
     let wake: any = null;
     let name = "";
@@ -440,7 +431,7 @@ export default function SdWritePage() {
       for (;;) {
         try {
           const res = await fetch(session.url, { signal: ac.signal, headers: written > 0 ? { Range: `bytes=${written}-` } : undefined });
-          if ([400, 401, 403, 404, 410].includes(res.status)) throw fail("The download link has expired. Links last 30 minutes after the code is used. Ask the seller for a new link.", "expired");
+          if ([400, 401, 403, 404, 410].includes(res.status)) throw fail("The download has expired. A package stays open for 30 minutes after the code is used. Ask the seller for a new code.", "expired");
           if (!res.ok && res.status !== 206) throw new Error(`Server error ${res.status}`);
           if (written > 0 && res.status !== 206) throw new Error("The server can't continue a download. Try again from the start.");
           if (!total) {
@@ -561,63 +552,63 @@ export default function SdWritePage() {
         <div aria-hidden className="pointer-events-none absolute left-0 top-1/3 h-[260px] w-[260px] rounded-full bg-[#FF8A3D]/[0.07] blur-[110px]" />
 
         <div ref={topRef} className="relative mx-auto w-full max-w-3xl scroll-mt-24">
-     <div className="flex items-start gap-4 sm:gap-5">
-  <img
-    src="/UOTOB.jpg"
-    alt="SD Writer"
-    width={56}
-    height={56}
-    className="mt-1 h-12 w-12 shrink-0 rounded-xl sm:h-14 sm:w-14 object-cover"
-  />
-  <div className="min-w-0">
-    <p className="aw-mono text-xs uppercase tracking-[0.16em] text-[#FF5CA1]">
-      iMIDI · SD writer
-    </p>
-    <h1 className="aw-display mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-      Write your package to an SD card
-    </h1>
-    <p className="mt-3 text-[15px] leading-relaxed text-[#A1A1AA]">
-      Paste the link and the code you got from the seller, plug in the card, and press write. The file goes
-      straight to the card and is checked afterwards.
-    </p>
-  </div>
-</div>
+          <div className="flex items-start gap-4 sm:gap-5">
+            <img src="/UOTOB.jpg" alt="SD Writer" width={56} height={56} className="mt-1 h-12 w-12 shrink-0 rounded-xl object-cover sm:h-14 sm:w-14" />
+            <div className="min-w-0">
+              <p className="aw-mono text-xs uppercase tracking-[0.16em] text-[#FF5CA1]">iMIDI · SD writer</p>
+              <h1 className="aw-display mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Write your package to an SD card</h1>
+              <p className="mt-3 text-[15px] leading-relaxed text-[#A1A1AA]">
+                Paste the package code you got from the seller, plug in the card, and press write. The file goes straight to the card and is checked afterwards.
+              </p>
+            </div>
+          </div>
 
           {!supported && (
             <p role="alert" className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-              Writing to a card needs Chrome or Edge on a computer, over HTTPS. Open this page there. To save the file on your computer instead, open the link itself.
+              Writing to a card needs Chrome or Edge on a computer, over HTTPS. Open this page there.
             </p>
           )}
 
           <div className="mt-8 space-y-4">
             {/* ───────────── 1. PACKAGE ───────────── */}
             <section className="rounded-2xl border border-white/[0.08] bg-[#18181C] p-5 sm:p-7" aria-label="Your package">
-              <StepHead n={1} title="Your package" done={confirmed} hint={confirmed ? undefined : "The link and the code come from the seller, usually sent in two separate messages."} />
+              <StepHead n={1} title="Your package" done={confirmed} hint={confirmed ? undefined : "One code from the seller is all you need."} />
 
               {!confirmed ? (
                 <form onSubmit={goContinue} className="mt-5 space-y-4">
                   <div>
-                    <label htmlFor="link" className="text-sm font-medium text-white">Link</label>
-                    <input
-                      id="link"
-                      type="text"
-                      inputMode="url"
-                      autoComplete="off"
-                      spellCheck={false}
-                      value={linkInput}
-                      onChange={(e) => setLinkInput(e.target.value)}
-                      placeholder="https://imidi.co.uk/download/…"
-                      className={`mt-1.5 h-12 w-full rounded-xl border bg-[#131316] px-4 text-sm text-white outline-none transition-colors placeholder:text-[#6A6A73] focus:border-[#FF5CA1]/60 ${
-                        hostBad || previewError ? "border-red-500/50" : "border-white/[0.12]"
-                      }`}
-                    />
+                    <label htmlFor="pkg" className="text-sm font-medium text-white">Package code</label>
+                    <div className="relative mt-1.5">
+                      <input
+                        id="pkg"
+                        type={showCode ? "text" : "password"}
+                        autoComplete="off"
+                        spellCheck={false}
+                        autoFocus
+                        value={codeInput}
+                        onChange={(e) => setCodeInput(e.target.value)}
+                        placeholder={hasSession ? "Unlocked in this tab, paste the code again" : "SD-…"}
+                        className={`h-12 w-full rounded-xl border bg-[#131316] px-4 pr-20 text-sm text-white outline-none transition-colors placeholder:text-[#6A6A73] focus:border-[#FF5CA1]/60 ${
+                          isLink || previewError ? "border-red-500/50" : "border-white/[0.12]"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCode((v) => !v)}
+                        className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1.5 text-xs font-semibold text-[#A1A1AA] hover:text-white ${FOCUS}`}
+                      >
+                        {showCode ? "Hide" : "Show"}
+                      </button>
+                    </div>
                     <p className="mt-2 min-h-[1.25rem] text-[13px]" aria-live="polite">
-                      {linkInput.trim() === "" ? null : hostBad ? (
-                        <span className="text-red-300">This doesn&apos;t look like an iMIDI link.</span>
-                      ) : !token ? (
-                        <span className="text-[#A1A1AA]">Paste the whole link, it contains /download/</span>
+                      {codeInput.trim() === "" ? (
+                        <span className="text-[#8E8E98]">The code starts with SD- and works once.</span>
+                      ) : isLink ? (
+                        <span className="text-red-300">That is a link. Ask the seller for the package code, it starts with SD-.</span>
+                      ) : !parsed ? (
+                        <span className="text-[#A1A1AA]">Paste the whole code, from SD- to the end.</span>
                       ) : previewing ? (
-                        <span className="text-[#A1A1AA]">Looking up the link…</span>
+                        <span className="text-[#A1A1AA]">Looking up the package…</span>
                       ) : previewError ? (
                         <span className="text-red-300">{previewError}</span>
                       ) : preview ? (
@@ -628,30 +619,6 @@ export default function SdWritePage() {
                     </p>
                   </div>
 
-                  <div>
-                    <label htmlFor="code" className="text-sm font-medium text-white">Access code</label>
-                    <div className="relative mt-1.5">
-                      <input
-                        id="code"
-                        type={showCode ? "text" : "password"}
-                        autoComplete="off"
-                        spellCheck={false}
-                        value={code}
-                        onChange={(e) => setCode(e.target.value)}
-                        placeholder={hasSession ? "Link already unlocked in this tab" : "The code from the seller"}
-                        className="h-12 w-full rounded-xl border border-white/[0.12] bg-[#131316] px-4 pr-20 text-sm text-white outline-none transition-colors placeholder:text-[#6A6A73] focus:border-[#FF5CA1]/60"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowCode((v) => !v)}
-                        className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1.5 text-xs font-semibold text-[#A1A1AA] hover:text-white ${FOCUS}`}
-                      >
-                        {showCode ? "Hide" : "Show"}
-                      </button>
-                    </div>
-                    <p className="mt-1.5 text-xs text-[#8E8E98]">The code is checked when you press Write, and works once.</p>
-                  </div>
-
                   {formError && (
                     <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-3.5 text-sm text-red-200">
                       {formError}
@@ -660,7 +627,7 @@ export default function SdWritePage() {
 
                   <button
                     type="submit"
-                    disabled={!token || hostBad || previewing || !!previewError}
+                    disabled={!parsed || previewing || !!previewError}
                     className={`inline-flex h-12 items-center rounded-xl bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] px-8 text-xs font-bold uppercase tracking-wide text-white transition-transform enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`}
                   >
                     Continue
@@ -840,17 +807,18 @@ export default function SdWritePage() {
           </div>
 
           <details className="mt-6 rounded-2xl border border-white/[0.08] bg-[#18181C] p-5 text-sm text-[#A1A1AA]">
-            <summary className={`cursor-pointer rounded font-medium text-[#D4D4D9] hover:text-white ${FOCUS}`}>Link not working, or can&apos;t choose the card?</summary>
+            <summary className={`cursor-pointer rounded font-medium text-[#D4D4D9] hover:text-white ${FOCUS}`}>Code not working, or can&apos;t choose the card?</summary>
             <div className="mt-3 space-y-3 leading-relaxed">
               <p>
-                A code works once. After it is used, the link stays open for 30 minutes in this tab, so a failed write can be retried. Check you pasted the whole link and the exact code, and ask the
-                seller for a new link if needed.
+                A code works once. After it is used, the package stays open for 30 minutes in this tab, so a failed write can be retried. Check you pasted the whole code, and ask the
+                seller for a new code if needed.
               </p>
               <p>Some systems block selecting the root of a drive. Use the latest Chrome or Edge on a computer, try another USB card reader, and pick the card itself, not a folder inside it.</p>
             </div>
           </details>
         </div>
       </main>
+
       <Footer />
     </div>
   );
