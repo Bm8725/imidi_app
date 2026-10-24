@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
   initNotifications,
@@ -58,9 +58,6 @@ const links: NavLink[] = [
 const BELL =
   "M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0";
 
-const FOCUS =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1528]";
-
 /* ------------------------------------------------------------------ */
 /*  Styles                                                            */
 /* ------------------------------------------------------------------ */
@@ -106,12 +103,6 @@ function Badge({ n }: { n: number }) {
   );
 }
 
-function NewPill() {
-  return (
-    <span className="ml-1.5 rounded-full bg-pink-300 px-1.5 py-0.5 text-[8px] font-bold text-[#0B1528]">NEW</span>
-  );
-}
-
 function Avatar({ user, size }: { user: { name?: string; email?: string }; size: string }) {
   return (
     <div className={`${size} flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-300 to-indigo-400 text-xs font-bold uppercase text-[#0B1528]`}>
@@ -121,7 +112,7 @@ function Avatar({ user, size }: { user: { name?: string; email?: string }; size:
 }
 
 /* ------------------------------------------------------------------ */
-/*  Notification Dropdown                                             */
+/*  Notification Dropdown (light)                                     */
 /* ------------------------------------------------------------------ */
 
 function NotificationDropdown({
@@ -141,32 +132,30 @@ function NotificationDropdown({
     <>
       {isMobile && <div className="fixed inset-0 z-40 bg-transparent md:hidden" onClick={onClose} />}
       <div
-        className={`z-50 overflow-y-auto rounded-2xl border py-2 backdrop-blur-xl ${
-          isMobile
-            ? "fixed left-4 right-4 top-16 max-h-80 border-slate-200 bg-white/95 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.25)]"
-            : "absolute right-0 mt-4 max-h-96 w-80 border-white/10 bg-[#0F1D36]/95 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.6)]"
+        className={`z-50 overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 py-2 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.25)] backdrop-blur-xl ${
+          isMobile ? "fixed left-4 right-4 top-16 max-h-80" : "absolute right-0 mt-4 max-h-96 w-80"
         }`}
       >
         {notifications.length === 0 ? (
-          <p className={`px-4 py-6 text-center text-xs ${isMobile ? "text-slate-400" : "text-[#7E8FAD]"}`}>No notifications yet.</p>
+          <p className="px-4 py-6 text-center text-xs text-slate-400">No notifications yet.</p>
         ) : (
           notifications.map((n) => (
             <Link
               key={n.id + n.createdAt}
               href={n.href || "#"}
               onClick={onClose}
-              className={`flex items-start gap-3 px-4 py-3 transition-colors ${isMobile ? "hover:bg-slate-50" : "hover:bg-white/[0.06]"}`}
+              className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50"
             >
               {n.image ? (
                 <img src={n.image} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
               ) : (
-                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${isMobile ? "bg-pink-50 text-pink-500" : "bg-white/10 text-pink-300"}`}>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-pink-50 text-[10px] font-bold text-pink-500">
                   iM
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <p className={`truncate text-xs font-semibold ${isMobile ? "text-slate-800" : "text-white"}`}>{n.title}</p>
-                <p className={`truncate text-[11px] ${isMobile ? "text-slate-500" : "text-[#9AA9C4]"}`}>{n.message}</p>
+                <p className="truncate text-xs font-semibold text-slate-800">{n.title}</p>
+                <p className="truncate text-[11px] text-slate-500">{n.message}</p>
               </div>
             </Link>
           ))
@@ -177,7 +166,144 @@ function NotificationDropdown({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Desktop Nav                                                       */
+/*  Command palette (⌘K)                                              */
+/* ------------------------------------------------------------------ */
+
+const FOCUS_L =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
+
+const HINTS: Record<string, string> = {
+  "/": "Go to the homepage",
+  "/products": "Universal MIDI controller for accordion",
+  "/airmidi-link": "Live MIDI sessions with video",
+  "/e-market": "Buy and sell presets and sound banks",
+  "https://docs.imidi.co.uk": "Documentation",
+  "/dashboard/cloud-db": "Your cloud space",
+};
+
+type PaletteItem = { label: string; hint: string; href?: string; external?: boolean; onSelect?: () => void };
+
+function SearchIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
+function CommandPalette({ open, onClose, items }: { open: boolean; onClose: () => void; items: PaletteItem[] }) {
+  const router = useRouter();
+  const [q, setQ] = useState("");
+  const [idx, setIdx] = useState(0);
+
+  const needle = q.trim().toLowerCase();
+  const filtered = items.filter((i) => `${i.label} ${i.hint}`.toLowerCase().includes(needle));
+
+  useEffect(() => {
+    if (open) {
+      setQ("");
+      setIdx(0);
+    }
+  }, [open]);
+  useEffect(() => setIdx(0), [q]);
+
+  if (!open) return null;
+
+  const run = (it?: PaletteItem) => {
+    if (!it) return;
+    onClose();
+    if (it.onSelect) it.onSelect();
+    else if (it.href) {
+      if (it.external) window.open(it.href, "_blank", "noopener,noreferrer");
+      else router.push(it.href);
+    }
+  };
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setIdx((i) => Math.min(i + 1, Math.max(filtered.length - 1, 0)));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setIdx((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      run(filtered[idx]);
+    } else if (e.key === "Escape") {
+      onClose();
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] hidden items-start justify-center bg-slate-900/30 px-4 pt-[18vh] backdrop-blur-sm md:flex"
+      onMouseDown={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Quick navigation"
+        onMouseDown={(e) => e.stopPropagation()}
+        className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_30px_80px_-20px_rgba(15,23,42,0.45)]"
+      >
+        <div className="flex items-center gap-3 border-b border-slate-100 px-4">
+          <SearchIcon className="h-4 w-4 text-slate-400" />
+          <input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={onKey}
+            placeholder="Jump to…"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="nv-palette-list"
+            aria-activedescendant={filtered[idx] ? `nv-opt-${idx}` : undefined}
+            className="h-14 w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+          />
+          <kbd className="rounded border border-slate-200 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">esc</kbd>
+        </div>
+
+        <ul id="nv-palette-list" role="listbox" className="max-h-72 overflow-y-auto p-2">
+          {filtered.length === 0 ? (
+            <li className="px-3 py-8 text-center text-sm text-slate-400">No results</li>
+          ) : (
+            filtered.map((it, i) => (
+              <li
+                key={it.label}
+                id={`nv-opt-${i}`}
+                role="option"
+                aria-selected={i === idx}
+                onMouseMove={() => setIdx(i)}
+                onClick={() => run(it)}
+                className={`flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 transition-colors ${
+                  i === idx ? "bg-pink-50" : ""
+                }`}
+              >
+                <div className="min-w-0">
+                  <p className={`text-sm font-semibold ${i === idx ? "text-slate-950" : "text-slate-700"}`}>{it.label}</p>
+                  <p className="truncate text-xs text-slate-400">{it.hint}</p>
+                </div>
+                <span aria-hidden className={`font-mono text-xs ${i === idx ? "text-pink-500" : "text-transparent"}`}>
+                  ↵
+                </span>
+              </li>
+            ))
+          )}
+        </ul>
+
+        <div className="flex items-center gap-4 border-t border-slate-100 bg-slate-50/70 px-4 py-2 font-mono text-[10px] text-slate-400">
+          <span>↑↓ navigate</span>
+          <span>↵ open</span>
+          <span>esc close</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Desktop Nav (light)                                               */
 /* ------------------------------------------------------------------ */
 
 type Hl = { left: number; width: number } | null;
@@ -203,155 +329,202 @@ function DesktopNav({
 }) {
   const pathname = usePathname();
   const [hl, setHl] = useState<Hl>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [isMac, setIsMac] = useState(false);
+
   const track = (e: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>) =>
     setHl({ left: e.currentTarget.offsetLeft, width: e.currentTarget.offsetWidth });
 
+  useEffect(() => {
+    setIsMac(/Mac|iPhone|iPad/i.test(navigator.platform));
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const items: PaletteItem[] = [
+    ...links.map((l) => ({
+      label: l.label === "DOCS" ? "Docs" : l.label,
+      hint: HINTS[l.href] ?? "",
+      href: l.href,
+      external: l.external,
+    })),
+    ...(user
+      ? [{ label: "Sign Out", hint: "Log out of your account", onSelect: onLogout }]
+      : [
+          { label: "Sign In", hint: "Access your cloud space", href: "/login" },
+          { label: "Get Started", hint: "Create your free account", href: "/register" },
+        ]),
+  ];
+
   return (
-    <div
-      className={`pointer-events-none fixed inset-x-0 top-0 z-50 hidden justify-center px-6 transition-all duration-500 md:flex ${
-        scrolled ? "pt-3" : "pt-5"
-      }`}
-    >
-      <nav
-        className={`pointer-events-auto relative flex h-14 w-full items-center justify-between rounded-full border border-white/10 pl-5 pr-2.5 backdrop-blur-xl transition-all duration-500 ${
-          scrolled
-            ? "max-w-5xl bg-[#0B1528]/85 shadow-[0_10px_40px_-8px_rgba(0,0,0,0.6),0_0_0_1px_rgba(249,168,212,0.12)]"
-            : "max-w-6xl bg-[#0B1528]/45 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.4)]"
+    <>
+      <div
+        className={`pointer-events-none fixed inset-x-0 top-0 z-50 hidden justify-center px-6 transition-all duration-500 md:flex ${
+          scrolled ? "pt-3" : "pt-5"
         }`}
       >
-        {/* Logo */}
-        <Link href="/" className={`group flex items-center rounded-full ${FOCUS}`}>
-          <img src="/iiimidi.png" alt="iMIDI Logo" className="h-14 w-auto object-contain" />
-          <span className="logo-dot ml-0.5 inline-block text-xl font-black text-[#FF5CA1]">.</span>
-        </Link>
+        <nav
+          className={`pointer-events-auto relative flex w-full max-w-6xl items-center justify-between rounded-2xl border border-slate-200/70 bg-white/75 pl-4 pr-3 backdrop-blur-xl backdrop-saturate-150 transition-all duration-500 ${
+            scrolled
+              ? "h-14 shadow-[0_8px_30px_rgba(15,23,42,0.12)]"
+              : "h-16 shadow-[0_8px_30px_rgba(15,23,42,0.06)]"
+          }`}
+        >
+          {/* Logo */}
+          <Link href="/" className={`group flex items-center rounded-xl ${FOCUS_L}`}>
+            <img src="/iiimidi.png" alt="iMIDI Logo" className="h-14 w-auto object-contain" />
+            <span className="logo-dot ml-0.5 inline-block text-xl font-black text-[#FF5CA1]">.</span>
+          </Link>
 
-        {/* Links with magnetic highlight */}
-        <div className="relative flex items-center" onMouseLeave={() => setHl(null)}>
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 rounded-full bg-white/10 ring-1 ring-white/10 transition-all duration-300 ease-out"
-            style={{ left: hl?.left ?? 0, width: hl?.width ?? 0, opacity: hl ? 1 : 0 }}
-          />
-          {links.slice(1).map((l) => {
-            if (l.isAirMidi) {
-              const active = !!pathname?.startsWith("/airmidi-link");
-              return (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  onMouseEnter={track}
-                  onFocus={track}
-                  className={`relative z-10 flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-4 text-xs font-semibold uppercase tracking-wider transition-colors ${FOCUS} ${
-                    active ? "text-pink-300" : "text-white/80 hover:text-white"
-                  }`}
-                >
-                  <span className="relative flex h-6 w-6 shrink-0 rounded-full">
-                    <span aria-hidden className="nv-sonar absolute inset-0 rounded-full bg-indigo-400/50" />
-                    <img src="/airlink-icon.png" alt="" className="relative h-6 w-6 rounded-full" draggable={false} />
-                  </span>
+          {/* Links with soft magnetic highlight */}
+          <div className="relative flex items-center" onMouseLeave={() => setHl(null)}>
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-y-0 rounded-xl bg-slate-900/[0.05] transition-all duration-300 ease-out"
+              style={{ left: hl?.left ?? 0, width: hl?.width ?? 0, opacity: hl ? 1 : 0 }}
+            />
+            {links.slice(1).map((l) => {
+              if (l.isAirMidi) {
+                const active = !!pathname?.startsWith("/airmidi-link");
+                return (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onMouseEnter={track}
+                    onFocus={track}
+                    className={`relative z-10 flex items-center gap-2 rounded-xl py-1.5 pl-1.5 pr-4 text-xs font-semibold uppercase tracking-wider transition-colors ${FOCUS_L} ${
+                      active ? "text-slate-950" : "text-slate-600 hover:text-slate-950"
+                    }`}
+                  >
+                    <span className="relative flex h-6 w-6 shrink-0 rounded-full">
+                      <span aria-hidden className="nv-sonar absolute inset-0 rounded-full bg-indigo-400/40" />
+                      <img src="/airlink-icon.png" alt="" className="relative h-6 w-6 rounded-full" draggable={false} />
+                    </span>
+                    {l.label}
+                    <span aria-hidden className="flex h-3 items-end gap-[2px]">
+                      {[0, 0.18, 0.08].map((d, i) => (
+                        <span key={i} className="nv-eq h-full w-[2.5px] rounded-full bg-indigo-500" style={{ animationDelay: `${d}s` }} />
+                      ))}
+                    </span>
+                    {active && (
+                      <span aria-hidden className="absolute inset-x-4 -bottom-0.5 h-0.5 rounded-full bg-gradient-to-r from-pink-400 to-indigo-400" />
+                    )}
+                  </Link>
+                );
+              }
+
+              const active = pathname === l.href;
+              const cls = `relative z-10 rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${FOCUS_L} ${
+                active ? "text-slate-950" : "text-slate-600 hover:text-slate-950"
+              }`;
+              const inner = (
+                <>
                   {l.label}
-                  <span aria-hidden className="flex h-3 items-end gap-[2px]">
-                    {[0, 0.18, 0.08].map((d, i) => (
-                      <span
-                        key={i}
-                        className="nv-eq h-full w-[2.5px] rounded-full bg-pink-300/90"
-                        style={{ animationDelay: `${d}s` }}
-                      />
-                    ))}
-                  </span>
+                  {l.isNew && (
+                    <span className="ml-1.5 rounded-md bg-pink-100 px-1.5 py-0.5 text-[8px] font-bold text-pink-600">NEW</span>
+                  )}
+                  {active && (
+                    <span aria-hidden className="absolute inset-x-4 -bottom-0.5 h-0.5 rounded-full bg-gradient-to-r from-pink-400 to-indigo-400" />
+                  )}
+                </>
+              );
+
+              return l.external ? (
+                <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" onMouseEnter={track} onFocus={track} className={cls}>
+                  {inner}
+                </a>
+              ) : (
+                <Link key={l.href} href={l.href} onMouseEnter={track} onFocus={track} className={cls}>
+                  {inner}
                 </Link>
               );
-            }
+            })}
+          </div>
 
-            const active = pathname === l.href;
-            const cls = `relative z-10 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${FOCUS} ${
-              active ? "text-pink-300" : "text-white/80 hover:text-white"
-            }`;
-            const inner = (
+          {/* Right side */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Quick navigation"
+              className={`flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-500 transition-colors hover:border-slate-300 hover:bg-white ${FOCUS_L}`}
+            >
+              <SearchIcon className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">Jump to…</span>
+              <kbd className="hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-400 lg:inline">
+                {isMac ? "⌘K" : "Ctrl K"}
+              </kbd>
+            </button>
+
+            {user && (
+              <div className="relative">
+                <button
+                  onClick={onToggleNotif}
+                  aria-label="Notificări"
+                  className={`relative rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-950 ${FOCUS_L}`}
+                >
+                  <BellIcon />
+                  <Badge n={unreadCount} />
+                </button>
+                <NotificationDropdown notifications={notifications} isOpen={isNotifOpen} onClose={onToggleNotif} />
+              </div>
+            )}
+
+            {user ? (
               <>
-                {l.label}
-                {l.isNew && <NewPill />}
-                {active && (
-                  <span
-                    aria-hidden
-                    className="absolute -bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-pink-300 shadow-[0_0_8px_rgba(249,168,212,1)]"
-                  />
-                )}
+                <Link
+                  href="/dashboard/cloud-db"
+                  className={`flex items-center gap-2 rounded-xl py-1 pl-1 pr-3 transition-colors hover:bg-slate-100 ${FOCUS_L}`}
+                >
+                  <Avatar user={user} size="h-8 w-8" />
+                  <span className="max-w-[120px] truncate text-xs font-semibold text-slate-700">{user.name || user.email}</span>
+                </Link>
+                <button
+                  onClick={onLogout}
+                  className={`rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500 transition-colors hover:text-slate-950 ${FOCUS_L}`}
+                >
+                  Sign Out
+                </button>
               </>
-            );
-
-            return l.external ? (
-              <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" onMouseEnter={track} onFocus={track} className={cls}>
-                {inner}
-              </a>
             ) : (
-              <Link key={l.href} href={l.href} onMouseEnter={track} onFocus={track} className={cls}>
-                {inner}
-              </Link>
-            );
-          })}
-        </div>
+              <>
+                <Link
+                  href="/login"
+                  className={`rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-600 transition-colors hover:text-slate-950 ${FOCUS_L}`}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/register"
+                  className={`group inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-all hover:bg-slate-800 hover:shadow-[0_8px_24px_rgba(255,92,161,0.35)] active:scale-95 ${FOCUS_L}`}
+                >
+                  Get Started
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 text-pink-300 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden>
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </Link>
+              </>
+            )}
+          </div>
 
-        {/* Right side */}
-        <div className="flex items-center gap-2">
-          {user && (
-            <div className="relative">
-              <button
-                onClick={onToggleNotif}
-                aria-label="Notificări"
-                className={`relative rounded-full p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white ${FOCUS}`}
-              >
-                <BellIcon />
-                <Badge n={unreadCount} />
-              </button>
-              <NotificationDropdown notifications={notifications} isOpen={isNotifOpen} onClose={onToggleNotif} />
-            </div>
-          )}
+          {/* scroll progress */}
+          <div aria-hidden className="pointer-events-none absolute inset-x-6 -bottom-px h-[2px] overflow-hidden rounded-full">
+            <div
+              className="h-full origin-left bg-gradient-to-r from-pink-400 via-[#FF5CA1] to-indigo-400"
+              style={{ transform: `scaleX(${progress})` }}
+            />
+          </div>
+        </nav>
+      </div>
 
-          {user ? (
-            <>
-              <Link
-                href="/dashboard/cloud-db"
-                className={`group flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition-colors hover:bg-white/10 ${FOCUS}`}
-              >
-                <Avatar user={user} size="h-8 w-8" />
-                <span className="max-w-[120px] truncate text-xs font-semibold text-white/90">{user.name || user.email}</span>
-              </Link>
-              <button
-                onClick={onLogout}
-                className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white/60 transition-colors hover:text-white ${FOCUS}`}
-              >
-                Sign Out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                className={`rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white/80 transition-colors hover:text-white ${FOCUS}`}
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                className={`relative overflow-hidden rounded-full bg-gradient-to-r from-pink-300 to-[#FF5CA1] px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[#0B1528] shadow-[0_0_24px_rgba(255,92,161,0.4)] transition-transform active:scale-95 hover:shadow-[0_0_32px_rgba(255,92,161,0.65)] ${FOCUS}`}
-              >
-                <span aria-hidden className="nv-shine absolute inset-y-0 left-0 w-1/3 bg-white/50 blur-sm" />
-                <span className="relative">Get Started</span>
-              </Link>
-            </>
-          )}
-        </div>
-
-        {/* scroll progress */}
-        <div aria-hidden className="pointer-events-none absolute inset-x-10 -bottom-px h-px">
-          <div
-            className="h-full origin-left bg-gradient-to-r from-pink-300 via-[#FF5CA1] to-indigo-400 shadow-[0_0_10px_rgba(249,168,212,0.9)]"
-            style={{ transform: `scaleX(${progress})` }}
-          />
-        </div>
-      </nav>
-    </div>
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={items} />
+    </>
   );
 }
 
