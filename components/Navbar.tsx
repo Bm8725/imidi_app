@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from "react";
+import { Fragment, useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -9,6 +9,7 @@ import {
   markAllNotificationsRead,
   type AppNotification,
 } from "@/lib/notifications";
+import { searchSite, POPULAR, type SearchEntry } from "@/lib/search-index";
 
 /* ------------------------------------------------------------------ */
 /*  Config                                                            */
@@ -166,22 +167,26 @@ function NotificationDropdown({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Command palette (⌘K)                                              */
+/*  Site search                                                       */
 /* ------------------------------------------------------------------ */
 
 const FOCUS_L =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500";
 
-const HINTS: Record<string, string> = {
-  "/": "Go to the homepage",
-  "/products": "Universal MIDI controller for accordion",
-  "/airmidi-link": "Live MIDI sessions with video",
-  "/e-market": "Buy and sell presets and sound banks",
-  "https://docs.imidi.co.uk": "Documentation",
-  "/dashboard/cloud-db": "Your cloud space",
+/**
+ * Optional LIVE search in E-Market listings (Supabase).
+ * Leave as null to search only the static index. To enable, set your real
+ * table/column names, e.g. { table: "listings", titleCol: "title", hrefPrefix: "/e-market/" }
+ */
+const MARKET_SEARCH = null as { table: string; titleCol: string; hrefPrefix: string } | null;
+
+const GROUP_ORDER: SearchEntry["group"][] = ["Pages", "Answers", "Docs", "Listings"];
+const GROUP_LABEL: Record<SearchEntry["group"], string> = {
+  Pages: "Pages",
+  Answers: "Answers",
+  Docs: "Documentation",
+  Listings: "E-Market listings",
 };
-
-type PaletteItem = { label: string; hint: string; href?: string; external?: boolean; onSelect?: () => void };
 
 function SearchIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -192,44 +197,107 @@ function SearchIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
-function CommandPalette({ open, onClose, items }: { open: boolean; onClose: () => void; items: PaletteItem[] }) {
+function Highlight({ text, q }: { text: string; q: string }) {
+  const tokens = q
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (tokens.length === 0) return <>{text}</>;
+  const parts = text.split(new RegExp(`(${tokens.join("|")})`, "gi"));
+  return (
+    <>
+      {parts.map((p, i) =>
+        i % 2 === 1 ? (
+          <mark key={i} className="rounded bg-pink-100 px-0.5 text-slate-950">
+            {p}
+          </mark>
+        ) : (
+          p
+        )
+      )}
+    </>
+  );
+}
+
+function SearchPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [idx, setIdx] = useState(0);
+  const [market, setMarket] = useState<SearchEntry[]>([]);
 
-  const needle = q.trim().toLowerCase();
-  const filtered = items.filter((i) => `${i.label} ${i.hint}`.toLowerCase().includes(needle));
+  const term = q.trim();
 
+  /* reset every time the panel opens */
   useEffect(() => {
     if (open) {
       setQ("");
       setIdx(0);
+      setMarket([]);
     }
   }, [open]);
-  useEffect(() => setIdx(0), [q]);
+
+  /* optional live E-Market results (debounced) */
+  useEffect(() => {
+    const cfg = MARKET_SEARCH;
+    if (!open || !cfg || term.length < 2) {
+      setMarket([]);
+      return;
+    }
+    let cancelled = false;
+    const t = window.setTimeout(async () => {
+      const safe = term.replace(/[%_,]/g, " ");
+      const { data } = await supabase
+        .from(cfg.table)
+        .select(`id, ${cfg.titleCol}`)
+        .ilike(cfg.titleCol, `%${safe}%`)
+        .limit(5);
+      if (cancelled || !data) return;
+      setMarket(
+        (data as unknown as Record<string, unknown>[]).map((row) => ({
+          group: "Listings" as const,
+          title: String(row[cfg.titleCol] ?? ""),
+          desc: "E-Market listing",
+          href: `${cfg.hrefPrefix}${row.id}`,
+        }))
+      );
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [term, open]);
+
+  const flat = useMemo(() => {
+    if (!term) return POPULAR;
+    const all = [...searchSite(term, 10), ...market];
+    return all.sort((a, b) => GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group));
+  }, [term, market]);
+
+  useEffect(() => setIdx(0), [term]);
+  useEffect(() => {
+    document.getElementById(`nv-opt-${idx}`)?.scrollIntoView({ block: "nearest" });
+  }, [idx]);
 
   if (!open) return null;
 
-  const run = (it?: PaletteItem) => {
+  const go = (it?: SearchEntry) => {
     if (!it) return;
     onClose();
-    if (it.onSelect) it.onSelect();
-    else if (it.href) {
-      if (it.external) window.open(it.href, "_blank", "noopener,noreferrer");
-      else router.push(it.href);
-    }
+    if (it.external) window.open(it.href, "_blank", "noopener,noreferrer");
+    else router.push(it.href);
   };
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setIdx((i) => Math.min(i + 1, Math.max(filtered.length - 1, 0)));
+      setIdx((i) => Math.min(i + 1, Math.max(flat.length - 1, 0)));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setIdx((i) => Math.max(i - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      run(filtered[idx]);
+      go(flat[idx]);
     } else if (e.key === "Escape") {
       onClose();
     }
@@ -237,65 +305,91 @@ function CommandPalette({ open, onClose, items }: { open: boolean; onClose: () =
 
   return (
     <div
-      className="fixed inset-0 z-[60] hidden items-start justify-center bg-slate-900/30 px-4 pt-[18vh] backdrop-blur-sm md:flex"
+      className="fixed inset-0 z-[60] flex items-stretch justify-center bg-slate-900/30 backdrop-blur-sm md:items-start md:px-4 md:pt-[12vh]"
       onMouseDown={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Quick navigation"
+        aria-label="Search iMIDI"
         onMouseDown={(e) => e.stopPropagation()}
-        className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_30px_80px_-20px_rgba(15,23,42,0.45)]"
+        className="flex w-full flex-col overflow-hidden bg-white md:max-h-[70vh] md:max-w-xl md:rounded-2xl md:border md:border-slate-200 md:shadow-[0_30px_80px_-20px_rgba(15,23,42,0.45)]"
       >
-        <div className="flex items-center gap-3 border-b border-slate-100 px-4">
-          <SearchIcon className="h-4 w-4 text-slate-400" />
+        {/* input */}
+        <div className="flex items-center gap-3 border-b border-slate-100 px-4 pt-[env(safe-area-inset-top,0px)]">
+          <SearchIcon className="h-4 w-4 shrink-0 text-slate-400" />
           <input
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKey}
-            placeholder="Jump to…"
+            placeholder="Search pages, docs and answers…"
             role="combobox"
             aria-expanded="true"
-            aria-controls="nv-palette-list"
-            aria-activedescendant={filtered[idx] ? `nv-opt-${idx}` : undefined}
-            className="h-14 w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+            aria-controls="nv-search-list"
+            aria-activedescendant={flat[idx] ? `nv-opt-${idx}` : undefined}
+            className="h-14 w-full bg-transparent text-base text-slate-900 outline-none placeholder:text-slate-400 md:text-sm"
           />
-          <kbd className="rounded border border-slate-200 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">esc</kbd>
+          <kbd className="hidden rounded border border-slate-200 px-1.5 py-0.5 font-mono text-[10px] text-slate-400 md:inline">esc</kbd>
+          <button type="button" onClick={onClose} className="text-sm font-semibold text-blue-600 md:hidden">
+            Cancel
+          </button>
         </div>
 
-        <ul id="nv-palette-list" role="listbox" className="max-h-72 overflow-y-auto p-2">
-          {filtered.length === 0 ? (
-            <li className="px-3 py-8 text-center text-sm text-slate-400">No results</li>
-          ) : (
-            filtered.map((it, i) => (
-              <li
-                key={it.label}
-                id={`nv-opt-${i}`}
-                role="option"
-                aria-selected={i === idx}
-                onMouseMove={() => setIdx(i)}
-                onClick={() => run(it)}
-                className={`flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 transition-colors ${
-                  i === idx ? "bg-pink-50" : ""
-                }`}
+        {/* results */}
+        <ul id="nv-search-list" role="listbox" aria-label="Results" className="flex-1 overflow-y-auto p-2">
+          {flat.length === 0 && (
+            <li role="presentation" className="px-3 py-10 text-center">
+              <p className="text-sm font-semibold text-slate-700">No results for “{term}”</p>
+              <p className="mt-1 text-xs text-slate-400">Try another word, or ask us directly.</p>
+              <Link
+                href="/support"
+                onClick={onClose}
+                className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-blue-700"
               >
-                <div className="min-w-0">
-                  <p className={`text-sm font-semibold ${i === idx ? "text-slate-950" : "text-slate-700"}`}>{it.label}</p>
-                  <p className="truncate text-xs text-slate-400">{it.hint}</p>
-                </div>
-                <span aria-hidden className={`font-mono text-xs ${i === idx ? "text-pink-500" : "text-transparent"}`}>
-                  ↵
-                </span>
-              </li>
-            ))
+                Contact support
+              </Link>
+            </li>
           )}
+
+          {flat.map((it, i) => {
+            const showHeader = term ? i === 0 || flat[i - 1].group !== it.group : i === 0;
+            return (
+              <Fragment key={`${it.group}-${it.href}-${it.title}`}>
+                {showHeader && (
+                  <li role="presentation" className="px-3 pb-1 pt-3 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                    {term ? GROUP_LABEL[it.group] : "Popular"}
+                  </li>
+                )}
+                <li
+                  id={`nv-opt-${i}`}
+                  role="option"
+                  aria-selected={i === idx}
+                  onMouseMove={() => setIdx(i)}
+                  onClick={() => go(it)}
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${i === idx ? "bg-blue-50" : ""}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-900">
+                      <Highlight text={it.title} q={term} />
+                    </p>
+                    <p className="line-clamp-2 text-xs text-slate-500">
+                      <Highlight text={it.desc} q={term} />
+                    </p>
+                  </div>
+                  {it.external && <span aria-hidden className="text-xs text-slate-400">↗</span>}
+                  <span aria-hidden className={`font-mono text-xs ${i === idx ? "text-blue-600" : "text-transparent"}`}>↵</span>
+                </li>
+              </Fragment>
+            );
+          })}
         </ul>
 
-        <div className="flex items-center gap-4 border-t border-slate-100 bg-slate-50/70 px-4 py-2 font-mono text-[10px] text-slate-400">
+        <div className="hidden items-center gap-4 border-t border-slate-100 bg-slate-50/70 px-4 py-2 font-mono text-[10px] text-slate-400 md:flex">
           <span>↑↓ navigate</span>
           <span>↵ open</span>
           <span>esc close</span>
+          <span className="ml-auto">Searches site + docs</span>
         </div>
       </div>
     </div>
@@ -303,228 +397,174 @@ function CommandPalette({ open, onClose, items }: { open: boolean; onClose: () =
 }
 
 /* ------------------------------------------------------------------ */
-/*  Desktop Nav (light)                                               */
+/*  Desktop Nav                                                       */
 /* ------------------------------------------------------------------ */
-
-type Hl = { left: number; width: number } | null;
 
 function DesktopNav({
   scrolled,
-  progress,
   user,
   notifications,
   isNotifOpen,
   unreadCount,
   onToggleNotif,
   onLogout,
+  onOpenSearch,
 }: {
   scrolled: boolean;
-  progress: number;
   user: { name?: string; email?: string } | null;
   notifications: AppNotification[];
   isNotifOpen: boolean;
   unreadCount: number;
   onToggleNotif: () => void;
   onLogout: () => void;
+  onOpenSearch: () => void;
 }) {
   const pathname = usePathname();
-  const [hl, setHl] = useState<Hl>(null);
-  const [paletteOpen, setPaletteOpen] = useState(false);
   const [isMac, setIsMac] = useState(false);
+  useEffect(() => setIsMac(/Mac|iPhone|iPad/i.test(navigator.platform)), []);
 
-  const track = (e: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>) =>
-    setHl({ left: e.currentTarget.offsetLeft, width: e.currentTarget.offsetWidth });
-
-  useEffect(() => {
-    setIsMac(/Mac|iPhone|iPad/i.test(navigator.platform));
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen((v) => !v);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  const items: PaletteItem[] = [
-    ...links.map((l) => ({
-      label: l.label === "DOCS" ? "Docs" : l.label,
-      hint: HINTS[l.href] ?? "",
-      href: l.href,
-      external: l.external,
-    })),
-    ...(user
-      ? [{ label: "Sign Out", hint: "Log out of your account", onSelect: onLogout }]
-      : [
-          { label: "Sign In", hint: "Access your cloud space", href: "/login" },
-          { label: "Get Started", hint: "Create your free account", href: "/register" },
-        ]),
-  ];
+  const tab = (active: boolean) =>
+    `relative flex h-full items-center whitespace-nowrap px-2 text-[11px] font-semibold uppercase tracking-wide transition-colors lg:px-3.5 lg:text-xs lg:tracking-wider ${FOCUS_L} ${
+      active ? "text-blue-600" : "text-slate-500 hover:text-slate-950"
+    }`;
+  const Underline = () => (
+    <span aria-hidden className="absolute inset-x-2 bottom-0 h-0.5 lg:inset-x-3 rounded-full bg-blue-600" />
+  );
 
   return (
-    <>
-      <div
-        className={`pointer-events-none fixed inset-x-0 top-0 z-50 hidden justify-center px-6 transition-all duration-500 md:flex ${
-          scrolled ? "pt-3" : "pt-5"
-        }`}
-      >
-        <nav
-          className={`pointer-events-auto relative flex w-full max-w-6xl items-center justify-between rounded-2xl border border-slate-200/70 bg-white/75 pl-4 pr-3 backdrop-blur-xl backdrop-saturate-150 transition-all duration-500 ${
-            scrolled
-              ? "h-14 shadow-[0_8px_30px_rgba(15,23,42,0.12)]"
-              : "h-16 shadow-[0_8px_30px_rgba(15,23,42,0.06)]"
-          }`}
-        >
-          {/* Logo */}
-          <Link href="/" className={`group flex items-center rounded-xl ${FOCUS_L}`}>
-            <img src="/iiimidi.png" alt="iMIDI Logo" className="h-14 w-auto object-contain" />
-            <span className="logo-dot ml-0.5 inline-block text-xl font-black text-[#FF5CA1]">.</span>
-          </Link>
+    <header
+      className={`fixed inset-x-0 top-0 z-50 hidden border-b backdrop-blur-md transition-all duration-300 ease-out motion-reduce:transition-none md:block ${
+        scrolled
+          ? "h-16 border-slate-200 bg-white/95 shadow-sm"
+          : "h-20 border-slate-200/50 bg-white/75"
+      }`}
+    >
+      <nav aria-label="Main" className="mx-auto flex h-full max-w-7xl items-center gap-2 px-4 lg:gap-4 lg:px-6">
+        {/* Logo */}
+        <Link href="/" className="group flex shrink-0 items-center py-1">
+          <img
+            src="/iiimidi.png"
+            alt="iMIDI Logo"
+            className={`w-auto object-contain transition-all duration-300 ease-out motion-reduce:transition-none ${
+              scrolled ? "h-12 lg:h-14" : "h-14 lg:h-[4.5rem]"
+            }`}
+          />
+          <span className="logo-dot ml-0.5 inline-block text-xl font-black text-[#FF5CA1]">.</span>
+        </Link>
 
-          {/* Links with soft magnetic highlight */}
-          <div className="relative flex items-center" onMouseLeave={() => setHl(null)}>
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-y-0 rounded-xl bg-slate-900/[0.05] transition-all duration-300 ease-out"
-              style={{ left: hl?.left ?? 0, width: hl?.width ?? 0, opacity: hl ? 1 : 0 }}
-            />
-            {links.slice(1).map((l) => {
-              if (l.isAirMidi) {
-                const active = !!pathname?.startsWith("/airmidi-link");
-                return (
-                  <Link
-                    key={l.href}
-                    href={l.href}
-                    onMouseEnter={track}
-                    onFocus={track}
-                    className={`relative z-10 flex items-center gap-2 rounded-xl py-1.5 pl-1.5 pr-4 text-xs font-semibold uppercase tracking-wider transition-colors ${FOCUS_L} ${
-                      active ? "text-slate-950" : "text-slate-600 hover:text-slate-950"
-                    }`}
-                  >
-                    <span className="relative flex h-6 w-6 shrink-0 rounded-full">
-                      <span aria-hidden className="nv-sonar absolute inset-0 rounded-full bg-indigo-400/40" />
-                      <img src="/airlink-icon.png" alt="" className="relative h-6 w-6 rounded-full" draggable={false} />
-                    </span>
-                    {l.label}
-                    <span aria-hidden className="flex h-3 items-end gap-[2px]">
-                      {[0, 0.18, 0.08].map((d, i) => (
-                        <span key={i} className="nv-eq h-full w-[2.5px] rounded-full bg-indigo-500" style={{ animationDelay: `${d}s` }} />
-                      ))}
-                    </span>
-                    {active && (
-                      <span aria-hidden className="absolute inset-x-4 -bottom-0.5 h-0.5 rounded-full bg-gradient-to-r from-pink-400 to-indigo-400" />
-                    )}
-                  </Link>
-                );
-              }
-
-              const active = pathname === l.href;
-              const cls = `relative z-10 rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${FOCUS_L} ${
-                active ? "text-slate-950" : "text-slate-600 hover:text-slate-950"
-              }`;
-              const inner = (
-                <>
+        {/* Links */}
+        <div className="flex h-full items-center">
+          {links.slice(1).map((l) => {
+            if (l.isAirMidi) {
+              const active = !!pathname?.startsWith("/airmidi-link");
+              return (
+                <Link key={l.href} href={l.href} className={`${tab(active)} gap-1.5 !pl-1.5 lg:gap-2 lg:!pl-2`}>
+                  <span className="relative flex h-6 w-6 shrink-0 rounded-full">
+                    <span aria-hidden className="nv-sonar absolute inset-0 rounded-full bg-indigo-400/40" />
+                    <img src="/airlink-icon.png" alt="" className="relative h-6 w-6 rounded-full" draggable={false} />
+                  </span>
                   {l.label}
-                  {l.isNew && (
-                    <span className="ml-1.5 rounded-md bg-pink-100 px-1.5 py-0.5 text-[8px] font-bold text-pink-600">NEW</span>
-                  )}
-                  {active && (
-                    <span aria-hidden className="absolute inset-x-4 -bottom-0.5 h-0.5 rounded-full bg-gradient-to-r from-pink-400 to-indigo-400" />
-                  )}
-                </>
-              );
-
-              return l.external ? (
-                <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" onMouseEnter={track} onFocus={track} className={cls}>
-                  {inner}
-                </a>
-              ) : (
-                <Link key={l.href} href={l.href} onMouseEnter={track} onFocus={track} className={cls}>
-                  {inner}
+                  <span aria-hidden className="hidden h-3 items-end gap-[2px] lg:flex">
+                    {[0, 0.18, 0.08].map((d, i) => (
+                      <span key={i} className="nv-eq h-full w-[2.5px] rounded-full bg-indigo-500" style={{ animationDelay: `${d}s` }} />
+                    ))}
+                  </span>
+                  {active && <Underline />}
                 </Link>
               );
-            })}
-          </div>
+            }
 
-          {/* Right side */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPaletteOpen(true)}
-              aria-label="Quick navigation"
-              className={`flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-500 transition-colors hover:border-slate-300 hover:bg-white ${FOCUS_L}`}
-            >
-              <SearchIcon className="h-3.5 w-3.5" />
-              <span className="hidden lg:inline">Jump to…</span>
-              <kbd className="hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-400 lg:inline">
-                {isMac ? "⌘K" : "Ctrl K"}
-              </kbd>
-            </button>
-
-            {user && (
-              <div className="relative">
-                <button
-                  onClick={onToggleNotif}
-                  aria-label="Notificări"
-                  className={`relative rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-950 ${FOCUS_L}`}
-                >
-                  <BellIcon />
-                  <Badge n={unreadCount} />
-                </button>
-                <NotificationDropdown notifications={notifications} isOpen={isNotifOpen} onClose={onToggleNotif} />
-              </div>
-            )}
-
-            {user ? (
+            const active = pathname === l.href;
+            const inner = (
               <>
-                <Link
-                  href="/dashboard/cloud-db"
-                  className={`flex items-center gap-2 rounded-xl py-1 pl-1 pr-3 transition-colors hover:bg-slate-100 ${FOCUS_L}`}
-                >
-                  <Avatar user={user} size="h-8 w-8" />
-                  <span className="max-w-[120px] truncate text-xs font-semibold text-slate-700">{user.name || user.email}</span>
-                </Link>
-                <button
-                  onClick={onLogout}
-                  className={`rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500 transition-colors hover:text-slate-950 ${FOCUS_L}`}
-                >
-                  Sign Out
-                </button>
+                {l.label}
+                {l.isNew && (
+                  <>
+                    <span className="ml-1.5 hidden rounded-md bg-emerald-100 px-1.5 py-0.5 text-[8px] font-bold text-emerald-700 lg:inline">NEW</span>
+                    <span aria-hidden className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 lg:hidden" />
+                    <span className="sr-only"> (new)</span>
+                  </>
+                )}
+                {active && <Underline />}
               </>
+            );
+            return l.external ? (
+              <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className={tab(active)}>
+                {inner}
+                <span className="sr-only"> (opens in a new tab)</span>
+              </a>
             ) : (
-              <>
-                <Link
-                  href="/login"
-                  className={`rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-600 transition-colors hover:text-slate-950 ${FOCUS_L}`}
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/register"
-                  className={`group inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-all hover:bg-slate-800 hover:shadow-[0_8px_24px_rgba(255,92,161,0.35)] active:scale-95 ${FOCUS_L}`}
-                >
-                  Get Started
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 text-pink-300 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden>
-                    <path d="M5 12h14M13 6l6 6-6 6" />
-                  </svg>
-                </Link>
-              </>
-            )}
-          </div>
+              <Link key={l.href} href={l.href} className={tab(active)}>
+                {inner}
+              </Link>
+            );
+          })}
+        </div>
 
-          {/* scroll progress */}
-          <div aria-hidden className="pointer-events-none absolute inset-x-6 -bottom-px h-[2px] overflow-hidden rounded-full">
-            <div
-              className="h-full origin-left bg-gradient-to-r from-pink-400 via-[#FF5CA1] to-indigo-400"
-              style={{ transform: `scaleX(${progress})` }}
-            />
-          </div>
-        </nav>
-      </div>
+        {/* Right side */}
+        <div className="ml-auto flex items-center gap-1.5 lg:gap-3">
+          <button
+            type="button"
+            onClick={onOpenSearch}
+            aria-label="Search the site"
+            className={`flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-500 transition-colors hover:border-slate-300 hover:bg-white lg:w-72 lg:justify-start lg:px-3 ${FOCUS_L}`}
+          >
+            <SearchIcon className="h-4 w-4 shrink-0" />
+            <span className="hidden flex-1 truncate text-left lg:block">Search…</span>
+            <kbd className="hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-400 lg:inline">
+              {isMac ? "⌘K" : "Ctrl K"}
+            </kbd>
+          </button>
 
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={items} />
-    </>
+          {user && (
+            <div className="relative">
+              <button
+                onClick={onToggleNotif}
+                aria-label="Notificări"
+                className={`relative rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-950 ${FOCUS_L}`}
+              >
+                <BellIcon />
+                <Badge n={unreadCount} />
+              </button>
+              <NotificationDropdown notifications={notifications} isOpen={isNotifOpen} onClose={onToggleNotif} />
+            </div>
+          )}
+
+          {user ? (
+            <>
+              <Link
+                href="/dashboard/cloud-db"
+                className={`flex items-center gap-2 rounded-full py-1 pl-1 pr-1 transition-colors hover:bg-slate-100 xl:pr-3 ${FOCUS_L}`}
+              >
+                <Avatar user={user} size="h-8 w-8" />
+                <span className="hidden max-w-[120px] truncate text-xs font-semibold text-slate-700 xl:inline">{user.name || user.email}</span>
+              </Link>
+              <button
+                onClick={onLogout}
+                className={`whitespace-nowrap px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 transition-colors hover:text-slate-950 lg:px-0 lg:text-xs lg:tracking-wider ${FOCUS_L}`}
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className={`whitespace-nowrap px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 transition-colors hover:text-slate-950 lg:px-0 lg:text-xs lg:tracking-wider ${FOCUS_L}`}
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/register"
+                className={`whitespace-nowrap rounded-lg bg-blue-600 px-3 py-2 text-[11px] font-bold uppercase tracking-wide lg:px-4 lg:py-2.5 lg:text-xs lg:tracking-wider text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md active:scale-95 ${FOCUS_L}`}
+              >
+                Get Started
+              </Link>
+            </>
+          )}
+        </div>
+      </nav>
+    </header>
   );
 }
 
@@ -541,6 +581,7 @@ function MobileHeader({
   isNotifOpen,
   unreadCount,
   onToggleNotif,
+  onOpenSearch,
 }: {
   scrolled: boolean;
   user: { name?: string; email?: string } | null;
@@ -550,11 +591,12 @@ function MobileHeader({
   isNotifOpen: boolean;
   unreadCount: number;
   onToggleNotif: () => void;
+  onOpenSearch: () => void;
 }) {
   return (
     <div
       className={`fixed inset-x-0 top-0 z-50 flex h-14 w-full items-center justify-between px-5 transition-all duration-300 md:hidden ${
-        scrolled
+        scrolled && !isMenuOpen
           ? "border-b border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-xl"
           : "border-b border-transparent bg-transparent"
       }`}
@@ -565,6 +607,9 @@ function MobileHeader({
       </Link>
 
       <div className="flex items-center gap-1 text-slate-600">
+        <button onClick={onOpenSearch} aria-label="Search the site" className="p-2 transition-colors hover:text-slate-900">
+          <SearchIcon className="h-5 w-5" />
+        </button>
         {user && (
           <div className="relative">
             <button onClick={onToggleNotif} aria-label="Notificări" className="relative p-2 transition-colors hover:text-slate-900">
@@ -622,31 +667,55 @@ function MobileAccountOverlay({
   const solid =
     "w-full rounded-full bg-gradient-to-r from-pink-300 to-[#FF5CA1] py-3.5 text-center text-sm font-bold text-[#0B1528] shadow-[0_8px_24px_rgba(255,92,161,0.35)] transition-all active:scale-[0.98]";
 
+  /* staggered reveal of each block once the sheet has expanded */
+  const rc = () =>
+    `transition-all duration-500 ease-out motion-reduce:!transition-none ${
+      isOpen ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+    }`;
+  const rs = (i: number) => ({ transitionDelay: isOpen ? `${240 + i * 90}ms` : "0ms" });
+
+  /* the sheet grows out of the top-right corner, where the menu button is */
+  const origin = "calc(100% - 2rem) 1.75rem";
+
   return (
     <div
-      className={`fixed inset-0 z-40 flex flex-col justify-center bg-white/95 px-6 backdrop-blur-2xl transition-all duration-500 ease-out md:hidden ${
-        isOpen ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-6 opacity-0"
-      }`}
+      aria-hidden={!isOpen}
+      className="fixed inset-0 z-40 flex flex-col justify-center bg-white/95 px-6 backdrop-blur-2xl motion-reduce:![transition:none] md:hidden"
+      style={{
+        clipPath: isOpen ? `circle(150% at ${origin})` : `circle(0px at ${origin})`,
+        visibility: isOpen ? "visible" : "hidden",
+        transition: `clip-path 650ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear ${isOpen ? "0s" : "650ms"}`,
+      }}
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[30rem] max-w-full -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(249,168,212,0.40),transparent)]"
+        className={`pointer-events-none absolute -top-24 left-1/2 h-72 w-[30rem] max-w-full -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(249,168,212,0.40),transparent)] transition-transform duration-700 ease-out motion-reduce:transition-none ${
+          isOpen ? "scale-100" : "scale-50"
+        }`}
       />
-      <div className="absolute left-6 right-6 top-24 border-b border-slate-100 pb-2">
+
+      <div className="absolute left-6 right-6 top-24 pb-2">
         <p className="font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-pink-500">iMIDI</p>
+        <div
+          aria-hidden
+          className={`mt-2 h-px origin-left bg-slate-200 transition-transform duration-700 ease-out motion-reduce:transition-none ${
+            isOpen ? "scale-x-100" : "scale-x-0"
+          }`}
+          style={{ transitionDelay: isOpen ? "200ms" : "0ms" }}
+        />
       </div>
 
       <div className="relative mx-auto flex w-full max-w-sm flex-col space-y-6">
         {user ? (
           <>
-            <div className="flex flex-col items-center space-y-3 text-center">
+            <div className={`flex flex-col items-center space-y-3 text-center ${rc()}`} style={rs(0)}>
               <Avatar user={user} size="h-16 w-16 text-xl shadow-[0_8px_30px_rgba(249,168,212,0.55)]" />
               <div>
                 <p className="text-sm font-semibold text-slate-800">{user.name || user.email}</p>
                 {user.name && <p className="text-[11px] text-slate-400">{user.email}</p>}
               </div>
             </div>
-            <div className="flex flex-col space-y-3">
+            <div className={`flex flex-col space-y-3 ${rc()}`} style={rs(1)}>
               <Link href="/dashboard/cloud-db" onClick={onClose} className={ghost}>
                 mySpace
               </Link>
@@ -663,13 +732,13 @@ function MobileAccountOverlay({
           </>
         ) : (
           <>
-            <div className="space-y-1 text-center">
+            <div className={`space-y-1 text-center ${rc()}`} style={rs(0)}>
               <h2 className="bg-gradient-to-b from-slate-950 to-slate-600 bg-clip-text text-3xl font-black tracking-tight text-transparent">
                 Welcome Back<span className="text-[#FF5CA1]">.</span>
               </h2>
               <p className="text-xs font-medium text-slate-500">Access your cloud space</p>
             </div>
-            <div className="flex flex-col space-y-3">
+            <div className={`flex flex-col space-y-3 ${rc()}`} style={rs(1)}>
               <Link href="/login" onClick={onClose} className={ghost}>
                 Sign In
               </Link>
@@ -795,7 +864,7 @@ function MobileBottomNav({ isVisible, onNavigate }: { isVisible: boolean; onNavi
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const lastScrollY = useRef(0);
@@ -845,9 +914,6 @@ export default function Navbar() {
       const current = window.scrollY;
       setScrolled(current > 15);
 
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      setProgress(max > 0 ? Math.min(1, Math.max(0, current / max)) : 0);
-
       if (current > lastScrollY.current && current > 60) {
         setIsVisible(false);
         setIsMenuOpen(false);
@@ -861,6 +927,20 @@ export default function Navbar() {
       if (e.key === "Escape") {
         setIsMenuOpen(false);
         setIsNotifOpen(false);
+        setSearchOpen(false);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+        return;
+      }
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const t = e.target as HTMLElement | null;
+        const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+        if (!typing) {
+          e.preventDefault();
+          setSearchOpen(true);
+        }
       }
     };
 
@@ -874,8 +954,8 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    document.body.style.overflow = isMenuOpen ? "hidden" : "unset";
-  }, [isMenuOpen]);
+    document.body.style.overflow = isMenuOpen || searchOpen ? "hidden" : "unset";
+  }, [isMenuOpen, searchOpen]);
 
   return (
     <>
@@ -883,13 +963,13 @@ export default function Navbar() {
 
       <DesktopNav
         scrolled={scrolled}
-        progress={progress}
         user={user}
         notifications={notifications}
         isNotifOpen={isNotifOpen}
         unreadCount={unreadCount}
         onToggleNotif={handleOpenNotifications}
         onLogout={handleLogout}
+        onOpenSearch={() => setSearchOpen(true)}
       />
 
       <MobileHeader
@@ -901,6 +981,7 @@ export default function Navbar() {
         isNotifOpen={isNotifOpen}
         unreadCount={unreadCount}
         onToggleNotif={handleOpenNotifications}
+        onOpenSearch={() => setSearchOpen(true)}
       />
 
       <MobileAccountOverlay
@@ -911,6 +992,8 @@ export default function Navbar() {
       />
 
       <MobileBottomNav isVisible={isVisible} onNavigate={() => setIsMenuOpen(false)} />
+
+      <SearchPanel open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 }
