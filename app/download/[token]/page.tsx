@@ -835,7 +835,6 @@ export default function SdWritePage() {
           </details>
         </div>
       </main>
-
       <Footer />
     </div>
   );
