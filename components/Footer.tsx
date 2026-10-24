@@ -118,20 +118,7 @@ export default function Footer() {
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-[#9AA9C4]">
             One account for TS4X, E-Market, i-volution and MyCloud. Hardware, cloud space and live sessions, together in one platform.
           </p>
-          <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <Link
-              href="/register"
-              className={`rounded-full bg-pink-300 px-6 py-3 text-[14px] font-bold text-[#0B1528] shadow-[0_0_32px_rgba(249,168,212,0.35)] transition hover:bg-pink-200 hover:shadow-[0_0_44px_rgba(249,168,212,0.55)] ${FOCUS}`}
-            >
-              Get started free
-            </Link>
-            <Link
-              href="/e-market"
-              className={`rounded-full border border-white/15 px-6 py-3 text-[14px] font-semibold text-white transition hover:border-pink-300/60 hover:text-pink-300 ${FOCUS}`}
-            >
-              Browse E-Market
-            </Link>
-          </div>
+
         </div>
 
         {/* links in glass panel */}
