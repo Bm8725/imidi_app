@@ -70,6 +70,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily',
       priority: 0.9,
     },
+        {
+      url: `${SITE_URL}/sd-writer`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
     ...listingUrls,
     ...stiriUrls, // Adăugate dinamic aici pentru indexarea Google normală
   ];
