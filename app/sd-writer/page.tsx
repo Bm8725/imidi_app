@@ -1,5 +1,4 @@
-// app/sd-write/page.tsx  ·  one page. The buyer pastes the seller's link and code, then writes the package to an SD card.
-// Needs:  npm i hash-wasm
+// app/sd-write/page.tsx
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -7,63 +6,88 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 /* ════════════════════════════════════════════════════════════════
-   THE LINK  (what the seller's dashboard creates)
-     https://<site>/download/<token>      + a code the seller chose (4+ characters), sent separately
-   The page extracts the token from whatever the buyer pastes (full link, path, or the token alone).
-
-   CONNECT THE SERVER here. Replace these 3 functions, keep their shapes, set IS_DEMO = false:
-     checkLink(token, code)  -> validates link + code WITHOUT using it up; returns the package details
-     getManifest(pkg)        -> fresh signed download URLs (valid for hours: big files take time) + exact sizes
-     reportDone(pkg)         -> called after a fully verified write: mark the link as used here
+   Server connection (relative URLs)
    ════════════════════════════════════════════════════════════════ */
-const IS_DEMO = true;
 const MB = 1024 * 1024;
 
-type Pkg = { token: string; code: string; name: string; type: string; size: number; parts: { name: string; size: number }[]; expires?: string };
-type Part = { name: string; url: string; size: number; sha256?: string };
+type Pkg = {
+  token: string;
+  code: string;
+  name: string;
+  type: string;
+  size: number;
+  parts: { name: string; size: number }[];
+  expires?: string;
+};
+
+type Part = {
+  name: string;
+  url: string;
+  size: number;
+  sha256?: string;
+};
 
 async function checkLink(token: string, code: string): Promise<Pkg> {
-  if (IS_DEMO) {
-    await new Promise((r) => setTimeout(r, 700));
-    if (token !== "demo" || code.toLowerCase() !== "demo") throw new Error("Wrong link or code. In demo mode use the link ending in /demo and the code demo.");
-    return {
-      token,
-      code,
-      name: "Balkan Winds (demo)",
-      type: "Sound bank",
-      size: 144 * MB,
-      parts: [
-        { name: "BALKAN1.JBB", size: 96 * MB },
-        { name: "BALKAN2.JBB", size: 48 * MB },
-      ],
-      expires: new Date(Date.now() + 15 * 864e5).toISOString(),
-    };
+  const res = await fetch(`/api/download/${encodeURIComponent(token)}/check`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Link or code invalid (${res.status})`);
   }
-  throw new Error("checkLink() is not connected to the server yet.");
+
+  const data = await res.json();
+  return {
+    token,
+    code,
+    name: data.name,
+    type: data.type ?? "Sound bank",
+    size: data.size,
+    parts: data.parts,
+    expires: data.expires,
+  };
 }
 
 async function getManifest(pkg: Pkg): Promise<Part[]> {
-  if (IS_DEMO) return pkg.parts.map((p) => ({ name: p.name, url: "mock://", size: p.size }));
-  throw new Error("getManifest() is not connected to the server yet.");
-  // real version: return signed URLs, and if a size is unknown read it with a HEAD request (Content-Length)
+  const res = await fetch(`/api/download/${encodeURIComponent(pkg.token)}/manifest`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: pkg.code }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Could not get download links (${res.status})`);
+  }
+
+  const data = await res.json();
+  return data.parts; // [{ name, url, size, sha256? }, ...]
 }
 
-async function reportDone(_pkg: Pkg): Promise<void> {
-  if (IS_DEMO) return;
-  // real version: tell the server the write finished and verified, so the link is marked as used
+async function reportDone(pkg: Pkg): Promise<void> {
+  await fetch(`/api/download/${encodeURIComponent(pkg.token)}/done`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: pkg.code }),
+  });
 }
 
-let memSettings: Blob | null = null; // kept only for this visit; with an account this can live in the cloud
+let memSettings: Blob | null = null;
 const SETTINGS_FILE = "SETTINGS.JST";
 const MIN_CODE = 4;
 
 /* ════════════════════════════════════════════════════════════════
    helpers
    ════════════════════════════════════════════════════════════════ */
-const fmtBytes = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(2)} GB` : n >= 1e6 ? `${(n / 1e6).toFixed(0)} MB` : `${(n / 1e3).toFixed(0)} KB`);
-const fmtEta = (s: number) => (!isFinite(s) || s <= 0 ? "" : s > 3600 ? `${Math.round(s / 3600)} h` : s > 60 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`);
+const fmtBytes = (n: number) =>
+  n >= 1e9 ? `${(n / 1e9).toFixed(2)} GB` : n >= 1e6 ? `${(n / 1e6).toFixed(0)} MB` : `${(n / 1e3).toFixed(0)} KB`;
 
-/** takes a pasted link, a path or a bare token and returns the token, or "" if it doesn't look right */
+const fmtEta = (s: number) =>
+  !isFinite(s) || s <= 0 ? "" : s > 3600 ? `${Math.round(s / 3600)} h` : s > 60 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`;
+
 function parseToken(input: string): string {
   const s = input.trim();
   if (!s) return "";
@@ -73,31 +97,22 @@ function parseToken(input: string): string {
 }
 
 function linkHostOk(input: string): boolean {
+  const s = input.trim();
+  if (!s) return true;
   try {
-    const h = new URL(input.trim()).hostname;
-    return h === window.location.hostname || h === "imidi.co.uk" || h.endsWith(".imidi.co.uk");
+    const u = new URL(s, typeof window !== "undefined" ? window.location.origin : "https://imidi.co.uk");
+    const h = u.hostname;
+    return (
+      h === (typeof window !== "undefined" ? window.location.hostname : "imidi.co.uk") ||
+      h === "imidi.co.uk" ||
+      h.endsWith(".imidi.co.uk")
+    );
   } catch {
-    return true; // not a URL (a bare token): nothing to check
+    return true;
   }
 }
 
-function mockStream(size: number, signal: AbortSignal): ReadableStream<Uint8Array> {
-  let sent = 0;
-  return new ReadableStream<Uint8Array>({
-    pull(c) {
-      if (signal.aborted) return c.error(new DOMException("Aborted", "AbortError"));
-      if (sent >= size) return c.close();
-      const n = Math.min(1 << 20, size - sent);
-      const b = new Uint8Array(n);
-      for (let i = 0; i < n; i++) b[i] = ((sent + i) * 31) & 255;
-      sent += n;
-      c.enqueue(b);
-    },
-  });
-}
-
 async function openPart(p: Part, signal: AbortSignal) {
-  if (p.url.startsWith("mock://")) return mockStream(p.size, signal);
   const res = await fetch(p.url, { signal });
   if (!res.ok || !res.body) throw new Error(`Download failed (${res.status})`);
   return res.body;
@@ -116,12 +131,23 @@ async function listNames(dir: any): Promise<string[]> {
   return out;
 }
 
-const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5CA1] focus-visible:ring-offset-2 focus-visible:ring-offset-[#131316]";
+const FOCUS =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5CA1] focus-visible:ring-offset-2 focus-visible:ring-offset-[#131316]";
 
 type Phase = "idle" | "ready" | "writing" | "done" | "error";
 type PartState = "waiting" | "writing" | "checking" | "ok";
 
-function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: () => void; label: string; disabled?: boolean }) {
+function Switch({
+  on,
+  onChange,
+  label,
+  disabled,
+}: {
+  on: boolean;
+  onChange: () => void;
+  label: string;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
@@ -130,9 +156,15 @@ function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: () =
       aria-label={label}
       disabled={disabled}
       onClick={onChange}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-40 ${on ? "bg-[#FF5CA1]" : "bg-white/15"} ${FOCUS}`}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
+        on ? "bg-[#FF5CA1]" : "bg-white/15"
+      } ${FOCUS}`}
     >
-      <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform motion-reduce:transition-none ${on ? "translate-x-5" : ""}`} />
+      <span
+        className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform motion-reduce:transition-none ${
+          on ? "translate-x-5" : ""
+        }`}
+      />
     </button>
   );
 }
@@ -160,7 +192,6 @@ function StepHead({ n, title, done, hint }: { n: number; title: string; done: bo
    page
    ════════════════════════════════════════════════════════════════ */
 export default function SdWritePage() {
-  // 1. package
   const [linkInput, setLinkInput] = useState("");
   const [code, setCode] = useState("");
   const [showCode, setShowCode] = useState(false);
@@ -169,14 +200,12 @@ export default function SdWritePage() {
   const [pkg, setPkg] = useState<Pkg | null>(null);
   const [cooldown, setCooldown] = useState(0);
 
-  // 2. card
   const [formatted, setFormatted] = useState(false);
   const [cardName, setCardName] = useState("");
   const [oldFiles, setOldFiles] = useState<string[]>([]);
   const [hasSettings, setHasSettings] = useState(false);
   const [opt, setOpt] = useState({ verify: true, settings: true, wake: true, deleteOld: false });
 
-  // 3. write
   const [supported, setSupported] = useState(true);
   const [phase, setPhase] = useState<Phase>("idle");
   const [message, setMessage] = useState("");
@@ -223,7 +252,6 @@ export default function SdWritePage() {
     };
   }, [writing]);
 
-  /* ---------- 1. check the link ---------- */
   const check = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setCheckError("");
@@ -236,7 +264,7 @@ export default function SdWritePage() {
     } catch (err: any) {
       setPkg(null);
       setCheckError(err?.message ?? "Could not check the link.");
-      setCooldown(3); // slows down guessing
+      setCooldown(3);
     } finally {
       setChecking(false);
     }
@@ -250,12 +278,11 @@ export default function SdWritePage() {
     setMessage("");
   };
 
-  /* ---------- 2. choose the card ---------- */
   const pickCard = async () => {
     setMessage("");
     try {
       const dir = await (window as any).showDirectoryPicker({ id: "imidi-sd", mode: "readwrite" });
-      const probe = await dir.getFileHandle(".imidi-probe", { create: true }); // can we really write here?
+      const probe = await dir.getFileHandle(".imidi-probe", { create: true });
       const w = await probe.createWritable();
       await w.write(new Uint8Array([1]));
       await w.close();
@@ -273,16 +300,19 @@ export default function SdWritePage() {
       dirRef.current = null;
       setCardName("");
       setPhase("idle");
-      setMessage("This browser or system doesn't allow writing to the card root. Try the latest Chrome or Edge on a computer, or another USB card reader.");
+      setMessage(
+        "This browser or system doesn't allow writing to the card root. Try the latest Chrome or Edge on a computer, or another USB card reader."
+      );
     }
   };
 
-  /* ---------- 3. write + verify ---------- */
   const write = async () => {
     const dir = dirRef.current;
     if (!dir || !pkg) return;
     if (oldFiles.length && !opt.deleteOld) {
-      setMessage("This card already has bank files. Format it first (recommended), or turn on “Delete old bank files” in the options.");
+      setMessage(
+        "This card already has bank files. Format it first (recommended), or turn on “Delete old bank files” in the options."
+      );
       return;
     }
 
@@ -300,6 +330,7 @@ export default function SdWritePage() {
       t0Ref.current = performance.now();
       setProgress({ done: 0, total, speed: 0 });
       setPartState(Object.fromEntries(parts.map((p) => [p.name, "waiting" as PartState])));
+
       if (opt.wake) {
         try {
           wake = await (navigator as any).wakeLock?.request("screen");
@@ -312,7 +343,9 @@ export default function SdWritePage() {
           setStepText(`Saving ${SETTINGS_FILE}`);
           settings = await (await dir.getFileHandle(SETTINGS_FILE)).getFile();
           memSettings = settings;
-        } else settings = memSettings;
+        } else {
+          settings = memSettings;
+        }
       }
 
       if (oldFiles.length) {
@@ -350,6 +383,7 @@ export default function SdWritePage() {
           } catch {}
           throw e;
         }
+
         if (p.sha256 && hasher.digest("hex") !== p.sha256.toLowerCase()) {
           try {
             await dir.removeEntry(p.name);
@@ -373,7 +407,9 @@ export default function SdWritePage() {
             if (done) break;
             hasher.update(value);
           }
-          if (p.sha256 && hasher.digest("hex") !== p.sha256.toLowerCase()) throw new Error(`${p.name}: check failed on the card`);
+          if (p.sha256 && hasher.digest("hex") !== p.sha256.toLowerCase()) {
+            throw new Error(`${p.name}: check failed on the card`);
+          }
           setPartState((s) => ({ ...s, [p.name]: "ok" }));
         }
       }
@@ -390,9 +426,13 @@ export default function SdWritePage() {
       setStepText("");
       setPhase("done");
     } catch (e: any) {
-      if (e?.name === "AbortError") setMessage("Cancelled. Partial files were removed. You can start again.");
-      else if (e?.name === "QuotaExceededError" || /no space|full/i.test(String(e?.message))) setMessage("The card is full or too small for this package.");
-      else setMessage(String(e?.message ?? e));
+      if (e?.name === "AbortError") {
+        setMessage("Cancelled. Partial files were removed. You can start again.");
+      } else if (e?.name === "QuotaExceededError" || /no space|full/i.test(String(e?.message))) {
+        setMessage("The card is full or too small for this package.");
+      } else {
+        setMessage(String(e?.message ?? e));
+      }
       setPhase("error");
     } finally {
       try {
@@ -417,14 +457,23 @@ export default function SdWritePage() {
       <Navbar />
 
       <main id="main-content" className="relative flex-1 overflow-x-clip px-5 pb-20 pt-28 sm:px-6">
-        <div aria-hidden className="pointer-events-none absolute -top-20 right-0 h-[320px] w-[320px] rounded-full bg-[#FF5CA1]/10 blur-[120px] sm:h-[460px] sm:w-[460px]" />
-        <div aria-hidden className="pointer-events-none absolute left-0 top-1/3 h-[260px] w-[260px] rounded-full bg-[#FF8A3D]/[0.07] blur-[110px]" />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-20 right-0 h-[320px] w-[320px] rounded-full bg-[#FF5CA1]/10 blur-[120px] sm:h-[460px] sm:w-[460px]"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute left-0 top-1/3 h-[260px] w-[260px] rounded-full bg-[#FF8A3D]/[0.07] blur-[110px]"
+        />
 
         <div className="relative mx-auto w-full max-w-3xl">
           <p className="aw-mono text-xs uppercase tracking-[0.16em] text-[#FF5CA1]">iMIDI · SD writer</p>
-          <h1 className="aw-display mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Write your package to an SD card</h1>
+          <h1 className="aw-display mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            Write your package to an SD card
+          </h1>
           <p className="mt-3 text-[15px] leading-relaxed text-[#A1A1AA]">
-            Paste the link and the code you got from the seller, plug in the card, and press write. Everything is checked and read back from the card.
+            Paste the link and the code you got from the seller, plug in the card, and press write. Everything is checked
+            and read back from the card.
           </p>
 
           {!supported && (
@@ -432,23 +481,26 @@ export default function SdWritePage() {
               Writing to a card needs Chrome or Edge on a computer, over HTTPS. Open this page there.
             </p>
           )}
-          {IS_DEMO && (
-            <p className="mt-6 rounded-xl border border-white/[0.1] bg-white/[0.03] p-4 text-sm text-[#B4B4BC]">
-              <span className="font-semibold text-white">Demo mode.</span> Try the link <span className="aw-mono text-[#FF8FBF]">https://imidi.co.uk/download/demo</span> with the code{" "}
-              <span className="aw-mono text-[#FF8FBF]">demo</span>. The files are synthetic: they test your card and browser, but a sampler won&apos;t load them as sounds.
-            </p>
-          )}
 
           <div className="mt-8 space-y-4">
-            {/* ───────────── 1. PACKAGE ───────────── */}
+            {/* 1. PACKAGE */}
             <section className="rounded-2xl border border-white/[0.08] bg-[#18181C] p-5 sm:p-7" aria-labelledby="s1">
-              <StepHead n={1} title="Your package" done={!!pkg} hint={pkg ? undefined : "The link and the code come from the seller, usually sent in two separate messages."} />
-              <span id="s1" className="sr-only">Your package</span>
+              <StepHead
+                n={1}
+                title="Your package"
+                done={!!pkg}
+                hint={pkg ? undefined : "The link and the code come from the seller, usually sent in two separate messages."}
+              />
+              <span id="s1" className="sr-only">
+                Your package
+              </span>
 
               {!pkg ? (
                 <form onSubmit={check} className="mt-5 space-y-4">
                   <div>
-                    <label htmlFor="link" className="text-sm font-medium text-white">Link</label>
+                    <label htmlFor="link" className="text-sm font-medium text-white">
+                      Link
+                    </label>
                     <input
                       id="link"
                       type="text"
@@ -457,7 +509,7 @@ export default function SdWritePage() {
                       spellCheck={false}
                       value={linkInput}
                       onChange={(e) => setLinkInput(e.target.value)}
-                      placeholder="https://imidi.co.uk/download/…"
+                      placeholder="https://imidi.co.uk/download/…  or  /download/…"
                       className={`mt-1.5 h-12 w-full rounded-xl border bg-[#131316] px-4 text-sm text-white outline-none transition-colors placeholder:text-[#6A6A73] focus:border-[#FF5CA1]/60 ${
                         hostBad ? "border-red-500/50" : "border-white/[0.12]"
                       }`}
@@ -468,13 +520,15 @@ export default function SdWritePage() {
                       ) : token ? (
                         <span className="text-emerald-300">Link recognised · …{token.slice(-6)}</span>
                       ) : (
-                        <span className="text-[#A1A1AA]">Paste the whole link, it contains /download/</span>
+                        <span className="text-[#A1A1AA]">Paste the whole link or /download/…</span>
                       )}
                     </p>
                   </div>
 
                   <div>
-                    <label htmlFor="code" className="text-sm font-medium text-white">Access code</label>
+                    <label htmlFor="code" className="text-sm font-medium text-white">
+                      Access code
+                    </label>
                     <div className="relative mt-1.5">
                       <input
                         id="code"
@@ -507,7 +561,9 @@ export default function SdWritePage() {
                     disabled={checking || cooldown > 0 || !token || code.trim().length < MIN_CODE}
                     className={`inline-flex h-12 items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] px-8 text-xs font-bold uppercase tracking-wide text-white transition-transform enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`}
                   >
-                    {checking && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white motion-reduce:animate-none" />}
+                    {checking && (
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white motion-reduce:animate-none" />
+                    )}
                     {checking ? "Checking" : cooldown > 0 ? `Wait ${cooldown}s` : "Check package"}
                   </button>
                 </form>
@@ -522,7 +578,11 @@ export default function SdWritePage() {
                       </p>
                     </div>
                     {!writing && (
-                      <button type="button" onClick={changePackage} className={`rounded-md px-1 text-xs font-semibold text-[#A1A1AA] underline-offset-2 hover:text-white hover:underline ${FOCUS}`}>
+                      <button
+                        type="button"
+                        onClick={changePackage}
+                        className={`rounded-md px-1 text-xs font-semibold text-[#A1A1AA] underline-offset-2 hover:text-white hover:underline ${FOCUS}`}
+                      >
                         Use another link
                       </button>
                     )}
@@ -531,20 +591,33 @@ export default function SdWritePage() {
               )}
             </section>
 
-            {/* ───────────── 2. CARD ───────────── */}
+            {/* 2. CARD */}
             <section
-              className={`rounded-2xl border border-white/[0.08] bg-[#18181C] p-5 transition-opacity sm:p-7 ${!pkg ? "pointer-events-none opacity-45" : ""}`}
+              className={`rounded-2xl border border-white/[0.08] bg-[#18181C] p-5 transition-opacity sm:p-7 ${
+                !pkg ? "pointer-events-none opacity-45" : ""
+              }`}
               aria-labelledby="s2"
               aria-disabled={!pkg}
             >
               <StepHead n={2} title="Your card" done={cardReady} hint="Plug in the SD card and choose it." />
-              <span id="s2" className="sr-only">Your card</span>
+              <span id="s2" className="sr-only">
+                Your card
+              </span>
 
               <label className="mt-5 flex cursor-pointer items-start gap-3">
-                <input type="checkbox" checked={formatted} onChange={(e) => setFormatted(e.target.checked)} disabled={writing || !pkg} className="mt-1 h-4 w-4 accent-[#FF5CA1]" />
+                <input
+                  type="checkbox"
+                  checked={formatted}
+                  onChange={(e) => setFormatted(e.target.checked)}
+                  disabled={writing || !pkg}
+                  className="mt-1 h-4 w-4 accent-[#FF5CA1]"
+                />
                 <span className="text-sm leading-relaxed text-[#D4D4D9]">
                   <span className="font-semibold text-white">The card is formatted as FAT32 and empty.</span>{" "}
-                  <span className="text-[#A1A1AA]">Browsers can&apos;t format cards. For 64 GB and larger use the &quot;Large FAT32&quot; method (for example Rufus on Windows).</span>
+                  <span className="text-[#A1A1AA]">
+                    Browsers can&apos;t format cards. For 64 GB and larger use the &quot;Large FAT32&quot; method (for
+                    example Rufus on Windows).
+                  </span>
                 </span>
               </label>
 
@@ -564,58 +637,114 @@ export default function SdWritePage() {
                 )}
               </div>
 
-              {cardName && hasSettings && opt.settings && <p className="mt-3 text-[13px] text-[#A1A1AA]">{SETTINGS_FILE} found: it will be kept and put back after writing.</p>}
+              {cardName && hasSettings && opt.settings && (
+                <p className="mt-3 text-[13px] text-[#A1A1AA]">
+                  {SETTINGS_FILE} found: it will be kept and put back after writing.
+                </p>
+              )}
               {oldFiles.length > 0 && (
                 <p className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] p-3 text-[13px] text-amber-100">
-                  {oldFiles.length} old bank file{oldFiles.length > 1 ? "s" : ""} on the card ({oldFiles.join(", ")}). Format the card for the most reliable result, or turn on “Delete old bank files” below.
+                  {oldFiles.length} old bank file{oldFiles.length > 1 ? "s" : ""} on the card ({oldFiles.join(", ")}).
+                  Format the card for the most reliable result, or turn on “Delete old bank files” below.
                 </p>
               )}
 
               <details className="group mt-5 border-t border-white/[0.07] pt-4">
-                <summary className={`flex cursor-pointer list-none items-center justify-between rounded text-sm font-semibold text-[#D4D4D9] hover:text-white ${FOCUS}`}>
+                <summary
+                  className={`flex cursor-pointer list-none items-center justify-between rounded text-sm font-semibold text-[#D4D4D9] hover:text-white ${FOCUS}`}
+                >
                   Options
-                  <span aria-hidden className="text-[#8E8E98] transition-transform group-open:rotate-180">⌄</span>
+                  <span aria-hidden className="text-[#8E8E98] transition-transform group-open:rotate-180">
+                    ⌄
+                  </span>
                 </summary>
                 <ul className="mt-4 space-y-4">
                   {[
-                    { k: "verify" as const, t: "Check files after writing", d: "Reads every file back from the card and compares it. Slower, much safer." },
-                    { k: "settings" as const, t: `Keep ${SETTINGS_FILE}`, d: "Saves your settings file before writing and puts it back at the end." },
-                    { k: "wake" as const, t: "Keep the screen awake", d: "Stops the computer from sleeping while a long write is running." },
-                    { k: "deleteOld" as const, t: "Delete old bank files", d: "Removes .JBB files already on the card. Formatting is more reliable." },
+                    {
+                      k: "verify" as const,
+                      t: "Check files after writing",
+                      d: "Reads every file back from the card and compares it. Slower, much safer.",
+                    },
+                    {
+                      k: "settings" as const,
+                      t: `Keep ${SETTINGS_FILE}`,
+                      d: "Saves your settings file before writing and puts it back at the end.",
+                    },
+                    {
+                      k: "wake" as const,
+                      t: "Keep the screen awake",
+                      d: "Stops the computer from sleeping while a long write is running.",
+                    },
+                    {
+                      k: "deleteOld" as const,
+                      t: "Delete old bank files",
+                      d: "Removes .JBB files already on the card. Formatting is more reliable.",
+                    },
                   ].map((o) => (
                     <li key={o.k} className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-sm font-medium text-white">{o.t}</p>
                         <p className="mt-0.5 text-[13px] leading-relaxed text-[#A1A1AA]">{o.d}</p>
                       </div>
-                      <Switch on={opt[o.k]} label={o.t} disabled={writing} onChange={() => setOpt((s) => ({ ...s, [o.k]: !s[o.k] }))} />
+                      <Switch
+                        on={opt[o.k]}
+                        label={o.t}
+                        disabled={writing}
+                        onChange={() => setOpt((s) => ({ ...s, [o.k]: !s[o.k] }))}
+                      />
                     </li>
                   ))}
                 </ul>
               </details>
             </section>
 
-            {/* ───────────── 3. WRITE ───────────── */}
+            {/* 3. WRITE */}
             <section
-              className={`rounded-2xl border border-white/[0.08] bg-[#18181C] p-5 transition-opacity sm:p-7 ${!cardReady ? "pointer-events-none opacity-45" : ""}`}
+              className={`rounded-2xl border border-white/[0.08] bg-[#18181C] p-5 transition-opacity sm:p-7 ${
+                !cardReady ? "pointer-events-none opacity-45" : ""
+              }`}
               aria-labelledby="s3"
               aria-disabled={!cardReady}
             >
-              <StepHead n={3} title="Write" done={phase === "done"} hint={writing ? undefined : "Don't use the computer for anything else, and don't unplug the card, until it says Done."} />
-              <span id="s3" className="sr-only">Write</span>
+              <StepHead
+                n={3}
+                title="Write"
+                done={phase === "done"}
+                hint={
+                  writing
+                    ? undefined
+                    : "Don't use the computer for anything else, and don't unplug the card, until it says Done."
+                }
+              />
+              <span id="s3" className="sr-only">
+                Write
+              </span>
 
               {showParts && pkg && (
                 <div className="mt-5 space-y-4">
                   <div>
                     <div className="mb-1.5 flex items-center justify-between gap-3 text-xs text-[#A1A1AA]">
-                      <span aria-live="polite">{phase === "done" ? "All files written" + (opt.verify ? " and checked" : "") : stepText}</span>
+                      <span aria-live="polite">
+                        {phase === "done"
+                          ? "All files written" + (opt.verify ? " and checked" : "")
+                          : stepText}
+                      </span>
                       <span className="aw-mono">
                         {fmtBytes(progress.done)} / {fmtBytes(progress.total)}
                         {writing && progress.speed > 0 && ` · ${fmtBytes(progress.speed)}/s · ${fmtEta(eta)}`}
                       </span>
                     </div>
-                    <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(phase === "done" ? 100 : pct)} className="h-2.5 overflow-hidden rounded-full bg-white/10">
-                      <div className="h-full rounded-full bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] transition-[width] duration-200" style={{ width: `${phase === "done" ? 100 : pct}%` }} />
+                    <div
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.round(phase === "done" ? 100 : pct)}
+                      className="h-2.5 overflow-hidden rounded-full bg-white/10"
+                    >
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] transition-[width] duration-200"
+                        style={{ width: `${phase === "done" ? 100 : pct}%` }}
+                      />
                     </div>
                   </div>
                   <ul className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.08]">
@@ -626,7 +755,15 @@ export default function SdWritePage() {
                           <span className="aw-mono truncate text-[13px]">{p.name}</span>
                           <span className="flex shrink-0 items-center gap-3 text-xs text-[#A1A1AA]">
                             {fmtBytes(p.size)}
-                            <span className={`rounded-md px-2 py-0.5 font-semibold ${s === "ok" ? "bg-emerald-500/15 text-emerald-300" : s === "waiting" ? "bg-white/[0.06]" : "bg-[#FF5CA1]/15 text-[#FF8FBF]"}`}>
+                            <span
+                              className={`rounded-md px-2 py-0.5 font-semibold ${
+                                s === "ok"
+                                  ? "bg-emerald-500/15 text-emerald-300"
+                                  : s === "waiting"
+                                  ? "bg-white/[0.06]"
+                                  : "bg-[#FF5CA1]/15 text-[#FF8FBF]"
+                              }`}
+                            >
                               {s === "ok" ? (opt.verify ? "checked" : "written") : s}
                             </span>
                           </span>
@@ -660,7 +797,11 @@ export default function SdWritePage() {
                   </button>
                 )}
                 {writing && (
-                  <button type="button" onClick={() => abortRef.current?.abort()} className={`h-12 rounded-xl border border-white/20 px-6 text-xs font-bold uppercase tracking-wide text-white hover:bg-white/5 ${FOCUS}`}>
+                  <button
+                    type="button"
+                    onClick={() => abortRef.current?.abort()}
+                    className={`h-12 rounded-xl border border-white/20 px-6 text-xs font-bold uppercase tracking-wide text-white hover:bg-white/5 ${FOCUS}`}
+                  >
                     Cancel
                   </button>
                 )}
@@ -684,11 +825,17 @@ export default function SdWritePage() {
           </div>
 
           <details className="mt-6 rounded-2xl border border-white/[0.08] bg-[#18181C] p-5 text-sm text-[#A1A1AA]">
-            <summary className={`cursor-pointer rounded font-medium text-[#D4D4D9] hover:text-white ${FOCUS}`}>Link not working, or can&apos;t choose the card?</summary>
+            <summary className={`cursor-pointer rounded font-medium text-[#D4D4D9] hover:text-white ${FOCUS}`}>
+              Link not working, or can&apos;t choose the card?
+            </summary>
             <div className="mt-3 space-y-3 leading-relaxed">
-              <p>Links are for one use and expire after 15 days. Check you pasted the whole link and the exact code, and ask the seller for a new link if needed.</p>
               <p>
-                Some systems block selecting the root of a drive. Use the latest Chrome or Edge on a computer, try another USB card reader, and pick the card itself, not a folder inside it.
+                Links are for one use and expire after 15 days. Check you pasted the whole link and the exact code, and
+                ask the seller for a new link if needed.
+              </p>
+              <p>
+                Some systems block selecting the root of a drive. Use the latest Chrome or Edge on a computer, try another
+                USB card reader, and pick the card itself, not a folder inside it.
               </p>
             </div>
           </details>
