@@ -58,15 +58,16 @@ const VALUES = [
 ];
 
 const PILLARS = [
+
   {
-    eyebrow: "Software",
-    title: "TS4X Synth Engine",
-    desc: "A live-performance synth built for the stage, not just the studio. Standalone on desktop and mobile.",
-    chips: ["Sub-1.8ms latency", "Loopers and samplers", "Lossless cloud sync"],
-    href: "/ts4x",
-    cta: "Explore TS4X",
-    color: PINK,
-    icon: "M3 12h3l3-8 4 16 3-8h5",
+    eyebrow: "Connectivity",
+    title: "AirMIDI Link",
+    desc: "Private video calls and live MIDI sessions in the browser. Play together in real time, anywhere.",
+    chips: ["Low-latency MIDI", "Private sessions", "Works in the browser"],
+    href: "/airmidi-link",
+    cta: "Open AirMIDI Link",
+    color: PURPLE, // sau culoarea pe care o folosești pentru AirMIDI
+    icon: "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1.5-3-1-1-1.5-1.62-1.5-3a2.5 2.5 0 0 1 5 0c0 1.38-.5 2-1.5 3-1 1-1.5 1.62-1.5 3a2.5 2.5 0 0 0 2.5 2.5M12 20v-2M8 20h8M4.5 9.5c0-2 .8-3.5 2-4.5M19.5 9.5c0-2-.8-3.5-2-4.5",
   },
   {
     eyebrow: "Marketplace",
@@ -87,6 +88,17 @@ const PILLARS = [
     cta: "See i-volution",
     color: PURPLE,
     icon: "M7 5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7zM3 9h2M3 13h2M19 9h2M19 13h2M9 3v2M13 3v2M9 19v2M13 19v2",
+  },
+  {
+    eyebrow: "Tools",
+    title: "SD Writer",
+    desc: "Paste a seller link and code, plug in the card, and write the package straight to the SD card with verification.",
+    chips: ["One-time links", "Checksum verified", "Chrome & Edge"],
+    href: "/sd-write",
+    cta: "Open SD Writer",
+    color: PINK, // sau ORANGE
+    // SD card + download arrow
+    icon: "M6 4a2 2 0 0 1 2-2h7l3 3v13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4zm9 0v2h2M12 10v6m0 0-2.5-2.5M12 16l2.5-2.5",
   },
 ];
 

@@ -16,6 +16,7 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
       { href: "/products", label: "i-volution" },
       { href: "/airmidi-link", label: "AirMIDI Link" },
       { href: "/e-market", label: "Market" },
+       { href: "/sd-writer", label: "SD-Writer" },
       { href: "https://docs.imidi.co.uk", label: "Docs", external: true },
     ],
   },
