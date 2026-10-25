@@ -1,4 +1,4 @@
-// app/sd-write/page.tsx  ·  real version: seller link + code  ->  /api/cloud/redeem  ->  written straight to an SD card
+// app/sd-write/page.tsx  ·  seller link + code  ->  /api/cloud/redeem  ->  written straight to an SD card
 // Needs:  npm i hash-wasm
 'use client';
 
@@ -6,14 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
-/* ════════════════════════════════════════════════════════════════
-   HOW IT TALKS TO YOUR SERVER (same API as /download/[token])
-     GET  /api/cloud/redeem?token=…          -> { seller_name, filename }        (preview, nothing is used up)
-     POST /api/cloud/redeem { token, code }  -> { url, filename }                (uses the code; the signed URL lasts 30 min)
-   The code is only sent when the buyer presses "Write to card", so the 30 minutes start when the card is ready.
-   The unlocked link is kept in sessionStorage (this tab), so a failed write can be retried without the code.
-   ════════════════════════════════════════════════════════════════ */
-const SESSION_MS = 30 * 60 * 1000; // same as the 1800 s lifetime of the signed URL on your backend
+const SESSION_MS = 30 * 60 * 1000;
 const MIN_CODE = 4;
 const MAX_RETRIES = 8;
 const SETTINGS_FILE = "SETTINGS.JST";
@@ -69,9 +62,6 @@ const clearSession = (t: string) => {
   } catch {}
 };
 
-/* ════════════════════════════════════════════════════════════════
-   helpers
-   ════════════════════════════════════════════════════════════════ */
 const fmtBytes = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(2)} GB` : n >= 1e6 ? `${(n / 1e6).toFixed(0)} MB` : `${(n / 1e3).toFixed(0)} KB`);
 const fmtEta = (s: number) => (!isFinite(s) || s <= 0 ? "" : s > 3600 ? `${Math.round(s / 3600)} h` : s > 60 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -87,7 +77,6 @@ const waitOnline = () =>
         window.addEventListener("online", h);
       });
 
-/** token from a pasted link, a path or a bare token; "" if it doesn't look right */
 function parseToken(input: string): string {
   const s = input.trim();
   if (!s) return "";
@@ -101,11 +90,10 @@ function linkHostOk(input: string): boolean {
     const h = new URL(input.trim()).hostname;
     return h === window.location.hostname || h === "imidi.co.uk" || h.endsWith(".imidi.co.uk");
   } catch {
-    return true; // a bare token has no host to check
+    return true;
   }
 }
 
-/** exact size of the file in bytes, 0 if the server doesn't tell (then it is read from the download itself) */
 async function probeSize(url: string): Promise<number> {
   try {
     const r = await fetch(url, { method: "HEAD" });
@@ -148,12 +136,15 @@ async function listNames(dir: any): Promise<string[]> {
   return out;
 }
 
-const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5CA1] focus-visible:ring-offset-2 focus-visible:ring-offset-[#131316]";
+const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5CA1] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0E0F13]";
+const PRIMARY = `h-12 rounded-xl bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] px-7 text-sm font-semibold text-white shadow-[0_10px_30px_-12px_rgba(255,92,161,.7)] transition-transform enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`;
+const GHOST = `h-11 rounded-xl border border-white/15 px-5 text-sm font-semibold text-white transition-colors enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`;
+const FIELD = "h-12 w-full rounded-xl border bg-[#0B0C10] px-4 text-sm text-white outline-none transition-colors placeholder:text-[#6A6A73] focus:border-[#FF5CA1]/60";
 
 type Phase = "idle" | "ready" | "writing" | "done" | "error";
 type FileState = "waiting" | "writing" | "checking" | "ok";
 
-let memSettings: Blob | null = null; // SETTINGS.JST kept for this visit only
+let memSettings: Blob | null = null;
 
 function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: () => void; label: string; disabled?: boolean }) {
   return (
@@ -171,48 +162,78 @@ function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: () =
   );
 }
 
-function StepHead({ n, title, done, hint }: { n: number; title: string; done: boolean; hint?: string }) {
+function StepCard({
+  n,
+  title,
+  hint,
+  state,
+  last = false,
+  children,
+}: {
+  n: number;
+  title: string;
+  hint?: string;
+  state: "locked" | "active" | "done";
+  last?: boolean;
+  children?: React.ReactNode;
+}) {
+  const done = state === "done";
+  const locked = state === "locked";
   return (
-    <div className="flex items-start gap-3.5">
-      <span
-        aria-hidden
-        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-          done ? "bg-emerald-500/20 text-emerald-300" : "bg-gradient-to-br from-[#FF5CA1] to-[#FF8A3D] text-white"
+    <section aria-label={title} aria-disabled={locked} className="relative flex gap-4 sm:gap-5">
+      <div className="flex flex-col items-center">
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${
+            done
+              ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+              : locked
+              ? "border-white/10 text-[#6A6A73]"
+              : "border-[#FF5CA1] bg-[#FF5CA1]/10 text-[#FF8FBF]"
+          }`}
+        >
+          {done ? "✓" : n}
+        </span>
+        {!last && <span className={`mt-2 w-px flex-1 ${done ? "bg-emerald-400/30" : "bg-white/10"}`} />}
+      </div>
+      <div
+        className={`min-w-0 flex-1 rounded-2xl border bg-[#15171C] p-5 transition-opacity sm:p-6 ${last ? "" : "mb-5"} ${
+          locked ? "pointer-events-none border-white/[0.05] opacity-50" : "border-white/[0.08]"
         }`}
       >
-        {done ? "✓" : n}
-      </span>
-      <div>
-        <h2 className="aw-display text-lg font-semibold text-white">{title}</h2>
-        {hint && <p className="mt-0.5 text-[13px] text-[#A1A1AA]">{hint}</p>}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="aw-display text-lg font-semibold text-white">{title}</h2>
+          <span
+            className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${
+              done ? "bg-emerald-400/10 text-emerald-300" : locked ? "bg-white/[0.05] text-[#7A7A85]" : "bg-[#FF5CA1]/10 text-[#FF8FBF]"
+            }`}
+          >
+            {done ? "Completed" : locked ? "Locked" : "In progress"}
+          </span>
+        </div>
+        {hint && <p className="mt-1 text-[13px] leading-relaxed text-[#9A9AA5]">{hint}</p>}
+        {children}
       </div>
-    </div>
+    </section>
   );
 }
 
-/* ════════════════════════════════════════════════════════════════
-   page
-   ════════════════════════════════════════════════════════════════ */
 export default function SdWritePage() {
-  // 1. package
   const [linkInput, setLinkInput] = useState("");
   const [code, setCode] = useState("");
   const [showCode, setShowCode] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [previewError, setPreviewError] = useState("");
-  const [confirmed, setConfirmed] = useState(false); // the buyer pressed Continue
+  const [confirmed, setConfirmed] = useState(false);
   const [formError, setFormError] = useState("");
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null);
 
-  // 2. card
   const [formatted, setFormatted] = useState(false);
   const [cardName, setCardName] = useState("");
   const [oldFiles, setOldFiles] = useState<string[]>([]);
   const [hasSettings, setHasSettings] = useState(false);
   const [opt, setOpt] = useState({ verify: true, settings: true, wake: true, deleteOld: false });
 
-  // 3. write
   const [supported, setSupported] = useState(true);
   const [phase, setPhase] = useState<Phase>("idle");
   const [message, setMessage] = useState("");
@@ -240,7 +261,6 @@ export default function SdWritePage() {
     return () => abortRef.current?.abort();
   }, []);
 
-  /* look the link up as soon as it is pasted (nothing is used up) */
   useEffect(() => {
     setPreview(null);
     setPreviewError("");
@@ -263,7 +283,6 @@ export default function SdWritePage() {
     };
   }, [token, hostBad]);
 
-  /* remaining time of an unlocked link */
   useEffect(() => {
     const tick = () => {
       const s = token ? loadSession(token) : null;
@@ -291,7 +310,6 @@ export default function SdWritePage() {
     };
   }, [writing]);
 
-  /* ---------- 1. continue ---------- */
   const goContinue = (e?: React.FormEvent) => {
     e?.preventDefault();
     setFormError("");
@@ -310,12 +328,11 @@ export default function SdWritePage() {
     partialRef.current = null;
   };
 
-  /* ---------- 2. choose the card ---------- */
   const pickCard = async () => {
     setMessage("");
     try {
       const dir = await (window as any).showDirectoryPicker({ id: "imidi-sd", mode: "readwrite" });
-      const probe = await dir.getFileHandle(".imidi-probe", { create: true }); // can we really write here?
+      const probe = await dir.getFileHandle(".imidi-probe", { create: true });
       const w = await probe.createWritable();
       await w.write(new Uint8Array([1]));
       await w.close();
@@ -338,7 +355,6 @@ export default function SdWritePage() {
     }
   };
 
-  /* ---------- 3. write ---------- */
   const write = async () => {
     const dir = dirRef.current;
     if (!dir || !token) return;
@@ -359,7 +375,6 @@ export default function SdWritePage() {
     let wake: any = null;
     let name = "";
     try {
-      /* unlock: reuse the session if there is one, otherwise use the code now */
       let session = loadSession(token);
       if (!session) {
         try {
@@ -376,7 +391,7 @@ export default function SdWritePage() {
         }
         saveSession(token, session);
       }
-      name = session.filename; // used exactly as the server sends it, extension included
+      name = session.filename;
       setFileName(name);
 
       setStepText("Reading the file size");
@@ -406,7 +421,6 @@ export default function SdWritePage() {
         for (const n of toDelete) await dir.removeEntry(n);
       }
 
-      /* can we continue a file left by a failed attempt? */
       let written = 0;
       const hasher = await newHasher();
       let fh: any;
@@ -472,7 +486,7 @@ export default function SdWritePage() {
           if (attempt > MAX_RETRIES) throw e;
           setStepText(`Connection lost, retrying (${attempt}/${MAX_RETRIES})`);
           try {
-            await writable.close(); // keep what is already on the card
+            await writable.close();
           } catch {}
           await waitOnline();
           await sleep(backoff(attempt));
@@ -487,7 +501,6 @@ export default function SdWritePage() {
       total = written;
       setProgress((p) => ({ ...p, total: written, done: written }));
 
-      /* read back from the card */
       if (opt.verify) {
         setFileState("checking");
         setStepText(`Checking ${name}`);
@@ -525,7 +538,6 @@ export default function SdWritePage() {
       } else {
         setMessage(String(e?.message ?? e));
       }
-      // remember what is on the card so the next try can continue
       if (name && e?.kind !== "expired") {
         try {
           const f: File = await (await dir.getFileHandle(name)).getFile();
@@ -545,310 +557,313 @@ export default function SdWritePage() {
   const showProgress = writing || phase === "done" || (phase === "error" && progress.total + progress.done > 0);
   const ext = (preview?.filename ?? "").split(".").pop()?.toUpperCase();
 
+  const statusLabel =
+    phase === "writing" ? "Writing" : phase === "done" ? "Complete" : phase === "error" ? "Needs attention"
+    : !confirmed ? "Waiting for package" : !cardReady ? "Choose a card" : "Ready to write";
+  const statusTone =
+    phase === "done" ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+    : phase === "error" ? "border-red-400/30 bg-red-400/10 text-red-300"
+    : writing ? "border-[#FF5CA1]/40 bg-[#FF5CA1]/10 text-[#FF8FBF]"
+    : "border-white/10 bg-white/[0.04] text-[#B4B4BC]";
+  const checks = [
+    { t: "Package confirmed", ok: confirmed },
+    { t: "Card selected", ok: !!cardName },
+    { t: "Card formatted FAT32", ok: formatted },
+    { t: "File written", ok: phase === "done" },
+    { t: opt.verify ? "Checked on the card" : "Check turned off", ok: phase === "done" && opt.verify },
+  ];
+
   return (
-    <div className="aw-root flex min-h-screen flex-col bg-[#131316] text-[#F2F2F4] selection:bg-[#FF5CA1]/40 selection:text-white">
+    <div className="aw-root flex min-h-screen flex-col bg-[#0E0F13] text-[#F2F2F4] selection:bg-[#FF5CA1]/40 selection:text-white">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
         .aw-root { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
         .aw-display { font-family: 'Sora', ui-sans-serif, system-ui, sans-serif; }
-        .aw-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+        .aw-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+        .aw-grid { background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px); background-size: 48px 48px; -webkit-mask-image: linear-gradient(#000, transparent 70%); mask-image: linear-gradient(#000, transparent 70%); }
       `}</style>
 
       <Navbar />
 
-      <main id="main-content" className="relative flex-1 overflow-x-clip px-5 pb-20 pt-28 sm:px-6">
-        <div aria-hidden className="pointer-events-none absolute -top-20 right-0 h-[320px] w-[320px] rounded-full bg-[#FF5CA1]/10 blur-[120px] sm:h-[460px] sm:w-[460px]" />
-        <div aria-hidden className="pointer-events-none absolute left-0 top-1/3 h-[260px] w-[260px] rounded-full bg-[#FF8A3D]/[0.07] blur-[110px]" />
+      <main id="main-content" className="relative flex-1 overflow-x-clip px-4 pb-20 pt-24 sm:px-6">
+        <div aria-hidden className="aw-grid pointer-events-none absolute inset-x-0 top-0 h-[520px]" />
+        <div aria-hidden className="pointer-events-none absolute -top-24 right-[8%] h-[360px] w-[360px] rounded-full bg-[#FF5CA1]/10 blur-[130px]" />
 
-        <div ref={topRef} className="relative mx-auto w-full max-w-3xl scroll-mt-24">
-     <div className="flex items-start gap-4 sm:gap-5">
-  <img
-    src="/UOTOB.jpg"
-    alt="SD Writer"
-    width={56}
-    height={56}
-    className="mt-1 h-12 w-12 shrink-0 rounded-xl sm:h-14 sm:w-14 object-cover"
-  />
-  <div className="min-w-0">
-    <p className="aw-mono text-xs uppercase tracking-[0.16em] text-[#FF5CA1]">
-      iMIDI · SD writer
-    </p>
-    <h1 className="aw-display mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-      Write your package to an SD card
-    </h1>
-    <p className="mt-3 text-[15px] leading-relaxed text-[#A1A1AA]">
-      Paste the link and the code you got from the seller, plug in the card, and press write. The file goes
-      straight to the card and is checked afterwards.
-    </p>
-  </div>
-</div>
+        <div ref={topRef} className="relative mx-auto w-full max-w-6xl scroll-mt-24">
+          <header className="flex flex-wrap items-center justify-between gap-5 rounded-2xl border border-white/[0.08] bg-[#15171C]/90 p-5 backdrop-blur sm:p-6">
+            <div className="flex min-w-0 items-center gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/UOTOB.jpg" alt="SD Writer" width={56} height={56} className="h-14 w-14 shrink-0 rounded-xl object-cover ring-1 ring-white/10" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-[#FF5CA1]">iMIDI · SD writer</p>
+                <h1 className="aw-display mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Write your package to an SD card</h1>
+                <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-[#9A9AA5]">
+                  Paste the seller&apos;s link and code, choose the card, press write. The file goes straight to the card and is checked afterwards.
+                </p>
+              </div>
+            </div>
+            <span className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold ${statusTone}`} aria-live="polite">
+              <span className={`h-2 w-2 rounded-full bg-current ${writing ? "animate-pulse motion-reduce:animate-none" : ""}`} />
+              {statusLabel}
+            </span>
+          </header>
 
           {!supported && (
-            <p role="alert" className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+            <p role="alert" className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
               Writing to a card needs Chrome or Edge on a computer, over HTTPS. Open this page there. To save the file on your computer instead, open the link itself.
             </p>
           )}
 
-          <div className="mt-8 space-y-4">
-            {/* ───────────── 1. PACKAGE ───────────── */}
-            <section className="rounded-2xl border border-white/[0.08] bg-[#18181C] p-5 sm:p-7" aria-label="Your package">
-              <StepHead n={1} title="Your package" done={confirmed} hint={confirmed ? undefined : "The link and the code come from the seller, usually sent in two separate messages."} />
-
-              {!confirmed ? (
-                <form onSubmit={goContinue} className="mt-5 space-y-4">
-                  <div>
-                    <label htmlFor="link" className="text-sm font-medium text-white">Link</label>
-                    <input
-                      id="link"
-                      type="text"
-                      inputMode="url"
-                      autoComplete="off"
-                      spellCheck={false}
-                      value={linkInput}
-                      onChange={(e) => setLinkInput(e.target.value)}
-                      placeholder="https://imidi.co.uk/download/…"
-                      className={`mt-1.5 h-12 w-full rounded-xl border bg-[#131316] px-4 text-sm text-white outline-none transition-colors placeholder:text-[#6A6A73] focus:border-[#FF5CA1]/60 ${
-                        hostBad || previewError ? "border-red-500/50" : "border-white/[0.12]"
-                      }`}
-                    />
-                    <p className="mt-2 min-h-[1.25rem] text-[13px]" aria-live="polite">
-                      {linkInput.trim() === "" ? null : hostBad ? (
-                        <span className="text-red-300">This doesn&apos;t look like an iMIDI link.</span>
-                      ) : !token ? (
-                        <span className="text-[#A1A1AA]">Paste the whole link, it contains /download/</span>
-                      ) : previewing ? (
-                        <span className="text-[#A1A1AA]">Looking up the link…</span>
-                      ) : previewError ? (
-                        <span className="text-red-300">{previewError}</span>
-                      ) : preview ? (
-                        <span className="text-emerald-300">
-                          Found: <span className="font-semibold">{preview.filename}</span> <span className="text-[#A1A1AA]">by {preview.seller}</span>
-                        </span>
-                      ) : null}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label htmlFor="code" className="text-sm font-medium text-white">Access code</label>
-                    <div className="relative mt-1.5">
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div>
+              {/* 1. PACKAGE */}
+              <StepCard n={1} title="Your package" state={confirmed ? "done" : "active"} hint={confirmed ? undefined : "The link and the code come from the seller, usually in two separate messages."}>
+                {!confirmed ? (
+                  <form onSubmit={goContinue} className="mt-5 space-y-4">
+                    <div>
+                      <label htmlFor="link" className="text-sm font-medium text-white">Link</label>
                       <input
-                        id="code"
-                        type={showCode ? "text" : "password"}
+                        id="link"
+                        type="text"
+                        inputMode="url"
                         autoComplete="off"
                         spellCheck={false}
-                        value={code}
-                        onChange={(e) => setCode(e.target.value)}
-                        placeholder={hasSession ? "Link already unlocked in this tab" : "The code from the seller"}
-                        className="h-12 w-full rounded-xl border border-white/[0.12] bg-[#131316] px-4 pr-20 text-sm text-white outline-none transition-colors placeholder:text-[#6A6A73] focus:border-[#FF5CA1]/60"
+                        value={linkInput}
+                        onChange={(e) => setLinkInput(e.target.value)}
+                        placeholder="https://imidi.co.uk/download/…"
+                        className={`mt-1.5 ${FIELD} ${hostBad || previewError ? "border-red-500/50" : "border-white/[0.12]"}`}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowCode((v) => !v)}
-                        className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1.5 text-xs font-semibold text-[#A1A1AA] hover:text-white ${FOCUS}`}
-                      >
-                        {showCode ? "Hide" : "Show"}
-                      </button>
+                      <p className="mt-2 min-h-[1.25rem] text-[13px]" aria-live="polite">
+                        {linkInput.trim() === "" ? null : hostBad ? (
+                          <span className="text-red-300">This doesn&apos;t look like an iMIDI link.</span>
+                        ) : !token ? (
+                          <span className="text-[#9A9AA5]">Paste the whole link, it contains /download/</span>
+                        ) : previewing ? (
+                          <span className="text-[#9A9AA5]">Looking up the link…</span>
+                        ) : previewError ? (
+                          <span className="text-red-300">{previewError}</span>
+                        ) : preview ? (
+                          <span className="text-emerald-300">
+                            Found: <span className="font-semibold">{preview.filename}</span> <span className="text-[#9A9AA5]">by {preview.seller}</span>
+                          </span>
+                        ) : null}
+                      </p>
                     </div>
-                    <p className="mt-1.5 text-xs text-[#8E8E98]">The code is checked when you press Write, and works once.</p>
-                  </div>
 
-                  {formError && (
-                    <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-3.5 text-sm text-red-200">
-                      {formError}
-                    </p>
-                  )}
+                    <div>
+                      <label htmlFor="code" className="text-sm font-medium text-white">Access code</label>
+                      <div className="relative mt-1.5">
+                        <input
+                          id="code"
+                          type={showCode ? "text" : "password"}
+                          autoComplete="off"
+                          spellCheck={false}
+                          value={code}
+                          onChange={(e) => setCode(e.target.value)}
+                          placeholder={hasSession ? "Link already unlocked in this tab" : "The code from the seller"}
+                          className={`${FIELD} border-white/[0.12] pr-20`}
+                        />
+                        <button type="button" onClick={() => setShowCode((v) => !v)} className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1.5 text-xs font-semibold text-[#9A9AA5] hover:text-white ${FOCUS}`}>
+                          {showCode ? "Hide" : "Show"}
+                        </button>
+                      </div>
+                      <p className="mt-1.5 text-xs text-[#8E8E98]">The code is checked when you press Write, and works once.</p>
+                    </div>
 
-                  <button
-                    type="submit"
-                    disabled={!token || hostBad || previewing || !!previewError}
-                    className={`inline-flex h-12 items-center rounded-xl bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] px-8 text-xs font-bold uppercase tracking-wide text-white transition-transform enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`}
-                  >
-                    Continue
-                  </button>
-                </form>
-              ) : (
-                <div className="mt-5 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    {formError && (
+                      <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-3.5 text-sm text-red-200">{formError}</p>
+                    )}
+
+                    <button type="submit" disabled={!token || hostBad || previewing || !!previewError} className={PRIMARY}>Continue</button>
+                  </form>
+                ) : (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-[#0B0C10] p-4">
                     <div className="min-w-0">
                       <p className="truncate text-[15px] font-semibold text-white">{preview?.filename ?? "Package"}</p>
-                      <p className="aw-mono mt-1 text-[11px] text-[#A1A1AA]">
+                      <p className="aw-mono mt-1 text-[11px] text-[#9A9AA5]">
                         {ext && `${ext} file · `}by {preview?.seller ?? "iMIDI seller"}
                         {minutesLeft != null && ` · unlocked, about ${minutesLeft} min left to write`}
                       </p>
                     </div>
                     {!writing && (
-                      <button type="button" onClick={changePackage} className={`rounded-md px-1 text-xs font-semibold text-[#A1A1AA] underline-offset-2 hover:text-white hover:underline ${FOCUS}`}>
+                      <button type="button" onClick={changePackage} className={`rounded-md px-1 text-xs font-semibold text-[#9A9AA5] underline-offset-2 hover:text-white hover:underline ${FOCUS}`}>
                         Change
                       </button>
                     )}
                   </div>
-                </div>
-              )}
-            </section>
-
-            {/* ───────────── 2. CARD ───────────── */}
-            <section
-              className={`rounded-2xl border border-white/[0.08] bg-[#18181C] p-5 transition-opacity sm:p-7 ${!confirmed ? "pointer-events-none opacity-45" : ""}`}
-              aria-label="Your card"
-              aria-disabled={!confirmed}
-            >
-              <StepHead n={2} title="Your card" done={cardReady} hint="Plug in the SD card and choose it." />
-
-              <label className="mt-5 flex cursor-pointer items-start gap-3">
-                <input type="checkbox" checked={formatted} onChange={(e) => setFormatted(e.target.checked)} disabled={writing || !confirmed} className="mt-1 h-4 w-4 accent-[#FF5CA1]" />
-                <span className="text-sm leading-relaxed text-[#D4D4D9]">
-                  <span className="font-semibold text-white">The card is formatted as FAT32 and empty.</span>{" "}
-                  <span className="text-[#A1A1AA]">Browsers can&apos;t format cards. For 64 GB and larger use the &quot;Large FAT32&quot; method (for example Rufus on Windows).</span>
-                </span>
-              </label>
-
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={pickCard}
-                  disabled={writing || !supported || !confirmed}
-                  className={`h-11 rounded-xl border border-white/20 px-5 text-xs font-bold uppercase tracking-wide text-white transition-colors enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`}
-                >
-                  {cardName ? "Choose another card" : "Choose SD card"}
-                </button>
-                {cardName && (
-                  <span className="text-sm text-[#B4B4BC]">
-                    Card: <span className="font-semibold text-white">{cardName}</span>
-                  </span>
                 )}
-              </div>
+              </StepCard>
 
-              {cardName && hasSettings && opt.settings && <p className="mt-3 text-[13px] text-[#A1A1AA]">{SETTINGS_FILE} found: it will be kept and put back after writing.</p>}
-              {oldFiles.length > 0 && (
-                <p className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] p-3 text-[13px] text-amber-100">
-                  {oldFiles.length} old bank file{oldFiles.length > 1 ? "s" : ""} on the card ({oldFiles.join(", ")}). Format the card for the most reliable result, or turn on “Delete old bank files” below.
-                </p>
-              )}
+              {/* 2. CARD */}
+              <StepCard n={2} title="Your card" state={!confirmed ? "locked" : cardReady ? "done" : "active"} hint="Plug in the SD card and choose it.">
+                <label className="mt-5 flex cursor-pointer items-start gap-3">
+                  <input type="checkbox" checked={formatted} onChange={(e) => setFormatted(e.target.checked)} disabled={writing || !confirmed} className="mt-1 h-4 w-4 accent-[#FF5CA1]" />
+                  <span className="text-sm leading-relaxed text-[#D4D4D9]">
+                    <span className="font-semibold text-white">The card is formatted as FAT32 and empty.</span>{" "}
+                    <span className="text-[#9A9AA5]">Browsers can&apos;t format cards. For 64 GB and larger use the &quot;Large FAT32&quot; method (for example Rufus on Windows).</span>
+                  </span>
+                </label>
 
-              <details className="group mt-5 border-t border-white/[0.07] pt-4">
-                <summary className={`flex cursor-pointer list-none items-center justify-between rounded text-sm font-semibold text-[#D4D4D9] hover:text-white ${FOCUS}`}>
-                  Options
-                  <span aria-hidden className="text-[#8E8E98] transition-transform group-open:rotate-180">⌄</span>
-                </summary>
-                <ul className="mt-4 space-y-4">
-                  {[
-                    { k: "verify" as const, t: "Check the file after writing", d: "Reads it back from the card and compares it. Slower, much safer." },
-                    { k: "settings" as const, t: `Keep ${SETTINGS_FILE}`, d: "Saves your settings file before writing and puts it back at the end." },
-                    { k: "wake" as const, t: "Keep the screen awake", d: "Stops the computer from sleeping while a long write is running." },
-                    { k: "deleteOld" as const, t: "Delete old bank files", d: "Removes .JBB files already on the card. Formatting is more reliable." },
-                  ].map((o) => (
-                    <li key={o.k} className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-white">{o.t}</p>
-                        <p className="mt-0.5 text-[13px] leading-relaxed text-[#A1A1AA]">{o.d}</p>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button type="button" onClick={pickCard} disabled={writing || !supported || !confirmed} className={GHOST}>
+                    {cardName ? "Choose another card" : "Choose SD card"}
+                  </button>
+                  {cardName && (
+                    <span className="text-sm text-[#B4B4BC]">
+                      Card: <span className="font-semibold text-white">{cardName}</span>
+                    </span>
+                  )}
+                </div>
+
+                {cardName && hasSettings && opt.settings && <p className="mt-3 text-[13px] text-[#9A9AA5]">{SETTINGS_FILE} found: it will be kept and put back after writing.</p>}
+                {oldFiles.length > 0 && (
+                  <p className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] p-3 text-[13px] text-amber-100">
+                    {oldFiles.length} old bank file{oldFiles.length > 1 ? "s" : ""} on the card ({oldFiles.join(", ")}). Format the card for the most reliable result, or turn on “Delete old bank files” below.
+                  </p>
+                )}
+
+                <details className="group mt-5 border-t border-white/[0.07] pt-4">
+                  <summary className={`flex cursor-pointer list-none items-center justify-between rounded text-sm font-semibold text-[#D4D4D9] hover:text-white ${FOCUS}`}>
+                    Options
+                    <span aria-hidden className="text-[#8E8E98] transition-transform group-open:rotate-180">⌄</span>
+                  </summary>
+                  <ul className="mt-4 space-y-4">
+                    {[
+                      { k: "verify" as const, t: "Check the file after writing", d: "Reads it back from the card and compares it. Slower, much safer." },
+                      { k: "settings" as const, t: `Keep ${SETTINGS_FILE}`, d: "Saves your settings file before writing and puts it back at the end." },
+                      { k: "wake" as const, t: "Keep the screen awake", d: "Stops the computer from sleeping while a long write is running." },
+                      { k: "deleteOld" as const, t: "Delete old bank files", d: "Removes .JBB files already on the card. Formatting is more reliable." },
+                    ].map((o) => (
+                      <li key={o.k} className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-medium text-white">{o.t}</p>
+                          <p className="mt-0.5 text-[13px] leading-relaxed text-[#9A9AA5]">{o.d}</p>
+                        </div>
+                        <Switch on={opt[o.k]} label={o.t} disabled={writing} onChange={() => setOpt((s) => ({ ...s, [o.k]: !s[o.k] }))} />
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              </StepCard>
+
+              {/* 3. WRITE */}
+              <StepCard
+                n={3}
+                title="Write"
+                last
+                state={!cardReady ? "locked" : phase === "done" ? "done" : "active"}
+                hint={writing ? undefined : "Don't use the computer for anything else, and don't unplug the card, until it says Done."}
+              >
+                {showProgress && (
+                  <div className="mt-5 space-y-4">
+                    <div>
+                      <div className="mb-1.5 flex items-center justify-between gap-3 text-xs text-[#9A9AA5]">
+                        <span aria-live="polite">{phase === "done" ? "File written" + (opt.verify ? " and checked" : "") : stepText}</span>
+                        <span className="aw-mono">
+                          {fmtBytes(progress.done)}
+                          {progress.total > 0 && ` / ${fmtBytes(progress.total)}`}
+                          {writing && progress.speed > 0 && ` · ${fmtBytes(progress.speed)}/s${eta ? ` · ${fmtEta(eta)}` : ""}`}
+                        </span>
                       </div>
-                      <Switch on={opt[o.k]} label={o.t} disabled={writing} onChange={() => setOpt((s) => ({ ...s, [o.k]: !s[o.k] }))} />
+                      <div
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={progress.total ? Math.round(phase === "done" ? 100 : pct) : undefined}
+                        className="h-2.5 overflow-hidden rounded-full bg-white/10"
+                      >
+                        <div
+                          className={`h-full rounded-full bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] transition-[width] duration-200 ${progress.total ? "" : "w-1/3 animate-pulse motion-reduce:animate-none"}`}
+                          style={progress.total ? { width: `${phase === "done" ? 100 : pct}%` } : undefined}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-[#0B0C10] px-4 py-2.5">
+                      <span className="aw-mono truncate text-[13px]">{fileName}</span>
+                      <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${fileState === "ok" ? "bg-emerald-500/15 text-emerald-300" : fileState === "waiting" ? "bg-white/[0.06] text-[#9A9AA5]" : "bg-[#FF5CA1]/15 text-[#FF8FBF]"}`}>
+                        {fileState === "ok" ? (opt.verify ? "checked" : "written") : fileState}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {phase === "done" && (
+                  <p className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-200">
+                    Done. Eject the card from your computer the usual way (safely remove), then put it in the sampler.
+                  </p>
+                )}
+                {message && (
+                  <p role="alert" className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{message}</p>
+                )}
+
+                <div className="mt-5 flex flex-wrap gap-3">
+                  {!writing && phase !== "done" && (
+                    <button type="button" onClick={write} disabled={!canWrite} className={PRIMARY}>
+                      {phase === "error" ? "Try again" : "Write to card"}
+                    </button>
+                  )}
+                  {writing && (
+                    <button type="button" onClick={() => abortRef.current?.abort()} className={GHOST}>Cancel</button>
+                  )}
+                  {phase === "done" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPhase("idle");
+                        setCardName("");
+                        dirRef.current = null;
+                        setFormatted(false);
+                        setFileState("waiting");
+                        setProgress({ done: 0, total: 0, speed: 0 });
+                      }}
+                      className={GHOST}
+                    >
+                      Write to another card
+                    </button>
+                  )}
+                </div>
+              </StepCard>
+            </div>
+
+            {/* SUMMARY RAIL */}
+            <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+              <section className="rounded-2xl border border-white/[0.08] bg-[#15171C] p-5" aria-label="Summary">
+                <h2 className="aw-display text-sm font-semibold text-white">Summary</h2>
+                <dl className="mt-4 space-y-3 text-[13px]">
+                  {[
+                    { k: "Package", v: confirmed ? preview?.filename ?? "—" : "—" },
+                    { k: "Seller", v: confirmed ? preview?.seller ?? "—" : "—" },
+                    { k: "Card", v: cardName || "—" },
+                    { k: "Size", v: progress.total ? fmtBytes(progress.total) : "—", mono: true },
+                    { k: "Link time left", v: minutesLeft != null ? `${minutesLeft} min` : "—", mono: true },
+                  ].map((r) => (
+                    <div key={r.k} className="flex items-center justify-between gap-3">
+                      <dt className="text-[#8E8E98]">{r.k}</dt>
+                      <dd className={`max-w-[60%] truncate font-medium text-white ${r.mono ? "aw-mono" : ""}`}>{r.v}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <ul className="mt-5 space-y-2.5 border-t border-white/[0.07] pt-4">
+                  {checks.map((c) => (
+                    <li key={c.t} className="flex items-center gap-2.5 text-[13px]">
+                      <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] ${c.ok ? "bg-emerald-400/20 text-emerald-300" : "bg-white/[0.06] text-transparent"}`}>✓</span>
+                      <span className={c.ok ? "text-white" : "text-[#8E8E98]"}>{c.t}</span>
                     </li>
                   ))}
                 </ul>
-              </details>
-            </section>
+              </section>
 
-            {/* ───────────── 3. WRITE ───────────── */}
-            <section
-              className={`rounded-2xl border border-white/[0.08] bg-[#18181C] p-5 transition-opacity sm:p-7 ${!cardReady ? "pointer-events-none opacity-45" : ""}`}
-              aria-label="Write"
-              aria-disabled={!cardReady}
-            >
-              <StepHead n={3} title="Write" done={phase === "done"} hint={writing ? undefined : "Don't use the computer for anything else, and don't unplug the card, until it says Done."} />
-
-              {showProgress && (
-                <div className="mt-5 space-y-4">
-                  <div>
-                    <div className="mb-1.5 flex items-center justify-between gap-3 text-xs text-[#A1A1AA]">
-                      <span aria-live="polite">{phase === "done" ? "File written" + (opt.verify ? " and checked" : "") : stepText}</span>
-                      <span className="aw-mono">
-                        {fmtBytes(progress.done)}
-                        {progress.total > 0 && ` / ${fmtBytes(progress.total)}`}
-                        {writing && progress.speed > 0 && ` · ${fmtBytes(progress.speed)}/s${eta ? ` · ${fmtEta(eta)}` : ""}`}
-                      </span>
-                    </div>
-                    <div
-                      role="progressbar"
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={progress.total ? Math.round(phase === "done" ? 100 : pct) : undefined}
-                      className="h-2.5 overflow-hidden rounded-full bg-white/10"
-                    >
-                      <div
-                        className={`h-full rounded-full bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] transition-[width] duration-200 ${progress.total ? "" : "w-1/3 animate-pulse motion-reduce:animate-none"}`}
-                        style={progress.total ? { width: `${phase === "done" ? 100 : pct}%` } : undefined}
-                      />
-                    </div>
-                  </div>
-                  <ul className="rounded-xl border border-white/[0.08]">
-                    <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-                      <span className="aw-mono truncate text-[13px]">{fileName}</span>
-                      <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${fileState === "ok" ? "bg-emerald-500/15 text-emerald-300" : fileState === "waiting" ? "bg-white/[0.06] text-[#A1A1AA]" : "bg-[#FF5CA1]/15 text-[#FF8FBF]"}`}>
-                        {fileState === "ok" ? (opt.verify ? "checked" : "written") : fileState}
-                      </span>
-                    </li>
-                  </ul>
+              <details className="rounded-2xl border border-white/[0.08] bg-[#15171C] p-5 text-sm text-[#9A9AA5]">
+                <summary className={`cursor-pointer rounded font-medium text-[#D4D4D9] hover:text-white ${FOCUS}`}>Link not working, or can&apos;t choose the card?</summary>
+                <div className="mt-3 space-y-3 leading-relaxed">
+                  <p>
+                    A code works once. After it is used, the link stays open for 30 minutes in this tab, so a failed write can be retried. Check you pasted the whole link and the exact code, and ask the seller for a new link if needed.
+                  </p>
+                  <p>Some systems block selecting the root of a drive. Use the latest Chrome or Edge on a computer, try another USB card reader, and pick the card itself, not a folder inside it.</p>
                 </div>
-              )}
-
-              {phase === "done" && (
-                <p className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-200">
-                  Done. Eject the card from your computer the usual way (safely remove), then put it in the sampler.
-                </p>
-              )}
-              {message && (
-                <p role="alert" className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
-                  {message}
-                </p>
-              )}
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                {!writing && phase !== "done" && (
-                  <button
-                    type="button"
-                    onClick={write}
-                    disabled={!canWrite}
-                    className={`h-12 rounded-xl bg-gradient-to-r from-[#FF5CA1] to-[#FF8A3D] px-8 text-xs font-bold uppercase tracking-wide text-white transition-transform enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`}
-                  >
-                    {phase === "error" ? "Try again" : "Write to card"}
-                  </button>
-                )}
-                {writing && (
-                  <button type="button" onClick={() => abortRef.current?.abort()} className={`h-12 rounded-xl border border-white/20 px-6 text-xs font-bold uppercase tracking-wide text-white hover:bg-white/5 ${FOCUS}`}>
-                    Cancel
-                  </button>
-                )}
-                {phase === "done" && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPhase("idle");
-                      setCardName("");
-                      dirRef.current = null;
-                      setFormatted(false);
-                      setFileState("waiting");
-                      setProgress({ done: 0, total: 0, speed: 0 });
-                    }}
-                    className={`h-12 rounded-xl border border-white/20 px-6 text-xs font-bold uppercase tracking-wide text-white hover:bg-white/5 ${FOCUS}`}
-                  >
-                    Write to another card
-                  </button>
-                )}
-              </div>
-            </section>
+              </details>
+            </aside>
           </div>
-
-          <details className="mt-6 rounded-2xl border border-white/[0.08] bg-[#18181C] p-5 text-sm text-[#A1A1AA]">
-            <summary className={`cursor-pointer rounded font-medium text-[#D4D4D9] hover:text-white ${FOCUS}`}>Link not working, or can&apos;t choose the card?</summary>
-            <div className="mt-3 space-y-3 leading-relaxed">
-              <p>
-                A code works once. After it is used, the link stays open for 30 minutes in this tab, so a failed write can be retried. Check you pasted the whole link and the exact code, and ask the
-                seller for a new link if needed.
-              </p>
-              <p>Some systems block selecting the root of a drive. Use the latest Chrome or Edge on a computer, try another USB card reader, and pick the card itself, not a folder inside it.</p>
-            </div>
-          </details>
         </div>
       </main>
       <Footer />
