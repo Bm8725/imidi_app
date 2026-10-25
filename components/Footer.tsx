@@ -111,7 +111,7 @@ export default function Footer() {
       <div className="relative mx-auto w-full max-w-6xl px-6 pb-28 pt-24 md:px-8 md:pb-8">
         {/* headline */}
         <div className="text-center">
-          <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-pink-300/80">MIDI 3.0 · Cloud · AI</p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-pink-300/80">Digitalization · MIDI · Market · Cloud · AI</p>
           <h2 className="mt-4 bg-gradient-to-b from-white to-[#7E8FAD] bg-clip-text text-4xl font-black tracking-tight text-transparent sm:text-6xl">
             Play the digital future.
           </h2>
