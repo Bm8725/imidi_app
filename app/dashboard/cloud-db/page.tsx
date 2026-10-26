@@ -1308,7 +1308,7 @@ export default function CloudWorkspacePage() {
       {userError && <div className="px-6 pb-2 text-xs text-[color:var(--t1)]">{userError}</div>}
       {facebookId && <MetaMess facebookUserId={facebookId} />}
 
-      <Footer />
+     
     </div>
   );
 }
