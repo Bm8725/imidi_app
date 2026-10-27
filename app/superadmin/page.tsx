@@ -1260,7 +1260,7 @@ export default function AdminPage() {
 
 {mod === "invoices" && (
   <InvoicesModule 
-    key={invDraft?.id || "static-invoice-key"} // fix edit field...plm
+    key="constant-invoice-view" // simbol input field ....plm   gard
     rows={g("inv")} 
     settingsRow={g("invset")[0]} 
     users={userRows} 
@@ -1277,6 +1277,7 @@ export default function AdminPage() {
     say={say} 
   />
 )}
+
 
 
         {mod === "sessions" && (
