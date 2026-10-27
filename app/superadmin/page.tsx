@@ -245,6 +245,8 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
   const [uid, setUid] = useState("");
   const [payId, setPayId] = useState("");
   const [saving, setSaving] = useState(false);
+// 1. Pune linia asta SUS în componentă, sub stările principale
+const stabilizedInvoiceSettings = useMemo(() => g("invset"), [busy === false]);
 
   useEffect(() => {
     try { const v = JSON.parse(localStorage.getItem("adm-seller") || "null"); if (v) setSeller({ ...SELLER0, ...v }); } catch {}
@@ -1258,28 +1260,28 @@ export default function AdminPage() {
           </Card>
         )}
 
-        {mod === "invoices" && (() => {
-          const setariStabile = useMemo(() => g("invset")[0], [busy === false]); 
-          return (
-            <InvoicesModule 
-              key="modul-facturi-stabil"
-              rows={g("inv")} 
-              settingsRow={setariStabile} 
-              users={userRows} 
-              who={who} 
-              cur={cur} 
-              size={prefs.size} 
-              setup={setup} 
-              owner={myRole === "owner"} 
-              busy={busy}
-              draft={invDraft} 
-              clearDraft={() => setInvDraft(null)} 
-              act={act} 
-              refresh={refresh} 
-              say={say} 
-            />
-          );
-        })()}
+// 2. Modifică jos în JSX linia aferentă modulului de facturi:
+{mod === "invoices" && (
+  <InvoicesModule 
+    key="modul-facturi-stabil" // O cheie fixă oprește demontarea completă
+    rows={g("inv")} 
+    settingsRow={stabilizedInvoiceSettings} // 👈 Transmite variabila stabilizată de sus
+    users={userRows} 
+    who={who} 
+    cur={cur} 
+    size={prefs.size} 
+    setup={setup} 
+    owner={myRole === "owner"} 
+    busy={busy}
+    draft={invDraft} 
+    clearDraft={() => setInvDraft(null)} 
+    act={act} 
+    refresh={refresh} 
+    say={say} 
+  />
+)}
+
+
 
 
 
