@@ -1258,10 +1258,26 @@ export default function AdminPage() {
           </Card>
         )}
 
-        {mod === "invoices" && (
-          <InvoicesModule rows={g("inv")} settingsRow={g("invset")[0]} users={userRows} who={who} cur={cur} size={prefs.size} setup={setup} owner={myRole === "owner"} busy={busy}
-            draft={invDraft} clearDraft={() => setInvDraft(null)} act={act} refresh={refresh} say={say} />
-        )}
+{mod === "invoices" && (
+  <InvoicesModule 
+    key={invDraft?.id || "static-invoice-key"} // fix edit field...plm
+    rows={g("inv")} 
+    settingsRow={g("invset")[0]} 
+    users={userRows} 
+    who={who} 
+    cur={cur} 
+    size={prefs.size} 
+    setup={setup} 
+    owner={myRole === "owner"} 
+    busy={busy}
+    draft={invDraft} 
+    clearDraft={() => setInvDraft(null)} 
+    act={act} 
+    refresh={refresh} 
+    say={say} 
+  />
+)}
+
 
         {mod === "sessions" && (
           <>
