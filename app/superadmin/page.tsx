@@ -1259,24 +1259,27 @@ export default function AdminPage() {
         )}
 
 {mod === "invoices" && (
-  <InvoicesModule 
-    key="constant-invoice-view" // simbol input field ....plm   gard
-    rows={g("inv")} 
-    settingsRow={g("invset")[0]} 
-    users={userRows} 
-    who={who} 
-    cur={cur} 
-    size={prefs.size} 
-    setup={setup} 
-    owner={myRole === "owner"} 
-    busy={busy}
-    draft={invDraft} 
-    clearDraft={() => setInvDraft(null)} 
-    act={act} 
-    refresh={refresh} 
-    say={say} 
-  />
+  <div key="force-static-invoice-container" className="w-full">
+    <InvoicesModule 
+      key="immutable-invoice-view"
+      rows={g("inv")} 
+      settingsRow={g("invset")[0]} 
+      users={userRows} 
+      who={who} 
+      cur={cur} 
+      size={prefs.size} 
+      setup={setup} 
+      owner={myRole === "owner"} 
+      busy={false} // 
+      draft={invDraft} 
+      clearDraft={() => setInvDraft(null)} 
+      act={act} 
+      refresh={refresh} 
+      say={say} 
+    />
+  </div>
 )}
+
 
 
 
