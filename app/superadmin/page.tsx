@@ -60,6 +60,65 @@ const RCSS = `
   .rtable td[data-l=""]{justify-content:flex-end}
 }`;
 
+type Prefs = { theme: "system" | "light" | "dark"; accent: string; dense: boolean; size: number; title: string };
+const DEF: Prefs = { theme: "system", accent: "blue", dense: false, size: 12, title: "iMIDI Console" };
+const ACCENTS: Record<string, [string, string, string]> = {
+  blue: ["#2563EB", "#1D4ED8", "#60A5FA"], teal: ["#0D9488", "#0F766E", "#2DD4BF"], violet: ["#7C3AED", "#6D28D9", "#A78BFA"],
+  rose: ["#E11D48", "#BE123C", "#FB7185"], amber: ["#D97706", "#B45309", "#FBBF24"],
+};
+
+// the accent colour replaces the blue used across the page
+const ACSS = String.raw`
+.adm-root .bg-blue-600{background-color:var(--ac)}
+.adm-root .hover\:bg-blue-700:hover{background-color:var(--ac2)}
+.adm-root .text-blue-700{color:var(--ac2)}
+.adm-root .border-blue-600{border-color:var(--ac)}
+.adm-root .hover\:border-blue-400:hover,.adm-root .focus\:border-blue-500:focus{border-color:var(--ac)}
+.adm-root .bg-blue-50{background-color:color-mix(in srgb,var(--ac) 10%,transparent)}
+.adm-root .border-blue-200{border-color:color-mix(in srgb,var(--ac) 35%,transparent)}
+.adm-root .from-blue-600,.adm-root .from-blue-500{--tw-gradient-from:var(--ac);--tw-gradient-to:transparent;--tw-gradient-stops:var(--tw-gradient-from),var(--tw-gradient-to)}
+.adm-root .from-blue-700{--tw-gradient-from:var(--ac2);--tw-gradient-to:transparent;--tw-gradient-stops:var(--tw-gradient-from),var(--tw-gradient-to)}
+.adm-root .to-blue-800,.adm-root .to-blue-700{--tw-gradient-to:var(--ac2)}
+.adm-root .to-blue-400{--tw-gradient-to:var(--ac)}
+.adm-root .accent-blue-600{accent-color:var(--ac)}
+@media (min-width:768px){.adm-compact .rtable td{padding-top:5px;padding-bottom:5px}.adm-compact .rtable th{padding-top:7px;padding-bottom:7px}}
+`;
+
+const ADARK = String.raw`
+.adm-dark.adm-root{background-color:#0B1220;color:#E6EDF7;color-scheme:dark}
+.adm-dark .bg-white{background-color:#111A2B}
+.adm-dark .bg-white\/95{background-color:rgba(11,18,32,.92)}
+.adm-dark .bg-\[\#F4F6FA\],.adm-dark .bg-\[\#E9EDF3\]{background-color:#0B1220}
+.adm-dark .bg-slate-50{background-color:#0E1626}
+.adm-dark .bg-slate-100{background-color:#1A2740}
+.adm-dark .hover\:bg-slate-50\/70:hover{background-color:rgba(26,39,64,.7)}
+.adm-dark .bg-amber-50{background-color:rgba(245,158,11,.13)}
+.adm-dark .bg-emerald-50{background-color:rgba(16,185,129,.13)}
+.adm-dark .bg-red-50{background-color:rgba(239,68,68,.13)}
+.adm-dark .hover\:bg-red-50:hover{background-color:rgba(239,68,68,.14)}
+.adm-dark .hover\:bg-emerald-50:hover{background-color:rgba(16,185,129,.14)}
+.adm-dark .border-slate-100{border-color:#1B2840}
+.adm-dark .border-slate-200{border-color:#22304A}
+.adm-dark .border-amber-200{border-color:rgba(245,158,11,.38)}
+.adm-dark .border-red-200,.adm-dark .border-red-300{border-color:rgba(239,68,68,.4)}
+.adm-dark .border-emerald-300{border-color:rgba(16,185,129,.4)}
+.adm-dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]){border-color:#1B2840}
+.adm-dark .text-slate-900{color:#E6EDF7}
+.adm-dark .text-slate-800{color:#D5DEEC}
+.adm-dark .text-slate-700{color:#BFCCE0}
+.adm-dark .text-slate-600{color:#A9B8CF}
+.adm-dark .text-slate-500{color:#8EA0BC}
+.adm-dark .text-slate-400{color:#7387A6}
+.adm-dark .hover\:text-slate-800:hover{color:#D5DEEC}
+.adm-dark .text-blue-700{color:var(--ac3)}
+.adm-dark .text-emerald-700{color:#6EE7B7}
+.adm-dark .text-amber-600,.adm-dark .text-amber-800{color:#FCD34D}
+.adm-dark .text-red-600,.adm-dark .text-red-700{color:#FCA5A5}
+.adm-dark select,.adm-dark input:not([type=checkbox]){background-color:#0E1626;color:#E6EDF7;border-color:#22304A}
+.adm-dark .rtable tr{background:#111A2B;border-color:#22304A}
+.adm-dark .shadow-xl{box-shadow:0 20px 40px -12px rgba(0,0,0,.6)}
+`;
+
 const Ico = ({ d }: { d: string }) => (
   <svg className="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
 );
@@ -121,7 +180,11 @@ export default function AdminPage() {
   const [acct, setAcct] = useState<string | null>(null);
   const [atab, setAtab] = useState("summary");
   const [ufilter, setUfilter] = useState("all");
+  const [sel, setSel] = useState<string[]>([]);
   const [myEmail, setMyEmail] = useState("");
+  const [prefs, setPrefs] = useState<Prefs>(DEF);
+  const [prefsOpen, setPrefsOpen] = useState(false);
+  const [sysDark, setSysDark] = useState(false);
   const [updated, setUpdated] = useState<Date | null>(null);
   const [gateMsg, setGateMsg] = useState("");
   const [mod, setMod] = useState<Mod>("overview");
@@ -194,7 +257,25 @@ export default function AdminPage() {
   }, [gate, mod]);
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => e.key === "Escape" && (setNavOpen(false), setAcct(null));
+    try {
+      const v = JSON.parse(localStorage.getItem("adm-prefs") || "null");
+      if (v) setPrefs({ ...DEF, ...v });
+    } catch {}
+    const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
+    setSysDark(!!mq?.matches);
+    const h = (e: MediaQueryListEvent) => setSysDark(e.matches);
+    mq?.addEventListener?.("change", h);
+    return () => mq?.removeEventListener?.("change", h);
+  }, []);
+  const setPref = (p: Partial<Prefs>) =>
+    setPrefs((st) => {
+      const n = { ...st, ...p };
+      try { localStorage.setItem("adm-prefs", JSON.stringify(n)); } catch {}
+      return n;
+    });
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => e.key === "Escape" && (setNavOpen(false), setAcct(null), setPrefsOpen(false));
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
@@ -275,7 +356,7 @@ export default function AdminPage() {
   const match = (r: Row) => !q || JSON.stringify(r).toLowerCase().includes(q.toLowerCase());
   const nav = (m: Mod) => { setMod(m); setQ(""); setPg({}); setNavOpen(false); };
   const onSearch = (v: string) => { setQ(v); setPg({}); };
-  const SIZE = 12;
+  const SIZE = prefs.size;
   const paged = (key: string, rows: Row[]): [Row[], React.ReactNode] => {
     const pages = Math.max(1, Math.ceil(rows.length / SIZE));
     const cur = Math.min(pg[key] ?? 0, pages - 1);
@@ -305,6 +386,21 @@ export default function AdminPage() {
   };
   const uAll = userRows.filter((r) => UF[ufilter](r) && match({ ...r, n: name(r.id) }));
   const [uRows, uPg] = paged("users", uAll);
+  const bulkBar = (
+    <div className={`flex flex-wrap items-center gap-2 rounded-xl border px-4 py-3 text-[13px] ${sel.length ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white"}`}>
+      <span className="font-semibold text-slate-800"><span className="tabular-nums">{sel.length}</span> selected</span>
+      <button onClick={() => setSel(uAll.map((r) => r.id))} className="font-semibold text-blue-700 hover:underline">Select all {uAll.length} in this filter</button>
+      {sel.length > 0 && <button onClick={() => setSel([])} className="font-semibold text-slate-500 hover:underline">Clear</button>}
+      <span className="flex-1" />
+      <button onClick={() => bulk("hours")} disabled={!sel.length || busy} className="h-9 rounded-lg bg-blue-600 px-3.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-40">+ Hours to selected</button>
+      {myRole === "owner" && (
+        <>
+          <button onClick={() => bulk("ban")} disabled={!sel.length || busy} className="h-9 rounded-lg border border-red-300 bg-white px-3.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-40">Suspend selected</button>
+          <button onClick={() => bulk("unban")} disabled={!sel.length || busy} className="h-9 rounded-lg border border-emerald-300 bg-white px-3.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40">Re-enable selected</button>
+        </>
+      )}
+    </div>
+  );
   const [sellRows, sellPg] = paged("sellers", sellers);
   const lAll = links.filter(match);
   const [lRows, lPg] = paged("links", lAll);
@@ -368,6 +464,31 @@ export default function AdminPage() {
         <button onClick={() => resolvePay(p, false)} disabled={busy} className="h-8 rounded-md border border-red-200 px-3 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">Reject</button>
       </span>
     ) : null;
+  const bulk = async (kind: "hours" | "ban" | "unban") => {
+    if (setup) return say("Actions are off until the admin functions are installed (business_admin.sql).");
+    const ids = sel.filter((id) => id !== meId || kind === "hours");
+    if (!ids.length) return;
+    let h = 0;
+    if (kind === "hours") {
+      const v = window.prompt(`Add hours to each of ${ids.length} accounts (negative removes):`, "1");
+      if (v === null) return;
+      h = Number(v.replace(",", "."));
+      if (!isFinite(h) || h === 0) return say("Enter a number of hours.");
+    }
+    const msg = kind === "hours" ? `Add ${h} h to ${ids.length} accounts?` : `${kind === "ban" ? "Suspend" : "Re-enable"} ${ids.length} accounts?`;
+    if (!window.confirm(msg)) return;
+    setBusy(true);
+    let failed = 0, lastErr = "";
+    for (const id of ids) {
+      const { error } = kind === "hours"
+        ? await supabase.rpc("admin_grant_hours", { p_user: id, p_hours: h, p_note: "bulk grant" })
+        : await supabase.rpc("admin_set_banned", { p_user: id, p_banned: kind === "ban" });
+      if (error) { failed++; lastErr = error.message; }
+    }
+    say(failed ? `${ids.length - failed} done, ${failed} failed: ${lastErr}` : `Done for ${ids.length} accounts.`);
+    setSel([]);
+    await refresh();
+  };
   const pendingRows = pays.filter((p) => String(p.status).toLowerCase() === "pending");
 
 
@@ -404,15 +525,18 @@ export default function AdminPage() {
     );
 
   const title = NAV.find((n) => n.id === mod)!.label;
+  const dark = prefs.theme === "dark" || (prefs.theme === "system" && sysDark);
+  const ac = ACCENTS[prefs.accent] ?? ACCENTS.blue;
+  const mark = prefs.title.replace(/[^A-Za-z0-9]/g, "").slice(0, 2) || "iM";
   return (
-    <div className="min-h-screen bg-[#E9EDF3] text-slate-900 lg:pl-64" style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>
-      <style>{RCSS}</style>
+    <div className={`adm-root min-h-screen bg-[#E9EDF3] text-slate-900 lg:pl-64 ${dark ? "adm-dark" : ""} ${prefs.dense ? "adm-compact" : ""}`} style={{ fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif", ["--ac" as any]: ac[0], ["--ac2" as any]: ac[1], ["--ac3" as any]: ac[2] }}>
+      <style>{RCSS + ACSS + ADARK}</style>
       {navOpen && <div className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px] lg:hidden" onClick={() => setNavOpen(false)} />}
       <aside className={`fixed inset-y-0 left-0 z-50 flex w-[17rem] max-w-[85vw] flex-col overflow-y-auto bg-gradient-to-b from-[#0C1730] to-[#0A1220] px-4 py-5 shadow-2xl transition-transform duration-200 lg:w-64 lg:translate-x-0 lg:shadow-none ${navOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="mb-5 flex items-center gap-3 border-b border-white/10 px-2 pb-4">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-extrabold text-white shadow-lg">iM</span>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-extrabold text-white shadow-lg">{mark}</span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[16px] font-bold tracking-tight text-white">iMIDI Console</p>
+            <p className="truncate text-[16px] font-bold tracking-tight text-white">{prefs.title}</p>
             <p className="mt-0.5 text-[11px] text-slate-400">Business administration</p>
           </div>
           <button onClick={() => setNavOpen(false)} aria-label="Close menu" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white lg:hidden">✕</button>
@@ -428,13 +552,13 @@ export default function AdminPage() {
         <button onClick={() => router.push("/")} className="mt-auto rounded-lg px-3 py-2 text-left text-[12px] font-semibold text-slate-500 hover:text-white">← Back to site</button>
       </aside>
 
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur" style={{ borderTop: "3px solid #2563EB" }}>
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur" style={{ borderTop: "3px solid var(--ac)" }}>
         <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-3 px-4 sm:px-6 lg:px-8">
           <button onClick={() => setNavOpen(true)} aria-label="Open menu" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:border-blue-400 lg:hidden">
             <Ico d="M4 6h16M4 12h16M4 18h16" />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="hidden truncate text-[11px] font-medium text-slate-400 sm:block">iMIDI Console <span className="mx-1">/</span> {title}</p>
+            <p className="hidden truncate text-[11px] font-medium text-slate-400 sm:block">{prefs.title} <span className="mx-1">/</span> {title}</p>
             <h1 className="truncate text-[17px] font-bold leading-tight tracking-tight text-slate-900">{title}</h1>
           </div>
           <div className="hidden items-center gap-4 text-[11px] text-slate-500 xl:flex">
@@ -447,6 +571,56 @@ export default function AdminPage() {
             <svg className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" /></svg>
             <span className="hidden sm:inline">{busy ? "Refreshing" : "Refresh"}</span>
           </button>
+          <button onClick={() => setPref({ theme: dark ? "light" : "dark" })} aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} title={dark ? "Light theme" : "Dark theme"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-blue-400">
+            <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {dark ? <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></> : <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />}
+            </svg>
+          </button>
+          <div className="relative">
+            <button onClick={() => setPrefsOpen((v) => !v)} aria-label="Personalize" aria-expanded={prefsOpen} title="Personalize" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-blue-400">
+              <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+            </button>
+            {prefsOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setPrefsOpen(false)} />
+                <div className="absolute right-0 top-12 z-50 w-72 max-w-[calc(100vw-2rem)] space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
+                  <div>
+                    <p className="mb-2 text-[11px] font-semibold text-slate-500">Theme</p>
+                    <div className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1">
+                      {(["light", "dark", "system"] as const).map((t) => (
+                        <button key={t} onClick={() => setPref({ theme: t })} className={`h-8 rounded-md text-xs font-semibold capitalize ${prefs.theme === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>{t}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-2 text-[11px] font-semibold text-slate-500">Accent colour</p>
+                    <div className="flex gap-2">
+                      {Object.entries(ACCENTS).map(([k, v]) => (
+                        <button key={k} onClick={() => setPref({ accent: k })} aria-label={k} title={k} className={`h-8 w-8 rounded-full border-2 ${prefs.accent === k ? "border-slate-900" : "border-transparent"}`} style={{ background: v[0] }} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[13px] font-semibold text-slate-700">Compact tables</p>
+                    <button role="switch" aria-checked={prefs.dense} onClick={() => setPref({ dense: !prefs.dense })} className={`relative h-6 w-11 rounded-full transition-colors ${prefs.dense ? "bg-blue-600" : "bg-slate-300"}`}>
+                      <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${prefs.dense ? "translate-x-5" : ""}`} />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[13px] font-semibold text-slate-700">Rows per page</p>
+                    <select value={prefs.size} onChange={(e) => { setPref({ size: Number(e.target.value) }); setPg({}); }} className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold">
+                      {[12, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <p className="mb-2 text-[11px] font-semibold text-slate-500">Console name</p>
+                    <input value={prefs.title} maxLength={28} onChange={(e) => setPref({ title: e.target.value || "iMIDI Console" })} className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-[13px] outline-none focus:border-blue-500" />
+                  </div>
+                  <button onClick={() => setPref(DEF)} className="text-xs font-semibold text-slate-500 hover:underline">Reset to defaults</button>
+                </div>
+              </>
+            )}
+          </div>
           <div className="flex items-center gap-2.5 border-l border-slate-200 pl-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-blue-800 text-sm font-bold text-white">{(myEmail[0] || "?").toUpperCase()}</span>
             <div className="hidden leading-tight lg:block">
@@ -518,6 +692,8 @@ export default function AdminPage() {
         )}
 
         {mod === "users" && (
+          <>
+          {bulkBar}
           <Card
             title={`Accounts (${uAll.length} of ${userRows.length})`}
             right={
@@ -536,9 +712,10 @@ export default function AdminPage() {
             }
           >
             {userRows.length === 0 ? <Empty err={err("wallets")} table={T.wallets} /> : (
-              <Tbl pager={uPg} head={<><th className={TH}>User</th><th className={TH}>Hours left</th><th className={TH}>Spent</th><th className={TH}>Sessions</th><th className={TH}>Banks</th><th className={TH}>Devices</th><th className={TH}>Posts</th><th className={TH}>Chats</th><th className={TH}>Last activity</th><th className={TH}>Joined</th><th className={TH}>Account</th><th className={TH} />{canRoles && <th className={TH}>Role</th>}</>}>
+              <Tbl pager={uPg} head={<><th className={TH} /><th className={TH}>User</th><th className={TH}>Hours left</th><th className={TH}>Spent</th><th className={TH}>Sessions</th><th className={TH}>Banks</th><th className={TH}>Devices</th><th className={TH}>Posts</th><th className={TH}>Chats</th><th className={TH}>Last activity</th><th className={TH}>Joined</th><th className={TH}>Account</th><th className={TH} />{canRoles && <th className={TH}>Role</th>}</>}>
                 {uRows.map((r) => (
                   <tr key={r.id} className="hover:bg-slate-50/70">
+                    <td className={TD}><input type="checkbox" aria-label="Select account" checked={sel.includes(r.id)} onChange={() => setSel((x) => (x.includes(r.id) ? x.filter((i) => i !== r.id) : [...x, r.id]))} className="h-4 w-4 accent-blue-600" /></td>
                     <td className={TD}><button onClick={() => { setAcct(r.id); setAtab("summary"); }} className="font-semibold text-blue-700 hover:underline">{name(r.id)}</button></td>
                     <td className={`${TD} tabular-nums`}>{hrs(r.balance)} h</td>
                     <td className={`${TD} tabular-nums`}>{money(r.spent, cur)}</td>
@@ -571,6 +748,7 @@ export default function AdminPage() {
               </Tbl>
             )}
           </Card>
+          </>
         )}
 
         {mod === "sellers" && (
@@ -836,12 +1014,22 @@ export default function AdminPage() {
           <>
             <div className="fixed inset-0 z-[55] bg-black/50" onClick={() => setAcct(null)} />
             <section className="fixed inset-y-0 right-0 z-[60] flex w-full max-w-3xl flex-col bg-[#F4F6FA] shadow-2xl">
-              <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6" style={{ borderTop: "3px solid #2563EB" }}>
+              <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6" style={{ borderTop: "3px solid var(--ac)" }}>
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-blue-800 text-base font-bold text-white">{(who[u.id]?.[0] || "?").toUpperCase()}</span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-bold text-slate-900">{name(u.id)}</p>
                   <p className="truncate font-mono text-[11px] text-slate-400">{u.id}</p>
                 </div>
+                {(() => {
+                  const i = uAll.findIndex((x) => x.id === acct);
+                  return (
+                    <span className="hidden items-center gap-1 sm:flex">
+                      <button onClick={() => setAcct(uAll[i - 1].id)} disabled={i <= 0} aria-label="Previous account" className="h-8 w-8 rounded-md border border-slate-200 text-slate-600 hover:border-blue-400 disabled:opacity-30">‹</button>
+                      <span className="w-14 text-center text-[11px] tabular-nums text-slate-400">{i >= 0 ? `${i + 1} / ${uAll.length}` : "—"}</span>
+                      <button onClick={() => setAcct(uAll[i + 1].id)} disabled={i < 0 || i >= uAll.length - 1} aria-label="Next account" className="h-8 w-8 rounded-md border border-slate-200 text-slate-600 hover:border-blue-400 disabled:opacity-30">›</button>
+                    </span>
+                  );
+                })()}
                 {u.banned ? <Pill t="Suspended" tone="bad" /> : <Pill t="Active" tone="ok" />}
                 <button onClick={() => setAcct(null)} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100">✕</button>
               </div>
