@@ -19,7 +19,7 @@ const ROLES = ["user", "seller", "admin", "superadmin"];
 
 type Row = Record<string, any>;
 type Res = { rows: Row[]; error: string };
-type Mod = "overview" | "explorer" | "banks" | "devices" | "audit" | "users" | "sellers" | "revenue" | "sessions";
+type Mod = "overview" | "explorer" | "banks" | "devices" | "audit" | "invoices" | "users" | "sellers" | "revenue" | "sessions";
 const NAV: { id: Mod; label: string; icon: string }[] = [
   { id: "overview", label: "Overview", icon: "M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-12h8V3h-8z" },
   { id: "explorer", label: "All data", icon: "M4 6h16M4 12h16M4 18h16" },
@@ -29,6 +29,7 @@ const NAV: { id: Mod; label: string; icon: string }[] = [
   { id: "banks", label: "Banks & downloads", icon: "M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8" },
   { id: "devices", label: "Devices", icon: "M5 2h14v20H5zM12 18h.01" },
   { id: "sessions", label: "AirMIDI sessions", icon: "M22 12h-4l-3 9L9 3l-3 9H2" },
+  { id: "invoices", label: "Invoices", icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5" },
   { id: "audit", label: "Audit log", icon: "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" },
 ];
 
@@ -170,6 +171,279 @@ function Tbl({ head, pager, children }: { head: React.ReactNode; pager?: React.R
   );
 }
 
+/* ───────────────────────── invoices ───────────────────────── */
+type Line = { desc: string; qty: number; price: number; vat: number };
+const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+const esc = (v: any) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
+const invNo = (i: Row) => `${i.series}-${String(i.number).padStart(5, "0")}`;
+const SELLER0: Row = {
+  name: "", cui: "", reg: "", address: "", city: "", county: "", country: "RO", iban: "", bank: "", email: "", phone: "", vat_payer: true, series: "IMD",
+  footer: "Factura circulă fără semnătură și ștampilă conform art. 319 alin. (29) din Legea nr. 227/2015 privind Codul fiscal.",
+};
+const EF: Record<string, [string, "ok" | "warn" | "bad" | "mute"]> = {
+  not_sent: ["Not sent", "mute"], uploaded: ["Uploaded", "warn"], accepted: ["Accepted", "ok"], rejected: ["Rejected", "bad"], error: ["Error", "bad"],
+};
+
+function calc(lines: Line[], gross: boolean) {
+  const rows = lines.map((l) => {
+    const unit = gross ? Math.round((l.price / (1 + l.vat / 100)) * 1e4) / 1e4 : l.price;
+    const net = r2(l.qty * unit);
+    return { ...l, unit, net, vatAmt: r2((net * l.vat) / 100) };
+  });
+  const sub = r2(rows.reduce((a, x) => a + x.net, 0));
+  const vat = r2(rows.reduce((a, x) => a + x.vatAmt, 0));
+  return { rows, sub, vat, total: r2(sub + vat) };
+}
+
+function printInvoice(v: { no: string; issue: string; due?: string | null; currency: string; seller: Row; customer: Row; lines: { desc: string; qty: number; unit: number; vat: number; net: number; vatAmt: number }[]; sub: number; vat: number; total: number; notes?: string }) {
+  const w = window.open("", "_blank");
+  if (!w) return;
+  const m = (n: number) => money(n, v.currency);
+  const groups: Record<string, { net: number; vat: number }> = {};
+  v.lines.forEach((l) => { const g = (groups[l.vat] ??= { net: 0, vat: 0 }); g.net += l.net; g.vat += l.vatAmt; });
+  const S = v.seller, C = v.customer;
+  const party = (x: Row, mine: boolean) =>
+    `<b>${esc(x.name) || "—"}</b><br>${x.cui ? `CUI/CIF: ${esc(x.cui)}${mine && S.vat_payer === false ? " (neplătitor TVA)" : ""}<br>` : ""}${x.reg ? `Reg. Com.: ${esc(x.reg)}<br>` : ""}${esc(x.address)}${x.city ? `, ${esc(x.city)}` : ""}${x.county ? `, ${esc(x.county)}` : ""}${x.country ? `, ${esc(x.country)}` : ""}<br>${x.email ? esc(x.email) : ""}${mine && S.iban ? `<br>IBAN: ${esc(S.iban)}${S.bank ? ` · ${esc(S.bank)}` : ""}` : ""}`;
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Factura ${esc(v.no)}</title><style>
+  *{box-sizing:border-box}body{font:13px/1.45 Arial,Helvetica,sans-serif;color:#0F172A;margin:0;padding:36px}
+  h1{font-size:26px;margin:0;letter-spacing:-.02em}.top{display:flex;justify-content:space-between;gap:24px;border-bottom:3px solid #2563EB;padding-bottom:16px}
+  .meta{text-align:right}.meta b{font-size:15px}.cols{display:flex;gap:32px;margin:22px 0}.cols>div{flex:1}.lbl{font-size:10px;color:#64748B;font-weight:700;margin-bottom:4px}
+  table{width:100%;border-collapse:collapse;margin-top:6px}th{background:#F1F5F9;text-align:left;font-size:11px;padding:8px}td{padding:8px;border-bottom:1px solid #E2E8F0;vertical-align:top}
+  .r{text-align:right}.tot{margin-left:auto;width:320px;margin-top:16px}.tot div{display:flex;justify-content:space-between;padding:4px 0}.tot .g{font-size:16px;font-weight:700;border-top:2px solid #0F172A;margin-top:6px;padding-top:8px}
+  .foot{margin-top:34px;color:#64748B;font-size:11px;border-top:1px solid #E2E8F0;padding-top:10px}@media print{body{padding:14mm}}</style></head><body>
+  <div class="top"><div><h1>FACTURĂ</h1><div style="color:#64748B">Invoice</div></div><div class="meta"><b>${esc(v.no)}</b><br>Data emiterii: ${esc(v.issue)}${v.due ? `<br>Scadență: ${esc(v.due)}` : ""}<br>Moneda: ${esc(v.currency)}</div></div>
+  <div class="cols"><div><div class="lbl">FURNIZOR</div>${party(S, true)}</div><div><div class="lbl">CLIENT</div>${party(C, false)}</div></div>
+  <table><thead><tr><th>#</th><th>Denumire</th><th class="r">Cant.</th><th class="r">Preț unitar</th><th class="r">Valoare</th><th class="r">TVA %</th><th class="r">TVA</th></tr></thead><tbody>
+  ${v.lines.map((l, i) => `<tr><td>${i + 1}</td><td>${esc(l.desc)}</td><td class="r">${l.qty}</td><td class="r">${m(l.unit)}</td><td class="r">${m(l.net)}</td><td class="r">${l.vat}%</td><td class="r">${m(l.vatAmt)}</td></tr>`).join("")}
+  </tbody></table>
+  <div class="tot"><div><span>Total fără TVA</span><span>${m(v.sub)}</span></div>
+  ${Object.entries(groups).map(([r, g]) => `<div><span>TVA ${r}% (baza ${m(g.net)})</span><span>${m(g.vat)}</span></div>`).join("")}
+  <div class="g"><span>Total de plată</span><span>${m(v.total)}</span></div></div>
+  ${v.notes ? `<p style="margin-top:20px"><b>Mențiuni:</b> ${esc(v.notes)}</p>` : ""}
+  <div class="foot">${esc(S.footer)}</div></body></html>`);
+  w.document.close();
+  setTimeout(() => w.print(), 300);
+}
+
+function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner, busy, draft, clearDraft, act, refresh, say }: {
+  rows: Row[]; settingsRow?: Row; users: Row[]; who: Record<string, string>; cur: string; size: number; setup: boolean; owner: boolean; busy: boolean;
+  draft: Row | null; clearDraft: () => void;
+  act: (msg: string, fn: string, args: Record<string, any>, ok: string) => Promise<any>; refresh: () => Promise<void>; say: (m: string) => void;
+}) {
+  const [seller, setSeller] = useState<Row>(SELLER0);
+  const [showCo, setShowCo] = useState(false);
+  const [page, setPage] = useState(0);
+  const [open, setOpen] = useState(false);
+  const blank = { type: "company", name: "", cui: "", reg: "", address: "", city: "", county: "", country: "RO", email: "" };
+  const [cust, setCust] = useState<Row>(blank);
+  const [lines, setLines] = useState<Line[]>([{ desc: "", qty: 1, price: 0, vat: 21 }]);
+  const [gross, setGross] = useState(false);
+  const [currency, setCurrency] = useState(cur);
+  const [issue, setIssue] = useState(new Date().toISOString().slice(0, 10));
+  const [due, setDue] = useState("");
+  const [notes, setNotes] = useState("");
+  const [uid, setUid] = useState("");
+  const [payId, setPayId] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    try { const v = JSON.parse(localStorage.getItem("adm-seller") || "null"); if (v) setSeller({ ...SELLER0, ...v }); } catch {}
+  }, []);
+  useEffect(() => { if (settingsRow && settingsRow.name != null) setSeller((x) => ({ ...x, ...Object.fromEntries(Object.entries(settingsRow).filter(([, v]) => v !== null)) })); }, [settingsRow]);
+
+  const pickUser = (id: string) => {
+    setUid(id);
+    if (id) setCust((c) => ({ ...c, name: c.name || who[id] || "", email: who[id] || c.email }));
+  };
+  useEffect(() => {
+    if (!draft) return;
+    setCust(blank); setUid(""); setDue(""); setNotes("");
+    setLines([draft.line ?? { desc: "", qty: 1, price: 0, vat: 21 }]);
+    setGross(!!draft.gross); setCurrency((draft.currency || cur).trim()); setPayId(draft.payment || "");
+    if (draft.user_id) { setUid(draft.user_id); setCust({ ...blank, name: who[draft.user_id] || "", email: who[draft.user_id] || "" }); }
+    setOpen(true);
+    clearDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft]);
+
+  const t = calc(lines, gross);
+  const setLine = (i: number, p: Partial<Line>) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...p } : l)));
+  const saveSeller = async () => {
+    try { localStorage.setItem("adm-seller", JSON.stringify(seller)); } catch {}
+    if (setup) return say("Saved on this device. Install invoices.sql to store it in the database.");
+    const { error } = await supabase.rpc("admin_save_invoice_settings", { p: seller });
+    say(error ? error.message : "Company details saved.");
+    if (!error) refresh();
+  };
+  const previewDraft = () => printInvoice({ no: "PROFORMĂ / PREVIEW", issue, due, currency, seller, customer: cust, lines: t.rows.map((l) => ({ desc: l.desc, qty: l.qty, unit: l.unit, vat: l.vat, net: l.net, vatAmt: l.vatAmt })), sub: t.sub, vat: t.vat, total: t.total, notes });
+  const issueNow = async () => {
+    if (setup) return say("Issuing is off until invoices.sql is installed. You can still preview and print.");
+    if (!cust.name.trim()) return say("Customer name is required.");
+    if (t.rows.some((l) => !l.desc.trim() || !l.qty)) return say("Every line needs a description and a quantity.");
+    if (!seller.name?.trim() || !seller.cui?.trim()) return say("Fill in your company details first (name and CUI).");
+    if (!window.confirm(`Issue this invoice for ${money(t.total, currency)}? Numbers cannot be reused or edited afterwards (use storno).`)) return;
+    setSaving(true);
+    const { data, error } = await supabase.rpc("admin_create_invoice", {
+      p_customer: cust, p_lines: t.rows.map((l) => ({ desc: l.desc, qty: l.qty, unit_price: l.unit, vat_rate: l.vat })),
+      p_currency: currency, p_issue: issue || null, p_due: due || null, p_notes: notes || null, p_user: uid || null, p_payment: payId || null,
+    });
+    setSaving(false);
+    if (error) return say(error.message);
+    say(`Invoice ${(data as any)?.series}-${String((data as any)?.number).padStart(5, "0")} issued.`);
+    setOpen(false); setPayId("");
+    await refresh();
+  };
+  const printSaved = (i: Row) =>
+    printInvoice({
+      no: invNo(i), issue: i.issue_date, due: i.due_date, currency: i.currency, seller, customer: i.customer || {},
+      lines: (i.lines || []).map((l: Row) => ({ desc: l.desc, qty: l.qty, unit: l.unit_price, vat: l.vat_rate, net: l.net, vatAmt: l.vat })),
+      sub: i.subtotal, vat: i.vat_total, total: i.total, notes: i.notes,
+    });
+
+  const month = new Date().toISOString().slice(0, 7);
+  const monthRows = rows.filter((r) => String(r.issue_date).startsWith(month) && r.status === "issued");
+  const pages = Math.max(1, Math.ceil(rows.length / size));
+  const cur0 = Math.min(page, pages - 1);
+  const slice = rows.slice(cur0 * size, cur0 * size + size);
+  const inp = "mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] outline-none focus:border-blue-500";
+  const F = ({ l, k, ph }: { l: string; k: string; ph?: string }) => (
+    <label className="block text-[11px] font-semibold text-slate-500">{l}<input value={cust[k] ?? ""} placeholder={ph} onChange={(e) => setCust((c) => ({ ...c, [k]: e.target.value }))} className={inp} /></label>
+  );
+  const SF = ({ l, k, ph }: { l: string; k: string; ph?: string }) => (
+    <label className="block text-[11px] font-semibold text-slate-500">{l}<input value={seller[k] ?? ""} placeholder={ph} onChange={(e) => setSeller((c) => ({ ...c, [k]: e.target.value }))} className={inp} /></label>
+  );
+
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi label="Invoices" value={String(rows.length)} sub={`${monthRows.length} this month`} tone="#2563EB" />
+        <Kpi label="Invoiced this month" value={money(monthRows.reduce((a, r) => a + Number(r.total), 0), cur)} tone="#0D9488" />
+        <Kpi label="VAT this month" value={money(monthRows.reduce((a, r) => a + Number(r.vat_total), 0), cur)} tone="#F59E0B" />
+        <Kpi label="Not sent to e-Factura" value={String(rows.filter((r) => r.efactura_status === "not_sent" && r.status === "issued").length)} sub="SPV not connected yet" tone="#64748B" />
+      </div>
+
+      <Card title="Company details on invoices" right={<button onClick={() => setShowCo((v) => !v)} className="text-xs font-semibold text-blue-700 hover:underline">{showCo ? "Hide" : seller.name ? "Edit" : "Fill in"}</button>}>
+        {showCo ? (
+          <div className="space-y-3 p-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <SF l="Company name" k="name" /><SF l="CUI / CIF" k="cui" ph="RO12345678" /><SF l="Reg. Com." k="reg" ph="J00/000/2020" />
+              <SF l="Address" k="address" /><SF l="City" k="city" /><SF l="County code" k="county" ph="RO-B, RO-DB…" />
+              <SF l="IBAN" k="iban" /><SF l="Bank" k="bank" /><SF l="Email" k="email" />
+              <SF l="Phone" k="phone" /><SF l="Country" k="country" />
+              <label className="flex items-center gap-2 pt-5 text-[13px] font-semibold text-slate-700"><input type="checkbox" checked={seller.vat_payer !== false} onChange={(e) => setSeller((c) => ({ ...c, vat_payer: e.target.checked }))} className="h-4 w-4 accent-blue-600" /> VAT payer</label>
+            </div>
+            <label className="block text-[11px] font-semibold text-slate-500">Footer text<textarea value={seller.footer ?? ""} onChange={(e) => setSeller((c) => ({ ...c, footer: e.target.value }))} rows={2} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-blue-500" /></label>
+            <p className="text-[11px] text-slate-400">Series: <b>{seller.series}</b> · next number is assigned by the system, in order, without gaps. {owner || setup ? "" : "Only the owner can save these details."}</p>
+            <button onClick={saveSeller} disabled={!owner && !setup} className="h-9 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-40">Save company details</button>
+          </div>
+        ) : (
+          <p className="px-4 py-3 text-[13px] text-slate-500">{seller.name ? <><b className="text-slate-800">{seller.name}</b> · CUI {seller.cui || "—"} · series {seller.series}</> : "Add your company name and CUI so they appear on every invoice."}</p>
+        )}
+      </Card>
+
+      <Card title={`Invoices (${rows.length})`} right={<button onClick={() => { setCust(blank); setUid(""); setLines([{ desc: "", qty: 1, price: 0, vat: 21 }]); setGross(false); setPayId(""); setOpen(true); }} className="h-9 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white hover:bg-blue-700">+ New invoice</button>}>
+        {rows.length === 0 ? <p className="px-4 py-8 text-center text-[13px] text-slate-400">No invoices yet. Issue the first one with “New invoice”, or press “Invoice” on a paid request in Revenue.</p> : (
+          <Tbl head={<><th className={TH}>Number</th><th className={TH}>Date</th><th className={TH}>Customer</th><th className={TH}>Total</th><th className={TH}>Status</th><th className={TH}>e-Factura</th><th className={TH} /></>}
+            pager={rows.length > size ? (
+              <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
+                <span>{cur0 * size + 1}–{Math.min(rows.length, cur0 * size + size)} of {rows.length}</span>
+                <span className="flex items-center gap-2">
+                  <button onClick={() => setPage(cur0 - 1)} disabled={cur0 === 0} className="h-8 rounded-md border border-slate-200 px-3 font-semibold disabled:opacity-40">Prev</button>
+                  <button onClick={() => setPage(cur0 + 1)} disabled={cur0 >= pages - 1} className="h-8 rounded-md border border-slate-200 px-3 font-semibold disabled:opacity-40">Next</button>
+                </span>
+              </div>
+            ) : null}>
+            {slice.map((i) => (
+              <tr key={i.id}>
+                <td className={`${TD} font-mono text-xs font-semibold text-slate-900`}>{invNo(i)}{i.storno_of && <span className="ml-1 text-red-600">storno</span>}</td>
+                <td className={TD}>{i.issue_date}</td>
+                <td className={`${TD} max-w-[16rem] truncate`}>{i.customer?.name || "—"}</td>
+                <td className={`${TD} tabular-nums ${Number(i.total) < 0 ? "text-red-600" : ""}`}>{money(i.total, i.currency)}</td>
+                <td className={TD}>{i.status === "cancelled" ? <Pill t="Cancelled" tone="bad" /> : <Pill t="Issued" tone="ok" />}</td>
+                <td className={TD}><Pill t={(EF[i.efactura_status] ?? EF.not_sent)[0]} tone={(EF[i.efactura_status] ?? EF.not_sent)[1]} /></td>
+                <td className={`${TD} text-right`}>
+                  <span className="inline-flex gap-2">
+                    <button onClick={() => printSaved(i)} className="h-8 rounded-md border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-400">Print / PDF</button>
+                    <button disabled title="Available after the ANAF SPV connection is added" className="h-8 cursor-not-allowed rounded-md border border-slate-200 px-3 text-xs font-bold text-slate-300">Send to SPV</button>
+                    {i.status === "issued" && !i.storno_of && <button onClick={() => act(`Cancel invoice ${invNo(i)}? A storno invoice with negative values is issued.`, "admin_cancel_invoice", { p_id: i.id }, "Storno issued.")} disabled={busy} className="h-8 rounded-md border border-red-200 px-3 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">Storno</button>}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </Tbl>
+        )}
+      </Card>
+      <p className="text-[11px] text-slate-400">Invoices are stored with every field RO e-Factura needs (CUI, address, county code, VAT per line), so the ANAF SPV upload can be added without changing them. Check VAT treatment and legal wording with your accountant.</p>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[55] bg-black/50" onClick={() => setOpen(false)} />
+          <section className="fixed inset-y-0 right-0 z-[60] flex w-full max-w-3xl flex-col bg-[#F4F6FA] shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6" style={{ borderTop: "3px solid var(--ac)" }}>
+              <h2 className="text-base font-bold text-slate-900">New invoice</h2>
+              <button onClick={() => setOpen(false)} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100">✕</button>
+            </div>
+            <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+              <Card title="Customer">
+                <div className="space-y-3 p-4">
+                  <label className="block text-[11px] font-semibold text-slate-500">Link to an account (optional)
+                    <select value={uid} onChange={(e) => pickUser(e.target.value)} className={inp}>
+                      <option value="">— none —</option>
+                      {users.map((u) => <option key={u.id} value={u.id}>{who[u.id] || u.id.slice(0, 8)}</option>)}
+                    </select>
+                  </label>
+                  <div className="flex gap-2">
+                    {["company", "person"].map((k) => <button key={k} onClick={() => setCust((c) => ({ ...c, type: k }))} className={`h-8 rounded-full border px-4 text-xs font-semibold ${cust.type === k ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600"}`}>{k === "company" ? "Company" : "Individual"}</button>)}
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <F l={cust.type === "company" ? "Company name" : "Full name"} k="name" />
+                    {cust.type === "company" && <F l="CUI / VAT ID" k="cui" />}
+                    {cust.type === "company" && <F l="Reg. Com." k="reg" />}
+                    <F l="Email" k="email" /><F l="Address" k="address" /><F l="City" k="city" /><F l="County code" k="county" ph="RO-B, RO-DB…" /><F l="Country" k="country" />
+                  </div>
+                </div>
+              </Card>
+              <Card title="Lines" right={<label className="flex items-center gap-2 text-xs font-semibold text-slate-600"><input type="checkbox" checked={gross} onChange={(e) => setGross(e.target.checked)} className="h-4 w-4 accent-blue-600" /> Prices include VAT</label>}>
+                <div className="space-y-3 p-4">
+                  {lines.map((l, i) => (
+                    <div key={i} className="grid grid-cols-12 items-end gap-2 rounded-lg border border-slate-200 bg-white p-3">
+                      <label className="col-span-12 text-[11px] font-semibold text-slate-500 sm:col-span-5">Description<input value={l.desc} onChange={(e) => setLine(i, { desc: e.target.value })} className={inp} /></label>
+                      <label className="col-span-3 text-[11px] font-semibold text-slate-500 sm:col-span-2">Qty<input type="number" step="any" value={l.qty} onChange={(e) => setLine(i, { qty: Number(e.target.value) })} className={inp} /></label>
+                      <label className="col-span-5 text-[11px] font-semibold text-slate-500 sm:col-span-2">Price<input type="number" step="any" value={l.price} onChange={(e) => setLine(i, { price: Number(e.target.value) })} className={inp} /></label>
+                      <label className="col-span-4 text-[11px] font-semibold text-slate-500 sm:col-span-2">VAT
+                        <select value={l.vat} onChange={(e) => setLine(i, { vat: Number(e.target.value) })} className={inp}><option value={21}>21%</option><option value={11}>11%</option><option value={0}>0%</option></select>
+                      </label>
+                      <button onClick={() => setLines((ls) => (ls.length > 1 ? ls.filter((_, k) => k !== i) : ls))} aria-label="Remove line" className="col-span-12 h-9 rounded-lg border border-slate-200 text-xs font-bold text-slate-500 hover:text-red-600 sm:col-span-1">✕</button>
+                    </div>
+                  ))}
+                  <button onClick={() => setLines((ls) => [...ls, { desc: "", qty: 1, price: 0, vat: 21 }])} className="text-xs font-semibold text-blue-700 hover:underline">+ Add line</button>
+                </div>
+              </Card>
+              <Card title="Details">
+                <div className="grid gap-3 p-4 sm:grid-cols-3">
+                  <label className="block text-[11px] font-semibold text-slate-500">Issue date<input type="date" value={issue} onChange={(e) => setIssue(e.target.value)} className={inp} /></label>
+                  <label className="block text-[11px] font-semibold text-slate-500">Due date<input type="date" value={due} onChange={(e) => setDue(e.target.value)} className={inp} /></label>
+                  <label className="block text-[11px] font-semibold text-slate-500">Currency<select value={currency} onChange={(e) => setCurrency(e.target.value)} className={inp}>{Array.from(new Set([cur, "RON", "EUR", "GBP", "USD"])).map((c) => <option key={c}>{c}</option>)}</select></label>
+                  <label className="block text-[11px] font-semibold text-slate-500 sm:col-span-3">Notes<input value={notes} onChange={(e) => setNotes(e.target.value)} className={inp} /></label>
+                </div>
+              </Card>
+              <div className="rounded-xl border border-slate-200 bg-white p-4 text-[13px]">
+                <div className="flex justify-between py-1"><span className="text-slate-500">Subtotal</span><b className="tabular-nums">{money(t.sub, currency)}</b></div>
+                <div className="flex justify-between py-1"><span className="text-slate-500">VAT</span><b className="tabular-nums">{money(t.vat, currency)}</b></div>
+                <div className="mt-1 flex justify-between border-t border-slate-200 pt-2 text-base"><span className="font-bold">Total</span><b className="tabular-nums">{money(t.total, currency)}</b></div>
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
+              <button onClick={previewDraft} className="h-10 rounded-lg border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 hover:border-blue-400">Preview / Print</button>
+              <button onClick={issueNow} disabled={saving} className="h-10 rounded-lg bg-blue-600 px-5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50">{saving ? "Issuing…" : "Issue invoice"}</button>
+            </div>
+          </section>
+        </>
+      )}
+    </>
+  );
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [gate, setGate] = useState<"checking" | "ok" | "denied">("checking");
@@ -185,6 +459,7 @@ export default function AdminPage() {
   const [prefs, setPrefs] = useState<Prefs>(DEF);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [sysDark, setSysDark] = useState(false);
+  const [invDraft, setInvDraft] = useState<Row | null>(null);
   const [updated, setUpdated] = useState<Date | null>(null);
   const [gateMsg, setGateMsg] = useState("");
   const [mod, setMod] = useState<Mod>("overview");
@@ -200,7 +475,7 @@ export default function AdminPage() {
 
   const refresh = useCallback(async () => {
     setBusy(true);
-    const keys = ["wallets", "ledger", "sessions", "pays", "plans", "settings", "links", "dl", "banks", "users", "forum", "devices", "rooms", "auth", "audit"] as const;
+    const keys = ["wallets", "ledger", "sessions", "pays", "plans", "settings", "links", "dl", "banks", "users", "forum", "devices", "rooms", "auth", "audit", "inv", "invset"] as const;
     const res = await Promise.all([
       load(T.wallets, "updated_at"), load(T.ledger, "created_at"), load(T.sessions, "created_at"), load(T.pays, "created_at"),
       load(T.plans, "sort_order"), load(T.settings, null), load(T.links, "created_at"), load(T.dl, "downloaded_at"),
@@ -210,6 +485,8 @@ export default function AdminPage() {
         return { rows: ((data as Row[]) ?? []), error: error?.message ?? "" } as Res;
       })(),
       load(T.audit, "created_at"),
+      load("airmidi_invoices", "created_at"),
+      load("airmidi_invoice_settings", null),
     ]);
     setD(Object.fromEntries(keys.map((k, i) => [k, res[i]])));
     setUpdated(new Date());
@@ -457,13 +734,19 @@ export default function AdminPage() {
   const setBan = (id: string, ban: boolean) =>
     act(ban ? `Suspend ${name(id)}? They won't be able to sign in.` : `Re-enable ${name(id)}?`, "admin_set_banned", { p_user: id, p_banned: ban }, ban ? "Account suspended." : "Account re-enabled.");
   const revoke = (l: Row) => act("Revoke this link? It stops working immediately.", "admin_revoke_link", { p_id: l.id }, "Link revoked.");
+  const startInvoice = (p: Row) => {
+    setInvDraft({ user_id: p.user_id, gross: true, currency: p.currency, payment: p.id, line: { desc: `AirMIDI Link: plan ${p.plan_id} (ref. ${p.reference})`, qty: 1, price: Number(p.amount), vat: 21 } });
+    nav("invoices");
+  };
   const PayBtns = ({ p }: { p: Row }) =>
     String(p.status).toLowerCase() === "pending" ? (
       <span className="inline-flex gap-2">
         <button onClick={() => resolvePay(p, true)} disabled={busy} className="h-8 rounded-md bg-emerald-600 px-3 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50">Accept</button>
         <button onClick={() => resolvePay(p, false)} disabled={busy} className="h-8 rounded-md border border-red-200 px-3 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">Reject</button>
       </span>
-    ) : null;
+    ) : (
+      <button onClick={() => startInvoice(p)} className="h-8 rounded-md border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-400">Invoice</button>
+    );
   const bulk = async (kind: "hours" | "ban" | "unban") => {
     if (setup) return say("Actions are off until the admin functions are installed (business_admin.sql).");
     const ids = sel.filter((id) => id !== meId || kind === "hours");
@@ -975,6 +1258,11 @@ export default function AdminPage() {
           </Card>
         )}
 
+        {mod === "invoices" && (
+          <InvoicesModule rows={g("inv")} settingsRow={g("invset")[0]} users={userRows} who={who} cur={cur} size={prefs.size} setup={setup} owner={myRole === "owner"} busy={busy}
+            draft={invDraft} clearDraft={() => setInvDraft(null)} act={act} refresh={refresh} say={say} />
+        )}
+
         {mod === "sessions" && (
           <>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -1060,6 +1348,7 @@ export default function AdminPage() {
                         {myRole === "owner" && u.id !== meId && (
                           <button onClick={() => setBan(u.id, !u.banned)} disabled={busy} className={`h-10 rounded-lg border px-4 text-xs font-bold disabled:opacity-50 ${u.banned ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50" : "border-red-300 text-red-600 hover:bg-red-50"}`}>{u.banned ? "Re-enable account" : "Suspend account"}</button>
                         )}
+                        <button onClick={() => { setAcct(null); setInvDraft({ user_id: u.id }); nav("invoices"); }} className="h-10 rounded-lg border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 hover:border-blue-400">Create invoice</button>
                         <button onClick={() => { navigator.clipboard?.writeText(u.id); say("User ID copied."); }} className="h-10 rounded-lg border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 hover:border-blue-400">Copy user ID</button>
                       </div>
                     </Card>
