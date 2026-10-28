@@ -19,7 +19,7 @@ const ROLES = ["user", "seller", "admin", "superadmin"];
 
 type Row = Record<string, any>;
 type Res = { rows: Row[]; error: string };
-type Mod = "overview" | "explorer" | "banks" | "devices" | "audit" | "invoices" | "users" | "sellers" | "revenue" | "sessions";
+type Mod = "overview" | "explorer" | "banks" | "devices" | "audit" | "invoices" | "accounting" | "users" | "sellers" | "revenue" | "sessions";
 const NAV: { id: Mod; label: string; icon: string }[] = [
   { id: "overview", label: "Overview", icon: "M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-12h8V3h-8z" },
   { id: "explorer", label: "All data", icon: "M4 6h16M4 12h16M4 18h16" },
@@ -30,6 +30,7 @@ const NAV: { id: Mod; label: string; icon: string }[] = [
   { id: "devices", label: "Devices", icon: "M5 2h14v20H5zM12 18h.01" },
   { id: "sessions", label: "AirMIDI sessions", icon: "M22 12h-4l-3 9L9 3l-3 9H2" },
   { id: "invoices", label: "Invoices", icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5" },
+  { id: "accounting", label: "Accounting", icon: "M4 4h16v16H4zM8 8h8M8 12h8M8 16h4" },
   { id: "audit", label: "Audit log", icon: "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" },
 ];
 
@@ -62,7 +63,7 @@ const RCSS = `
 }`;
 
 type Prefs = { theme: "system" | "light" | "dark"; accent: string; dense: boolean; size: number; title: string };
-const DEF: Prefs = { theme: "system", accent: "blue", dense: false, size: 12, title: "iMIDI dashboard " };
+const DEF: Prefs = { theme: "system", accent: "blue", dense: false, size: 12, title: "iMIDI Console" };
 const ACCENTS: Record<string, [string, string, string]> = {
   blue: ["#2563EB", "#1D4ED8", "#60A5FA"], teal: ["#0D9488", "#0F766E", "#2DD4BF"], violet: ["#7C3AED", "#6D28D9", "#A78BFA"],
   rose: ["#E11D48", "#BE123C", "#FB7185"], amber: ["#D97706", "#B45309", "#FBBF24"],
@@ -245,6 +246,23 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
   const [uid, setUid] = useState("");
   const [payId, setPayId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [anaf, setAnaf] = useState<boolean | null>(null);
+  const call = async (action: string, body: Record<string, any>) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`/api/anaf/${action}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` }, body: JSON.stringify(body) });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || "ANAF request failed.");
+    return j;
+  };
+  useEffect(() => { if (!setup) call("connect", { check: true }).then((j) => setAnaf(!!j.connected)).catch(() => setAnaf(false)); }, [setup]); // eslint-disable-line react-hooks/exhaustive-deps
+  const connectAnaf = async () => {
+    if (setup) return say("Install accounting.sql and add the ANAF keys first.");
+    try { const j = await call("connect", {}); window.location.href = j.url; } catch (e: any) { say(e.message); }
+  };
+  const spv = async (action: "send" | "status", i: Row) => {
+    if (setup) return say("Install accounting.sql first.");
+    try { const j = await call(action, { invoice_id: i.id }); say(j.message || "Done."); await refresh(); } catch (e: any) { say(e.message); }
+  };
 
   useEffect(() => {
     try { const v = JSON.parse(localStorage.getItem("adm-seller") || "null"); if (v) setSeller({ ...SELLER0, ...v }); } catch {}
@@ -319,7 +337,7 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
         <Kpi label="Invoices" value={String(rows.length)} sub={`${monthRows.length} this month`} tone="#2563EB" />
         <Kpi label="Invoiced this month" value={money(monthRows.reduce((a, r) => a + Number(r.total), 0), cur)} tone="#0D9488" />
         <Kpi label="VAT this month" value={money(monthRows.reduce((a, r) => a + Number(r.vat_total), 0), cur)} tone="#F59E0B" />
-        <Kpi label="Not sent to e-Factura" value={String(rows.filter((r) => r.efactura_status === "not_sent" && r.status === "issued").length)} sub="SPV not connected yet" tone="#64748B" />
+        <Kpi label="Not sent to e-Factura" value={String(rows.filter((r) => r.efactura_status === "not_sent" && r.status === "issued").length)} sub={anaf ? "ANAF connected" : "ANAF not connected"} tone="#64748B" />
       </div>
 
       <Card title="Company details on invoices" right={<button onClick={() => setShowCo((v) => !v)} className="text-xs font-semibold text-blue-700 hover:underline">{showCo ? "Hide" : seller.name ? "Edit" : "Fill in"}</button>}>
@@ -341,9 +359,14 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
         )}
       </Card>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[13px]">
+        <span className="flex items-center gap-2 text-slate-600"><span className={`h-2.5 w-2.5 rounded-full ${anaf ? "bg-emerald-500" : "bg-slate-300"}`} />ANAF e-Factura: <b className="text-slate-800">{anaf ? "connected" : "not connected"}</b></span>
+        {owner && <button onClick={connectAnaf} className="h-8 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-400">{anaf ? "Reconnect" : "Connect ANAF"}</button>}
+      </div>
+
       <Card title={`Invoices (${rows.length})`} right={<button onClick={() => { setCust(blank); setUid(""); setLines([{ desc: "", qty: 1, price: 0, vat: 21 }]); setGross(false); setPayId(""); setOpen(true); }} className="h-9 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white hover:bg-blue-700">+ New invoice</button>}>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-[13px] text-slate-400">No invoices yet. Issue the first one with “New invoice”, or press “Invoice” on a paid request in Revenue.</p> : (
-          <Tbl head={<><th className={TH}>Number</th><th className={TH}>Date</th><th className={TH}>Customer</th><th className={TH}>Total</th><th className={TH}>Status</th><th className={TH}>e-Factura</th><th className={TH} /></>}
+          <Tbl head={<><th className={TH}>Number</th><th className={TH}>Date</th><th className={TH}>Customer</th><th className={TH}>Total</th><th className={TH}>Status</th><th className={TH}>Payment</th><th className={TH}>e-Factura</th><th className={TH} /></>}
             pager={rows.length > size ? (
               <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
                 <span>{cur0 * size + 1}–{Math.min(rows.length, cur0 * size + size)} of {rows.length}</span>
@@ -360,11 +383,14 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
                 <td className={`${TD} max-w-[16rem] truncate`}>{i.customer?.name || "—"}</td>
                 <td className={`${TD} tabular-nums ${Number(i.total) < 0 ? "text-red-600" : ""}`}>{money(i.total, i.currency)}</td>
                 <td className={TD}>{i.status === "cancelled" ? <Pill t="Cancelled" tone="bad" /> : <Pill t="Issued" tone="ok" />}</td>
+                <td className={TD}>{i.status !== "issued" || i.storno_of ? "—" : i.paid_at ? <Pill t="Paid" tone="ok" /> : i.due_date && i.due_date < new Date().toISOString().slice(0, 10) ? <Pill t="Overdue" tone="bad" /> : <Pill t="Unpaid" tone="warn" />}</td>
                 <td className={TD}><Pill t={(EF[i.efactura_status] ?? EF.not_sent)[0]} tone={(EF[i.efactura_status] ?? EF.not_sent)[1]} /></td>
                 <td className={`${TD} text-right`}>
                   <span className="inline-flex gap-2">
                     <button onClick={() => printSaved(i)} className="h-8 rounded-md border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-400">Print / PDF</button>
-                    <button disabled title="Available after the ANAF SPV connection is added" className="h-8 cursor-not-allowed rounded-md border border-slate-200 px-3 text-xs font-bold text-slate-300">Send to SPV</button>
+                    {i.status === "issued" && !i.storno_of && !i.paid_at && <button onClick={() => act(`Mark ${invNo(i)} as paid?`, "admin_mark_invoice_paid", { p_id: i.id, p_date: new Date().toISOString().slice(0, 10) }, "Marked as paid.")} disabled={busy} className="h-8 rounded-md border border-emerald-200 px-3 text-xs font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">Mark paid</button>}
+                    {i.status === "issued" && !i.storno_of && ["not_sent", "rejected", "error"].includes(i.efactura_status) && <button onClick={() => spv("send", i)} className="h-8 rounded-md bg-[#0A1220] px-3 text-xs font-bold text-white hover:bg-blue-700">Send to SPV</button>}
+                    {i.efactura_status === "uploaded" && <button onClick={() => spv("status", i)} className="h-8 rounded-md border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-400">Check status</button>}
                     {i.status === "issued" && !i.storno_of && <button onClick={() => act(`Cancel invoice ${invNo(i)}? A storno invoice with negative values is issued.`, "admin_cancel_invoice", { p_id: i.id }, "Storno issued.")} disabled={busy} className="h-8 rounded-md border border-red-200 px-3 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">Storno</button>}
                   </span>
                 </td>
@@ -444,6 +470,168 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
   );
 }
 
+/* ───────────────────────── accounting ───────────────────────── */
+function AccountingModule({ invoices, expenses, cur, size, setup, owner, busy, askDelete, act, refresh, say }: {
+  invoices: Row[]; expenses: Row[]; cur: string; size: number; setup: boolean; owner: boolean; busy: boolean;
+  askDelete: (table: string, id: string, label: string) => void;
+  act: (msg: string, fn: string, args: Record<string, any>, ok: string) => Promise<any>; refresh: () => Promise<void>; say: (m: string) => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [period, setPeriod] = useState(today.slice(0, 7));
+  const [tab, setTab] = useState<"expenses" | "sales" | "vat" | "recv">("expenses");
+  const [page, setPage] = useState(0);
+  const [f, setF] = useState({ spent_on: today, supplier: "", document_no: "", category: "other", description: "", net: "", vat: "", currency: cur });
+  const inP = (d?: string) => !period || String(d).startsWith(period);
+  const inv = invoices.filter((r) => inP(r.issue_date));
+  const exp = expenses.filter((r) => inP(r.spent_on));
+  const income = r2(inv.reduce((a, r) => a + Number(r.subtotal), 0));
+  const vatOut = r2(inv.reduce((a, r) => a + Number(r.vat_total), 0));
+  const cost = r2(exp.reduce((a, r) => a + Number(r.net), 0));
+  const vatIn = r2(exp.reduce((a, r) => a + Number(r.vat), 0));
+  const unpaid = invoices.filter((r) => r.status === "issued" && !r.storno_of && !r.paid_at && Number(r.total) > 0);
+  const late = unpaid.filter((r) => r.due_date && r.due_date < today);
+  const byRate: Record<string, { net: number; vat: number }> = {};
+  inv.forEach((r) => (r.lines || []).forEach((l: Row) => { const g = (byRate[l.vat_rate] ??= { net: 0, vat: 0 }); g.net += Number(l.net); g.vat += Number(l.vat); }));
+
+  const cut = (rows: Row[]) => rows.slice(Math.min(page, Math.max(0, Math.ceil(rows.length / size) - 1)) * size).slice(0, size);
+  const pager = (n: number) => {
+    const pages = Math.max(1, Math.ceil(n / size)), c = Math.min(page, pages - 1);
+    return n > size ? (
+      <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
+        <span>{c * size + 1}–{Math.min(n, c * size + size)} of {n}</span>
+        <span className="flex gap-2">
+          <button onClick={() => setPage(c - 1)} disabled={c === 0} className="h-8 rounded-md border border-slate-200 px-3 font-semibold disabled:opacity-40">Prev</button>
+          <button onClick={() => setPage(c + 1)} disabled={c >= pages - 1} className="h-8 rounded-md border border-slate-200 px-3 font-semibold disabled:opacity-40">Next</button>
+        </span>
+      </div>
+    ) : null;
+  };
+  const csv = (name: string, head: string[], rows: (string | number)[][]) => {
+    const q = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const blob = new Blob(["\ufeff" + [head, ...rows].map((r) => r.map(q).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href);
+  };
+  const add = async () => {
+    if (setup) return say("Install accounting.sql first.");
+    if (!f.net || isNaN(Number(f.net))) return say("Enter the net amount.");
+    const { error } = await supabase.rpc("admin_add_expense", { p: { ...f, net: Number(f.net), vat: Number(f.vat || 0) } });
+    say(error ? error.message : "Expense added.");
+    if (!error) { setF({ ...f, supplier: "", document_no: "", description: "", net: "", vat: "" }); await refresh(); }
+  };
+  const inp = "mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] outline-none focus:border-blue-500";
+  const TABS: [typeof tab, string][] = [["expenses", `Expenses (${exp.length})`], ["sales", `Sales journal (${inv.length})`], ["vat", "VAT"], ["recv", `Receivables (${unpaid.length})`]];
+  const sorted = [...inv].sort((a, b) => (a.series + a.number < b.series + b.number ? -1 : 1));
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-[13px] font-semibold text-slate-600">Period
+          <input type="month" value={period} onChange={(e) => { setPeriod(e.target.value); setPage(0); }} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-[13px]" />
+        </label>
+        <button onClick={() => { setPeriod(""); setPage(0); }} className="text-xs font-semibold text-blue-700 hover:underline">All time</button>
+        <span className="text-[11px] text-slate-400">Amounts are added up as they are: keep one currency per period.</span>
+      </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi label="Income (net)" value={money(income, cur)} sub={`${inv.length} invoices`} tone="#0D9488" />
+        <Kpi label="Expenses (net)" value={money(cost, cur)} sub={`${exp.length} entries`} tone="#F59E0B" />
+        <Kpi label="Profit (net)" value={money(income - cost, cur)} tone={income - cost >= 0 ? "#2563EB" : "#E11D48"} />
+        <Kpi label="VAT to pay" value={money(vatOut - vatIn, cur)} sub={`${money(vatOut, cur)} collected − ${money(vatIn, cur)} deductible`} tone="#64748B" />
+      </div>
+      <div className="no-scrollbar flex gap-1 overflow-x-auto border-b border-slate-200">
+        {TABS.map(([id, l]) => (
+          <button key={id} onClick={() => { setTab(id); setPage(0); }} className={`shrink-0 border-b-2 px-3 py-2.5 text-xs font-semibold ${tab === id ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}>{l}</button>
+        ))}
+      </div>
+
+      {tab === "expenses" && (
+        <>
+          <Card title="Add expense">
+            <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="block text-[11px] font-semibold text-slate-500">Date<input type="date" value={f.spent_on} onChange={(e) => setF({ ...f, spent_on: e.target.value })} className={inp} /></label>
+              <label className="block text-[11px] font-semibold text-slate-500">Supplier<input value={f.supplier} onChange={(e) => setF({ ...f, supplier: e.target.value })} className={inp} /></label>
+              <label className="block text-[11px] font-semibold text-slate-500">Document no.<input value={f.document_no} onChange={(e) => setF({ ...f, document_no: e.target.value })} className={inp} /></label>
+              <label className="block text-[11px] font-semibold text-slate-500">Category
+                <select value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className={inp}>
+                  {["hosting", "software", "marketing", "fees", "salaries", "equipment", "taxes", "other"].map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </label>
+              <label className="block text-[11px] font-semibold text-slate-500 sm:col-span-2">Description<input value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} className={inp} /></label>
+              <label className="block text-[11px] font-semibold text-slate-500">Net<input type="number" step="any" value={f.net} onChange={(e) => setF({ ...f, net: e.target.value })} className={inp} /></label>
+              <label className="block text-[11px] font-semibold text-slate-500">VAT<input type="number" step="any" value={f.vat} onChange={(e) => setF({ ...f, vat: e.target.value })} className={inp} /></label>
+            </div>
+            <div className="px-4 pb-4"><button onClick={add} className="h-9 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white hover:bg-blue-700">Add expense</button></div>
+          </Card>
+          <Card title={`Expenses (${exp.length})`} right={<button onClick={() => csv(`expenses-${period || "all"}.csv`, ["Date", "Supplier", "Document", "Category", "Description", "Net", "VAT", "Currency"], exp.map((e) => [e.spent_on, e.supplier, e.document_no, e.category, e.description, e.net, e.vat, e.currency]))} className="text-xs font-semibold text-blue-700 hover:underline">Export CSV</button>}>
+            {exp.length === 0 ? <p className="px-4 py-8 text-center text-[13px] text-slate-400">No expenses in this period.</p> : (
+              <Tbl pager={pager(exp.length)} head={<><th className={TH}>Date</th><th className={TH}>Supplier</th><th className={TH}>Document</th><th className={TH}>Category</th><th className={TH}>Description</th><th className={TH}>Net</th><th className={TH}>VAT</th><th className={TH} /></>}>
+                {cut(exp).map((e) => (
+                  <tr key={e.id}>
+                    <td className={TD}>{e.spent_on}</td><td className={`${TD} font-medium text-slate-900`}>{e.supplier || "—"}</td><td className={`${TD} font-mono text-xs`}>{e.document_no || "—"}</td>
+                    <td className={TD}><Pill t={e.category || "other"} tone="mute" /></td><td className={`${TD} max-w-[16rem] truncate`}>{e.description || "—"}</td>
+                    <td className={`${TD} tabular-nums`}>{money(e.net, e.currency)}</td><td className={`${TD} tabular-nums`}>{money(e.vat, e.currency)}</td>
+                    <td className={`${TD} text-right`}>{owner && <button onClick={() => askDelete("airmidi_expenses", e.id, "this expense")} className="text-xs font-semibold text-slate-400 hover:text-red-600">Delete</button>}</td>
+                  </tr>
+                ))}
+              </Tbl>
+            )}
+          </Card>
+        </>
+      )}
+
+      {tab === "sales" && (
+        <Card title={`Sales journal (${sorted.length})`} right={<button onClick={() => csv(`sales-journal-${period || "all"}.csv`, ["Number", "Date", "Customer", "CUI", "Net", "VAT", "Total", "Currency", "Status", "Paid on"], sorted.map((r) => [invNo(r), r.issue_date, r.customer?.name, r.customer?.cui, r.subtotal, r.vat_total, r.total, r.currency, r.status, r.paid_at]))} className="text-xs font-semibold text-blue-700 hover:underline">Export CSV</button>}>
+          {sorted.length === 0 ? <p className="px-4 py-8 text-center text-[13px] text-slate-400">No invoices in this period.</p> : (
+            <Tbl pager={pager(sorted.length)} head={<><th className={TH}>Number</th><th className={TH}>Date</th><th className={TH}>Customer</th><th className={TH}>CUI</th><th className={TH}>Net</th><th className={TH}>VAT</th><th className={TH}>Total</th><th className={TH}>Paid</th></>}>
+              {cut(sorted).map((r) => (
+                <tr key={r.id}>
+                  <td className={`${TD} font-mono text-xs font-semibold text-slate-900`}>{invNo(r)}</td><td className={TD}>{r.issue_date}</td>
+                  <td className={`${TD} max-w-[14rem] truncate`}>{r.customer?.name || "—"}</td><td className={TD}>{r.customer?.cui || "—"}</td>
+                  <td className={`${TD} tabular-nums`}>{money(r.subtotal, r.currency)}</td><td className={`${TD} tabular-nums`}>{money(r.vat_total, r.currency)}</td>
+                  <td className={`${TD} tabular-nums`}>{money(r.total, r.currency)}</td><td className={TD}>{r.paid_at || "—"}</td>
+                </tr>
+              ))}
+            </Tbl>
+          )}
+        </Card>
+      )}
+
+      {tab === "vat" && (
+        <Card title="VAT summary">
+          <Tbl head={<><th className={TH}>VAT rate</th><th className={TH}>Taxable base</th><th className={TH}>VAT collected</th></>}>
+            {Object.entries(byRate).sort().map(([r, g]) => (
+              <tr key={r}><td className={TD}>{r}%</td><td className={`${TD} tabular-nums`}>{money(g.net, cur)}</td><td className={`${TD} tabular-nums`}>{money(g.vat, cur)}</td></tr>
+            ))}
+            <tr><td className={`${TD} font-semibold`}>Deductible (expenses)</td><td className={TD}>{money(cost, cur)}</td><td className={`${TD} tabular-nums`}>− {money(vatIn, cur)}</td></tr>
+            <tr><td className={`${TD} font-bold text-slate-900`}>VAT to pay / (recover)</td><td className={TD} /><td className={`${TD} font-bold tabular-nums text-slate-900`}>{money(vatOut - vatIn, cur)}</td></tr>
+          </Tbl>
+          <p className="px-4 py-3 text-[11px] text-slate-400">Indicative only. Your accountant files the official VAT return.</p>
+        </Card>
+      )}
+
+      {tab === "recv" && (
+        <Card title={`Unpaid invoices (${unpaid.length})`} right={late.length ? <Pill t={`${late.length} overdue`} tone="bad" /> : undefined}>
+          {unpaid.length === 0 ? <p className="px-4 py-8 text-center text-[13px] text-slate-400">Everything is paid.</p> : (
+            <Tbl pager={pager(unpaid.length)} head={<><th className={TH}>Number</th><th className={TH}>Customer</th><th className={TH}>Issued</th><th className={TH}>Due</th><th className={TH}>Total</th><th className={TH}>Status</th><th className={TH} /></>}>
+              {cut(unpaid).map((r) => {
+                const days = r.due_date && r.due_date < today ? Math.round((Date.parse(today) - Date.parse(r.due_date)) / 864e5) : 0;
+                return (
+                  <tr key={r.id}>
+                    <td className={`${TD} font-mono text-xs font-semibold text-slate-900`}>{invNo(r)}</td><td className={`${TD} max-w-[14rem] truncate`}>{r.customer?.name || "—"}</td>
+                    <td className={TD}>{r.issue_date}</td><td className={TD}>{r.due_date || "—"}</td><td className={`${TD} tabular-nums`}>{money(r.total, r.currency)}</td>
+                    <td className={TD}>{days ? <Pill t={`${days} d overdue`} tone="bad" /> : <Pill t="Unpaid" tone="warn" />}</td>
+                    <td className={`${TD} text-right`}><button onClick={() => act(`Mark ${invNo(r)} as paid?`, "admin_mark_invoice_paid", { p_id: r.id, p_date: today }, "Marked as paid.")} disabled={busy} className="h-8 rounded-md bg-emerald-600 px-3 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50">Mark paid</button></td>
+                  </tr>
+                );
+              })}
+            </Tbl>
+          )}
+        </Card>
+      )}
+    </>
+  );
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [gate, setGate] = useState<"checking" | "ok" | "denied">("checking");
@@ -460,6 +648,8 @@ export default function AdminPage() {
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [sysDark, setSysDark] = useState(false);
   const [invDraft, setInvDraft] = useState<Row | null>(null);
+  const [danger, setDanger] = useState<{ table: string; id: string; label: string } | null>(null);
+  const [dangerText, setDangerText] = useState("");
   const [updated, setUpdated] = useState<Date | null>(null);
   const [gateMsg, setGateMsg] = useState("");
   const [mod, setMod] = useState<Mod>("overview");
@@ -475,7 +665,7 @@ export default function AdminPage() {
 
   const refresh = useCallback(async () => {
     setBusy(true);
-    const keys = ["wallets", "ledger", "sessions", "pays", "plans", "settings", "links", "dl", "banks", "users", "forum", "devices", "rooms", "auth", "audit", "inv", "invset"] as const;
+    const keys = ["wallets", "ledger", "sessions", "pays", "plans", "settings", "links", "dl", "banks", "users", "forum", "devices", "rooms", "auth", "audit", "inv", "invset", "exp"] as const;
     const res = await Promise.all([
       load(T.wallets, "updated_at"), load(T.ledger, "created_at"), load(T.sessions, "created_at"), load(T.pays, "created_at"),
       load(T.plans, "sort_order"), load(T.settings, null), load(T.links, "created_at"), load(T.dl, "downloaded_at"),
@@ -487,6 +677,7 @@ export default function AdminPage() {
       load(T.audit, "created_at"),
       load("airmidi_invoices", "created_at"),
       load("airmidi_invoice_settings", null),
+      load("airmidi_expenses", "created_at"),
     ]);
     setD(Object.fromEntries(keys.map((k, i) => [k, res[i]])));
     setUpdated(new Date());
@@ -550,6 +741,16 @@ export default function AdminPage() {
       try { localStorage.setItem("adm-prefs", JSON.stringify(n)); } catch {}
       return n;
     });
+
+  useEffect(() => {
+    if (gate !== "ok") return;
+    const a = new URLSearchParams(window.location.search).get("anaf");
+    if (!a) return;
+    setMod("invoices");
+    setToast(a === "connected" ? "ANAF connected." : "The ANAF connection failed. Check the keys and try again.");
+    setTimeout(() => setToast(""), 4000);
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [gate]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === "Escape" && (setNavOpen(false), setAcct(null), setPrefsOpen(false));
@@ -718,6 +919,17 @@ export default function AdminPage() {
     }
     say(ok);
     await refresh();
+  };
+  const askDelete = (table: string, id: string, label: string) => { setDangerText(""); setDanger({ table, id, label }); };
+  const doDelete = async () => {
+    if (!danger) return;
+    if (setup) { setDanger(null); return say("Actions are off until the admin functions are installed."); }
+    setBusy(true);
+    const { error } = await supabase.rpc("admin_delete", { p_table: danger.table, p_id: danger.id });
+    setBusy(false);
+    setDanger(null);
+    say(error ? error.message : "Deleted.");
+    if (!error) await refresh();
   };
   const resolvePay = (p: Row, accept: boolean) =>
     act(
@@ -897,7 +1109,7 @@ export default function AdminPage() {
                   </div>
                   <div>
                     <p className="mb-2 text-[11px] font-semibold text-slate-500">Console name</p>
-                    <input value={prefs.title} maxLength={28} onChange={(e) => setPref({ title: e.target.value || "iMIDI dashboard " })} className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-[13px] outline-none focus:border-blue-500" />
+                    <input value={prefs.title} maxLength={28} onChange={(e) => setPref({ title: e.target.value || "iMIDI Console" })} className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-[13px] outline-none focus:border-blue-500" />
                   </div>
                   <button onClick={() => setPref(DEF)} className="text-xs font-semibold text-slate-500 hover:underline">Reset to defaults</button>
                 </div>
@@ -1070,7 +1282,7 @@ export default function AdminPage() {
                         <td className={TD}>{dt(l.created_at)}</td>
                         <td className={TD}>{dt(l.expires_at)}</td>
                         <td className={TD}>{l.used ? <Pill t="Redeemed" tone="ok" /> : expired ? <Pill t="Expired" tone="mute" /> : <Pill t="Open" tone="warn" />}</td>
-                        <td className={`${TD} text-right`}>{!l.used && !expired && <button onClick={() => revoke(l)} disabled={busy} className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50">Revoke</button>}</td>
+                        <td className={`${TD} text-right`}>{!l.used && !expired && <button onClick={() => revoke(l)} disabled={busy} className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50">Revoke</button>}{myRole === "owner" && <button onClick={() => askDelete("cloud_share_links", l.id, "this share link")} className="ml-3 text-xs font-semibold text-slate-400 hover:text-red-600">Delete</button>}</td>
                       </tr>
                     );
                   })}
@@ -1179,7 +1391,7 @@ export default function AdminPage() {
             </div>
             <Card title={`Banks (${banks.filter(match).length})`} right={<Search v={q} on={onSearch} />}>
               {banks.length === 0 ? <Empty err={err("banks")} table={T.banks} /> : (
-                <Tbl pager={bkPg} head={<><th className={TH}>Name</th><th className={TH}>Type</th><th className={TH}>Owner</th><th className={TH}>Items</th><th className={TH}>Size</th><th className={TH}>Downloads</th><th className={TH}>Status</th><th className={TH}>Created</th></>}>
+                <Tbl pager={bkPg} head={<><th className={TH}>Name</th><th className={TH}>Type</th><th className={TH}>Owner</th><th className={TH}>Items</th><th className={TH}>Size</th><th className={TH}>Downloads</th><th className={TH}>Status</th><th className={TH}>Created</th><th className={TH} /></>}>
                   {bkRows.map((b) => (
                     <tr key={b.id}>
                       <td className={`${TD} max-w-[16rem] truncate font-medium text-slate-900`}>{b.name}</td>
@@ -1190,6 +1402,7 @@ export default function AdminPage() {
                       <td className={`${TD} tabular-nums`}>{b.download_count ?? 0}</td>
                       <td className={TD}><Pill t={b.status || "—"} tone={b.status === "active" || b.status === "ready" ? "ok" : "mute"} /></td>
                       <td className={TD}>{dt(b.created_at)}</td>
+                      <td className={`${TD} text-right`}>{myRole === "owner" && <button onClick={() => askDelete("cloud_banks", b.id, "this bank")} className="text-xs font-semibold text-slate-400 hover:text-red-600">Delete</button>}</td>
                     </tr>
                   ))}
                 </Tbl>
@@ -1224,7 +1437,7 @@ export default function AdminPage() {
             </div>
             <Card title={`IoT devices (${devs.filter(match).length})`} right={<Search v={q} on={onSearch} />}>
               {devs.length === 0 ? <Empty err={err("devices")} table={T.devices} /> : (
-                <Tbl pager={dvPg} head={<><th className={TH}>Device</th><th className={TH}>Owner</th><th className={TH}>Status</th><th className={TH}>Last seen</th><th className={TH}>Added</th></>}>
+                <Tbl pager={dvPg} head={<><th className={TH}>Device</th><th className={TH}>Owner</th><th className={TH}>Status</th><th className={TH}>Last seen</th><th className={TH}>Added</th><th className={TH} /></>}>
                   {dvRows.map((v) => (
                     <tr key={v.id}>
                       <td className={`${TD} font-medium text-slate-900`}>{v.device_name}</td>
@@ -1232,6 +1445,7 @@ export default function AdminPage() {
                       <td className={TD}>{v.is_online ? <Pill t="Online" tone="ok" /> : <Pill t="Offline" tone="mute" />}</td>
                       <td className={TD}>{dt(v.last_seen)}</td>
                       <td className={TD}>{dt(v.created_at)}</td>
+                      <td className={`${TD} text-right`}>{myRole === "owner" && <button onClick={() => askDelete("airmidi_iot_devices", v.id, "this device")} className="text-xs font-semibold text-slate-400 hover:text-red-600">Delete</button>}</td>
                     </tr>
                   ))}
                 </Tbl>
@@ -1256,6 +1470,10 @@ export default function AdminPage() {
               </Tbl>
             )}
           </Card>
+        )}
+
+        {mod === "accounting" && (
+          <AccountingModule invoices={g("inv")} expenses={g("exp")} cur={cur} size={prefs.size} setup={setup} owner={myRole === "owner"} busy={busy} askDelete={askDelete} act={act} refresh={refresh} say={say} />
         )}
 
         {mod === "invoices" && (
@@ -1421,7 +1639,7 @@ export default function AdminPage() {
                               <td className={`${TD} font-medium text-slate-900`}>{bankName[l.bank_id] || `#${l.bank_id}`}</td>
                               <td className={TD}>{dt(l.created_at)}</td><td className={TD}>{dt(l.expires_at)}</td>
                               <td className={TD}>{l.used ? <Pill t="Redeemed" tone="ok" /> : expired ? <Pill t="Expired" tone="mute" /> : <Pill t="Open" tone="warn" />}</td>
-                              <td className={`${TD} text-right`}>{!l.used && !expired && <button onClick={() => revoke(l)} disabled={busy} className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50">Revoke</button>}</td>
+                              <td className={`${TD} text-right`}>{!l.used && !expired && <button onClick={() => revoke(l)} disabled={busy} className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50">Revoke</button>}{myRole === "owner" && <button onClick={() => askDelete("cloud_share_links", l.id, "this share link")} className="ml-3 text-xs font-semibold text-slate-400 hover:text-red-600">Delete</button>}</td>
                             </tr>
                           );
                         })}
@@ -1484,6 +1702,21 @@ export default function AdminPage() {
           </>
         );
       })()}
+
+      {danger && (
+        <>
+          <div className="fixed inset-0 z-[70] bg-black/60" onClick={() => setDanger(null)} />
+          <div role="alertdialog" aria-modal="true" className="fixed left-1/2 top-1/2 z-[80] w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-red-200 bg-white p-6 shadow-2xl">
+            <p className="text-base font-bold text-slate-900">Delete {danger.label}?</p>
+            <p className="mt-2 text-[13px] leading-relaxed text-slate-500">This cannot be undone. It is recorded in the audit log. Type <b className="font-mono text-red-600">DELETE</b> to confirm.</p>
+            <input autoFocus value={dangerText} onChange={(e) => setDangerText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && dangerText === "DELETE" && doDelete()} placeholder="DELETE" className="mt-4 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 font-mono text-sm outline-none focus:border-red-500" />
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setDanger(null)} className="h-10 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-700">Cancel</button>
+              <button onClick={doDelete} disabled={dangerText !== "DELETE" || busy} className="h-10 rounded-lg bg-red-600 px-4 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-40">Delete permanently</button>
+            </div>
+          </div>
+        </>
+      )}
 
       {toast && <div role="status" className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-[#0A1220] px-4 py-2.5 text-xs font-semibold text-white shadow-xl">{toast}</div>}
     </div>
