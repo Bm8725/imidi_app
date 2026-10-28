@@ -62,7 +62,7 @@ const RCSS = `
 }`;
 
 type Prefs = { theme: "system" | "light" | "dark"; accent: string; dense: boolean; size: number; title: string };
-const DEF: Prefs = { theme: "system", accent: "blue", dense: false, size: 12, title: "iMIDI Console" };
+const DEF: Prefs = { theme: "system", accent: "blue", dense: false, size: 12, title: "iMIDI dashboard admin" };
 const ACCENTS: Record<string, [string, string, string]> = {
   blue: ["#2563EB", "#1D4ED8", "#60A5FA"], teal: ["#0D9488", "#0F766E", "#2DD4BF"], violet: ["#7C3AED", "#6D28D9", "#A78BFA"],
   rose: ["#E11D48", "#BE123C", "#FB7185"], amber: ["#D97706", "#B45309", "#FBBF24"],
