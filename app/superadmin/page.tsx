@@ -897,7 +897,7 @@ export default function AdminPage() {
                   </div>
                   <div>
                     <p className="mb-2 text-[11px] font-semibold text-slate-500">Console name</p>
-                    <input value={prefs.title} maxLength={28} onChange={(e) => setPref({ title: e.target.value || "iMIDI Console" })} className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-[13px] outline-none focus:border-blue-500" />
+                    <input value={prefs.title} maxLength={28} onChange={(e) => setPref({ title: e.target.value || "iMIDI dashboard admin" })} className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-[13px] outline-none focus:border-blue-500" />
                   </div>
                   <button onClick={() => setPref(DEF)} className="text-xs font-semibold text-slate-500 hover:underline">Reset to defaults</button>
                 </div>
