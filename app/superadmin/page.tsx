@@ -306,10 +306,10 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
   const cur0 = Math.min(page, pages - 1);
   const slice = rows.slice(cur0 * size, cur0 * size + size);
   const inp = "mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] outline-none focus:border-blue-500";
-  const F = ({ l, k, ph }: { l: string; k: string; ph?: string }) => (
+  const F = (l: string, k: string, ph?: string) => (
     <label className="block text-[11px] font-semibold text-slate-500">{l}<input value={cust[k] ?? ""} placeholder={ph} onChange={(e) => setCust((c) => ({ ...c, [k]: e.target.value }))} className={inp} /></label>
   );
-  const SF = ({ l, k, ph }: { l: string; k: string; ph?: string }) => (
+  const SF = (l: string, k: string, ph?: string) => (
     <label className="block text-[11px] font-semibold text-slate-500">{l}<input value={seller[k] ?? ""} placeholder={ph} onChange={(e) => setSeller((c) => ({ ...c, [k]: e.target.value }))} className={inp} /></label>
   );
 
@@ -326,10 +326,10 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
         {showCo ? (
           <div className="space-y-3 p-4">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <SF l="Company name" k="name" /><SF l="CUI / CIF" k="cui" ph="RO12345678" /><SF l="Reg. Com." k="reg" ph="J00/000/2020" />
-              <SF l="Address" k="address" /><SF l="City" k="city" /><SF l="County code" k="county" ph="RO-B, RO-DB…" />
-              <SF l="IBAN" k="iban" /><SF l="Bank" k="bank" /><SF l="Email" k="email" />
-              <SF l="Phone" k="phone" /><SF l="Country" k="country" />
+              {SF("Company name", "name")}{SF("CUI / CIF", "cui", "RO12345678")}{SF("Reg. Com.", "reg", "J00/000/2020")}
+              {SF("Address", "address")}{SF("City", "city")}{SF("County code", "county", "RO-B, RO-DB…")}
+              {SF("IBAN", "iban")}{SF("Bank", "bank")}{SF("Email", "email")}
+              {SF("Phone", "phone")}{SF("Country", "country")}
               <label className="flex items-center gap-2 pt-5 text-[13px] font-semibold text-slate-700"><input type="checkbox" checked={seller.vat_payer !== false} onChange={(e) => setSeller((c) => ({ ...c, vat_payer: e.target.checked }))} className="h-4 w-4 accent-blue-600" /> VAT payer</label>
             </div>
             <label className="block text-[11px] font-semibold text-slate-500">Footer text<textarea value={seller.footer ?? ""} onChange={(e) => setSeller((c) => ({ ...c, footer: e.target.value }))} rows={2} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-blue-500" /></label>
@@ -396,10 +396,10 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
                     {["company", "person"].map((k) => <button key={k} onClick={() => setCust((c) => ({ ...c, type: k }))} className={`h-8 rounded-full border px-4 text-xs font-semibold ${cust.type === k ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600"}`}>{k === "company" ? "Company" : "Individual"}</button>)}
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <F l={cust.type === "company" ? "Company name" : "Full name"} k="name" />
-                    {cust.type === "company" && <F l="CUI / VAT ID" k="cui" />}
-                    {cust.type === "company" && <F l="Reg. Com." k="reg" />}
-                    <F l="Email" k="email" /><F l="Address" k="address" /><F l="City" k="city" /><F l="County code" k="county" ph="RO-B, RO-DB…" /><F l="Country" k="country" />
+                    {F(cust.type === "company" ? "Company name" : "Full name", "name")}
+                    {cust.type === "company" && F("CUI / VAT ID", "cui")}
+                    {cust.type === "company" && F("Reg. Com.", "reg")}
+                    {F("Email", "email")}{F("Address", "address")}{F("City", "city")}{F("County code", "county", "RO-B, RO-DB…")}{F("Country", "country")}
                   </div>
                 </div>
               </Card>
@@ -1258,30 +1258,10 @@ export default function AdminPage() {
           </Card>
         )}
 
-{mod === "invoices" && (
-  <div key="force-static-invoice-container" className="w-full">
-    <InvoicesModule 
-      key="immutable-invoice-view"
-      rows={g("inv")} 
-      settingsRow={g("invset")[0]} 
-      users={userRows} 
-      who={who} 
-      cur={cur} 
-      size={prefs.size} 
-      setup={setup} 
-      owner={myRole === "owner"} 
-      busy={false} // 
-      draft={invDraft} 
-      clearDraft={() => setInvDraft(null)} 
-      act={act} 
-      refresh={refresh} 
-      say={say} 
-    />
-  </div>
-)}
-
-
-
+        {mod === "invoices" && (
+          <InvoicesModule rows={g("inv")} settingsRow={g("invset")[0]} users={userRows} who={who} cur={cur} size={prefs.size} setup={setup} owner={myRole === "owner"} busy={busy}
+            draft={invDraft} clearDraft={() => setInvDraft(null)} act={act} refresh={refresh} say={say} />
+        )}
 
         {mod === "sessions" && (
           <>
