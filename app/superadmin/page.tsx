@@ -19,7 +19,7 @@ const ROLES = ["user", "seller", "admin", "superadmin"];
 
 type Row = Record<string, any>;
 type Res = { rows: Row[]; error: string };
-type Mod = "overview" | "explorer" | "banks" | "devices" | "audit" | "invoices" | "accounting" | "users" | "sellers" | "revenue" | "sessions";
+type Mod = "overview" | "explorer" | "banks" | "devices" | "audit" | "invoices" | "accounting" | "settings" | "users" | "sellers" | "revenue" | "sessions";
 const NAV: { id: Mod; label: string; icon: string }[] = [
   { id: "overview", label: "Overview", icon: "M3 13h8V3H3zm10 8h8V11h-8zM3 21h8v-6H3zm10-12h8V3h-8z" },
   { id: "explorer", label: "All data", icon: "M4 6h16M4 12h16M4 18h16" },
@@ -31,6 +31,7 @@ const NAV: { id: Mod; label: string; icon: string }[] = [
   { id: "sessions", label: "AirMIDI sessions", icon: "M22 12h-4l-3 9L9 3l-3 9H2" },
   { id: "invoices", label: "Invoices", icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5" },
   { id: "accounting", label: "Accounting", icon: "M4 4h16v16H4zM8 8h8M8 12h8M8 16h4" },
+  { id: "settings", label: "Settings", icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15l1.6 1.2-2 3.4-1.9-.7a7 7 0 0 1-1.7 1l-.3 2h-4l-.3-2a7 7 0 0 1-1.7-1l-1.9.7-2-3.4L4.6 15a7 7 0 0 1 0-2L3 11.8l2-3.4 1.9.7a7 7 0 0 1 1.7-1l.3-2h4l.3 2a7 7 0 0 1 1.7 1l1.9-.7 2 3.4L19.4 13a7 7 0 0 1 0 2z" },
   { id: "audit", label: "Audit log", icon: "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" },
 ];
 
@@ -62,8 +63,8 @@ const RCSS = `
   .rtable td[data-l=""]{justify-content:flex-end}
 }`;
 
-type Prefs = { theme: "system" | "light" | "dark"; accent: string; dense: boolean; size: number; title: string };
-const DEF: Prefs = { theme: "system", accent: "blue", dense: false, size: 12, title: "iMIDI Console" };
+type Prefs = { theme: "system" | "light" | "dark"; accent: string; dense: boolean; size: number; title: string; defVat: number; dueDays: number; landing: string; hidden: string[]; mask: boolean; idleMin: number; lowHours: number };
+const DEF: Prefs = { theme: "system", accent: "blue", dense: false, size: 12, title: "iMIDI Console", defVat: 21, dueDays: 14, landing: "overview", hidden: [], mask: false, idleMin: 0, lowHours: 1 };
 const ACCENTS: Record<string, [string, string, string]> = {
   blue: ["#2563EB", "#1D4ED8", "#60A5FA"], teal: ["#0D9488", "#0F766E", "#2DD4BF"], violet: ["#7C3AED", "#6D28D9", "#A78BFA"],
   rose: ["#E11D48", "#BE123C", "#FB7185"], amber: ["#D97706", "#B45309", "#FBBF24"],
@@ -226,8 +227,8 @@ function printInvoice(v: { no: string; issue: string; due?: string | null; curre
   setTimeout(() => w.print(), 300);
 }
 
-function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner, busy, draft, clearDraft, act, refresh, say }: {
-  rows: Row[]; settingsRow?: Row; users: Row[]; who: Record<string, string>; cur: string; size: number; setup: boolean; owner: boolean; busy: boolean;
+function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner, busy, defVat, dueDays, draft, clearDraft, act, refresh, say }: {
+  rows: Row[]; settingsRow?: Row; users: Row[]; who: Record<string, string>; cur: string; size: number; setup: boolean; owner: boolean; busy: boolean; defVat: number; dueDays: number;
   draft: Row | null; clearDraft: () => void;
   act: (msg: string, fn: string, args: Record<string, any>, ok: string) => Promise<any>; refresh: () => Promise<void>; say: (m: string) => void;
 }) {
@@ -237,7 +238,7 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
   const [open, setOpen] = useState(false);
   const blank = { type: "company", name: "", cui: "", reg: "", address: "", city: "", county: "", country: "RO", email: "" };
   const [cust, setCust] = useState<Row>(blank);
-  const [lines, setLines] = useState<Line[]>([{ desc: "", qty: 1, price: 0, vat: 21 }]);
+  const [lines, setLines] = useState<Line[]>([{ desc: "", qty: 1, price: 0, vat: defVat }]);
   const [gross, setGross] = useState(false);
   const [currency, setCurrency] = useState(cur);
   const [issue, setIssue] = useState(new Date().toISOString().slice(0, 10));
@@ -269,14 +270,15 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
   }, []);
   useEffect(() => { if (settingsRow && settingsRow.name != null) setSeller((x) => ({ ...x, ...Object.fromEntries(Object.entries(settingsRow).filter(([, v]) => v !== null)) })); }, [settingsRow]);
 
+  const dueIn = (d: number) => new Date(Date.now() + d * 864e5).toISOString().slice(0, 10);
   const pickUser = (id: string) => {
     setUid(id);
     if (id) setCust((c) => ({ ...c, name: c.name || who[id] || "", email: who[id] || c.email }));
   };
   useEffect(() => {
     if (!draft) return;
-    setCust(blank); setUid(""); setDue(""); setNotes("");
-    setLines([draft.line ?? { desc: "", qty: 1, price: 0, vat: 21 }]);
+    setCust(blank); setUid(""); setDue(dueDays ? dueIn(dueDays) : ""); setNotes("");
+    setLines([draft.line ?? { desc: "", qty: 1, price: 0, vat: defVat }]);
     setGross(!!draft.gross); setCurrency((draft.currency || cur).trim()); setPayId(draft.payment || "");
     if (draft.user_id) { setUid(draft.user_id); setCust({ ...blank, name: who[draft.user_id] || "", email: who[draft.user_id] || "" }); }
     setOpen(true);
@@ -364,7 +366,7 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
         {owner && <button onClick={connectAnaf} className="h-8 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:border-blue-400">{anaf ? "Reconnect" : "Connect ANAF"}</button>}
       </div>
 
-      <Card title={`Invoices (${rows.length})`} right={<button onClick={() => { setCust(blank); setUid(""); setLines([{ desc: "", qty: 1, price: 0, vat: 21 }]); setGross(false); setPayId(""); setOpen(true); }} className="h-9 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white hover:bg-blue-700">+ New invoice</button>}>
+      <Card title={`Invoices (${rows.length})`} right={<button onClick={() => { setCust(blank); setUid(""); setLines([{ desc: "", qty: 1, price: 0, vat: defVat }]); setGross(false); setPayId(""); setDue(dueDays ? dueIn(dueDays) : ""); setOpen(true); }} className="h-9 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white hover:bg-blue-700">+ New invoice</button>}>
         {rows.length === 0 ? <p className="px-4 py-8 text-center text-[13px] text-slate-400">No invoices yet. Issue the first one with “New invoice”, or press “Invoice” on a paid request in Revenue.</p> : (
           <Tbl head={<><th className={TH}>Number</th><th className={TH}>Date</th><th className={TH}>Customer</th><th className={TH}>Total</th><th className={TH}>Status</th><th className={TH}>Payment</th><th className={TH}>e-Factura</th><th className={TH} /></>}
             pager={rows.length > size ? (
@@ -442,7 +444,7 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
                       <button onClick={() => setLines((ls) => (ls.length > 1 ? ls.filter((_, k) => k !== i) : ls))} aria-label="Remove line" className="col-span-12 h-9 rounded-lg border border-slate-200 text-xs font-bold text-slate-500 hover:text-red-600 sm:col-span-1">✕</button>
                     </div>
                   ))}
-                  <button onClick={() => setLines((ls) => [...ls, { desc: "", qty: 1, price: 0, vat: 21 }])} className="text-xs font-semibold text-blue-700 hover:underline">+ Add line</button>
+                  <button onClick={() => setLines((ls) => [...ls, { desc: "", qty: 1, price: 0, vat: defVat }])} className="text-xs font-semibold text-blue-700 hover:underline">+ Add line</button>
                 </div>
               </Card>
               <Card title="Details">
@@ -473,13 +475,16 @@ function InvoicesModule({ rows, settingsRow, users, who, cur, size, setup, owner
 /* ───────────────────────── accounting ───────────────────────── */
 function AccountingModule({ invoices, expenses, cur, size, setup, owner, busy, askDelete, act, refresh, say }: {
   invoices: Row[]; expenses: Row[]; cur: string; size: number; setup: boolean; owner: boolean; busy: boolean;
-  askDelete: (table: string, id: string, label: string) => void;
+  askDelete: (table: string, id: string | string[], label: string) => void;
   act: (msg: string, fn: string, args: Record<string, any>, ok: string) => Promise<any>; refresh: () => Promise<void>; say: (m: string) => void;
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const [period, setPeriod] = useState(today.slice(0, 7));
   const [tab, setTab] = useState<"expenses" | "sales" | "vat" | "recv">("expenses");
   const [page, setPage] = useState(0);
+  const [selE, setSelE] = useState<string[]>([]);
+  const [selR, setSelR] = useState<string[]>([]);
+  const tog = (arr: string[], set: (v: string[]) => void, id: string) => set(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
   const [f, setF] = useState({ spent_on: today, supplier: "", document_no: "", category: "other", description: "", net: "", vat: "", currency: cur });
   const inP = (d?: string) => !period || String(d).startsWith(period);
   const inv = invoices.filter((r) => inP(r.issue_date));
@@ -519,6 +524,23 @@ function AccountingModule({ invoices, expenses, cur, size, setup, owner, busy, a
     say(error ? error.message : "Expense added.");
     if (!error) { setF({ ...f, supplier: "", document_no: "", description: "", net: "", vat: "" }); await refresh(); }
   };
+  const markPaid = async () => {
+    if (setup) return say("Install accounting.sql first.");
+    if (!selR.length || !window.confirm(`Mark ${selR.length} invoices as paid today?`)) return;
+    let failed = 0;
+    for (const id of selR) { const { error } = await supabase.rpc("admin_mark_invoice_paid", { p_id: id, p_date: today }); if (error) failed++; }
+    say(failed ? `${selR.length - failed} marked, ${failed} failed.` : `${selR.length} invoices marked as paid.`);
+    setSelR([]);
+    await refresh();
+  };
+  const bar = (ids: string[], sel: string[], set: (v: string[]) => void, actions: React.ReactNode) => (
+    <div className={`flex flex-wrap items-center gap-2 rounded-xl border px-4 py-3 text-[13px] ${sel.length ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white"}`}>
+      <span className="font-semibold text-slate-800"><span className="tabular-nums">{sel.length}</span> selected</span>
+      <button onClick={() => set(ids)} className="font-semibold text-blue-700 hover:underline">Select all {ids.length}</button>
+      {sel.length > 0 && <button onClick={() => set([])} className="font-semibold text-slate-500 hover:underline">Clear</button>}
+      <span className="flex-1" />{actions}
+    </div>
+  );
   const inp = "mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] outline-none focus:border-blue-500";
   const TABS: [typeof tab, string][] = [["expenses", `Expenses (${exp.length})`], ["sales", `Sales journal (${inv.length})`], ["vat", "VAT"], ["recv", `Receivables (${unpaid.length})`]];
   const sorted = [...inv].sort((a, b) => (a.series + a.number < b.series + b.number ? -1 : 1));
@@ -562,11 +584,13 @@ function AccountingModule({ invoices, expenses, cur, size, setup, owner, busy, a
             </div>
             <div className="px-4 pb-4"><button onClick={add} className="h-9 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white hover:bg-blue-700">Add expense</button></div>
           </Card>
+          {bar(exp.map((e) => e.id), selE, setSelE, owner && <button onClick={() => { askDelete("airmidi_expenses", selE, `${selE.length} expenses`); setSelE([]); }} disabled={!selE.length} className="h-9 rounded-lg border border-red-300 bg-white px-3.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-40">Delete selected</button>)}
           <Card title={`Expenses (${exp.length})`} right={<button onClick={() => csv(`expenses-${period || "all"}.csv`, ["Date", "Supplier", "Document", "Category", "Description", "Net", "VAT", "Currency"], exp.map((e) => [e.spent_on, e.supplier, e.document_no, e.category, e.description, e.net, e.vat, e.currency]))} className="text-xs font-semibold text-blue-700 hover:underline">Export CSV</button>}>
             {exp.length === 0 ? <p className="px-4 py-8 text-center text-[13px] text-slate-400">No expenses in this period.</p> : (
-              <Tbl pager={pager(exp.length)} head={<><th className={TH}>Date</th><th className={TH}>Supplier</th><th className={TH}>Document</th><th className={TH}>Category</th><th className={TH}>Description</th><th className={TH}>Net</th><th className={TH}>VAT</th><th className={TH} /></>}>
+              <Tbl pager={pager(exp.length)} head={<><th className={TH} /><th className={TH}>Date</th><th className={TH}>Supplier</th><th className={TH}>Document</th><th className={TH}>Category</th><th className={TH}>Description</th><th className={TH}>Net</th><th className={TH}>VAT</th><th className={TH} /></>}>
                 {cut(exp).map((e) => (
                   <tr key={e.id}>
+                    <td className={TD}><input type="checkbox" aria-label="Select" checked={selE.includes(e.id)} onChange={() => tog(selE, setSelE, e.id)} className="h-4 w-4 accent-blue-600" /></td>
                     <td className={TD}>{e.spent_on}</td><td className={`${TD} font-medium text-slate-900`}>{e.supplier || "—"}</td><td className={`${TD} font-mono text-xs`}>{e.document_no || "—"}</td>
                     <td className={TD}><Pill t={e.category || "other"} tone="mute" /></td><td className={`${TD} max-w-[16rem] truncate`}>{e.description || "—"}</td>
                     <td className={`${TD} tabular-nums`}>{money(e.net, e.currency)}</td><td className={`${TD} tabular-nums`}>{money(e.vat, e.currency)}</td>
@@ -610,13 +634,16 @@ function AccountingModule({ invoices, expenses, cur, size, setup, owner, busy, a
       )}
 
       {tab === "recv" && (
+        <>
+        {bar(unpaid.map((r) => r.id), selR, setSelR, <button onClick={markPaid} disabled={!selR.length} className="h-9 rounded-lg bg-emerald-600 px-3.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-40">Mark selected as paid</button>)}
         <Card title={`Unpaid invoices (${unpaid.length})`} right={late.length ? <Pill t={`${late.length} overdue`} tone="bad" /> : undefined}>
           {unpaid.length === 0 ? <p className="px-4 py-8 text-center text-[13px] text-slate-400">Everything is paid.</p> : (
-            <Tbl pager={pager(unpaid.length)} head={<><th className={TH}>Number</th><th className={TH}>Customer</th><th className={TH}>Issued</th><th className={TH}>Due</th><th className={TH}>Total</th><th className={TH}>Status</th><th className={TH} /></>}>
+            <Tbl pager={pager(unpaid.length)} head={<><th className={TH} /><th className={TH}>Number</th><th className={TH}>Customer</th><th className={TH}>Issued</th><th className={TH}>Due</th><th className={TH}>Total</th><th className={TH}>Status</th><th className={TH} /></>}>
               {cut(unpaid).map((r) => {
                 const days = r.due_date && r.due_date < today ? Math.round((Date.parse(today) - Date.parse(r.due_date)) / 864e5) : 0;
                 return (
                   <tr key={r.id}>
+                    <td className={TD}><input type="checkbox" aria-label="Select" checked={selR.includes(r.id)} onChange={() => tog(selR, setSelR, r.id)} className="h-4 w-4 accent-blue-600" /></td>
                     <td className={`${TD} font-mono text-xs font-semibold text-slate-900`}>{invNo(r)}</td><td className={`${TD} max-w-[14rem] truncate`}>{r.customer?.name || "—"}</td>
                     <td className={TD}>{r.issue_date}</td><td className={TD}>{r.due_date || "—"}</td><td className={`${TD} tabular-nums`}>{money(r.total, r.currency)}</td>
                     <td className={TD}>{days ? <Pill t={`${days} d overdue`} tone="bad" /> : <Pill t="Unpaid" tone="warn" />}</td>
@@ -627,6 +654,7 @@ function AccountingModule({ invoices, expenses, cur, size, setup, owner, busy, a
             </Tbl>
           )}
         </Card>
+        </>
       )}
     </>
   );
@@ -648,7 +676,8 @@ export default function AdminPage() {
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [sysDark, setSysDark] = useState(false);
   const [invDraft, setInvDraft] = useState<Row | null>(null);
-  const [danger, setDanger] = useState<{ table: string; id: string; label: string } | null>(null);
+  const [danger, setDanger] = useState<{ table: string; ids: string[]; label: string } | null>(null);
+  const [sels, setSels] = useState<Record<string, string[]>>({});
   const [dangerText, setDangerText] = useState("");
   const [updated, setUpdated] = useState<Date | null>(null);
   const [gateMsg, setGateMsg] = useState("");
@@ -727,7 +756,7 @@ export default function AdminPage() {
   useEffect(() => {
     try {
       const v = JSON.parse(localStorage.getItem("adm-prefs") || "null");
-      if (v) setPrefs({ ...DEF, ...v });
+      if (v) { setPrefs({ ...DEF, ...v }); if (v.landing && v.landing !== "overview") setMod(v.landing); }
     } catch {}
     const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
     setSysDark(!!mq?.matches);
@@ -741,6 +770,17 @@ export default function AdminPage() {
       try { localStorage.setItem("adm-prefs", JSON.stringify(n)); } catch {}
       return n;
     });
+
+  useEffect(() => {
+    if (gate !== "ok" || !prefs.idleMin) return;
+    let t: ReturnType<typeof setTimeout>;
+    const out = () => supabase.auth.signOut().then(() => router.replace("/login?next=/admin"));
+    const reset = () => { clearTimeout(t); t = setTimeout(out, prefs.idleMin * 60_000); };
+    const ev = ["mousemove", "keydown", "click", "touchstart"] as const;
+    ev.forEach((e) => window.addEventListener(e, reset));
+    reset();
+    return () => { clearTimeout(t); ev.forEach((e) => window.removeEventListener(e, reset)); };
+  }, [gate, prefs.idleMin, router]);
 
   useEffect(() => {
     if (gate !== "ok") return;
@@ -772,7 +812,8 @@ export default function AdminPage() {
     profiles.forEach((r) => { if (r.id && (r.email || r.full_name)) m[r.id] = r.email || r.full_name; });
     return m;
   }, [d]); // eslint-disable-line react-hooks/exhaustive-deps
-  const name = (id?: string) => (id ? who[id] || id.slice(0, 8) : "—");
+  const maskMail = (v: string) => (prefs.mask && v.includes("@") ? v.replace(/^(.).*?(@.*)$/, "$1•••$2") : v);
+  const name = (id?: string) => (id ? maskMail(who[id] || id.slice(0, 8)) : "—");
   const cell = (c: string, v: any): React.ReactNode => {
     if (v === null || v === undefined) return "—";
     if (SENSITIVE.test(c)) return "••••••";
@@ -920,16 +961,48 @@ export default function AdminPage() {
     say(ok);
     await refresh();
   };
-  const askDelete = (table: string, id: string, label: string) => { setDangerText(""); setDanger({ table, id, label }); };
+  const askDelete = (table: string, id: string | string[], label: string) => { setDangerText(""); setDanger({ table, ids: Array.isArray(id) ? id : [id], label }); };
   const doDelete = async () => {
     if (!danger) return;
     if (setup) { setDanger(null); return say("Actions are off until the admin functions are installed."); }
     setBusy(true);
-    const { error } = await supabase.rpc("admin_delete", { p_table: danger.table, p_id: danger.id });
+    let failed = 0, last = "";
+    for (const id of danger.ids) {
+      const { error } = await supabase.rpc("admin_delete", { p_table: danger.table, p_id: id });
+      if (error) { failed++; last = error.message; }
+    }
     setBusy(false);
+    const n = danger.ids.length;
     setDanger(null);
-    say(error ? error.message : "Deleted.");
-    if (!error) await refresh();
+    setSels({});
+    say(failed ? `${n - failed} deleted, ${failed} failed: ${last}` : n > 1 ? `Deleted ${n} items.` : "Deleted.");
+    await refresh();
+  };
+  const sget = (k: string) => sels[k] ?? [];
+  const stog = (k: string, id: string) => setSels((x) => ({ ...x, [k]: (x[k] ?? []).includes(id) ? x[k].filter((i) => i !== id) : [...(x[k] ?? []), id] }));
+  const selBar = (k: string, ids: string[], table: string, label: string, extra?: React.ReactNode) => {
+    const cur2 = sget(k);
+    return (
+      <div className={`flex flex-wrap items-center gap-2 rounded-xl border px-4 py-3 text-[13px] ${cur2.length ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white"}`}>
+        <span className="font-semibold text-slate-800"><span className="tabular-nums">{cur2.length}</span> selected</span>
+        <button onClick={() => setSels((x) => ({ ...x, [k]: ids }))} className="font-semibold text-blue-700 hover:underline">Select all {ids.length}</button>
+        {cur2.length > 0 && <button onClick={() => setSels((x) => ({ ...x, [k]: [] }))} className="font-semibold text-slate-500 hover:underline">Clear</button>}
+        <span className="flex-1" />
+        {extra}
+        {myRole === "owner" && <button onClick={() => askDelete(table, cur2, `${cur2.length} ${label}`)} disabled={!cur2.length || busy} className="h-9 rounded-lg border border-red-300 bg-white px-3.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-40">Delete selected</button>}
+      </div>
+    );
+  };
+  const bulkRevoke = async () => {
+    const ids = sget("links");
+    if (setup) return say("Actions are off until the admin functions are installed.");
+    if (!ids.length || !window.confirm(`Revoke ${ids.length} links?`)) return;
+    setBusy(true);
+    let failed = 0;
+    for (const id of ids) { const { error } = await supabase.rpc("admin_revoke_link", { p_id: id }); if (error) failed++; }
+    setSels((x) => ({ ...x, links: [] }));
+    say(failed ? `${ids.length - failed} revoked, ${failed} failed.` : `${ids.length} links revoked.`);
+    await refresh();
   };
   const resolvePay = (p: Row, accept: boolean) =>
     act(
@@ -947,7 +1020,7 @@ export default function AdminPage() {
     act(ban ? `Suspend ${name(id)}? They won't be able to sign in.` : `Re-enable ${name(id)}?`, "admin_set_banned", { p_user: id, p_banned: ban }, ban ? "Account suspended." : "Account re-enabled.");
   const revoke = (l: Row) => act("Revoke this link? It stops working immediately.", "admin_revoke_link", { p_id: l.id }, "Link revoked.");
   const startInvoice = (p: Row) => {
-    setInvDraft({ user_id: p.user_id, gross: true, currency: p.currency, payment: p.id, line: { desc: `AirMIDI Link: plan ${p.plan_id} (ref. ${p.reference})`, qty: 1, price: Number(p.amount), vat: 21 } });
+    setInvDraft({ user_id: p.user_id, gross: true, currency: p.currency, payment: p.id, line: { desc: `AirMIDI Link: plan ${p.plan_id} (ref. ${p.reference})`, qty: 1, price: Number(p.amount), vat: prefs.defVat } });
     nav("invoices");
   };
   const PayBtns = ({ p }: { p: Row }) =>
@@ -1019,6 +1092,17 @@ export default function AdminPage() {
       </Tbl>
     );
 
+const setRow = (t: string, d: string, c: React.ReactNode) => (
+    <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-4 py-3 last:border-0">
+      <div className="min-w-0"><p className="text-[13px] font-semibold text-slate-800">{t}</p><p className="text-[11px] text-slate-400">{d}</p></div>
+      <div className="shrink-0">{c}</div>
+    </div>
+  );
+  const sw = (on: boolean, fn: () => void) => (
+    <button role="switch" aria-checked={on} onClick={fn} className={`relative h-6 w-11 rounded-full transition-colors ${on ? "bg-blue-600" : "bg-slate-300"}`}>
+      <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? "translate-x-5" : ""}`} />
+    </button>
+  );
   const title = NAV.find((n) => n.id === mod)!.label;
   const dark = prefs.theme === "dark" || (prefs.theme === "system" && sysDark);
   const ac = ACCENTS[prefs.accent] ?? ACCENTS.blue;
@@ -1037,7 +1121,7 @@ export default function AdminPage() {
           <button onClick={() => setNavOpen(false)} aria-label="Close menu" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white lg:hidden">✕</button>
         </div>
         <nav className="space-y-1">
-          {NAV.map((n) => (
+          {NAV.filter((n) => !prefs.hidden.includes(n.id)).map((n) => (
             <button key={n.id} onClick={() => nav(n.id)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] font-semibold transition-colors ${mod === n.id ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}>
               <Ico d={n.icon} />{n.label}
               {n.id === "revenue" && pending > 0 && <span className="ml-auto rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-black">{pending}</span>}
@@ -1212,7 +1296,7 @@ export default function AdminPage() {
                   <tr key={r.id} className="hover:bg-slate-50/70">
                     <td className={TD}><input type="checkbox" aria-label="Select account" checked={sel.includes(r.id)} onChange={() => setSel((x) => (x.includes(r.id) ? x.filter((i) => i !== r.id) : [...x, r.id]))} className="h-4 w-4 accent-blue-600" /></td>
                     <td className={TD}><button onClick={() => { setAcct(r.id); setAtab("summary"); }} className="font-semibold text-blue-700 hover:underline">{name(r.id)}</button></td>
-                    <td className={`${TD} tabular-nums`}>{hrs(r.balance)} h</td>
+                    <td className={`${TD} tabular-nums ${r.balance > 0 && r.balance < prefs.lowHours * 3600 ? "font-semibold text-amber-600" : ""}`}>{hrs(r.balance)} h</td>
                     <td className={`${TD} tabular-nums`}>{money(r.spent, cur)}</td>
                     <td className={`${TD} tabular-nums`}>{r.sessions}</td>
                     <td className={`${TD} tabular-nums`}>{r.banks || 0}</td>
@@ -1270,13 +1354,15 @@ export default function AdminPage() {
                 </Tbl>
               )}
             </Card>
+            {selBar("links", lAll.map((l) => l.id), "cloud_share_links", "links", <button onClick={bulkRevoke} disabled={!sget("links").length || busy} className="h-9 rounded-lg border border-slate-300 bg-white px-3.5 text-xs font-bold text-slate-700 hover:border-blue-400 disabled:opacity-40">Revoke selected</button>)}
             <Card title={`Share links (${lAll.length})`} right={<Search v={q} on={onSearch} />}>
               {links.length === 0 ? <Empty err={err("links")} table={T.links} /> : (
-                <Tbl pager={lPg} head={<><th className={TH}>Bank</th><th className={TH}>Seller</th><th className={TH}>Created</th><th className={TH}>Expires</th><th className={TH}>Status</th><th className={TH} /></>}>
+                <Tbl pager={lPg} head={<><th className={TH} /><th className={TH}>Bank</th><th className={TH}>Seller</th><th className={TH}>Created</th><th className={TH}>Expires</th><th className={TH}>Status</th><th className={TH} /></>}>
                   {lRows.map((l) => {
                     const expired = l.expires_at && new Date(l.expires_at).getTime() < Date.now();
                     return (
                       <tr key={l.id}>
+                        <td className={TD}><input type="checkbox" aria-label="Select" checked={sget("links").includes(l.id)} onChange={() => stog("links", l.id)} className="h-4 w-4 accent-blue-600" /></td>
                         <td className={`${TD} max-w-[16rem] truncate font-medium text-slate-900`}>{bankName[l.bank_id] || `#${l.bank_id}`}</td>
                         <td className={TD}>{name(l.user_id)}</td>
                         <td className={TD}>{dt(l.created_at)}</td>
@@ -1389,11 +1475,13 @@ export default function AdminPage() {
               <Kpi label="Downloads" value={String(banks.reduce((a, b) => a + (Number(b.download_count) || 0), 0))} tone="#F59E0B" />
               <Kpi label="Owners" value={String(new Set(banks.map((b) => b.user_id)).size)} tone="#64748B" />
             </div>
+            {selBar("banks", banks.filter(match).map((b) => String(b.id)), "cloud_banks", "banks")}
             <Card title={`Banks (${banks.filter(match).length})`} right={<Search v={q} on={onSearch} />}>
               {banks.length === 0 ? <Empty err={err("banks")} table={T.banks} /> : (
-                <Tbl pager={bkPg} head={<><th className={TH}>Name</th><th className={TH}>Type</th><th className={TH}>Owner</th><th className={TH}>Items</th><th className={TH}>Size</th><th className={TH}>Downloads</th><th className={TH}>Status</th><th className={TH}>Created</th><th className={TH} /></>}>
+                <Tbl pager={bkPg} head={<><th className={TH} /><th className={TH}>Name</th><th className={TH}>Type</th><th className={TH}>Owner</th><th className={TH}>Items</th><th className={TH}>Size</th><th className={TH}>Downloads</th><th className={TH}>Status</th><th className={TH}>Created</th><th className={TH} /></>}>
                   {bkRows.map((b) => (
                     <tr key={b.id}>
+                      <td className={TD}><input type="checkbox" aria-label="Select" checked={sget("banks").includes(b.id)} onChange={() => stog("banks", b.id)} className="h-4 w-4 accent-blue-600" /></td>
                       <td className={`${TD} max-w-[16rem] truncate font-medium text-slate-900`}>{b.name}</td>
                       <td className={TD}>{b.type || "—"}</td>
                       <td className={TD}>{name(b.user_id)}</td>
@@ -1435,11 +1523,13 @@ export default function AdminPage() {
               <Kpi label="Offline" value={String(devs.filter((v) => !v.is_online).length)} tone="#64748B" />
               <Kpi label="Owners" value={String(new Set(devs.map((v) => v.user_id)).size)} tone="#F59E0B" />
             </div>
+            {selBar("devices", devs.filter(match).map((v) => v.id), "airmidi_iot_devices", "devices")}
             <Card title={`IoT devices (${devs.filter(match).length})`} right={<Search v={q} on={onSearch} />}>
               {devs.length === 0 ? <Empty err={err("devices")} table={T.devices} /> : (
-                <Tbl pager={dvPg} head={<><th className={TH}>Device</th><th className={TH}>Owner</th><th className={TH}>Status</th><th className={TH}>Last seen</th><th className={TH}>Added</th><th className={TH} /></>}>
+                <Tbl pager={dvPg} head={<><th className={TH} /><th className={TH}>Device</th><th className={TH}>Owner</th><th className={TH}>Status</th><th className={TH}>Last seen</th><th className={TH}>Added</th><th className={TH} /></>}>
                   {dvRows.map((v) => (
                     <tr key={v.id}>
+                      <td className={TD}><input type="checkbox" aria-label="Select" checked={sget("devices").includes(v.id)} onChange={() => stog("devices", v.id)} className="h-4 w-4 accent-blue-600" /></td>
                       <td className={`${TD} font-medium text-slate-900`}>{v.device_name}</td>
                       <td className={TD}>{name(v.user_id)}</td>
                       <td className={TD}>{v.is_online ? <Pill t="Online" tone="ok" /> : <Pill t="Offline" tone="mute" />}</td>
@@ -1472,13 +1562,68 @@ export default function AdminPage() {
           </Card>
         )}
 
+        {mod === "settings" && (
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card title="Appearance">
+              {setRow("Theme", "Light, dark or follow the device", (
+                <div className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1">
+                  {(["light", "dark", "system"] as const).map((t) => <button key={t} onClick={() => setPref({ theme: t })} className={`h-8 rounded-md px-3 text-xs font-semibold capitalize ${prefs.theme === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>{t}</button>)}
+                </div>
+              ))}
+              {setRow("Accent colour", "Buttons, tabs and charts", (
+                <div className="flex gap-2">{Object.entries(ACCENTS).map(([k, v]) => <button key={k} onClick={() => setPref({ accent: k })} aria-label={k} className={`h-7 w-7 rounded-full border-2 ${prefs.accent === k ? "border-slate-900" : "border-transparent"}`} style={{ background: v[0] }} />)}</div>
+              ))}
+              {setRow("Compact tables", "More rows on screen", sw(prefs.dense, () => setPref({ dense: !prefs.dense })))}
+              {setRow("Rows per page", "Applies to every table", (
+                <select value={prefs.size} onChange={(e) => { setPref({ size: Number(e.target.value) }); setPg({}); }} className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold">{[12, 25, 50, 100].map((n) => <option key={n}>{n}</option>)}</select>
+              ))}
+              {setRow("Console name", "Shown in the sidebar", <input value={prefs.title} maxLength={28} onChange={(e) => setPref({ title: e.target.value || "iMIDI Console" })} className="h-8 w-40 rounded-md border border-slate-200 bg-white px-2 text-xs outline-none focus:border-blue-500" />)}
+            </Card>
+            <Card title="Invoicing defaults">
+              {setRow("Default VAT rate", "Pre-selected on new lines", (
+                <select value={prefs.defVat} onChange={(e) => setPref({ defVat: Number(e.target.value) })} className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold">{[21, 11, 0].map((n) => <option key={n} value={n}>{n}%</option>)}</select>
+              ))}
+              {setRow("Payment term", "Due date = issue date + days (0 = none)", <input type="number" min={0} max={365} value={prefs.dueDays} onChange={(e) => setPref({ dueDays: Math.max(0, Number(e.target.value) || 0) })} className="h-8 w-20 rounded-md border border-slate-200 bg-white px-2 text-xs outline-none focus:border-blue-500" />)}
+              {setRow("Low hours alert", "Highlight accounts below this many hours", <input type="number" min={0} step="0.5" value={prefs.lowHours} onChange={(e) => setPref({ lowHours: Math.max(0, Number(e.target.value) || 0) })} className="h-8 w-20 rounded-md border border-slate-200 bg-white px-2 text-xs outline-none focus:border-blue-500" />)}
+            </Card>
+            <Card title="Navigation">
+              {setRow("Start page", "Opens first after sign-in", (
+                <select value={prefs.landing} onChange={(e) => setPref({ landing: e.target.value })} className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold">{NAV.filter((n) => !prefs.hidden.includes(n.id)).map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}</select>
+              ))}
+              <div className="px-4 py-3">
+                <p className="text-[13px] font-semibold text-slate-800">Visible modules</p>
+                <p className="mb-2 text-[11px] text-slate-400">Hide what you do not use. Overview and Settings always stay.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {NAV.filter((n) => n.id !== "overview" && n.id !== "settings").map((n) => (
+                    <label key={n.id} className="flex items-center gap-2 text-[13px] text-slate-700">
+                      <input type="checkbox" checked={!prefs.hidden.includes(n.id)} onChange={() => setPref({ hidden: prefs.hidden.includes(n.id) ? prefs.hidden.filter((x) => x !== n.id) : [...prefs.hidden, n.id], landing: prefs.landing === n.id ? "overview" : prefs.landing })} className="h-4 w-4 accent-blue-600" />{n.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </Card>
+            <Card title="Privacy & security">
+              {setRow("Hide email addresses", "Shows j•••@domain.com in lists (screen sharing)", sw(prefs.mask, () => setPref({ mask: !prefs.mask })))}
+              {setRow("Sign out when idle", "Automatic sign-out after no activity", (
+                <select value={prefs.idleMin} onChange={(e) => setPref({ idleMin: Number(e.target.value) })} className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold">
+                  {[[0, "Never"], [10, "10 min"], [30, "30 min"], [60, "1 hour"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              ))}
+              {setRow("Your role", `${myEmail || "—"}`, <Pill t={myRole === "viewer" ? "View-only" : myRole} tone={myRole === "owner" ? "ok" : "mute"} />)}
+              {setRow("Reset this device", "Clears these preferences and the saved company details on this browser", (
+                <button onClick={() => { if (window.confirm("Reset all preferences on this device?")) { setPref(DEF); try { localStorage.removeItem("adm-seller"); } catch {} say("Preferences reset."); } }} className="h-8 rounded-md border border-red-200 px-3 text-xs font-bold text-red-600 hover:bg-red-50">Reset</button>
+              ))}
+            </Card>
+          </div>
+        )}
+
         {mod === "accounting" && (
           <AccountingModule invoices={g("inv")} expenses={g("exp")} cur={cur} size={prefs.size} setup={setup} owner={myRole === "owner"} busy={busy} askDelete={askDelete} act={act} refresh={refresh} say={say} />
         )}
 
         {mod === "invoices" && (
           <InvoicesModule rows={g("inv")} settingsRow={g("invset")[0]} users={userRows} who={who} cur={cur} size={prefs.size} setup={setup} owner={myRole === "owner"} busy={busy}
-            draft={invDraft} clearDraft={() => setInvDraft(null)} act={act} refresh={refresh} say={say} />
+            defVat={prefs.defVat} dueDays={prefs.dueDays} draft={invDraft} clearDraft={() => setInvDraft(null)} act={act} refresh={refresh} say={say} />
         )}
 
         {mod === "sessions" && (
@@ -1707,7 +1852,7 @@ export default function AdminPage() {
         <>
           <div className="fixed inset-0 z-[70] bg-black/60" onClick={() => setDanger(null)} />
           <div role="alertdialog" aria-modal="true" className="fixed left-1/2 top-1/2 z-[80] w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-red-200 bg-white p-6 shadow-2xl">
-            <p className="text-base font-bold text-slate-900">Delete {danger.label}?</p>
+            <p className="text-base font-bold text-slate-900">Delete {danger.ids.length > 1 ? "" : "this "}{danger.label}?</p>
             <p className="mt-2 text-[13px] leading-relaxed text-slate-500">This cannot be undone. It is recorded in the audit log. Type <b className="font-mono text-red-600">DELETE</b> to confirm.</p>
             <input autoFocus value={dangerText} onChange={(e) => setDangerText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && dangerText === "DELETE" && doDelete()} placeholder="DELETE" className="mt-4 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 font-mono text-sm outline-none focus:border-red-500" />
             <div className="mt-4 flex justify-end gap-2">
