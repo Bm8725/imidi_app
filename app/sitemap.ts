@@ -4,35 +4,40 @@ import { supabase } from '@/lib/supabase';
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const SITE_URL = 'https://imidi.co.uk';
 
-  // 1. Luăm toate ID-urile active din tabela listings (E-Market)
-  const { data: listings } = await supabase
-    .from('listings')
-    .select('id')
-    .order('created_at', { ascending: false });
+  // 1. SOLUȚIA: Executăm interogările în PARALEL cu Promise.all și limităm la top 5000 pentru performanță
+  const [listingsResult, stiriResult] = await Promise.all([
+    supabase
+      .from('listings')
+      .select('id, created_at')
+      .order('created_at', { ascending: false })
+      .range(0, 4999),
+    supabase
+      .from('forum_posts')
+      .select('id, created_at')
+      .order('created_at', { ascending: false })
+      .range(0, 4999)
+  ]);
 
-  // 2. Luăm toate ID-urile active din tabela forum_posts (Știri)
-  const { data: stiri } = await supabase
-    .from('forum_posts')
-    .select('id')
-    .order('created_at', { ascending: false });
+  const listings = listingsResult.data || [];
+  const stiri = stiriResult.data || [];
 
-  // Generăm link-urile pentru E-Market
-  const listingUrls = (listings || []).map((listing) => ({
+  // 2. Generăm link-urile pentru E-Market folosind data reală
+  const listingUrls = listings.map((listing) => ({
     url: `${SITE_URL}/e-market/listing/${listing.id}`,
-    lastModified: new Date(),
+    lastModified: listing.created_at ? new Date(listing.created_at) : new Date(),
     changeFrequency: 'daily' as const,
     priority: 0.8,
   }));
 
-  // Generăm link-urile individuale pentru Știri (?post=id)
-  const stiriUrls = (stiri || []).map((stire) => ({
+  // 3. Generăm link-urile pentru Știri folosind data reală
+  const stiriUrls = stiri.map((stire) => ({
     url: `${SITE_URL}/stiri?post=${stire.id}`,
-    lastModified: new Date(),
+    lastModified: stire.created_at ? new Date(stire.created_at) : new Date(),
     changeFrequency: 'daily' as const,
     priority: 0.8,
   }));
 
-  // 3. Returnăm tot setul completat
+  // 4. Returnăm setul complet (Rutele Statice + Rutele Dinamice)
   return [
     {
       url: SITE_URL,
@@ -70,13 +75,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily',
       priority: 0.9,
     },
-        {
+    {
       url: `${SITE_URL}/sd-writer`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.8,
     },
     ...listingUrls,
-    ...stiriUrls, // 
+    ...stiriUrls,
   ];
 }
