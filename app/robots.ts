@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/dashboard/cloud-db", "/terms"], // Blochează scanarea fișierelor de sistem și a rutelor private
+      disallow: ["/dashboard/cloud-db", "/terms", "/superadmin","/vmlk","/login"], // Blochează scanarea fișierelor de sistem și a rutelor private
     },
     sitemap: "https://imidi.co.uk", // 
   };
