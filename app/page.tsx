@@ -14,6 +14,7 @@ import Footer from "@/components/Footer";
 const PINK = "#FF5CA1";
 const ORANGE = "#FF8A3D";
 const PURPLE = "#B47CFF";
+const RED= "#A61E2B";
 
 const FAQS = [
   {
@@ -68,6 +69,16 @@ cta: "Open AirMIDI Link",
 color: PURPLE, // sau culoarea pe care o folosești pentru AirMIDI
 icon: "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1.5-3-1-1-1.5-1.62-1.5-3a2.5 2.5 0 0 1 5 0c0 1.38-.5 2-1.5 3-1 1-1.5 1.62-1.5 3a2.5 2.5 0 0 0 2.5 2.5M12 20v-2M8 20h8M4.5 9.5c0-2 .8-3.5 2-4.5M19.5 9.5c0-2-.8-3.5-2-4.5",
 },
+ {
+    eyebrow: "Tools",
+    title: "wbank manager",
+    desc: "Compile multi-sampled wave vectors local-first. Map iMIDI zones and export 64-byte aligned Little Endian sound banks for TS4X Core DSP.",
+    chips: ["WAV 16/24/32 bits compilation", "Envelope shaper", "Integrity check"],
+    href: "/support/tool/wbank-studio",
+    cta: "Open wbank manager",
+    color: RED,
+    icon: "M3 7a2 2 0 0 1 2-2h5l2 2h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7zm6 5v5m3-3v3m3-5v5m3-2v2",
+  },
 {
 eyebrow: "Marketplace",
 title: "E-Market",

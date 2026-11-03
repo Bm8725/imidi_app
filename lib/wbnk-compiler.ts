@@ -14,7 +14,8 @@
  *           56 u32 loop_end      (frames)
  *           60 u8  root_key
  *           61 i8  fine_tune     (cents)
- *           62 u8[2] reserved
+ *           62 u8  loop_mode    (0 = off, 1 = forward loop between loop_start and loop_end)
+ *           63 u8  reserved
  *
  * INST  : u32 ni, u32 nz, ni × 40-byte instrument, nz × 32-byte zone.
  *         Instrument: char[32] name, u32 first_zone, u32 zone_count.
@@ -63,6 +64,12 @@ export interface BankSample {
   fineTune: number;
   loopStart: number;
   loopEnd: number;
+  /** 0 = no loop, 1 = forward loop between loopStart and loopEnd (frames). */
+  loopMode: 0 | 1;
+  /** Set after trimming, so the editor can restore the untouched recording. */
+  origin?: { blob: Blob; frames: number; offset: number };
+  /** Root note stored inside the WAV file itself (sampler chunk), when present. */
+  wavRoot?: number | null;
 }
 
 export interface BankZone {
@@ -207,6 +214,8 @@ export function validateBank(bank: BankModel): Issue[] {
   }
 
   if (bank.instruments.length === 0) err('The bank has no instruments. Add at least one.');
+  if (bank.instruments.length > 128)
+    warn('The bank has more than 128 instruments. Slots above 127 cannot be selected with a standard MIDI program change.');
   if (bank.samples.length === 0) warn('The bank has no samples, so it will play silence.');
 
   const sampleIds = new Set(bank.samples.map((s) => s.id));
@@ -260,6 +269,15 @@ export function validateBank(bank: BankModel): Issue[] {
   if (longNames > 0)
     issues.push({ level: 'warn', tab: 'samples', message: `${longNames} sample name(s) are longer than 32 bytes and will be shortened.` });
 
+  for (const smp of bank.samples) {
+    if (smp.loopMode === 1 && !(smp.loopStart >= 0 && smp.loopStart < smp.loopEnd && smp.loopEnd <= smp.frames))
+      issues.push({
+        level: 'error',
+        tab: 'samples',
+        message: `Sample “${smp.name}” has loop points outside the sample. Open it in the editor and set the loop again.`,
+      });
+  }
+
   const meta = bank.meta as Record<string, unknown>;
   const text = (k: string) => String(meta[k] ?? '').trim();
   const rights = (message: string) => issues.push({ level: 'warn', tab: 'rights', message });
@@ -308,6 +326,7 @@ function buildChunks(bank: BankModel): Chunk[] {
     sv.setUint32(b + 56, s.loopEnd, true);
     sv.setUint8(b + 60, s.rootKey);
     sv.setInt8(b + 61, s.fineTune);
+    sv.setUint8(b + 62, s.loopMode);
     dataParts.push(s.blob);
     const padded = padTo(s.blob.size, DATA_ALIGNMENT);
     if (padded > s.blob.size) dataParts.push(new Uint8Array(padded - s.blob.size));
@@ -440,13 +459,15 @@ function antiTamper(dataCrc: number): Uint8Array {
 export async function compileWbnk(
   bank: BankModel,
   sink: WbnkSink,
-  onProgress?: (p: Progress) => void
+  onProgress?: (p: Progress) => void,
+  signal?: AbortSignal
 ): Promise<number> {
   const chunks = buildChunks(bank);
   const { starts, tableOffset, total } = layout(chunks);
   let written = 0;
   const report = (message: string) => onProgress?.({ message, written, total });
   const append = async (data: Uint8Array) => {
+    if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
     await sink.append(data);
     written += data.length;
   };
@@ -586,6 +607,7 @@ export async function parseWbnk(file: File, onCheck?: (msg: string) => void): Pr
       format,
       loopStart: sv.getUint32(b + 52, true),
       loopEnd: sv.getUint32(b + 56, true),
+      loopMode: (sv.getUint8(b + 62) & 1) as 0 | 1,
       rootKey: sv.getUint8(b + 60),
       fineTune: sv.getInt8(b + 61),
     });
@@ -659,8 +681,9 @@ export async function readWav(file: File): Promise<BankSample> {
   let pos = 12;
   let fmt: { code: number; channels: number; rate: number; bits: number } | null = null;
   let data: { offset: number; size: number } | null = null;
+  let smpl: { unity: number; start: number; end: number; loops: number } | null = null;
 
-  while (pos + 8 <= file.size && !(fmt && data)) {
+  while (pos + 8 <= file.size) {
     const h = new DataView(await file.slice(pos, pos + 8).arrayBuffer());
     const id = tag(h, 0);
     const size = h.getUint32(4, true);
@@ -672,6 +695,15 @@ export async function readWav(file: File): Promise<BankSample> {
       fmt = { code, channels: f.getUint16(2, true), rate: f.getUint32(4, true), bits: f.getUint16(14, true) };
     } else if (id === 'data') {
       data = { offset: body, size: Math.min(size, file.size - body) };
+    } else if (id === 'smpl' && size >= 36) {
+      const f = new DataView(await file.slice(body, body + Math.min(size, 60)).arrayBuffer());
+      const loops = f.getUint32(28, true);
+      smpl = {
+        unity: f.getUint32(12, true),
+        loops,
+        start: loops > 0 && f.byteLength >= 52 ? f.getUint32(44, true) : 0,
+        end: loops > 0 && f.byteLength >= 52 ? f.getUint32(48, true) : 0,
+      };
     }
     pos = body + size + (size & 1);
   }
@@ -686,6 +718,10 @@ export async function readWav(file: File): Promise<BankSample> {
 
   const blockAlign = fmt.channels * BYTES_PER_SAMPLE[format];
   const frames = Math.floor(data.size / blockAlign);
+  // The WAV "smpl" chunk is how most sample editors store root note and loop points.
+  const wavRoot = smpl && smpl.unity >= 1 && smpl.unity <= 127 ? smpl.unity : null;
+  const wavLoopEnd = smpl && smpl.loops > 0 ? Math.min(frames, smpl.end + 1) : 0;
+  const hasLoop = !!smpl && smpl.loops > 0 && smpl.start < wavLoopEnd;
   return {
     id: uid(),
     name: file.name.replace(/\.wav$/i, ''),
@@ -694,9 +730,11 @@ export async function readWav(file: File): Promise<BankSample> {
     sampleRate: fmt.rate,
     channels: fmt.channels,
     format,
-    rootKey: 60,
+    rootKey: wavRoot ?? 60,
+    wavRoot,
     fineTune: 0,
-    loopStart: 0,
-    loopEnd: frames,
+    loopStart: hasLoop ? smpl!.start : 0,
+    loopEnd: hasLoop ? wavLoopEnd : frames,
+    loopMode: hasLoop ? 1 : 0,
   };
 }
