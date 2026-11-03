@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import KeyMap from '@/components/KeyMap';
-import Footer from '@/components/Footer';
+import Footer from '@/components/Footer2';
 import ZoneTable, { fieldClass, focusRing } from '@/components/ZoneTable';
 import SampleLibrary from '@/components/SampleLibrary';
 import SampleEditor from '@/components/SampleEditor';

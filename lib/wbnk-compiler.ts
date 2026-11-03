@@ -128,8 +128,8 @@ export function createDefaultBank(): BankModel {
   return {
     meta: {
       title: 'iMIDI Accordion Bank',
-      author: 'iMIDI',
-      copyright_holder: 'iMIDI',
+      author: 'iMIDI team',
+      copyright_holder: 'iMIDI.co.uk',
       year: '2026',
       copyright: '© 2026 iMIDI.co.uk. All rights reserved.',
       license: 'TS4X Core DSP Standard v1.0',
