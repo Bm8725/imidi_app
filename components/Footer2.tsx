@@ -98,8 +98,7 @@ export default function DynamicIslandDock() {
             </span>
             {activeIsland === "platform" && (
               <div className="text-[9px] font-mono text-white/40 flex items-center gap-1.5">
-                <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
-                <span>TS4X Engine Active</span>
+
               </div>
             )}
           </div>
@@ -149,9 +148,7 @@ export default function DynamicIslandDock() {
           onClick={() => setActiveIsland(null)} 
           className={`flex items-center gap-1.5 px-4 py-2 rounded-full hover:bg-white/5 text-sm font-black tracking-tighter transition-all ${FOCUS_CLASSES}`}
         >
-          <span className="flex h-2 w-2 rounded-full bg-red-500 relative">
-            <span className="animate-ping absolute inset-0 rounded-full bg-red-400 opacity-75" />
-          </span>
+
           iMIDI<span className="text-white/40 font-medium tracking-normal text-xs">.co.uk</span>
         </Link>
 
