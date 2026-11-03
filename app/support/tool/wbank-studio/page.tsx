@@ -5,6 +5,7 @@ import KeyMap from '@/components/KeyMap';
 import ZoneTable, { fieldClass, focusRing } from '@/components/ZoneTable';
 import SampleLibrary from '@/components/SampleLibrary';
 import RightsPanel from '@/components/RightsPanel';
+import Footer from "@/components/Footer";
 import {
   BankInstrument,
   BankModel,
@@ -613,10 +614,7 @@ export default function WbnkBankManagerPage() {
           </section>
         </div>
       </main>
-
-      <footer className="mx-auto max-w-7xl px-5 pb-10 pt-4 text-xs text-[#5A6270]">
-        © 2026 iMIDI.co.uk. Writes .wbnk v1.0 for the TS4X Core DSP engine.
-      </footer>
+        <Footer />
     </div>
   );
 }
