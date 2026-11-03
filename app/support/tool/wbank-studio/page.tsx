@@ -112,6 +112,7 @@ export default function WbnkBankManagerPage() {
     for (const ins of bank.instruments) for (const z of ins.zones) if (z.sampleId) m.set(z.sampleId, (m.get(z.sampleId) ?? 0) + 1);
     return m;
   }, [bank.instruments]);
+  const writtenSamples = bank.samples.filter((smp) => usage.has(smp.id)).length;
 
   /* startup: theme, browser check, welcome */
   useEffect(() => {
@@ -437,7 +438,7 @@ export default function WbnkBankManagerPage() {
         message: 'Done',
         startedAt,
         endedAt: performance.now(),
-        summary: `${bank.instruments.length} instrument(s), ${zoneTotal} zone(s), ${bank.samples.length} sample(s), ${formatBytes(total)}`,
+        summary: `${bank.instruments.length} instrument(s), ${zoneTotal} zone(s), ${writtenSamples} sample(s), ${formatBytes(total)}`,
       });
       log(`Saved ${fileName} (${formatBytes(total)}).`, 'ok');
     } catch (e: any) {
@@ -526,7 +527,7 @@ export default function WbnkBankManagerPage() {
             {[
               ['Instruments', bank.instruments.length],
               ['Zones', zoneTotal],
-              ['Samples', bank.samples.length],
+              ['Samples in file', writtenSamples === bank.samples.length ? writtenSamples : `${writtenSamples} of ${bank.samples.length}`],
               ['File size', formatBytes(size)],
             ].map(([k, v]) => (
               <div key={k as string}>

@@ -262,7 +262,7 @@ export function validateBank(bank: BankModel): Issue[] {
     issues.push({
       level: 'warn',
       tab: 'samples',
-      message: `${unused.length} sample(s) are not used by any zone and add ${formatBytes(bytes)} to the file. Use “Remove unused” in the Sample library.`,
+      message: `${unused.length} sample(s) are not used by any zone and will be left out of the file (${formatBytes(bytes)} saved). Map them to a zone if you want them included.`,
     });
   }
   const longNames = bank.samples.filter((s) => utf8.encode(s.name).length > NAME_BYTES).length;
@@ -270,7 +270,7 @@ export function validateBank(bank: BankModel): Issue[] {
     issues.push({ level: 'warn', tab: 'samples', message: `${longNames} sample name(s) are longer than 32 bytes and will be shortened.` });
 
   for (const smp of bank.samples) {
-    if (smp.loopMode === 1 && !(smp.loopStart >= 0 && smp.loopStart < smp.loopEnd && smp.loopEnd <= smp.frames))
+    if (used.has(smp.id) && smp.loopMode === 1 && !(smp.loopStart >= 0 && smp.loopStart < smp.loopEnd && smp.loopEnd <= smp.frames))
       issues.push({
         level: 'error',
         tab: 'samples',
@@ -304,17 +304,25 @@ interface Chunk {
   parts: (Uint8Array | Blob)[];
 }
 
+/** Samples that at least one zone plays. Only these are written to the file. */
+export function usedSamples(bank: BankModel): BankSample[] {
+  const ids = new Set<string>();
+  for (const ins of bank.instruments) for (const z of ins.zones) if (z.sampleId) ids.add(z.sampleId);
+  return bank.samples.filter((s) => ids.has(s.id));
+}
+
 function buildChunks(bank: BankModel): Chunk[] {
+  const samples = usedSamples(bank);
   const meta = utf8.encode(JSON.stringify(bank.meta ?? {}));
   const synt = utf8.encode(JSON.stringify(parseSynt(bank.syntText)));
 
   // SMPL + DATA
-  const smpl = new Uint8Array(4 + SMPL_RECORD * bank.samples.length);
+  const smpl = new Uint8Array(4 + SMPL_RECORD * samples.length);
   const sv = new DataView(smpl.buffer);
-  sv.setUint32(0, bank.samples.length, true);
+  sv.setUint32(0, samples.length, true);
   const dataParts: (Uint8Array | Blob)[] = [];
   let dataOffset = 0;
-  bank.samples.forEach((s, i) => {
+  samples.forEach((s, i) => {
     const b = 4 + i * SMPL_RECORD;
     writeName(smpl, b, s.name);
     sv.setBigUint64(b + 32, BigInt(dataOffset), true);
@@ -334,7 +342,7 @@ function buildChunks(bank: BankModel): Chunk[] {
   });
 
   // INST
-  const sampleIndex = new Map(bank.samples.map((s, i) => [s.id, i]));
+  const sampleIndex = new Map(samples.map((s, i) => [s.id, i]));
   const zoneCount = bank.instruments.reduce((n, i) => n + i.zones.length, 0);
   const inst = new Uint8Array(8 + INST_RECORD * bank.instruments.length + ZONE_RECORD * zoneCount);
   const iv = new DataView(inst.buffer);
