@@ -476,7 +476,7 @@ export default function WbnkBankManagerPage() {
 
       <header className="sticky top-0 z-30 border-b border-[color:var(--line)] bg-[color:var(--surface)]">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3">
-          <a href="https://imidi.co.uk" className={`flex items-center gap-2.5 ${focusRing}`} aria-label="iMIDI home">
+          <a href="https://www.imidi.co.uk/support/tool/wbank-studio" className={`flex items-center gap-2.5 ${focusRing}`} aria-label="iMIDI home">
             <svg width="30" height="20" viewBox="0 0 30 20" aria-hidden="true">
               <polyline points="1,2 6,18 11,2 16,18 21,2 26,18 29,10" fill="none" style={{ stroke: 'var(--accent)' }} strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />
             </svg>
@@ -504,9 +504,28 @@ export default function WbnkBankManagerPage() {
             <button type="button" className={btnPlain} disabled={busy} onClick={newBank}>New bank</button>
             <button type="button" className={btnPlain} disabled={busy} onClick={() => openRef.current?.click()}>Open bank</button>
             <button type="button" className={btnPlain} disabled={busy} onClick={() => wavRef.current?.click()}>Import WAV samples</button>
-            <button type="button" className={btnPrimary} disabled={!canBuild} onClick={startBuild} title={errors.length ? 'Fix the errors below before building' : undefined}>
-              Build .wbnk
-            </button>
+<button
+  type="button"
+  disabled={!canBuild}
+  onClick={startBuild}
+  title={errors.length ? 'Fix the errors below before building' : undefined}
+  className={`
+    relative overflow-hidden font-mono text-xs uppercase tracking-widest font-bold
+    px-8 py-3.5 rounded transition-all duration-300 select-none shadow-md
+    ${!canBuild 
+      ? 'bg-neutral-800 text-neutral-500 border border-neutral-700 cursor-not-allowed opacity-40 shadow-none' 
+      : 'bg-red-600 text-white cursor-pointer hover:bg-red-500 active:scale-[0.98] shadow-[0_4px_12px_rgba(220,38,38,0.25)] hover:shadow-[0_6px_20px_rgba(220,38,38,0.45)]'
+    }
+  `}
+>
+  {/* Efectul WOW: Un val de reflexie (shimmer) oblic care scanează butonul doar pe hover */}
+  {canBuild && (
+    <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
+  )}
+
+  <span className="relative z-10">Build .wbnk</span>
+</button>
+
           </div>
         </div>
       </header>
