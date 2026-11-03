@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import KeyMap from '@/components/KeyMap';
+import Footer from '@/components/Footer';
 import ZoneTable, { fieldClass, focusRing } from '@/components/ZoneTable';
 import SampleLibrary from '@/components/SampleLibrary';
 import SampleEditor from '@/components/SampleEditor';
@@ -750,13 +751,13 @@ export default function WbnkBankManagerPage() {
         </div>
       </main>
 
-      <footer className="mx-auto max-w-7xl px-5 pb-10 pt-4 text-xs text-[color:var(--muted)]">
-        © 2026 iMIDI.co.uk. Writes .wbnk v1.0 for the TS4X Core DSP engine.
-      </footer>
+         
 
       {welcome && <WelcomeDialog caps={caps} initialHidden={welcomeHidden} onClose={closeWelcome} />}
       {editing && <SampleEditor key={editing.id} sample={editing} onApply={applySampleEdit} onClose={() => setEditingId(null)} />}
       {build && <BuildOverlay state={build} onCancel={() => abortRef.current?.abort()} onClose={() => setBuild(null)} />}
+
+         <Footer /> 
     </div>
   );
 }
