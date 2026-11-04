@@ -43,9 +43,10 @@ export default function WelcomeDialog({ caps, initialHidden, onClose }: Props) {
         className="wbnk-in max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)] shadow-2xl"
       >
         <div className="border-b border-[color:var(--line-soft)] px-6 py-5">
-          <h2 id="welcome-h" className="text-xl font-bold tracking-tight">Welcome to iMIDI Bank Manager</h2>
+          <h2 id="welcome-h" className="text-xl font-bold tracking-tight">Welcome to .WBNK Bank Manager</h2>
           <p className="mt-1 text-sm text-[color:var(--muted)]">
-            Create and edit .wbnk audio banks for the TS4X Core DSP engine. Everything runs in your browser. Your samples are never uploaded.
+            Create and edit .wbnk audio banks for the TS4X Core DSP engine. Everything runs in your browser. Your samples are never uploaded. Tne .WBNK is an binary format special for
+            the ts4x ecosystem, the latest model and native for cloud transfer. 
           </p>
         </div>
 
