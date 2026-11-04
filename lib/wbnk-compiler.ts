@@ -1,8 +1,9 @@
 /**
+ * lib/wbnk-compiler.tsx /main compiler model of binary
  * iMIDI .wbnk v1.0 — bank model, validator, streaming writer and reader.
- *
+ * Author-BM26 all rights reserved
  * Binary layouts that the written spec leaves open are fixed here (all Little-Endian):
- *
+ * Brief@ this is binary format for the ts4x native and hardware arhitecture ARM cpu/x86/x64/apple silicon 
  * SMPL  : u32 count, then `count` records of 64 bytes:
  *           0  char[32] name (zero padded)
  *           32 u64 data_offset   (relative to the start of the DATA chunk body)
@@ -127,7 +128,7 @@ export function createZone(partial: Partial<BankZone> = {}): BankZone {
 export function createDefaultBank(): BankModel {
   return {
     meta: {
-      title: 'iMIDI Accordion Bank',
+      title: 'wbnk Accordion Bank',
       author: 'iMIDI team',
       copyright_holder: 'iMIDI.co.uk',
       year: '2026',
