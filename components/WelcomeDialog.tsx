@@ -27,19 +27,20 @@ export default function WelcomeDialog({ caps, initialHidden, onClose }: Props) {
   const steps = [
     ['Import samples', 'Drop WAV files into the Sample library. The root key is read from the name (Bassoon 044, Accordion_C4) or from the WAV file.'],
     ['Build instruments', 'Use a preset, or select samples and map them across the keyboard in one click. Trim and loop any sample in the editor.'],
+    ['Play it', 'Open the Play tab, connect a MIDI keyboard and test notes, velocity and expression before you build. Or use the on-screen keyboard.'],
     ['Add copyright', 'Fill in the holder, licence and rights declaration in the Copyright tab.'],
     ['Build the .wbnk', 'The file is written in one pass with checksums, ready for the TS4X Core DSP engine.'],
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
+    <div className="wbnk-fade fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4">
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
         aria-labelledby="welcome-h"
         tabIndex={-1}
-        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)] shadow-2xl"
+        className="wbnk-in max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)] shadow-2xl"
       >
         <div className="border-b border-[color:var(--line-soft)] px-6 py-5">
           <h2 id="welcome-h" className="text-xl font-bold tracking-tight">Welcome to iMIDI Bank Manager</h2>
@@ -75,6 +76,10 @@ export default function WelcomeDialog({ caps, initialHidden, onClose }: Props) {
                 <li className="flex items-center justify-between gap-3 px-4 py-2.5">
                   <span>Listen to samples in the editor</span>
                   <Badge ok={caps.audio} yes="Available" no="Not available" />
+                </li>
+                <li className="flex items-center justify-between gap-3 px-4 py-2.5">
+                  <span>Play with a MIDI controller</span>
+                  <Badge ok={caps.midi} yes="Available" no="Not available" />
                 </li>
                 <li className="flex items-center justify-between gap-3 px-4 py-2.5">
                   <span>Secure connection (HTTPS)</span>
@@ -115,6 +120,7 @@ export default function WelcomeDialog({ caps, initialHidden, onClose }: Props) {
                 </tbody>
               </table>
             </div>
+            <p className="mt-2 text-xs text-[color:var(--muted)]">MIDI controllers need Web MIDI: Chrome, Edge and Opera support it. Firefox may ask for permission. Safari does not support Web MIDI, so use the on-screen keyboard there.</p>
           </section>
         </div>
 

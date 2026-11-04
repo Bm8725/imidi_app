@@ -6,6 +6,8 @@ export interface Capabilities {
   directSave: boolean;
   /** Web Audio: sample preview in the editor. */
   audio: boolean;
+  /** Web MIDI: connect a keyboard or controller in the Play tab. */
+  midi: boolean;
 }
 
 export function detectCapabilities(): Capabilities {
@@ -24,5 +26,6 @@ export function detectCapabilities(): Capabilities {
     secure: window.isSecureContext,
     directSave: typeof w.showSaveFilePicker === 'function',
     audio: typeof (w.AudioContext ?? w.webkitAudioContext) !== 'undefined',
+    midi: typeof (navigator as any).requestMIDIAccess === 'function',
   };
 }

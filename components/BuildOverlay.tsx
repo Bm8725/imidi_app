@@ -83,14 +83,14 @@ export default function BuildOverlay({ state, onCancel, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="wbnk-fade fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
         aria-labelledby="build-h"
         tabIndex={-1}
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)] shadow-2xl"
+        className="wbnk-in max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)] shadow-2xl"
       >
         <div className="border-b border-[color:var(--line-soft)] px-6 py-4">
           <h2 id="build-h" className="text-lg font-bold tracking-tight">{title}</h2>

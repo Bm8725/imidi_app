@@ -49,7 +49,7 @@ const SLICE = 4 * 1024 * 1024;
 export type SampleFormat = 'Pcm16' | 'Pcm24' | 'F32';
 
 const FORMAT_CODE: Record<SampleFormat, number> = { Pcm16: 0, Pcm24: 1, F32: 2 };
-const FORMAT_BY_CODE: SampleFormat[] = ['Pcm16', 'Pcm24', 'F32'];
+const FORMAT_BY_CODE: SampleFormat[] = ['Pcm16', 'Pcm24', 'F32']; /** pcm 16/24/32 bits format */
 export const BYTES_PER_SAMPLE: Record<SampleFormat, number> = { Pcm16: 2, Pcm24: 3, F32: 4 };
 
 export interface BankSample {

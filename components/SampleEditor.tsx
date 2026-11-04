@@ -339,14 +339,14 @@ export default function SampleEditor({ sample, onApply, onClose }: Props) {
   const selected = draft.trimEnd - draft.trimStart;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-3">
+    <div className="wbnk-fade fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-3">
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-h"
         tabIndex={-1}
-        className="max-h-[95vh] w-full max-w-4xl overflow-y-auto rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)] shadow-2xl"
+        className="wbnk-in max-h-[95vh] w-full max-w-4xl overflow-y-auto rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)] shadow-2xl"
       >
         <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[color:var(--line-soft)] px-6 py-4">
           <div>

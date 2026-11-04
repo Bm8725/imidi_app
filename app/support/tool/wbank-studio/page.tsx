@@ -7,6 +7,7 @@ import ZoneTable, { fieldClass, focusRing } from '@/components/ZoneTable';
 import SampleLibrary from '@/components/SampleLibrary';
 import SampleEditor from '@/components/SampleEditor';
 import RightsPanel from '@/components/RightsPanel';
+import PlayPanel from '@/components/PlayPanel';
 import WelcomeDialog from '@/components/WelcomeDialog';
 import BuildOverlay, { BuildState } from '@/components/BuildOverlay';
 import {
@@ -29,7 +30,7 @@ import {
 import { ENVELOPE_PRESETS, INSTRUMENT_PRESETS, RootMode, autoMapZones, commonName, resolveRootKey } from '@/lib/wbnk-presets';
 import { Capabilities, detectCapabilities } from '@/lib/wbnk-browser';
 
-type Tab = 'instruments' | 'samples' | 'rights';
+type Tab = 'instruments' | 'samples' | 'play' | 'rights';
 
 interface LogEntry {
   time: string;
@@ -45,8 +46,8 @@ const slug = (s: string) =>
 
 const slot = (i: number) => String(i).padStart(3, '0');
 
-const btnPrimary = `rounded-sm bg-[color:var(--accent-fill)] px-4 py-2 text-sm font-semibold text-white hover:bg-[color:var(--accent-hover)] disabled:cursor-not-allowed disabled:bg-[color:var(--field-line)] disabled:text-[color:var(--muted)] ${focusRing}`;
-const btnPlain = `rounded-sm border border-[color:var(--field-line)] bg-[color:var(--surface)] px-3 py-2 text-sm font-medium text-[color:var(--ink)] hover:border-[color:var(--ink)] disabled:cursor-not-allowed disabled:text-[color:var(--muted)] ${focusRing}`;
+const btnPlain = `rounded-sm border border-[color:var(--field-line)] bg-[color:var(--surface)] px-3 py-2 text-sm font-medium text-[color:var(--ink)] transition-[border-color,transform] hover:border-[color:var(--ink)] active:scale-[0.98] disabled:cursor-not-allowed disabled:text-[color:var(--muted)] disabled:active:scale-100 ${focusRing}`;
+const toolBtn = `inline-flex shrink-0 items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-medium text-[color:var(--ink)] transition-colors hover:bg-[color:var(--line-soft)] active:scale-[0.98] disabled:cursor-not-allowed disabled:text-[color:var(--muted)] disabled:hover:bg-transparent ${focusRing}`;
 
 const LIGHT_VARS = `
   color-scheme: light;
@@ -54,7 +55,7 @@ const LIGHT_VARS = `
   --line: #D7DAE0; --line-soft: #E4E6EB; --field-line: #C5C9D1; --hover: #F7F8F9;
   --accent: #A61E2B; --accent-fill: #A61E2B; --accent-hover: #8E1823;
   --brass: #9C7A3C; --brass-ink: #4A3A18;
-  --accent-rgb: 166 30 43; --brass-rgb: 156 122 60; --muted-rgb: 90 98 112; --ink-rgb: 21 24 29;
+  --surface-rgb: 255 255 255; --accent-rgb: 166 30 43; --brass-rgb: 156 122 60; --muted-rgb: 90 98 112; --ink-rgb: 21 24 29;
   --key-white: #FFFFFF; --key-black: #15181D; --key-line: rgb(21 24 29 / 0.2); --key-edge: #15181D;
 `;
 const DARK_VARS = `
@@ -63,7 +64,7 @@ const DARK_VARS = `
   --line: #2C323B; --line-soft: #232830; --field-line: #3A414C; --hover: #1D2128;
   --accent: #E5606C; --accent-fill: #B3222F; --accent-hover: #C42A38;
   --brass: #C9A25A; --brass-ink: #EAD7A8;
-  --accent-rgb: 229 96 108; --brass-rgb: 201 162 90; --muted-rgb: 154 163 176; --ink-rgb: 232 234 237;
+  --surface-rgb: 23 26 31; --accent-rgb: 229 96 108; --brass-rgb: 201 162 90; --muted-rgb: 154 163 176; --ink-rgb: 232 234 237;
   --key-white: #D9DCE2; --key-black: #0B0C0E; --key-line: rgb(0 0 0 / 0.45); --key-edge: #3A414C;
 `;
 const THEME_CSS = `
@@ -71,10 +72,72 @@ const THEME_CSS = `
 .wbnk-root[data-theme='light'] { ${LIGHT_VARS} }
 .wbnk-root[data-theme='dark'] { ${DARK_VARS} }
 @media (prefers-color-scheme: dark) { .wbnk-root[data-theme='auto'] { ${DARK_VARS} } }
+
+@keyframes wbnk-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes wbnk-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wbnk-sweep { from { transform: translateX(-130%) skewX(-18deg); } to { transform: translateX(130%) skewX(-18deg); } }
+@keyframes wbnk-glow { 0% { box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0.4); } 70% { box-shadow: 0 0 0 10px rgb(var(--accent-rgb) / 0); } 100% { box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0); } }
+
+.wbnk-panel:not([hidden]) { animation: wbnk-rise 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.wbnk-in { animation: wbnk-rise 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.wbnk-fade { animation: wbnk-fade 0.2s ease both; }
+.wbnk-build:not(:disabled) { animation: wbnk-glow 3s ease-out infinite; }
+.wbnk-build .wbnk-shimmer { background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.28) 50%, transparent 65%); transform: translateX(-130%) skewX(-18deg); }
+.wbnk-build:hover:not(:disabled) .wbnk-shimmer { animation: wbnk-sweep 1.1s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wbnk-root *, .wbnk-root *::before, .wbnk-root *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
 `;
 type Theme = 'auto' | 'light' | 'dark';
 const THEME_KEY = 'imidi-wbnk-theme';
 const WELCOME_KEY = 'imidi-wbnk-welcome';
+
+function Icon({ d }: { d: string }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={d} />
+    </svg>
+  );
+}
+const ICONS = {
+  file: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5 M12 12v6 M9 15h6',
+  folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+  wave: 'M3 12h1 M7 8v8 M11 4v16 M15 8v8 M19 10v4 M21 12h0',
+  help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M9.6 9.2a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1.1.9-1.1 1.7 M12 17h.01',
+  play: 'M7 4.5v15l12-7.5z',
+};
+
+/** Counts up or down to the new number instead of jumping. */
+function AnimatedNumber({ value }: { value: number }) {
+  const [shown, setShown] = useState(value);
+  const last = useRef(value);
+  useEffect(() => {
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || last.current === value) {
+      last.current = value;
+      setShown(value);
+      return;
+    }
+    const from = last.current;
+    const t0 = performance.now();
+    let id = 0;
+    const tick = (t: number) => {
+      const k = Math.min(1, (t - t0) / 380);
+      const v = Math.round(from + (value - from) * (1 - Math.pow(1 - k, 3)));
+      last.current = v;
+      setShown(v);
+      if (k < 1) id = requestAnimationFrame(tick);
+    };
+    id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(id);
+  }, [value]);
+  return <>{shown}</>;
+}
 
 export default function WbnkBankManagerPage() {
   const [bank, setBank] = useState<BankModel>(() => createDefaultBank());
@@ -90,6 +153,8 @@ export default function WbnkBankManagerPage() {
   const [caps, setCaps] = useState<Capabilities | null>(null);
   const [welcome, setWelcome] = useState(false);
   const [welcomeHidden, setWelcomeHidden] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [indicator, setIndicator] = useState({ left: 0, width: 0 });
   const [logs, setLogs] = useState<LogEntry[]>([
     { time: new Date().toLocaleTimeString('en-GB'), message: 'Ready. Edit the bank, or open an existing .wbnk file.', level: 'info' },
   ]);
@@ -98,6 +163,7 @@ export default function WbnkBankManagerPage() {
   const wavRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const lastPaint = useRef({ time: 0, message: '' });
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const instrument: BankInstrument | undefined = bank.instruments.find((i) => i.id === selInst) ?? bank.instruments[0];
   const instrumentIndex = instrument ? bank.instruments.indexOf(instrument) : -1;
@@ -128,6 +194,25 @@ export default function WbnkBankManagerPage() {
     }
     setCaps(detectCapabilities());
   }, []);
+
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 4);
+    on();
+    window.addEventListener('scroll', on, { passive: true });
+    return () => window.removeEventListener('scroll', on);
+  }, []);
+
+  // sliding underline under the active tab
+  useEffect(() => {
+    const measure = () => {
+      const el = tabRefs.current[tab];
+      if (el) setIndicator({ left: el.offsetLeft, width: el.offsetWidth });
+    };
+    measure();
+    (document as any).fonts?.ready?.then(measure);
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [tab, bank.instruments.length, bank.samples.length]);
 
   const changeTheme = (t: Theme) => {
     setTheme(t);
@@ -464,125 +549,168 @@ export default function WbnkBankManagerPage() {
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: 'instruments', label: 'Instruments', count: bank.instruments.length },
     { id: 'samples', label: 'Sample library', count: bank.samples.length },
+    { id: 'play', label: 'Play' },
     { id: 'rights', label: 'Copyright and properties' },
   ];
 
-  const panelHead = 'flex items-center justify-between border-b border-[color:var(--line-soft)] px-4 py-3';
+  const health =
+    errors.length > 0
+      ? { tone: 'bg-[color:var(--accent-fill)] text-white', text: `${errors.length} error${errors.length === 1 ? '' : 's'}` }
+      : warnings.length > 0
+      ? { tone: 'bg-[color:rgb(var(--brass-rgb)/0.2)] text-[color:var(--brass-ink)]', text: `${warnings.length} warning${warnings.length === 1 ? '' : 's'}` }
+      : { tone: 'bg-[color:var(--line-soft)] text-[color:var(--ink)]', text: 'Ready to build' };
+
+  const stats: [string, React.ReactNode][] = [
+    ['Instruments', <AnimatedNumber key="i" value={bank.instruments.length} />],
+    ['Zones', <AnimatedNumber key="z" value={zoneTotal} />],
+    ['Samples in file', writtenSamples === bank.samples.length ? <AnimatedNumber key="s" value={writtenSamples} /> : `${writtenSamples} of ${bank.samples.length}`],
+    ['File size', formatBytes(size)],
+  ];
+
+  const card = 'rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)]';
 
   return (
-    <div data-theme={theme} className="wbnk-root min-h-screen bg-[color:var(--bg)] text-[color:var(--ink)]" style={{ fontFamily: "'Instrument Sans', system-ui, sans-serif" }}>
+    <div data-theme={theme} className="wbnk-root min-h-[100dvh] bg-[color:var(--bg)] text-[color:var(--ink)]" style={{ fontFamily: "'Instrument Sans', system-ui, sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');`}</style>
       <style>{THEME_CSS}</style>
 
-      <header className="sticky top-0 z-30 border-b border-[color:var(--line)] bg-[color:var(--surface)]">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3">
-          <a href="https://www.imidi.co.uk/support/tool/wbank-studio" className={`flex items-center gap-2.5 ${focusRing}`} aria-label="iMIDI home">
-            <svg width="30" height="20" viewBox="0 0 30 20" aria-hidden="true">
+      <input ref={openRef} type="file" accept=".wbnk" className="sr-only" tabIndex={-1} onChange={(e) => { openBank(e.target.files?.[0]); e.target.value = ''; }} />
+      <input ref={wavRef} type="file" accept=".wav,audio/wav" multiple className="sr-only" tabIndex={-1} onChange={(e) => { importWavs(Array.from(e.target.files ?? [])); e.target.value = ''; }} />
+
+      {/* Header: brand + primary actions, then a toolbar */}
+      <header
+        className={`sticky top-0 z-30 border-b border-[color:var(--line)] bg-[color:rgb(var(--surface-rgb)/0.9)] backdrop-blur-md transition-shadow duration-300 ${scrolled ? 'shadow-[0_8px_24px_-14px_rgb(0_0_0/0.45)]' : ''}`}
+      >
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-2.5 sm:px-5">
+          <a href="https://www.imidi.co.uk/support/tool/wbank-studio" className={`flex min-w-0 items-center gap-2.5 ${focusRing}`} aria-label="iMIDI Bank Manager">
+            <svg width="30" height="20" viewBox="0 0 30 20" aria-hidden="true" className="shrink-0">
               <polyline points="1,2 6,18 11,2 16,18 21,2 26,18 29,10" fill="none" style={{ stroke: 'var(--accent)' }} strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />
             </svg>
             <span className="text-lg font-bold tracking-tight">iMIDI</span>
-            <span className="text-lg font-medium tracking-tight text-[color:var(--muted)]">Bank Manager</span>
+            <span className="hidden text-lg font-medium tracking-tight text-[color:var(--muted)] sm:inline">Bank Manager</span>
           </a>
 
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <div role="group" aria-label="Colour theme" className="mr-2 flex overflow-hidden rounded-sm border border-[color:var(--field-line)]">
+          <div className="ml-auto flex items-center gap-2">
+            <div role="group" aria-label="Colour theme" className="flex overflow-hidden rounded-sm border border-[color:var(--field-line)]">
               {(['light', 'dark', 'auto'] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
                   aria-pressed={theme === t}
                   onClick={() => changeTheme(t)}
-                  className={`px-3 py-2 text-sm font-medium capitalize ${theme === t ? 'bg-[color:var(--ink)] text-[color:var(--bg)]' : 'bg-[color:var(--surface)] text-[color:var(--ink)] hover:bg-[color:var(--hover)]'} ${focusRing}`}
+                  className={`px-2.5 py-1.5 text-xs font-semibold capitalize transition-colors sm:px-3 sm:text-sm ${theme === t ? 'bg-[color:var(--ink)] text-[color:var(--bg)]' : 'bg-[color:var(--surface)] text-[color:var(--ink)] hover:bg-[color:var(--hover)]'} ${focusRing}`}
                 >
                   {t}
                 </button>
               ))}
             </div>
-            <input ref={openRef} type="file" accept=".wbnk" className="sr-only" tabIndex={-1} onChange={(e) => { openBank(e.target.files?.[0]); e.target.value = ''; }} />
-            <input ref={wavRef} type="file" accept=".wav,audio/wav" multiple className="sr-only" tabIndex={-1} onChange={(e) => { importWavs(Array.from(e.target.files ?? [])); e.target.value = ''; }} />
-            <button type="button" className={btnPlain} onClick={() => setWelcome(true)}>Help</button>
-            <button type="button" className={btnPlain} disabled={busy} onClick={newBank}>New bank</button>
-            <button type="button" className={btnPlain} disabled={busy} onClick={() => openRef.current?.click()}>Open bank</button>
-            <button type="button" className={btnPlain} disabled={busy} onClick={() => wavRef.current?.click()}>Import WAV samples</button>
-<button
-  type="button"
-  disabled={!canBuild}
-  onClick={startBuild}
-  title={errors.length ? 'Fix the errors below before building' : undefined}
-  className={`
-    relative overflow-hidden font-mono text-xs uppercase tracking-widest font-bold
-    px-8 py-3.5 rounded transition-all duration-300 select-none shadow-md
-    ${!canBuild 
-      ? 'bg-neutral-800 text-neutral-500 border border-neutral-700 cursor-not-allowed opacity-40 shadow-none' 
-      : 'bg-red-600 text-white cursor-pointer hover:bg-red-500 active:scale-[0.98] shadow-[0_4px_12px_rgba(220,38,38,0.25)] hover:shadow-[0_6px_20px_rgba(220,38,38,0.45)]'
-    }
-  `}
->
-  {/* Efectul WOW: Un val de reflexie (shimmer) oblic care scanează butonul doar pe hover */}
-  {canBuild && (
-    <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full hover:animate-[shimmer_1.5s_infinite] pointer-events-none" />
-  )}
 
-  <span className="relative z-10">Build .wbnk</span>
-</button>
+            <button
+              type="button"
+              disabled={!canBuild}
+              onClick={startBuild}
+              title={errors.length ? 'Fix the errors below before building' : undefined}
+              className={`wbnk-build relative overflow-hidden rounded-sm px-4 py-2 text-sm font-bold tracking-wide transition-[transform,background-color] active:scale-[0.97] sm:px-6 ${
+                canBuild
+                  ? 'bg-[color:var(--accent-fill)] text-white hover:bg-[color:var(--accent-hover)]'
+                  : 'cursor-not-allowed bg-[color:var(--line-soft)] text-[color:var(--muted)]'
+              } ${focusRing}`}
+            >
+              {canBuild && <span aria-hidden="true" className="wbnk-shimmer pointer-events-none absolute inset-0" />}
+              <span className="relative">Build .wbnk</span>
+            </button>
+          </div>
+        </div>
 
+        <div className="border-t border-[color:var(--line-soft)]">
+          <div className="mx-auto flex max-w-7xl items-center gap-1 overflow-x-auto px-2 py-1.5 sm:px-4">
+            <button type="button" className={toolBtn} disabled={busy} onClick={newBank}>
+              <Icon d={ICONS.file} /> New bank
+            </button>
+            <button type="button" className={toolBtn} disabled={busy} onClick={() => openRef.current?.click()}>
+              <Icon d={ICONS.folder} /> Open bank
+            </button>
+            <button type="button" className={toolBtn} disabled={busy} onClick={() => wavRef.current?.click()}>
+              <Icon d={ICONS.wave} /> Import WAV
+            </button>
+            <button type="button" className={toolBtn} onClick={() => setTab('play')}>
+              <Icon d={ICONS.play} /> Play
+            </button>
+            <button type="button" className={toolBtn} onClick={() => setWelcome(true)}>
+              <Icon d={ICONS.help} /> Help
+            </button>
+            <button
+              type="button"
+              onClick={() => document.getElementById('checks')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+              className={`ml-auto inline-flex shrink-0 items-center gap-2 rounded-sm px-2.5 py-1 text-xs font-semibold transition-colors ${health.tone} ${focusRing}`}
+              aria-label={`Bank status: ${health.text}. Go to the checks.`}
+            >
+              <span className="h-2 w-2 rounded-full bg-current" aria-hidden="true" />
+              {health.text}
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-5 py-6">
-        <section aria-label="Bank summary" className="mb-6 flex flex-wrap items-end gap-x-10 gap-y-4">
-          <div className="min-w-[260px] flex-1">
+      <main className="mx-auto max-w-7xl px-3 py-5 sm:px-5 sm:py-6">
+        {/* Summary */}
+        <section aria-label="Bank summary" className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div className={`wbnk-in ${card} p-4 sm:p-5`}>
             <label className="block">
               <span className="text-xs font-semibold text-[color:var(--muted)]">Bank name</span>
               <input
                 value={String(bank.meta.title ?? '')}
                 onChange={(e) => setMeta('title', e.target.value)}
                 disabled={busy}
-                className={`mt-1 block w-full rounded-sm border border-transparent bg-transparent px-0 py-1 text-3xl font-bold tracking-tight hover:border-[color:var(--field-line)] focus:bg-[color:var(--surface)] focus:px-2 ${focusRing}`}
+                className={`mt-1 block w-full rounded-sm border border-transparent bg-transparent px-0 py-1 text-2xl font-bold tracking-tight transition-[padding,background-color,border-color] hover:border-[color:var(--field-line)] focus:bg-[color:var(--surface)] focus:px-2 sm:text-3xl ${focusRing}`}
               />
             </label>
+            <p className="mt-1 truncate text-xs text-[color:var(--muted)]">{String(bank.meta.copyright ?? '') || 'No copyright notice yet'}</p>
           </div>
-          <dl className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
-            {[
-              ['Instruments', bank.instruments.length],
-              ['Zones', zoneTotal],
-              ['Samples in file', writtenSamples === bank.samples.length ? writtenSamples : `${writtenSamples} of ${bank.samples.length}`],
-              ['File size', formatBytes(size)],
-            ].map(([k, v]) => (
-              <div key={k as string}>
+          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+            {stats.map(([k, v], i) => (
+              <div key={k} className={`wbnk-in ${card} px-4 py-3`} style={{ animationDelay: `${60 + i * 50}ms` }}>
                 <dt className="text-xs font-semibold text-[color:var(--muted)]">{k}</dt>
-                <dd className="text-xl font-semibold tabular-nums">{v}</dd>
+                <dd className="text-xl font-bold tabular-nums">{v}</dd>
               </div>
             ))}
           </dl>
         </section>
 
-        <div role="tablist" aria-label="Bank sections" className="mb-5 flex gap-1 overflow-x-auto border-b border-[color:var(--line)]">
+        {/* Tabs */}
+        <div role="tablist" aria-label="Bank sections" className="relative mb-5 flex gap-1 overflow-x-auto border-b border-[color:var(--line)]">
           {tabs.map((t) => (
             <button
               key={t.id}
+              ref={(el) => {
+                tabRefs.current[t.id] = el;
+              }}
               role="tab"
               id={`tab-${t.id}`}
               aria-selected={tab === t.id}
               aria-controls={`panel-${t.id}`}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold ${tab === t.id ? 'border-[color:var(--accent)] text-[color:var(--ink)]' : 'border-transparent text-[color:var(--muted)] hover:text-[color:var(--ink)]'} ${focusRing}`}
+              className={`whitespace-nowrap px-3 py-2.5 text-sm font-semibold transition-colors sm:px-4 ${tab === t.id ? 'text-[color:var(--ink)]' : 'text-[color:var(--muted)] hover:text-[color:var(--ink)]'} ${focusRing}`}
             >
               {t.label}
               {t.count !== undefined && <span className="ml-2 rounded-sm bg-[color:var(--line-soft)] px-1.5 py-px text-xs tabular-nums">{t.count}</span>}
             </button>
           ))}
+          <span
+            aria-hidden="true"
+            className="absolute bottom-0 left-0 h-0.5 bg-[color:var(--accent)] transition-[transform,width] duration-300 ease-out"
+            style={{ transform: `translateX(${indicator.left}px)`, width: indicator.width }}
+          />
         </div>
 
         {/* Instruments */}
-        <div role="tabpanel" id="panel-instruments" aria-labelledby="tab-instruments" hidden={tab !== 'instruments'}>
-          <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-            <section aria-labelledby="inst-h" className="h-fit rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)]">
-              <div className={panelHead}>
+        <div role="tabpanel" id="panel-instruments" aria-labelledby="tab-instruments" hidden={tab !== 'instruments'} className="wbnk-panel">
+          <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+            <section aria-labelledby="inst-h" className={`h-fit ${card}`}>
+              <div className="flex items-center justify-between border-b border-[color:var(--line-soft)] px-4 py-3">
                 <h2 id="inst-h" className="text-sm font-semibold">Instruments</h2>
-                <span className="text-xs text-[color:var(--muted)]">Slot numbers, 000 to 127</span>
+                <span className="text-xs text-[color:var(--muted)]">Slots 000 to 127</span>
               </div>
               <div className="border-b border-[color:var(--line-soft)] px-4 py-3">
                 <label className="block">
@@ -598,20 +726,24 @@ export default function WbnkBankManagerPage() {
               {bank.instruments.length === 0 ? (
                 <p className="px-4 py-6 text-sm text-[color:var(--muted)]">No instruments yet. Add one from a preset, or create one from samples in the Sample library.</p>
               ) : (
-                <ul className="max-h-[60vh] overflow-y-auto">
+                <ul className="flex gap-2 overflow-x-auto p-3 lg:block lg:max-h-[60vh] lg:overflow-y-auto lg:p-0">
                   {bank.instruments.map((ins, idx) => {
                     const active = ins.id === instrument?.id;
                     return (
-                      <li key={ins.id}>
+                      <li key={ins.id} className="wbnk-in shrink-0 lg:shrink" style={{ animationDelay: `${Math.min(idx, 10) * 25}ms` }}>
                         <button
                           type="button"
                           onClick={() => selectInstrument(ins.id)}
                           aria-current={active}
-                          className={`flex w-full items-baseline gap-3 px-4 py-2.5 text-left text-sm ${active ? 'bg-[color:rgb(var(--accent-rgb)/0.07)] font-semibold shadow-[inset_3px_0_0_var(--accent)]' : 'hover:bg-[color:var(--hover)]'} ${focusRing}`}
+                          className={`flex items-baseline gap-2 whitespace-nowrap rounded-sm border px-3 py-2 text-left text-sm transition-colors lg:w-full lg:gap-3 lg:whitespace-normal lg:rounded-none lg:border-0 lg:border-b lg:border-[color:var(--line-soft)] lg:px-4 lg:py-2.5 ${
+                            active
+                              ? 'border-[color:var(--accent)] bg-[color:rgb(var(--accent-rgb)/0.07)] font-semibold lg:shadow-[inset_3px_0_0_var(--accent)]'
+                              : 'border-[color:var(--line)] hover:bg-[color:var(--hover)]'
+                          } ${focusRing}`}
                         >
                           <span className="shrink-0 font-semibold tabular-nums text-[color:var(--muted)]" aria-label={`Slot ${idx}`}>{slot(idx)}</span>
                           <span className="min-w-0 flex-1 truncate">{ins.name || 'Unnamed'}</span>
-                          <span className="shrink-0 text-xs font-normal tabular-nums text-[color:var(--muted)]">{ins.zones.length} zones</span>
+                          <span className="hidden shrink-0 text-xs font-normal tabular-nums text-[color:var(--muted)] lg:inline">{ins.zones.length} zones</span>
                         </button>
                       </li>
                     );
@@ -620,35 +752,38 @@ export default function WbnkBankManagerPage() {
               )}
             </section>
 
-            <section aria-label="Instrument editor" className="min-w-0 rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)]">
+            <section aria-label="Instrument editor" className={`min-w-0 ${card}`}>
               {instrument ? (
                 <>
-                  <div className="flex flex-wrap items-end gap-3 border-b border-[color:var(--line-soft)] px-5 py-4">
-                    <div>
-                      <span className="text-xs font-semibold text-[color:var(--muted)]">Slot</span>
-                      <p className="mt-1 rounded-sm bg-[color:var(--ink)] px-3 py-1.5 text-base font-bold tabular-nums text-[color:var(--bg)]" title="Instruments are stored in this order. The slot is the position in the file.">
-                        {slot(instrumentIndex)}
-                      </p>
+                  <div className="space-y-3 border-b border-[color:var(--line-soft)] p-4 sm:p-5">
+                    <div className="flex items-end gap-3">
+                      <div>
+                        <span className="text-xs font-semibold text-[color:var(--muted)]">Slot</span>
+                        <p className="mt-1 rounded-sm bg-[color:var(--ink)] px-3 py-1.5 text-base font-bold tabular-nums text-[color:var(--bg)]" title="Instruments are stored in this order. The slot is the position in the file.">
+                          {slot(instrumentIndex)}
+                        </p>
+                      </div>
+                      <label className="min-w-0 flex-1">
+                        <span className="text-xs font-semibold text-[color:var(--muted)]">Instrument name</span>
+                        <input
+                          value={instrument.name}
+                          onChange={(e) => patchInstrument(instrument.id, (i) => ({ ...i, name: e.target.value }))}
+                          disabled={busy}
+                          className={`${fieldClass} mt-1 w-full text-base font-semibold`}
+                        />
+                      </label>
                     </div>
-                    <label className="min-w-[200px] flex-1">
-                      <span className="text-xs font-semibold text-[color:var(--muted)]">Instrument name</span>
-                      <input
-                        value={instrument.name}
-                        onChange={(e) => patchInstrument(instrument.id, (i) => ({ ...i, name: e.target.value }))}
-                        disabled={busy}
-                        className={`${fieldClass} mt-1 w-full text-base font-semibold`}
-                      />
-                    </label>
-                    <label>
-                      <span className="text-xs font-semibold text-[color:var(--muted)]">Apply envelope to all zones</span>
-                      <select value="" disabled={busy || instrument.zones.length === 0} onChange={(e) => e.target.value && applyEnvelope(e.target.value)} className={`${fieldClass} mt-1 block`}>
-                        <option value="">Choose…</option>
-                        {ENVELOPE_PRESETS.map((e) => (
-                          <option key={e.id} value={e.id}>{e.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap items-end gap-2">
+                      <label className="mr-auto">
+                        <span className="text-xs font-semibold text-[color:var(--muted)]">Apply envelope to all zones</span>
+                        <select value="" disabled={busy || instrument.zones.length === 0} onChange={(e) => e.target.value && applyEnvelope(e.target.value)} className={`${fieldClass} mt-1 block`}>
+                          <option value="">Choose…</option>
+                          {ENVELOPE_PRESETS.map((e) => (
+                            <option key={e.id} value={e.id}>{e.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <button type="button" className={btnPlain} onClick={() => setTab('play')}>Audition</button>
                       <button type="button" className={btnPlain} disabled={busy || instrumentIndex === 0} onClick={() => moveInstrument(-1)} aria-label="Move to the previous slot">Up</button>
                       <button type="button" className={btnPlain} disabled={busy || instrumentIndex === bank.instruments.length - 1} onClick={() => moveInstrument(1)} aria-label="Move to the next slot">Down</button>
                       <button type="button" className={btnPlain} disabled={busy} onClick={duplicateInstrument}>Duplicate</button>
@@ -656,12 +791,12 @@ export default function WbnkBankManagerPage() {
                     </div>
                   </div>
 
-                  <div className="px-5 pb-2 pt-4">
+                  <div className="px-4 pb-2 pt-4 sm:px-5">
                     <h2 className="mb-2 text-sm font-semibold">Key map</h2>
                     <KeyMap zones={instrument.zones} samples={bank.samples} selectedZoneId={selZone} onSelect={setSelZone} />
                   </div>
 
-                  <div className="px-5 pb-5 pt-4">
+                  <div className="px-4 pb-5 pt-4 sm:px-5">
                     <h2 className="mb-2 text-sm font-semibold">Zones</h2>
                     <ZoneTable
                       zones={instrument.zones}
@@ -677,14 +812,14 @@ export default function WbnkBankManagerPage() {
                   </div>
                 </>
               ) : (
-                <p className="px-5 py-10 text-sm text-[color:var(--muted)]">Select an instrument on the left, or add one from a preset.</p>
+                <p className="px-5 py-10 text-sm text-[color:var(--muted)]">Select an instrument, or add one from a preset.</p>
               )}
             </section>
           </div>
         </div>
 
         {/* Sample library */}
-        <div role="tabpanel" id="panel-samples" aria-labelledby="tab-samples" hidden={tab !== 'samples'}>
+        <div role="tabpanel" id="panel-samples" aria-labelledby="tab-samples" hidden={tab !== 'samples'} className="wbnk-panel">
           <SampleLibrary
             samples={bank.samples}
             usage={usage}
@@ -704,8 +839,20 @@ export default function WbnkBankManagerPage() {
           />
         </div>
 
+        {/* Play: stays mounted so a MIDI controller keeps working while you edit */}
+        <div role="tabpanel" id="panel-play" aria-labelledby="tab-play" hidden={tab !== 'play'} className="wbnk-panel">
+          <PlayPanel
+            instruments={bank.instruments}
+            samples={bank.samples}
+            instrument={instrument}
+            caps={caps}
+            onSelectInstrument={(id) => selectInstrument(id)}
+            onLog={log}
+          />
+        </div>
+
         {/* Copyright */}
-        <div role="tabpanel" id="panel-rights" aria-labelledby="tab-rights" hidden={tab !== 'rights'}>
+        <div role="tabpanel" id="panel-rights" aria-labelledby="tab-rights" hidden={tab !== 'rights'} className="wbnk-panel">
           <RightsPanel
             meta={bank.meta}
             onMeta={setMeta}
@@ -717,8 +864,8 @@ export default function WbnkBankManagerPage() {
         </div>
 
         {/* Checks + activity */}
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
-          <section aria-labelledby="chk-h" className="rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)]">
+        <div className="mt-8 grid gap-5 lg:grid-cols-2">
+          <section id="checks" aria-labelledby="chk-h" className={`scroll-mt-40 ${card}`}>
             <div className="flex items-baseline justify-between border-b border-[color:var(--line-soft)] px-4 py-3">
               <h2 id="chk-h" className="text-sm font-semibold">Bank checks</h2>
               <span className="text-xs tabular-nums text-[color:var(--muted)]">
@@ -739,8 +886,9 @@ export default function WbnkBankManagerPage() {
                         onClick={() => {
                           if (it.instrumentId) selectInstrument(it.instrumentId, it.zoneId ?? null);
                           if (target) setTab(target);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
-                        className={`flex w-full items-start gap-3 px-4 py-2.5 text-left text-sm enabled:hover:bg-[color:var(--hover)] ${focusRing}`}
+                        className={`flex w-full items-start gap-3 px-4 py-2.5 text-left text-sm transition-colors enabled:hover:bg-[color:var(--hover)] ${focusRing}`}
                       >
                         <span className={`mt-0.5 shrink-0 rounded-sm px-1.5 py-px text-[11px] font-semibold ${it.level === 'error' ? 'bg-[color:var(--accent-fill)] text-white' : 'bg-[color:rgb(var(--brass-rgb)/0.2)] text-[color:var(--brass-ink)]'}`}>
                           {it.level === 'error' ? 'Error' : 'Warning'}
@@ -754,13 +902,13 @@ export default function WbnkBankManagerPage() {
             )}
           </section>
 
-          <section aria-labelledby="act-h" className="rounded-sm border border-[color:var(--line)] bg-[color:var(--surface)]">
+          <section aria-labelledby="act-h" className={card}>
             <div className="border-b border-[color:var(--line-soft)] px-4 py-3">
               <h2 id="act-h" className="text-sm font-semibold">Activity</h2>
             </div>
             <ol ref={logRef} className="max-h-64 overflow-y-auto px-4 py-3 text-sm" aria-live="polite">
               {logs.map((l, i) => (
-                <li key={i} className="flex gap-3 py-0.5">
+                <li key={i} className="wbnk-fade flex gap-3 py-0.5">
                   <time className="shrink-0 tabular-nums text-[color:var(--muted)]">{l.time}</time>
                   <span className={l.level === 'error' ? 'font-medium text-[color:var(--accent)]' : 'text-[color:var(--ink)]'}>{l.message}</span>
                 </li>
@@ -770,13 +918,11 @@ export default function WbnkBankManagerPage() {
         </div>
       </main>
 
-         
-
       {welcome && <WelcomeDialog caps={caps} initialHidden={welcomeHidden} onClose={closeWelcome} />}
       {editing && <SampleEditor key={editing.id} sample={editing} onApply={applySampleEdit} onClose={() => setEditingId(null)} />}
       {build && <BuildOverlay state={build} onCancel={() => abortRef.current?.abort()} onClose={() => setBuild(null)} />}
 
-         <Footer /> 
+      <Footer />
     </div>
   );
 }
