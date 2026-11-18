@@ -15,6 +15,9 @@ const PINK = "#FF5CA1";
 const ORANGE = "#FF8A3D";
 const PURPLE = "#B47CFF";
 const RED= "#A61E2B";
+const HORANGE = "#FFAA70";
+const HBLUE = "#70C5FF";
+
 
 const FAQS = [
   {
@@ -59,6 +62,17 @@ const VALUES = [
 ];
 
 const PILLARS = [
+  {
+eyebrow: "synth engine",
+title: "TS4x pro NATIVE (soon available!!)",
+desc: "High performance synth based on wav STEREO 16/24/32 float .",
+chips: ["Low-latency MIDI", "Live performance", " high performance DSP"],
+href: "/download",
+cta: "Go to TS4x pro NATIVE",
+color: HORANGE, //
+icon: "M4 5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H4zM2 12h20M7 12v7M12 12v7M17 12v7M6 8h1M10 8h2M16 8h2"
+
+},
 {
 eyebrow: "Connectivity",
 title: "AirMIDI Link",
@@ -96,7 +110,7 @@ desc: "A universal MIDI controller purpose-built for accordion, on any MIDI chan
 chips: ["SOLO and BASS mapping", "Velocity-sensitive", "Any MIDI controller works"],
 href: "/products",
 cta: "See i-volution",
-color: PURPLE,
+color: HBLUE,
 icon: "M7 5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7zM3 9h2M3 13h2M19 9h2M19 13h2M9 3v2M13 3v2M9 19v2M13 19v2",
 },
 {
