@@ -1,440 +1,1033 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import QRCode from "qrcode";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import { supabase } from "@/lib/supabase";
+import { useState, useEffect, useMemo } from 'react'
+import Link from 'next/link'
+import type { LucideIcon } from 'lucide-react'
+import {
+  Monitor, Laptop, Cpu, Download, Copy, Check, ShieldCheck,
+  HardDrive, Loader2, X, Sparkles,
+} from 'lucide-react'
 
-const GITHUB_OWNER = "Bm8725";
-const GITHUB_REPO = "imidi_app";
-const GITHUB_TAG = "v1.0";
+import { supabase } from '@/lib/supabase'
+import Navbar from '@/components/Navbar'
+import Footer from '@/components/Footer'
 
-const FALLBACK_URL = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/tag/${GITHUB_TAG}`;
+/* ============================================================
+   TYPES & DATA
+============================================================ */
+type OSId = 'windows' | 'macos' | 'embedded'
 
-// Ilustrație decorativă de telefon — SVG inline, cu un mock de UI (grid de pad-uri
-// + waveform) pe ecran, ca să sugereze aplicația fără să fie un screenshot real.
-function PhoneIllustration({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 360 640"
-      className={className}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* corp telefon */}
-      <rect x="8" y="8" width="344" height="624" rx="44" fill="#111318" />
-      <rect x="8" y="8" width="344" height="624" rx="44" stroke="#E2E2E5" strokeWidth="2" />
-      {/* ecran */}
-      <rect x="22" y="26" width="316" height="588" rx="30" fill="#0B0D11" />
-      {/* notch */}
-      <rect x="150" y="34" width="60" height="10" rx="5" fill="#1E2128" />
-
-      {/* header ecran */}
-      <text x="46" y="76" fill="#F2F2F4" fontFamily="Inter, sans-serif" fontSize="16" fontWeight="700">TS4X</text>
-      <circle cx="300" cy="70" r="5" fill="#0070F3" />
-
-      {/* waveform */}
-      <g opacity="0.9">
-        {Array.from({ length: 26 }).map((_, i) => {
-          const heights = [10, 22, 14, 30, 18, 40, 24, 50, 30, 60, 36, 46, 28, 54, 32, 48, 22, 38, 16, 44, 26, 34, 12, 20, 8, 16];
-          const h = heights[i % heights.length];
-          return (
-            <rect
-              key={i}
-              className="phone-wave-bar"
-              x={46 + i * 10.5}
-              y={130 - h}
-              width="5"
-              height={h}
-              rx="2.5"
-              fill={i % 3 === 0 ? "#0070F3" : "#3B93FF"}
-              style={{ animationDelay: `${(i % 8) * 0.08}s` }}
-            />
-          );
-        })}
-      </g>
-
-      {/* grid de pad-uri MIDI */}
-      <g>
-        {Array.from({ length: 4 }).map((_, row) =>
-          Array.from({ length: 4 }).map((_, col) => {
-            const active = (row === 1 && col === 2) || (row === 2 && col === 0) || (row === 0 && col === 3);
-            return (
-              <rect
-                key={`${row}-${col}`}
-                className={active ? "phone-pad-active" : undefined}
-                x={46 + col * 66}
-                y={168 + row * 66}
-                width="54"
-                height="54"
-                rx="10"
-                fill={active ? "#0070F3" : "#171A20"}
-                stroke="#23262E"
-                strokeWidth="1.5"
-                style={active ? { animationDelay: `${(row + col) * 0.3}s` } : undefined}
-              />
-            );
-          })
-        )}
-      </g>
-
-      {/* bară inferioară / player controls */}
-      <rect x="46" y="470" width="268" height="8" rx="4" fill="#1E2128" />
-      <rect x="46" y="470" width="150" height="8" rx="4" fill="#0070F3" />
-      <circle cx="150" cy="530" r="26" fill="#0070F3" />
-      <path d="M142 518l20 12-20 12z" fill="white" />
-      <circle cx="80" cy="530" r="16" fill="#171A20" />
-      <circle cx="220" cy="530" r="16" fill="#171A20" />
-    </svg>
-  );
+interface ReleaseRow {
+  id: string
+  version: string
+  platform: OSId
+  channel: 'stable' | 'beta'
+  file_name: string
+  size_bytes: number | null
+  sha256: string | null
+  notes: string[] | null
+  released_at: string
 }
 
-export default function AndroidDownloadPage() {
-  const router = useRouter();
-  const [downloadUrl, setDownloadUrl] = useState(FALLBACK_URL);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [downloadCount, setDownloadCount] = useState<number | null>(null);
-  const [assetSize, setAssetSize] = useState<string | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [qrExpanded, setQrExpanded] = useState(false);
+interface Platform {
+  id: OSId
+  name: string
+  tag: string
+  icon: LucideIcon
+  format: string
+  arch: string
+  blurb: string
+  steps: string[]
+  verify: string
+}
 
-  // NOU: stare autentificare Supabase — gate-ul de download
-  const [user, setUser] = useState<any>(null);
-  const [authChecked, setAuthChecked] = useState(false);
+const PLATFORMS: Platform[] = [
+  {
+    id: 'windows',
+    name: 'Windows',
+    tag: 'Windows 10 / 11 · 64-bit',
+    icon: Monitor,
+    format: '.exe',
+    arch: 'x86_64',
+    blurb: 'Standalone desktop build with native audio and MIDI selection.',
+    steps: [
+      'Run the installer.',
+      'Open TS4X Native and choose your audio device.',
+      'Connect your MIDI controller and play.',
+    ],
+    verify: 'Get-FileHash .\\TS4X-Native-Setup.exe -Algorithm SHA256',
+  },
+  {
+    id: 'macos',
+    name: 'macOS / iPad',
+    tag: 'Apple Silicon · Intel · iPadOS',
+    icon: Laptop,
+    format: '.dmg',
+    arch: 'arm64 · x86_64',
+    blurb: 'Optimised for Apple Silicon. Runs on Intel Macs and supported iPad models.',
+    steps: [
+      'Open the .dmg and drag TS4X Native to Applications.',
+      'If blocked: System Settings → Privacy & Security → Open Anyway.',
+      'Pick your audio device and MIDI input.',
+    ],
+    verify: 'shasum -a 256 ~/Downloads/TS4X-Native.dmg',
+  },
+  {
+    id: 'embedded',
+    name: 'Embedded',
+    tag: 'ARM Cortex-A72',
+    icon: Cpu,
+    format: '.img.xz',
+    arch: 'ARM Cortex-A72',
+    blurb: 'Linux image for stage rigs and instruments — no computer on stage.',
+    steps: [
+      'Write the image to an SD card with iMIDI SD Writer or any imaging tool.',
+      'Insert the card into your board and power it on.',
+      'Plug in your MIDI controller and audio output.',
+    ],
+    verify: 'sha256sum ts4x-embedded.img.xz',
+  },
+]
+
+/* ============================================================
+   HELPERS
+============================================================ */
+function detectOS(): OSId | null {
+  if (typeof navigator === 'undefined') return null
+  const nav = navigator as Navigator & { userAgentData?: { platform?: string } }
+  const ua = nav.userAgent.toLowerCase()
+  const p = (nav.userAgentData?.platform || nav.platform || '').toLowerCase()
+  if (p.includes('mac') || ua.includes('mac os') || ua.includes('ipad')) return 'macos'
+  if (p.includes('win') || ua.includes('windows')) return 'windows'
+  return null
+}
+
+function fmtBytes(n: number | null) {
+  if (!n) return ''
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(0)} MB`
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+/* ============================================================
+   PAGE
+============================================================ */
+export default function DownloadClient() {
+  const [rows, setRows] = useState<ReleaseRow[]>([])
+  const [rowsLoading, setRowsLoading] = useState(true)
+  const [rowsError, setRowsError] = useState(false)
+  const [showBeta, setShowBeta] = useState(false)
+
+  const [os, setOs] = useState<OSId | null>(null)
+  const [stepsFor, setStepsFor] = useState<OSId>('windows')
+  const [copied, setCopied] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [dlError, setDlError] = useState<string | null>(null)
+  const [started, setStarted] = useState<ReleaseRow | null>(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-      setAuthChecked(true);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
+    let active = true
+    supabase
+      .from('ts4x_releases')
+      .select('id,version,platform,channel,file_name,size_bytes,sha256,notes,released_at')
+      .eq('published', true)
+      .order('released_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (!active) return
+        if (error) setRowsError(true)
+        setRows((data as ReleaseRow[]) || [])
+        setRowsLoading(false)
+      })
     return () => {
-      listener.subscription.unsubscribe();
-    };
-  }, []);
+      active = false
+    }
+  }, [])
 
-  // Regenerăm QR-ul de fiecare dată când avem un downloadUrl nou (fallback -> link real de la GitHub)
   useEffect(() => {
-    QRCode.toDataURL(downloadUrl, {
-      width: 480,
-      margin: 3,
-      errorCorrectionLevel: "M",
-      color: { dark: "#0B1220", light: "#FFFFFFFF" },
-    })
-      .then(setQrDataUrl)
-      .catch((err) => console.error("Nu am putut genera QR-ul:", err));
-  }, [downloadUrl]);
+    const d = detectOS()
+    setOs(d)
+    if (d) setStepsFor(d)
+  }, [])
 
-  async function fetchGitHubData() {
+  const hasBeta = rows.some((r) => r.channel === 'beta')
+  const visible = useMemo(
+    () => rows.filter((r) => showBeta || r.channel === 'stable'),
+    [rows, showBeta]
+  )
+  const latest = useMemo(() => {
+    const m: Partial<Record<OSId, ReleaseRow>> = {}
+    for (const r of visible) {
+      if (!m[r.platform]) m[r.platform] = r
+    }
+    return m
+  }, [visible])
+  const older = useMemo(
+    () => visible.filter((r) => latest[r.platform]?.id !== r.id),
+    [visible, latest]
+  )
+
+  const download = async (rel: ReleaseRow) => {
+    setDlError(null)
+    setBusy(rel.id)
     try {
-      const response = await fetch(
-        `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases`,
-        { headers: { Accept: "application/vnd.github+json" } }
-      );
-
-      if (!response.ok) {
-        console.error("Răspuns API invalid de la GitHub:", response.status);
-        return;
+      const res = await fetch('/api/ts4x/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ releaseId: rel.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.url) {
+        setDlError(data.error || 'Download unavailable. Please try again.')
+        return
       }
-
-      const releases = await response.json();
-      if (!Array.isArray(releases)) return;
-
-      const release = releases.find((r: any) => r.tag_name === GITHUB_TAG) || releases[0];
-      const assets = release?.assets;
-      if (!Array.isArray(assets) || assets.length === 0) return;
-
-      const apkAsset =
-        assets.find((a: any) => a.name?.toLowerCase().endsWith(".apk")) ??
-        assets.find((a: any) => a.name?.includes("TS4X")) ??
-        assets[0];
-
-      if (apkAsset) {
-        setDownloadCount(typeof apkAsset.download_count === "number" ? apkAsset.download_count : 0);
-
-        if (apkAsset.browser_download_url) {
-          setDownloadUrl(apkAsset.browser_download_url);
-        }
-        if (typeof apkAsset.size === "number") {
-          setAssetSize((apkAsset.size / (1024 * 1024)).toFixed(2) + " MB");
-        }
-      }
-    } catch (error) {
-      console.error("Eroare la preluarea datelor live:", error);
+      setStarted(rel)
+      window.location.href = data.url
+    } catch {
+      setDlError('Network error. Please check your connection and try again.')
+    } finally {
+      setBusy(null)
     }
   }
 
-  useEffect(() => {
-    fetchGitHubData();
-  }, []);
-
-  useEffect(() => {
-    if (!qrExpanded) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setQrExpanded(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [qrExpanded]);
-
-  // NOU: dacă nu ești logat, blocăm acțiunea și te trimitem la /login
-  const requireAuthOrRedirect = () => {
-    if (!user) {
-      router.push("/login?next=/download/android");
-      return false;
+  const copyHash = async (id: string, hash: string) => {
+    try {
+      await navigator.clipboard.writeText(hash)
+      setCopied(id)
+      setTimeout(() => setCopied(null), 1600)
+    } catch {
+      /* ignore */
     }
-    return true;
-  };
+  }
 
-  const handleQrClick = () => {
-    if (!requireAuthOrRedirect()) return;
-    if (qrDataUrl) setQrExpanded(true);
-  };
-
-  const handleButtonClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (!requireAuthOrRedirect()) {
-      e.preventDefault();
-      return;
+  const action = (rel: ReleaseRow | undefined, label: string, big = false) => {
+    const cls = `btn${big ? ' big' : ''}`
+    if (rowsLoading) {
+      return (
+        <button className={cls} disabled>
+          <Loader2 size={15} className="spin" /> Loading…
+        </button>
+      )
     }
+    if (!rel) {
+      return (
+        <button className={cls} disabled>
+          Coming soon
+        </button>
+      )
+    }
+    if (busy === rel.id) {
+      return (
+        <button className={cls} disabled>
+          <Loader2 size={15} className="spin" /> Preparing…
+        </button>
+      )
+    }
+    return (
+      <button className={`${cls} primary`} onClick={() => download(rel)}>
+        <Download size={big ? 17 : 15} /> Download {label}
+      </button>
+    )
+  }
 
-    if (isDownloading) return;
-
-    setIsDownloading(true);
-    setProgress(0);
-
-    const totalTime = 1500;
-    const intervalTime = 30;
-    const step = 100 / (totalTime / intervalTime);
-
-    const timer = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(timer);
-          setTimeout(() => {
-            setIsDownloading(false);
-            setProgress(0);
-            setTimeout(() => {
-              fetchGitHubData();
-            }, 4000);
-          }, 500);
-          return 100;
-        }
-        return Math.min(100, Math.floor(prev + step));
-      });
-    }, intervalTime);
-  };
+  const recPlatform = PLATFORMS.find((p) => p.id === os) ?? null
+  const recRelease = recPlatform ? latest[recPlatform.id] : undefined
+  const stepsPlatform = PLATFORMS.find((p) => p.id === stepsFor) ?? PLATFORMS[0]
+  const stepsRelease = latest[stepsPlatform.id]
+  const desktop = PLATFORMS.filter((p) => p.id !== 'embedded')
+  const embedded = PLATFORMS.find((p) => p.id === 'embedded')!
 
   return (
-    <div className="bg-[#EFEFEF] text-[#111111] min-h-screen flex flex-col antialiased selection:bg-[#0070F3]/10 selection:text-[#0070F3] relative overflow-x-hidden">
+    <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-        .corp-sans { font-family: 'Inter', sans-serif; }
-        .corp-mono { font-family: 'JetBrains Mono', monospace; }
 
-        /* ---- animație pagină: fade-up la intrare, staggered ---- */
-        @keyframes dl-fade-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-        .dl-fade-up { opacity: 0; animation: dl-fade-up 0.6s ease-out forwards; }
+        .ts {
+          --bg: #efefef;
+          --surface: #ffffff;
+          --surface2: #f7f7f8;
+          --line: #e2e2e5;
+          --text: #111111;
+          --muted: #666666;
+          --accent: #0070f3;
+          --accent2: #8b5cf6;
+          font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+          -webkit-font-smoothing: antialiased;
+          min-height: 100vh;
+          background: var(--bg);
+          color: var(--text);
+        }
+        .ts *, .ts *::before, .ts *::after { box-sizing: border-box; }
+        .ts a { color: inherit; text-decoration: none; }
+        .wrap { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+        .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
-        /* ---- animație telefon: plutire + wobble ușor + fade-in la intrare ---- */
-        @keyframes phone-pop { from { opacity: 0; transform: translateY(24px) scale(0.94) rotate(8deg); } to { opacity: 0.9; transform: translateY(0) scale(1) rotate(8deg); } }
-        @keyframes phone-float { 0%, 100% { transform: translateY(0) rotate(8deg); } 50% { transform: translateY(-14px) rotate(6deg); } }
-        .phone-illustration {
-          animation: phone-pop 0.9s cubic-bezier(0.16,1,0.3,1) forwards,
-                     phone-float 6s ease-in-out 0.9s infinite;
-          transform-origin: center;
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @keyframes fade-up {
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up {
+          opacity: 0;
+          animation: fade-up 0.55s ease-out forwards;
         }
 
-        /* ---- pad-uri MIDI active: puls ușor de glow ---- */
-        @keyframes phone-pad-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
-        .phone-pad-active { animation: phone-pad-pulse 2.2s ease-in-out infinite; transform-origin: center; }
+        /* header band */
+        .band {
+          background: rgba(255,255,255,0.85);
+          backdrop-filter: blur(8px);
+          border-bottom: 1px solid var(--line);
+          padding: 112px 0 40px;
+        }
+        .band h1 {
+          font-size: clamp(22px, 4vw, 28px);
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          margin: 0 0 8px;
+        }
+        .band p {
+          margin: 0;
+          font-size: 14px;
+          color: var(--muted);
+          line-height: 1.55;
+          max-width: 480px;
+        }
 
-        /* ---- waveform: bare care "respiră" ---- */
-        @keyframes phone-wave { 0%, 100% { transform: scaleY(0.55); } 50% { transform: scaleY(1); } }
-        .phone-wave-bar { animation: phone-wave 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: bottom; }
+        /* main card shell */
+        .shell {
+          margin: 40px 0 24px;
+          border-radius: 16px;
+          padding: 1.5px;
+          background: linear-gradient(135deg, rgba(0,112,243,0.45), rgba(139,92,246,0.3), rgba(0,112,243,0.45));
+          box-shadow: 0 8px 30px -12px rgba(0,112,243,0.22);
+        }
+        .shell-inner {
+          background: var(--surface);
+          border-radius: 15px;
+          padding: 24px;
+        }
 
-        /* ---- lightbox QR ---- */
-        @keyframes qr-modal-backdrop { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes qr-modal-pop { from { opacity: 0; transform: scale(0.9) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-        .qr-modal-backdrop { animation: qr-modal-backdrop 0.2s ease-out forwards; }
-        .qr-modal-card { animation: qr-modal-pop 0.25s cubic-bezier(0.16,1,0.3,1) forwards; }
+        .meta-row {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+        .badge-os {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          padding: 3px 8px;
+          border-radius: 6px;
+          background: #0b1220;
+          color: #fff;
+        }
+        .badge-ver {
+          font-size: 11px;
+          font-weight: 600;
+          padding: 3px 8px;
+          border-radius: 6px;
+          background: rgba(0,112,243,0.1);
+          color: var(--accent);
+        }
+        .badge-muted {
+          font-size: 11px;
+          color: #999;
+        }
+
+        .hint {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px 14px;
+          font-size: 12.5px;
+          color: var(--muted);
+          margin-bottom: 20px;
+        }
+        .hint span {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+        }
+        .hint b { color: var(--text); font-weight: 600; }
+
+        /* platform cards */
+        .cards {
+          display: grid;
+          gap: 12px;
+        }
+        .card {
+          border: 1px solid var(--line);
+          border-radius: 14px;
+          padding: 18px;
+          background: var(--surface);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          transition: border-color 0.15s, box-shadow 0.15s;
+          position: relative;
+        }
+        .card:hover {
+          border-color: #c8c8ce;
+          box-shadow: 0 6px 20px rgba(0,0,0,0.04);
+        }
+        .card.rec {
+          border-color: #93c5fd;
+          box-shadow: 0 0 0 1px #bfdbfe, 0 6px 20px rgba(0,112,243,0.08);
+        }
+        .badge-you {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          padding: 3px 8px;
+          border-radius: 99px;
+          background: rgba(0,112,243,0.1);
+          color: var(--accent);
+          border: 1px solid #bfdbfe;
+        }
+        .card-hd {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .ic {
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          background: linear-gradient(135deg, var(--accent), var(--accent2));
+          flex: none;
+          box-shadow: 0 4px 12px -4px rgba(0,112,243,0.45);
+        }
+        .card h3 {
+          margin: 0;
+          font-size: 15px;
+          font-weight: 650;
+        }
+        .tag {
+          font-size: 12px;
+          color: var(--muted);
+        }
+        .blurb {
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.5;
+          color: #555;
+        }
+        .chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 5px;
+        }
+        .chip {
+          font-size: 11px;
+          padding: 2px 8px;
+          border-radius: 99px;
+          border: 1px solid var(--line);
+          color: var(--muted);
+          background: var(--surface2);
+          font-family: 'JetBrains Mono', ui-monospace, monospace;
+        }
+        .chip.v {
+          color: var(--accent);
+          border-color: #bfdbfe;
+          background: rgba(0,112,243,0.08);
+        }
+        .hash {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font: 11px 'JetBrains Mono', ui-monospace, monospace;
+          color: var(--muted);
+        }
+        .hash span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          flex: 1;
+        }
+        .hash button {
+          background: none;
+          border: 1px solid var(--line);
+          color: var(--muted);
+          border-radius: 6px;
+          padding: 3px 6px;
+          cursor: pointer;
+          display: inline-flex;
+        }
+        .hash button:hover {
+          color: var(--text);
+          border-color: #c4c4cc;
+        }
+        .card details {
+          font-size: 13px;
+          color: #555;
+        }
+        .card summary {
+          cursor: pointer;
+          color: var(--muted);
+          font-size: 12.5px;
+        }
+        .card details ul {
+          margin: 6px 0 0;
+          padding-left: 16px;
+          line-height: 1.5;
+        }
+
+        /* buttons */
+        .btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          padding: 10px 16px;
+          border-radius: 10px;
+          border: 1px solid var(--line);
+          background: var(--surface);
+          color: var(--text);
+          font: 600 13px/1 'Inter', sans-serif;
+          cursor: pointer;
+          transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.15s;
+          white-space: nowrap;
+        }
+        .btn:hover:not(:disabled) {
+          border-color: #c4c4cc;
+          background: var(--surface2);
+        }
+        .btn.primary {
+          background: linear-gradient(90deg, var(--accent), var(--accent2));
+          border-color: transparent;
+          color: #fff;
+          box-shadow: 0 6px 18px -6px rgba(0,112,243,0.45);
+        }
+        .btn.primary:hover:not(:disabled) {
+          box-shadow: 0 8px 24px -4px rgba(139,92,246,0.5);
+          transform: translateY(-1px);
+        }
+        .btn.big {
+          padding: 12px 20px;
+          font-size: 14px;
+          border-radius: 12px;
+        }
+        .btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .btn:focus-visible, .tab:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 2px;
+        }
+        .card .btn { width: 100%; }
+
+        /* embedded block */
+        .emb {
+          margin-top: 12px;
+          border: 1px solid #ddd6fe;
+          border-radius: 14px;
+          padding: 20px;
+          background: linear-gradient(120deg, #f5f3ff 0%, #eff6ff 100%);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .emb h3 {
+          margin: 0;
+          font-size: 16px;
+          font-weight: 650;
+        }
+        .emb p {
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.5;
+          color: #555;
+        }
+        .emb .actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        /* install */
+        .sec {
+          margin: 40px 0 56px;
+        }
+        .sec h2 {
+          font-size: 18px;
+          font-weight: 700;
+          letter-spacing: -0.015em;
+          margin: 0 0 6px;
+        }
+        .lead {
+          margin: 0 0 18px;
+          font-size: 13.5px;
+          color: var(--muted);
+          line-height: 1.5;
+        }
+        .tabs {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-bottom: 14px;
+        }
+        .tab {
+          padding: 7px 14px;
+          border-radius: 99px;
+          border: 1px solid var(--line);
+          background: var(--surface);
+          color: var(--muted);
+          cursor: pointer;
+          font: 600 12.5px/1 'Inter', sans-serif;
+          transition: border-color 0.15s, background 0.15s, color 0.15s;
+        }
+        .tab:hover {
+          color: var(--text);
+          border-color: #c4c4cc;
+        }
+        .tab.on {
+          background: rgba(0,112,243,0.1);
+          border-color: #93c5fd;
+          color: var(--accent);
+        }
+        .steps {
+          counter-reset: s;
+          list-style: none;
+          margin: 0 0 14px;
+          padding: 0;
+          display: grid;
+          gap: 8px;
+        }
+        .steps li {
+          counter-increment: s;
+          display: flex;
+          gap: 12px;
+          align-items: flex-start;
+          padding: 12px 14px;
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          background: var(--surface);
+          line-height: 1.5;
+          color: #333;
+          font-size: 13.5px;
+        }
+        .steps li::before {
+          content: counter(s);
+          flex: none;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, var(--accent), var(--accent2));
+          color: #fff;
+          font-weight: 700;
+          font-size: 11px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .verify {
+          padding: 12px 14px;
+          border-radius: 10px;
+          border: 1px dashed var(--line);
+          background: var(--surface);
+          font-size: 12.5px;
+          color: var(--muted);
+        }
+        .verify code {
+          display: block;
+          margin-top: 8px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: var(--surface2);
+          color: #1e3a8a;
+          font: 12px 'JetBrains Mono', ui-monospace, monospace;
+          overflow-x: auto;
+          white-space: nowrap;
+        }
+
+        .meta {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 10px 16px;
+          font-size: 12.5px;
+          color: var(--muted);
+          margin-bottom: 14px;
+        }
+        .meta label {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+        }
+        .meta input { accent-color: var(--accent); }
+
+        .errbar {
+          margin-bottom: 12px;
+          padding: 11px 13px;
+          border-radius: 10px;
+          border: 1px solid #fecaca;
+          background: #fef2f2;
+          color: #b91c1c;
+          font-size: 13px;
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+
+        .older {
+          margin-top: 16px;
+        }
+        .older summary {
+          cursor: pointer;
+          color: var(--muted);
+          font-size: 13px;
+        }
+        .older-list {
+          margin-top: 10px;
+          display: grid;
+          gap: 6px;
+        }
+        .older-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          padding: 10px 12px;
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          background: var(--surface);
+          font-size: 13px;
+        }
+        .older-row .grow { flex: 1; min-width: 120px; }
+        .older-row .btn { padding: 7px 11px; font-size: 12px; }
+
+        /* toast */
+        .toast {
+          position: fixed;
+          left: 50%;
+          bottom: 20px;
+          transform: translateX(-50%);
+          z-index: 50;
+          width: min(480px, calc(100vw - 28px));
+          padding: 14px 16px;
+          border-radius: 14px;
+          border: 1px solid #a7f3d0;
+          background: #ecfdf5;
+          box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+          display: flex;
+          gap: 12px;
+          align-items: flex-start;
+          font-size: 13px;
+          line-height: 1.5;
+          color: #065f46;
+        }
+        .toast b {
+          color: #064e3b;
+          display: block;
+          font-size: 13.5px;
+          margin-bottom: 1px;
+        }
+        .toast code {
+          font: 11px 'JetBrains Mono', ui-monospace, monospace;
+          color: #047857;
+          word-break: break-all;
+        }
+        .toast button {
+          margin-left: auto;
+          background: none;
+          border: none;
+          color: #6b7280;
+          cursor: pointer;
+          padding: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .ts *, .ts *::before {
+            transition: none !important;
+            animation: none !important;
+          }
+        }
       `}</style>
 
-      <Navbar />
+      <div className="ts">
+        <Navbar />
 
-      {/* ================= FUNDAL DECORATIV — telefon + grilă subtilă ================= */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/* grilă foarte discretă, ca să nu fie fundal complet plat */}
-        <div
-          className="absolute inset-0 opacity-[0.35]"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
-          }}
-        />
-        {/* telefonul — vizibil pe toate ecranele, poziționat sus-dreapta, parțial tăiat de margine */}
-        <PhoneIllustration className="phone-illustration absolute -top-8 -right-20 sm:-top-10 sm:-right-16 lg:right-8 w-[260px] sm:w-[340px] lg:w-[400px]" />
-      </div>
-
-      <div className="corp-sans bg-white/80 backdrop-blur-sm border-b border-[#E2E2E5] pt-32 pb-12 text-left relative z-10">
-        <div className="w-full max-w-3xl mx-auto px-6 space-y-2 dl-fade-up" style={{ animationDelay: "0.05s" }}>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-black">Download TS4X Android App</h1>
-          <p className="text-sm text-[#666666] leading-relaxed max-w-lg">
-            Get the certified application package tailored for real-time mobile MIDI audio engine processing.
-          </p>
+        <div className="band">
+          <div className="wrap fade-up" style={{ animationDelay: '0.05s' }}>
+            <h1>Download TS4X Native</h1>
+            <p>
+              Live-performance synth engine. Sub-1.8&nbsp;ms latency and .wav sample
+              playback — on desktop or dedicated hardware.
+            </p>
+          </div>
         </div>
-      </div>
 
-      <main className="corp-sans flex-1 w-full max-w-3xl mx-auto px-6 py-12 relative z-10">
-        <div className="dl-fade-up relative rounded-2xl p-[1.5px] bg-gradient-to-br from-[#0070F3]/50 via-[#8B5CF6]/30 to-[#0070F3]/50 shadow-[0_8px_30px_-12px_rgba(0,112,243,0.25)] hover:shadow-[0_12px_40px_-10px_rgba(139,92,246,0.35)] transition-shadow duration-500 group" style={{ animationDelay: "0.15s" }}>
-          <div className="bg-white rounded-2xl p-6 flex flex-col gap-6">
-
-            <div className="flex flex-col gap-6">
-              {/* Info block — mereu full-width, pe orice ecran */}
-              <div className="space-y-3 text-left">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#0070F3] to-[#8B5CF6] flex items-center justify-center shrink-0 shadow-[0_4px_12px_-4px_rgba(0,112,243,0.5)]">
-                    <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 fill-white">
-                      <path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.65-.06-.83.22l-1.88 3.24a11.43 11.43 0 0 0-9.94 0L4.65 5.67c-.19-.28-.55-.37-.83-.22-.3.16-.42.54-.26.85L5.4 9.48C2.7 11.13.87 13.94.5 17.19h23c-.37-3.25-2.2-6.06-4.9-7.71zM7 15.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm10 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z" />
-                    </svg>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#0B1220] text-white tracking-wide uppercase">Android OS</span>
-                  <span className="corp-mono text-[11px] font-semibold px-2 py-0.5 rounded-md bg-[#0070F3]/10 text-[#0070F3]">{GITHUB_TAG}-stable</span>
-                  <span className="text-[11px] text-gray-400">• Size: {assetSize ?? "3.23 MB"}</span>
-
-                  {downloadCount !== null && (
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-100">
-                      ● {downloadCount} {downloadCount === 1 ? "download" : "downloads"}
-                    </span>
-                  )}
-                </div>
-
-                <div>
-                  <h2 className="text-sm font-semibold text-black tracking-tight truncate">TS4x synth android bundle app</h2>
-                  <p className="text-xs text-[#666666] mt-0.5">APK Binary Component (ARM64 Architecture) for low-latency wired setups. Requires Android 12 minimum.</p>
-                </div>
-
+        <div className="wrap">
+          <div className="shell fade-up" style={{ animationDelay: '0.12s' }}>
+            <div className="shell-inner">
+              <div className="meta-row">
+                <span className="badge-os">Desktop + Embedded</span>
+                <span className="badge-ver">3 platforms</span>
+                <span className="badge-muted">SHA-256 on every build</span>
               </div>
 
-              {/* Actions — rând propriu, full-width, respiră separat de info */}
-              <div className="flex flex-col sm:flex-row items-center gap-4 pt-5 border-t border-[#EFEFEF] justify-between">
-                <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto text-center sm:text-left">
-                  <button
-                    type="button"
-                    onClick={handleQrClick}
-                    aria-label="Enlarge QR code"
-                    className="w-[168px] h-[168px] shrink-0 rounded-xl border border-[#EAEAEA] bg-white p-3 shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition-transform duration-200 hover:scale-[1.04] hover:shadow-[0_6px_20px_rgba(0,112,243,0.15)] active:scale-[0.98] cursor-zoom-in"
-                  >
-                    {qrDataUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={qrDataUrl}
-                        alt="QR code către download-ul APK — click pentru mărire"
-                        width={144}
-                        height={144}
-                        className="w-full h-full object-contain pointer-events-none"
-                      />
-                    ) : (
-                      <div className="w-full h-full rounded-lg bg-[#FAFAFA] animate-pulse" />
+              <div className="hint">
+                {recPlatform && (
+                  <span>
+                    <Sparkles size={13} /> Detected <b>{recPlatform.name}</b>
+                    {recRelease ? ` · v${recRelease.version}` : ''}
+                  </span>
+                )}
+                <span>
+                  <ShieldCheck size={13} /> Standalone builds — no host required
+                </span>
+              </div>
+
+              {recPlatform && (
+                <div style={{ marginBottom: 16 }}>
+                  {action(recRelease, recPlatform.name, true)}
+                </div>
+              )}
+
+              <div className="meta">
+                {hasBeta && (
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showBeta}
+                      onChange={(e) => setShowBeta(e.target.checked)}
+                    />
+                    Include beta builds
+                  </label>
+                )}
+                {rowsError && (
+                  <span style={{ color: '#b91c1c' }}>
+                    Couldn&apos;t load releases. Please refresh.
+                  </span>
+                )}
+              </div>
+
+              {dlError && (
+                <div className="errbar" role="alert">
+                  <X size={15} /> {dlError}
+                </div>
+              )}
+
+              <div className="cards">
+                {desktop.map((p) => {
+                  const Icon = p.icon
+                  const rel = latest[p.id]
+                  return (
+                    <article
+                      key={p.id}
+                      className={`card${p.id === os ? ' rec' : ''}`}
+                    >
+                      {p.id === os && <span className="badge-you">Your system</span>}
+                      <div className="card-hd">
+                        <span className="ic">
+                          <Icon size={18} />
+                        </span>
+                        <div>
+                          <h3>{p.name}</h3>
+                          <div className="tag">{p.tag}</div>
+                        </div>
+                      </div>
+                      <p className="blurb">{p.blurb}</p>
+                      <div className="chips">
+                        {rel && (
+                          <span className="chip v">
+                            v{rel.version}
+                            {rel.channel === 'beta' ? ' beta' : ''}
+                          </span>
+                        )}
+                        <span className="chip">{p.format}</span>
+                        <span className="chip">{p.arch}</span>
+                        {rel?.size_bytes ? (
+                          <span className="chip">{fmtBytes(rel.size_bytes)}</span>
+                        ) : null}
+                      </div>
+                      {rel?.sha256 && (
+                        <div className="hash" title={rel.sha256}>
+                          <ShieldCheck size={13} />
+                          <span>SHA-256 {rel.sha256}</span>
+                          <button
+                            onClick={() => copyHash(rel.id, rel.sha256 as string)}
+                            aria-label="Copy SHA-256"
+                          >
+                            {copied === rel.id ? (
+                              <Check size={12} />
+                            ) : (
+                              <Copy size={12} />
+                            )}
+                          </button>
+                        </div>
+                      )}
+                      {rel?.notes && rel.notes.length > 0 && (
+                        <details>
+                          <summary>What&apos;s new in {rel.version}</summary>
+                          <ul>
+                            {rel.notes.map((n, i) => (
+                              <li key={i}>{n}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                      {action(rel, p.name)}
+                    </article>
+                  )
+                })}
+              </div>
+
+              {/* Embedded */}
+              {(() => {
+                const rel = latest.embedded
+                return (
+                  <div className="emb">
+                    <div className="card-hd">
+                      <span className="ic">
+                        <Cpu size={18} />
+                      </span>
+                      <div>
+                        <h3>{embedded.name}</h3>
+                        <div className="tag">{embedded.tag}</div>
+                      </div>
+                    </div>
+                    <p>{embedded.blurb}</p>
+                    <div className="chips">
+                      {rel && (
+                        <span className="chip v">
+                          v{rel.version}
+                          {rel.channel === 'beta' ? ' beta' : ''}
+                        </span>
+                      )}
+                      <span className="chip">{embedded.format}</span>
+                      {rel?.size_bytes ? (
+                        <span className="chip">{fmtBytes(rel.size_bytes)}</span>
+                      ) : null}
+                    </div>
+                    {rel?.sha256 && (
+                      <div className="hash" title={rel.sha256}>
+                        <ShieldCheck size={13} />
+                        <span>SHA-256 {rel.sha256}</span>
+                        <button
+                          onClick={() => copyHash(rel.id, rel.sha256 as string)}
+                          aria-label="Copy SHA-256"
+                        >
+                          {copied === rel.id ? (
+                            <Check size={12} />
+                          ) : (
+                            <Copy size={12} />
+                          )}
+                        </button>
+                      </div>
                     )}
-                  </button>
-                  <div className="space-y-0.5">
-                    <div className="text-[13px] font-semibold text-black">Scan with your phone</div>
-                    <div className="text-[11px] text-gray-400 leading-snug max-w-[180px] mx-auto sm:mx-0">
-                      Opens the download directly on your Android device — tap the code to enlarge
+                    <div className="actions">
+                      {action(rel, 'Embedded', true)}
+                      <Link href="/sd-writer" className="btn">
+                        <HardDrive size={15} /> SD Writer
+                      </Link>
                     </div>
                   </div>
-                </div>
+                )
+              })()}
 
-                <a
-                  href={downloadUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={handleButtonClick}
-                  className={`w-full sm:w-auto h-11 px-6 rounded-xl text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5 font-sans transition-all duration-300 shrink-0 ${
-                    isDownloading
-                      ? "bg-[#FAFAFA] text-gray-400 border border-[#EAEAEA] pointer-events-none"
-                      : "bg-gradient-to-r from-[#0070F3] to-[#8B5CF6] text-white shadow-[0_6px_20px_-6px_rgba(0,112,243,0.5)] hover:shadow-[0_8px_26px_-4px_rgba(139,92,246,0.6)] hover:scale-[1.03] active:scale-[0.98]"
-                  }`}
-                >
-                  {isDownloading ? (
-                    <>
-                      <span className="inline-block animate-spin rounded-full h-3 w-3 border-2 border-gray-300 border-t-gray-600" />
-                      <span>Downloading {progress}%</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Download TS4X APK</span>
-                      <span className="text-xs">↓</span>
-                    </>
-                  )}
-                </a>
-              </div>
-
-              {/* NOU: mesaj discret dacă nu ești logat */}
-              {authChecked && !user && (
-                <p className="text-[11px] text-gray-400 -mt-2">
-                  Trebuie să fii autentificat pentru a descărca. Vei fi redirecționat către pagina de login.
-                </p>
+              {older.length > 0 && (
+                <details className="older">
+                  <summary>Older versions ({older.length})</summary>
+                  <div className="older-list">
+                    {older.map((r) => {
+                      const p = PLATFORMS.find((x) => x.id === r.platform)
+                      return (
+                        <div key={r.id} className="older-row">
+                          <b className="grow">
+                            {p?.name} · v{r.version}
+                            {r.channel === 'beta' ? ' beta' : ''}
+                          </b>
+                          <span style={{ color: 'var(--muted)', fontSize: 12 }}>
+                            {fmtDate(r.released_at)}
+                            {r.size_bytes ? ` · ${fmtBytes(r.size_bytes)}` : ''}
+                          </span>
+                          {action(r, 'this version')}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </details>
               )}
             </div>
-
-            {isDownloading && (
-              <div className="w-full space-y-1.5 animate-fadeIn">
-                <div className="flex justify-between items-center text-[11px] corp-mono text-gray-500">
-                  <span>Redirecting to GitHub release asset...</span>
-                  <span>{progress}%</span>
-                </div>
-                <div className="w-full bg-[#EAEAEA] h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className="bg-gradient-to-r from-[#0070F3] to-[#8B5CF6] h-full transition-all duration-150 ease-out rounded-full"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
           </div>
-        </div>
-      </main>
 
-      {/* ============================= LIGHTBOX QR ============================= */}
-      {qrExpanded && qrDataUrl && (
-        <div
-          className="qr-modal-backdrop fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center px-6"
-          onClick={() => setQrExpanded(false)}
-        >
-          <div
-            className="qr-modal-card relative bg-white rounded-2xl p-6 flex flex-col items-center gap-4 shadow-[0_30px_70px_-20px_rgba(0,0,0,0.5)] max-w-[90vw]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setQrExpanded(false)}
-              aria-label="Close"
-              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-[#0B1220] text-white flex items-center justify-center text-sm hover:bg-black transition-colors shadow-lg"
-            >
-              ✕
-            </button>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={qrDataUrl}
-              alt="QR code către download-ul APK — mărit"
-              className="w-[280px] h-[280px] sm:w-[340px] sm:h-[340px] object-contain"
-            />
-            <div className="text-center">
-              <div className="text-sm font-semibold text-black">Scan to download TS4X APK</div>
-              <div className="corp-mono text-[10px] text-gray-400 mt-1">{GITHUB_TAG}-b</div>
+          {/* Install steps */}
+          <section className="sec fade-up" style={{ animationDelay: '0.2s' }}>
+            <h2>Up and running in three steps</h2>
+            <p className="lead">Select your platform.</p>
+            <div className="tabs" role="tablist" aria-label="Install platform">
+              {PLATFORMS.map((p) => (
+                <button
+                  key={p.id}
+                  role="tab"
+                  aria-selected={stepsFor === p.id}
+                  className={`tab${stepsFor === p.id ? ' on' : ''}`}
+                  onClick={() => setStepsFor(p.id)}
+                >
+                  {p.name}
+                </button>
+              ))}
             </div>
-          </div>
+            <ol className="steps" role="tabpanel">
+              {stepsPlatform.steps.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ol>
+            <div className="verify">
+              Verify your download
+              {stepsRelease?.sha256
+                ? ' against the checksum on the build card'
+                : ''}
+              :
+              <code>{stepsPlatform.verify}</code>
+            </div>
+          </section>
         </div>
-      )}
 
-      <Footer />
-    </div>
-  );
+        <Footer />
+
+        {started && (
+          <div className="toast" role="status">
+            <Check size={18} style={{ flex: 'none', marginTop: 2 }} />
+            <div>
+              <b>Download starting</b>
+              TS4X Native {started.version}. If nothing happens, check your browser
+              downloads.
+              {started.sha256 && (
+                <>
+                  <br />
+                  SHA-256: <code>{started.sha256}</code>
+                </>
+              )}
+            </div>
+            <button onClick={() => setStarted(null)} aria-label="Close">
+              <X size={15} />
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  )
 }

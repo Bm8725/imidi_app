@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation"; // Importat pentru redirecționare SPA rapidă
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { supabase } from "@/lib/supabase"; // DECOMENTAT: Clientul tău Supabase
+import { supabase } from "@/lib/supabase"; // 
 
 export default function LoginPage() {
   const router = useRouter(); // Inițializare router Next.js
