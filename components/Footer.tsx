@@ -7,7 +7,7 @@ import { openCookieSettings } from "@/components/CookieBanner";
 
 type FooterLink = { href: string; label: string; external?: boolean; badge?: string };
 
-const VERSION = "v0.1.13";
+const VERSION = "v1.2.13";
 
 const COLUMNS: { title: string; links: FooterLink[] }[] = [
   {

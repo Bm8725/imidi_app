@@ -27,17 +27,16 @@ interface Post {
   replies: Reply[];
 }
 
+const ITEMS_PER_PAGE = 6;
+
 export default function StiriClient({ initialPosts }: { initialPosts: Post[] }) {
   const [user, setUser] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>(initialPosts || []);
   const [loading] = useState(false);
 
   const [newPost, setNewPost] = useState({ title: "", content: "" });
-  const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
-  const [replyContent, setReplyContent] = useState("");
   const [sharedPostId, setSharedPostId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) =>
@@ -61,19 +60,18 @@ export default function StiriClient({ initialPosts }: { initialPosts: Post[] }) 
           replies: (r || []).filter((rep: any) => rep.post_id === post.id),
         }))
       );
- 
     })();
   }, []);
 
   const currentPosts = posts.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
   );
-  const totalPages = Math.ceil(posts.length / itemsPerPage);
+  const totalPages = Math.ceil(posts.length / ITEMS_PER_PAGE);
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPost.title || !newPost.content) return;
+    if (!user || !newPost.title.trim() || !newPost.content.trim()) return;
 
     const { data, error } = await supabase
       .from("forum_posts")
@@ -94,38 +92,8 @@ export default function StiriClient({ initialPosts }: { initialPosts: Post[] }) 
     }
   };
 
-  const handleCreateReply = async (e: React.FormEvent, postId: string) => {
-    e.preventDefault();
-    if (!replyContent.trim()) return;
-
-    const { data, error } = await supabase
-      .from("forum_replies")
-      .insert([
-        {
-          post_id: postId,
-          content: replyContent,
-          user_id: user.id,
-          user_email: user.email,
-        },
-      ])
-      .select()
-      .single();
-
-    if (data && !error) {
-      setPosts(
-        posts.map((p) =>
-          p.id === postId
-            ? { ...p, replies: [...p.replies, data as Reply] }
-            : p
-        )
-      );
-      setReplyContent("");
-      setActiveReplyId(null);
-    }
-  };
-
   const handleShare = async (post: Post) => {
-    const shareUrl = `${window.location.origin}/stiri?post=${post.id}`;
+    const shareUrl = `${window.location.origin}/stiri/${post.id}`;
 
     if (navigator.share) {
       try {
@@ -247,124 +215,60 @@ export default function StiriClient({ initialPosts }: { initialPosts: Post[] }) 
                 className="group relative rounded-2xl border border-[#dadce0] bg-white hover:shadow-md transition-all duration-200 overflow-hidden"
               >
                 <div className="p-5 sm:p-6">
-                  {/* Meta */}
-                  <div className="flex items-center gap-2.5 text-[13px] text-[#5f6368] mb-2.5">
-                    <span className="font-medium text-[#202124] truncate max-w-[160px]">
-                      {post.user_email}
-                    </span>
-                    <span className="text-[#dadce0]">•</span>
-                    <time dateTime={post.created_at}>
-                      {formatRelativeTime(post.created_at)}
-                    </time>
-                    {post.replies.length > 0 && (
-                      <>
-                        <span className="text-[#dadce0]">•</span>
-                        <span>
-                          {post.replies.length}{" "}
-                          {post.replies.length === 1 ? "răspuns" : "răspunsuri"}
-                        </span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Title */}
-                  <h2 className="text-[18px] sm:text-[20px] font-medium text-[#202124] leading-snug group-hover:text-[#1a73e8] transition-colors">
-                    {post.title}
-                  </h2>
-
-                  {/* Content */}
-                  <p className="mt-2 text-[15px] text-[#5f6368] leading-relaxed line-clamp-3">
-                    {post.content}
-                  </p>
-
-                  {/* Replies preview */}
-                  {post.replies.length > 0 && (
-                    <div className="mt-5 pt-4 border-t border-[#f1f3f4] space-y-3.5">
-                      {post.replies.slice(0, 2).map((r) => (
-                        <div key={r.id}>
-                          <div className="flex items-center gap-2 text-[12px] text-[#5f6368] mb-1">
-                            <span className="font-medium text-[#202124]">
-                              {r.user_email}
-                            </span>
-                            <span>•</span>
-                            <span>{formatRelativeTime(r.created_at)}</span>
-                          </div>
-                          <p className="text-[14px] text-[#3c4043] leading-relaxed">
-                            {r.content}
-                          </p>
-                        </div>
-                      ))}
-                      {post.replies.length > 2 && (
-                        <p className="text-[13px] text-[#1a73e8] font-medium">
-                          + {post.replies.length - 2} răspunsuri în plus
-                        </p>
+                  {/* Zona clickabilă -> pagina știrii */}
+                  <Link href={`/stiri/${post.id}`} className="block">
+                    <div className="flex items-center gap-2.5 text-[13px] text-[#5f6368] mb-2.5">
+                      <span className="font-medium text-[#202124] truncate max-w-[160px]">
+                        {post.user_email}
+                      </span>
+                      <span className="text-[#dadce0]">•</span>
+                      <time dateTime={post.created_at}>
+                        {formatRelativeTime(post.created_at)}
+                      </time>
+                      {post.replies.length > 0 && (
+                        <>
+                          <span className="text-[#dadce0]">•</span>
+                          <span>
+                            {post.replies.length}{" "}
+                            {post.replies.length === 1
+                              ? "răspuns"
+                              : "răspunsuri"}
+                          </span>
+                        </>
                       )}
                     </div>
-                  )}
+
+                    <h2 className="text-[18px] sm:text-[20px] font-medium text-[#202124] leading-snug group-hover:text-[#1a73e8] transition-colors">
+                      {post.title}
+                    </h2>
+
+                    <p className="mt-2 text-[15px] text-[#5f6368] leading-relaxed line-clamp-3 break-words">
+                      {post.content}
+                    </p>
+                  </Link>
 
                   {/* Actions */}
-                  <div className="mt-5 flex items-center justify-between">
-                    {user ? (
-                      activeReplyId === post.id ? (
-                        <form
-                          onSubmit={(e) => handleCreateReply(e, post.id)}
-                          className="flex items-center gap-2 w-full"
-                        >
-                          <input
-                            type="text"
-                            autoFocus
-                            placeholder="Scrie un răspuns..."
-                            value={replyContent}
-                            onChange={(e) => setReplyContent(e.target.value)}
-                            className="flex-1 h-10 bg-[#f8f9fa] border border-[#dadce0] rounded-full px-4 text-sm text-[#202124] focus:outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8]"
-                          />
-                          <button
-                            type="submit"
-                            className="bg-[#1a73e8] text-white text-sm font-medium h-10 px-5 rounded-full hover:bg-[#1765cc]"
-                          >
-                            Trimite
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setActiveReplyId(null)}
-                            className="text-sm text-[#5f6368] px-2 hover:text-[#202124]"
-                          >
-                            Anulează
-                          </button>
-                        </form>
-                      ) : (
-                        <div className="flex items-center gap-5 w-full">
-                          <button
-                            onClick={() => setActiveReplyId(post.id)}
-                            className="text-sm font-medium text-[#1a73e8] hover:underline"
-                          >
-                            Răspunde
-                          </button>
-                          <button
-                            onClick={() => handleShare(post)}
-                            className="text-sm font-medium text-[#5f6368] hover:text-[#202124] ml-auto"
-                          >
-                            {sharedPostId === post.id
-                              ? "✓ Copiat"
-                              : "Distribuie"}
-                          </button>
-                        </div>
-                      )
-                    ) : (
-                      <div className="flex items-center justify-between w-full">
-                        <span className="text-sm text-[#9aa0a6]">
-                          Doar citire
-                        </span>
-                        <button
-                          onClick={() => handleShare(post)}
-                          className="text-sm font-medium text-[#5f6368] hover:text-[#202124]"
-                        >
-                          {sharedPostId === post.id
-                            ? "✓ Link copiat"
-                            : "Distribuie"}
-                        </button>
-                      </div>
+                  <div className="mt-5 flex items-center gap-5">
+                    <Link
+                      href={`/stiri/${post.id}`}
+                      className="text-sm font-medium text-[#1a73e8] hover:underline"
+                    >
+                      Deschide →
+                    </Link>
+                    {user && (
+                      <Link
+                        href={`/stiri/${post.id}#raspuns`}
+                        className="text-sm font-medium text-[#1a73e8] hover:underline"
+                      >
+                        Răspunde
+                      </Link>
                     )}
+                    <button
+                      onClick={() => handleShare(post)}
+                      className="text-sm font-medium text-[#5f6368] hover:text-[#202124] ml-auto"
+                    >
+                      {sharedPostId === post.id ? "✓ Link copiat" : "Distribuie"}
+                    </button>
                   </div>
                 </div>
               </article>

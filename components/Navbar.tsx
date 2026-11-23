@@ -9,7 +9,7 @@ import {
   markAllNotificationsRead,
   type AppNotification,
 } from "@/lib/notifications";
-import { searchSite, POPULAR, type SearchEntry } from "@/lib/search-index";
+import type { SearchEntry } from "@/lib/search-index";
 
 /* ------------------------------------------------------------------ */
 /*  Config                                                            */
@@ -23,6 +23,8 @@ type NavLink = {
   isNew?: boolean;
   external?: boolean;
 };
+
+type NavUser = { name?: string; email?: string } | null;
 
 const links: NavLink[] = [
   {
@@ -45,7 +47,8 @@ const links: NavLink[] = [
   {
     href: "https://docs.imidi.co.uk",
     label: "DOCS",
-    icon: "M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3",
+    // book-open icon (was a download arrow)
+    icon: "M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25",
     isNew: true,
     external: true,
   },
@@ -58,6 +61,13 @@ const links: NavLink[] = [
 
 const BELL =
   "M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0";
+
+/** Active on the page itself and on any sub-page (e.g. /products/xyz). */
+function isActive(pathname: string | null, l: NavLink) {
+  if (l.external || !pathname) return false;
+  if (l.href === "/") return pathname === "/";
+  return pathname === l.href || pathname.startsWith(l.href + "/");
+}
 
 /* ------------------------------------------------------------------ */
 /*  Styles                                                            */
@@ -82,6 +92,9 @@ const NavStyles = () => (
     }
   `}</style>
 );
+
+const FOCUS_L =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500";
 
 /* ------------------------------------------------------------------ */
 /*  Small pieces                                                      */
@@ -130,48 +143,46 @@ function NotificationDropdown({
   if (!isOpen) return null;
 
   return (
-    <>
-      {isMobile && <div className="fixed inset-0 z-40 bg-transparent md:hidden" onClick={onClose} />}
-      <div
-        className={`z-50 overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 py-2 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.25)] backdrop-blur-xl ${
-          isMobile ? "fixed left-4 right-4 top-16 max-h-80" : "absolute right-0 mt-4 max-h-96 w-80"
-        }`}
-      >
-        {notifications.length === 0 ? (
-          <p className="px-4 py-6 text-center text-xs text-slate-400">No notifications yet.</p>
-        ) : (
-          notifications.map((n) => (
-            <Link
-              key={n.id + n.createdAt}
-              href={n.href || "#"}
-              onClick={onClose}
-              className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50"
-            >
-              {n.image ? (
-                <img src={n.image} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
-              ) : (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-pink-50 text-[10px] font-bold text-pink-500">
-                  iM
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-semibold text-slate-800">{n.title}</p>
-                <p className="truncate text-[11px] text-slate-500">{n.message}</p>
+    <div
+      data-notif-root
+      role="region"
+      aria-label="Notifications"
+      style={isMobile ? { top: "calc(4rem + env(safe-area-inset-top, 0px))" } : undefined}
+      className={`z-50 overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 py-2 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.25)] backdrop-blur-xl ${
+        isMobile ? "fixed left-4 right-4 max-h-80 md:hidden" : "absolute right-0 mt-4 max-h-96 w-80"
+      }`}
+    >
+      {notifications.length === 0 ? (
+        <p className="px-4 py-6 text-center text-xs text-slate-400">No notifications yet.</p>
+      ) : (
+        notifications.map((n) => (
+          <Link
+            key={n.id + n.createdAt}
+            href={n.href || "#"}
+            onClick={onClose}
+            className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 ${FOCUS_L}`}
+          >
+            {n.image ? (
+              <img src={n.image} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+            ) : (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-pink-50 text-[10px] font-bold text-pink-500">
+                iM
               </div>
-            </Link>
-          ))
-        )}
-      </div>
-    </>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-slate-800">{n.title}</p>
+              <p className="truncate text-[11px] text-slate-500">{n.message}</p>
+            </div>
+          </Link>
+        ))
+      )}
+    </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
 /*  Site search                                                       */
 /* ------------------------------------------------------------------ */
-
-const FOCUS_L =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500";
 
 /**
  * Optional LIVE search in E-Market listings (Supabase).
@@ -187,6 +198,8 @@ const GROUP_LABEL: Record<SearchEntry["group"], string> = {
   Docs: "Documentation",
   Listings: "E-Market listings",
 };
+
+type IndexModule = typeof import("@/lib/search-index");
 
 function SearchIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -222,11 +235,20 @@ function Highlight({ text, q }: { text: string; q: string }) {
 
 function SearchPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [q, setQ] = useState("");
   const [idx, setIdx] = useState(0);
   const [market, setMarket] = useState<SearchEntry[]>([]);
+  const [mod, setMod] = useState<IndexModule | null>(null);
 
   const term = q.trim();
+
+  /* load the search index only when the panel is first opened */
+  useEffect(() => {
+    if (open && !mod) {
+      import("@/lib/search-index").then(setMod);
+    }
+  }, [open, mod]);
 
   /* reset every time the panel opens */
   useEffect(() => {
@@ -235,6 +257,13 @@ function SearchPanel({ open, onClose }: { open: boolean; onClose: () => void }) 
       setIdx(0);
       setMarket([]);
     }
+  }, [open]);
+
+  /* give focus back to whatever opened the panel */
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.activeElement as HTMLElement | null;
+    return () => prev?.focus?.();
   }, [open]);
 
   /* optional live E-Market results (debounced) */
@@ -268,11 +297,12 @@ function SearchPanel({ open, onClose }: { open: boolean; onClose: () => void }) 
     };
   }, [term, open]);
 
-  const flat = useMemo(() => {
-    if (!term) return POPULAR;
-    const all = [...searchSite(term, 10), ...market];
+  const flat = useMemo<SearchEntry[]>(() => {
+    if (!mod) return [];
+    if (!term) return mod.POPULAR;
+    const all = [...mod.searchSite(term, 10), ...market];
     return all.sort((a, b) => GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group));
-  }, [term, market]);
+  }, [term, market, mod]);
 
   useEffect(() => setIdx(0), [term]);
   useEffect(() => {
@@ -303,16 +333,36 @@ function SearchPanel({ open, onClose }: { open: boolean; onClose: () => void }) 
     }
   };
 
+  /* keep Tab inside the dialog */
+  const trapTab = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab") return;
+    const f = dialogRef.current?.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled])'
+    );
+    if (!f || f.length === 0) return;
+    const first = f[0];
+    const last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-stretch justify-center bg-slate-900/30 backdrop-blur-sm md:items-start md:px-4 md:pt-[12vh]"
       onMouseDown={onClose}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Search iMIDI"
         onMouseDown={(e) => e.stopPropagation()}
+        onKeyDown={trapTab}
         className="flex w-full flex-col overflow-hidden bg-white md:max-h-[70vh] md:max-w-xl md:rounded-2xl md:border md:border-slate-200 md:shadow-[0_30px_80px_-20px_rgba(15,23,42,0.45)]"
       >
         {/* input */}
@@ -331,14 +381,20 @@ function SearchPanel({ open, onClose }: { open: boolean; onClose: () => void }) 
             className="h-14 w-full bg-transparent text-base text-slate-900 outline-none placeholder:text-slate-400 md:text-sm"
           />
           <kbd className="hidden rounded border border-slate-200 px-1.5 py-0.5 font-mono text-[10px] text-slate-400 md:inline">esc</kbd>
-          <button type="button" onClick={onClose} className="text-sm font-semibold text-blue-600 md:hidden">
+          <button type="button" onClick={onClose} className={`px-1 text-sm font-semibold text-blue-600 md:hidden ${FOCUS_L}`}>
             Cancel
           </button>
         </div>
 
         {/* results */}
         <ul id="nv-search-list" role="listbox" aria-label="Results" className="flex-1 overflow-y-auto p-2">
-          {flat.length === 0 && (
+          {!mod && (
+            <li role="presentation" className="px-3 py-10 text-center text-xs text-slate-400">
+              Loading…
+            </li>
+          )}
+
+          {mod && flat.length === 0 && (
             <li role="presentation" className="px-3 py-10 text-center">
               <p className="text-sm font-semibold text-slate-700">No results for “{term}”</p>
               <p className="mt-1 text-xs text-slate-400">Try another word, or ask us directly.</p>
@@ -403,25 +459,33 @@ function SearchPanel({ open, onClose }: { open: boolean; onClose: () => void }) 
 function DesktopNav({
   scrolled,
   user,
+  authReady,
   notifications,
   isNotifOpen,
   unreadCount,
   onToggleNotif,
+  onCloseNotif,
   onLogout,
   onOpenSearch,
 }: {
   scrolled: boolean;
-  user: { name?: string; email?: string } | null;
+  user: NavUser;
+  authReady: boolean;
   notifications: AppNotification[];
   isNotifOpen: boolean;
   unreadCount: number;
   onToggleNotif: () => void;
+  onCloseNotif: () => void;
   onLogout: () => void;
   onOpenSearch: () => void;
 }) {
   const pathname = usePathname();
   const [isMac, setIsMac] = useState(false);
-  useEffect(() => setIsMac(/Mac|iPhone|iPad/i.test(navigator.platform)), []);
+  useEffect(() => {
+    const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
+    const platform = nav.userAgentData?.platform || nav.platform || "";
+    setIsMac(/mac|iphone|ipad/i.test(platform));
+  }, []);
 
   const tab = (active: boolean) =>
     `relative flex h-full items-center whitespace-nowrap px-2 text-[11px] font-semibold uppercase tracking-wide transition-colors lg:px-3.5 lg:text-xs lg:tracking-wider ${FOCUS_L} ${
@@ -441,10 +505,12 @@ function DesktopNav({
     >
       <nav aria-label="Main" className="mx-auto flex h-full max-w-7xl items-center gap-2 px-4 lg:gap-4 lg:px-6">
         {/* Logo */}
-        <Link href="/" className="group flex shrink-0 items-center py-1">
+        <Link href="/" className="group flex shrink-0 items-center py-1" aria-label="iMIDI home">
           <img
             src="/iiimidi.png"
             alt="iMIDI Logo"
+            fetchPriority="high"
+            decoding="async"
             className={`w-auto object-contain transition-all duration-300 ease-out motion-reduce:transition-none ${
               scrolled ? "h-12 lg:h-14" : "h-14 lg:h-[4.5rem]"
             }`}
@@ -455,10 +521,16 @@ function DesktopNav({
         {/* Links */}
         <div className="flex h-full items-center">
           {links.slice(1).map((l) => {
+            const active = isActive(pathname, l);
+
             if (l.isAirMidi) {
-              const active = !!pathname?.startsWith("/airmidi-link");
               return (
-                <Link key={l.href} href={l.href} className={`${tab(active)} gap-1.5 !pl-1.5 lg:gap-2 lg:!pl-2`}>
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  aria-current={active ? "page" : undefined}
+                  className={`${tab(active)} gap-1.5 !pl-1.5 lg:gap-2 lg:!pl-2`}
+                >
                   <span className="relative flex h-6 w-6 shrink-0 rounded-full">
                     <span aria-hidden className="nv-sonar absolute inset-0 rounded-full bg-indigo-400/40" />
                     <img src="/airlink-icon.png" alt="" className="relative h-6 w-6 rounded-full" draggable={false} />
@@ -474,7 +546,6 @@ function DesktopNav({
               );
             }
 
-            const active = pathname === l.href;
             const inner = (
               <>
                 {l.label}
@@ -489,12 +560,12 @@ function DesktopNav({
               </>
             );
             return l.external ? (
-              <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className={tab(active)}>
+              <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className={tab(false)}>
                 {inner}
                 <span className="sr-only"> (opens in a new tab)</span>
               </a>
             ) : (
-              <Link key={l.href} href={l.href} className={tab(active)}>
+              <Link key={l.href} href={l.href} aria-current={active ? "page" : undefined} className={tab(active)}>
                 {inner}
               </Link>
             );
@@ -517,20 +588,23 @@ function DesktopNav({
           </button>
 
           {user && (
-            <div className="relative">
+            <div className="relative" data-notif-root>
               <button
                 onClick={onToggleNotif}
-                aria-label="Notificări"
+                aria-label="Notifications"
+                aria-expanded={isNotifOpen}
                 className={`relative rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-950 ${FOCUS_L}`}
               >
                 <BellIcon />
                 <Badge n={unreadCount} />
               </button>
-              <NotificationDropdown notifications={notifications} isOpen={isNotifOpen} onClose={onToggleNotif} />
+              <NotificationDropdown notifications={notifications} isOpen={isNotifOpen} onClose={onCloseNotif} />
             </div>
           )}
 
-          {user ? (
+          {!authReady ? (
+            <div aria-hidden className="h-9 w-40 animate-pulse rounded-lg bg-slate-100" />
+          ) : user ? (
             <>
               <Link
                 href="/dashboard/cloud-db"
@@ -575,58 +649,70 @@ function DesktopNav({
 function MobileHeader({
   scrolled,
   user,
+  authReady,
   isMenuOpen,
   setIsMenuOpen,
-  notifications,
   isNotifOpen,
   unreadCount,
   onToggleNotif,
   onOpenSearch,
 }: {
   scrolled: boolean;
-  user: { name?: string; email?: string } | null;
+  user: NavUser;
+  authReady: boolean;
   isMenuOpen: boolean;
   setIsMenuOpen: (v: boolean) => void;
-  notifications: AppNotification[];
   isNotifOpen: boolean;
   unreadCount: number;
   onToggleNotif: () => void;
   onOpenSearch: () => void;
 }) {
+  const btn = `flex h-11 min-w-[44px] items-center justify-center rounded-full transition-colors hover:text-slate-900 ${FOCUS_L}`;
+
   return (
     <div
-      className={`fixed inset-x-0 top-0 z-50 flex h-14 w-full items-center justify-between px-5 transition-all duration-300 md:hidden ${
+      style={{
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        height: "calc(3.5rem + env(safe-area-inset-top, 0px))",
+      }}
+      className={`fixed inset-x-0 top-0 z-50 flex w-full items-center justify-between px-5 transition-all duration-300 md:hidden ${
         scrolled && !isMenuOpen
           ? "border-b border-slate-200/80 bg-white/80 shadow-sm backdrop-blur-xl"
           : "border-b border-transparent bg-transparent"
       }`}
     >
-      <Link href="/" onClick={() => setIsMenuOpen(false)} className="group flex items-center py-1">
-        <img src="/iiimidi.png" alt="iMIDI Logo" className="h-[4.25rem] w-auto object-contain" />
+      <Link href="/" onClick={() => setIsMenuOpen(false)} className="group flex items-center py-1" aria-label="iMIDI home">
+        <img src="/iiimidi.png" alt="iMIDI Logo" fetchPriority="high" decoding="async" className="h-[4.25rem] w-auto object-contain" />
         <span className="logo-dot ml-0.5 text-lg font-black text-[#FF5CA1]">.</span>
       </Link>
 
-      <div className="flex items-center gap-1 text-slate-600">
-        <button onClick={onOpenSearch} aria-label="Search the site" className="p-2 transition-colors hover:text-slate-900">
+      <div className="flex items-center text-slate-600">
+        <button onClick={onOpenSearch} aria-label="Search the site" className={btn}>
           <SearchIcon className="h-5 w-5" />
         </button>
+
         {user && (
-          <div className="relative">
-            <button onClick={onToggleNotif} aria-label="Notificări" className="relative p-2 transition-colors hover:text-slate-900">
-              <BellIcon />
-              <Badge n={unreadCount} />
-            </button>
-            <NotificationDropdown notifications={notifications} isOpen={isNotifOpen} onClose={onToggleNotif} isMobile />
-          </div>
+          <button
+            data-notif-root
+            onClick={onToggleNotif}
+            aria-label="Notifications"
+            aria-expanded={isNotifOpen}
+            className={`relative ${btn}`}
+          >
+            <BellIcon />
+            <Badge n={unreadCount} />
+          </button>
         )}
 
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 transition-colors hover:text-slate-900 focus:outline-none"
-          aria-label="Toggle Account Menu"
+          className={`${btn} px-1`}
+          aria-label="Toggle account menu"
           aria-expanded={isMenuOpen}
         >
-          {user ? (
+          {!authReady ? (
+            <span aria-hidden className="h-7 w-7 animate-pulse rounded-full bg-slate-200" />
+          ) : user ? (
             <div className="flex items-center gap-1.5">
               <div className="relative shrink-0">
                 <Avatar user={user} size="h-7 w-7" />
@@ -658,7 +744,7 @@ function MobileAccountOverlay({
   onLogout,
 }: {
   isOpen: boolean;
-  user: { name?: string; email?: string } | null;
+  user: NavUser;
   onClose: () => void;
   onLogout: () => void;
 }) {
@@ -760,16 +846,17 @@ function MobileAccountOverlay({
 function MobileBottomNav({ isVisible, onNavigate }: { isVisible: boolean; onNavigate: () => void }) {
   const pathname = usePathname();
 
-  const activeIdx = links.findIndex((l) =>
-    l.external ? false : l.isAirMidi ? !!pathname?.startsWith("/airmidi-link") : pathname === l.href
-  );
+  const activeIdx = links.findIndex((l) => isActive(pathname, l));
 
-  const wrapper = "relative z-10 flex flex-1 flex-col items-center justify-center py-1.5 transition-transform active:scale-95";
+  const wrapper = `relative z-10 flex min-h-[52px] flex-1 flex-col items-center justify-center rounded-xl py-1.5 transition-transform active:scale-95 ${FOCUS_L}`;
 
   return (
     <nav
-      className={`fixed inset-x-4 bottom-5 z-50 transition-all duration-300 md:hidden ${
-        isVisible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-28 opacity-0"
+      aria-label="Mobile"
+      aria-hidden={!isVisible}
+      style={{ bottom: "calc(1.25rem + env(safe-area-inset-bottom, 0px))" }}
+      className={`fixed inset-x-4 z-50 transition-all duration-300 md:hidden ${
+        isVisible ? "visible translate-y-0 opacity-100" : "pointer-events-none invisible translate-y-28 opacity-0"
       }`}
     >
       <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-1.5 shadow-[0_8px_30px_rgba(15,23,42,0.10)] backdrop-blur-xl">
@@ -790,14 +877,21 @@ function MobileBottomNav({ isVisible, onNavigate }: { isVisible: boolean; onNavi
             const color = cur ? "text-pink-600" : "text-slate-500";
 
             const label = (
-              <span className={`mt-0.5 text-[8px] font-semibold uppercase tracking-wider transition-colors ${color} ${cur ? "font-bold" : ""}`}>
+              <span className={`mt-0.5 whitespace-nowrap text-[9px] font-semibold uppercase tracking-normal transition-colors ${color} ${cur ? "font-bold" : ""}`}>
                 {l.isAirMidi ? "AirMIDI" : l.label}
               </span>
             );
 
             if (l.isAirMidi) {
               return (
-                <Link key={l.href} href={l.href} aria-label="AirMIDI Link" className={wrapper} onClick={onNavigate}>
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  aria-label="AirMIDI Link"
+                  aria-current={cur ? "page" : undefined}
+                  className={wrapper}
+                  onClick={onNavigate}
+                >
                   <div className="p-2">
                     <span className="relative block h-4 w-4">
                       <img
@@ -845,9 +939,10 @@ function MobileBottomNav({ isVisible, onNavigate }: { isVisible: boolean; onNavi
             return l.external ? (
               <a key={l.href} href={l.href} target="_blank" rel="noopener noreferrer" className={wrapper} onClick={onNavigate}>
                 {content}
+                <span className="sr-only"> (opens in a new tab)</span>
               </a>
             ) : (
-              <Link key={l.href} href={l.href} className={wrapper} onClick={onNavigate}>
+              <Link key={l.href} href={l.href} aria-current={cur ? "page" : undefined} className={wrapper} onClick={onNavigate}>
                 {content}
               </Link>
             );
@@ -863,21 +958,32 @@ function MobileBottomNav({ isVisible, onNavigate }: { isVisible: boolean; onNavi
 /* ------------------------------------------------------------------ */
 
 export default function Navbar() {
+  const pathname = usePathname();
+  const router = useRouter();
+
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const lastScrollY = useRef(0);
 
-  const [user, setUser] = useState<{ name?: string; email?: string } | null>(null);
+  const [user, setUser] = useState<NavUser>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const loggedIn = !!user;
 
+  /* notifications only exist for signed-in users */
   useEffect(() => {
-    const cleanup = initNotifications(setNotifications);
-    return cleanup;
-  }, []);
+    if (!loggedIn) {
+      setNotifications([]);
+      return;
+    }
+    return initNotifications(setNotifications);
+  }, [loggedIn]);
+
+  const closeNotif = () => setIsNotifOpen(false);
 
   const handleOpenNotifications = () => {
     const next = !isNotifOpen;
@@ -887,16 +993,37 @@ export default function Navbar() {
     }
   };
 
+  /* close notifications when clicking anywhere outside them */
+  useEffect(() => {
+    if (!isNotifOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target?.closest("[data-notif-root]")) setIsNotifOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [isNotifOpen]);
+
+  /* close every overlay when the route changes (links, Back button, etc.) */
+  useEffect(() => {
+    setIsMenuOpen(false);
+    setIsNotifOpen(false);
+    setSearchOpen(false);
+  }, [pathname]);
+
+  /* auth */
   useEffect(() => {
     const apply = (session: { user?: { user_metadata?: Record<string, string>; email?: string } } | null) => {
       if (session?.user) {
+        const meta = session.user.user_metadata;
         setUser({
-          name: session.user.user_metadata?.full_name || session.user.user_metadata?.name,
+          name: meta?.username || meta?.full_name || meta?.name,
           email: session.user.email,
         });
       } else {
         setUser(null);
       }
+      setAuthReady(true);
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => apply(session));
@@ -907,6 +1034,10 @@ export default function Navbar() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setNotifications([]);
+    setIsNotifOpen(false);
+    if (pathname?.startsWith("/dashboard")) router.replace("/");
+    router.refresh();
   };
 
   useEffect(() => {
@@ -936,7 +1067,8 @@ export default function Navbar() {
       }
       if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         const t = e.target as HTMLElement | null;
-        const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+        const typing =
+          !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
         if (!typing) {
           e.preventDefault();
           setSearchOpen(true);
@@ -953,8 +1085,14 @@ export default function Navbar() {
     };
   }, []);
 
+  /* lock page scroll while the menu or search is open, and always restore it */
   useEffect(() => {
-    document.body.style.overflow = isMenuOpen || searchOpen ? "hidden" : "unset";
+    if (!isMenuOpen && !searchOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [isMenuOpen, searchOpen]);
 
   return (
@@ -964,10 +1102,12 @@ export default function Navbar() {
       <DesktopNav
         scrolled={scrolled}
         user={user}
+        authReady={authReady}
         notifications={notifications}
         isNotifOpen={isNotifOpen}
         unreadCount={unreadCount}
         onToggleNotif={handleOpenNotifications}
+        onCloseNotif={closeNotif}
         onLogout={handleLogout}
         onOpenSearch={() => setSearchOpen(true)}
       />
@@ -975,14 +1115,24 @@ export default function Navbar() {
       <MobileHeader
         scrolled={scrolled}
         user={user}
+        authReady={authReady}
         isMenuOpen={isMenuOpen}
         setIsMenuOpen={setIsMenuOpen}
-        notifications={notifications}
         isNotifOpen={isNotifOpen}
         unreadCount={unreadCount}
         onToggleNotif={handleOpenNotifications}
         onOpenSearch={() => setSearchOpen(true)}
       />
+
+      {/* Rendered outside the header: a blurred header would otherwise trap this fixed panel */}
+      {user && (
+        <NotificationDropdown
+          notifications={notifications}
+          isOpen={isNotifOpen}
+          onClose={closeNotif}
+          isMobile
+        />
+      )}
 
       <MobileAccountOverlay
         isOpen={isMenuOpen}
