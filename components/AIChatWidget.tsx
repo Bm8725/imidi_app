@@ -30,6 +30,7 @@ const SITE = {
 };
 
 const BRAND = "#3B5BDB";
+const BRAND_DARK = "#5B7CFF"; // slightly brighter for dark mode
 
 /* Human contact: phone + WhatsApp. Hours are evaluated in this time zone. */
 const BUSINESS_HOURS = {
@@ -83,6 +84,7 @@ function getBusinessStatus() {
 }
 const KEY_MSGS = "imidi-chat-v4";
 const KEY_CONSENT = "imidi-chat-consent-v1";
+const KEY_THEME = "imidi-chat-theme-v1";
 const CONSENT_VERSION = 1;
 const MAX_STORED = 40;
 
@@ -207,7 +209,8 @@ function SmartLink({ href, children }: { href: string; children: React.ReactNode
       href={safe}
       target={external ? "_blank" : undefined}
       rel={external ? "noopener noreferrer" : undefined}
-      className="break-words font-medium text-[#2F4AC0] underline decoration-[#2F4AC0]/30 underline-offset-2 hover:decoration-[#2F4AC0]"
+      className="break-words font-medium underline decoration-[color:var(--im-link)]/30 underline-offset-2 hover:decoration-[color:var(--im-link)]"
+      style={{ color: "var(--im-link)" }}
     >
       {children}
     </a>
@@ -220,10 +223,18 @@ function renderInline(text: string, key: string): React.ReactNode[] {
     const k = `${key}-${i}`;
     if (!p) return null;
     if (p.startsWith("**") && p.endsWith("**") && p.length > 4)
-      return <strong key={k} className="font-semibold text-[#0E1330]">{p.slice(2, -2)}</strong>;
+      return (
+        <strong key={k} className="font-semibold" style={{ color: "var(--im-text)" }}>
+          {p.slice(2, -2)}
+        </strong>
+      );
     if (p.startsWith("`") && p.endsWith("`") && p.length > 2)
       return (
-        <code key={k} className="rounded-sm bg-[#EEF2FF] px-1.5 py-0.5 font-mono text-[12px] text-[#2F4AC0]">
+        <code
+          key={k}
+          className="rounded-sm px-1.5 py-0.5 font-mono text-[12px]"
+          style={{ background: "var(--im-code-bg)", color: "var(--im-link)" }}
+        >
           {p.slice(1, -1)}
         </code>
       );
@@ -250,7 +261,8 @@ function renderRich(text: string): React.ReactNode {
     blocks.push(
       <Tag
         key={`l-${blocks.length}`}
-        className={`my-1.5 space-y-1 pl-5 ${list.ordered ? "list-decimal" : "list-disc"} marker:text-[#3B5BDB]`}
+        className={`my-1.5 space-y-1 pl-5 ${list.ordered ? "list-decimal" : "list-disc"}`}
+        style={{ marker: "var(--im-brand)" } as any}
       >
         {list.items.map((it, i) => (
           <li key={i}>{renderInline(it, `li-${blocks.length}-${i}`)}</li>
@@ -354,7 +366,10 @@ function Avatar({ size = 28, online = false, round = false }: { size?: number; o
   const [broken, setBroken] = useState(false);
   return (
     <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-      <div className={`h-full w-full overflow-hidden shadow-sm ring-2 ring-white ${round ? "rounded-full" : "rounded-sm"}`}>
+      <div
+        className={`h-full w-full overflow-hidden shadow-sm ring-2 ${round ? "rounded-full" : "rounded-sm"}`}
+        style={{ ringColor: "var(--im-surface)" }}
+      >
         {SITE.avatarSrc && !broken ? (
           <img
             src={SITE.avatarSrc}
@@ -368,8 +383,13 @@ function Avatar({ size = 28, online = false, round = false }: { size?: number; o
       </div>
       {online && (
         <span
-          className="absolute bottom-[2%] right-[2%] rounded-full border-2 border-white bg-[#22C58B]"
-          style={{ width: Math.max(10, size * 0.22), height: Math.max(10, size * 0.22) }}
+          className="absolute bottom-[2%] right-[2%] rounded-full border-2"
+          style={{
+            width: Math.max(10, size * 0.22),
+            height: Math.max(10, size * 0.22),
+            background: "#22C58B",
+            borderColor: "var(--im-surface)",
+          }}
           aria-hidden="true"
         />
       )}
@@ -408,13 +428,19 @@ const I = {
   human: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.8-4 3.8-6 7-6s6.2 2 7 6" /></svg>,
   phone: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z" /></svg>,
   arrowDown: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M6 13l6 6 6-6" /></svg>,
+  moon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 14.5A8.5 8.5 0 1110.5 3a7 7 0 0010.5 11.5z" /></svg>,
+  sun: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>,
 };
 
 function Equalizer() {
   return (
     <div className="flex h-4 items-end gap-[3px]" aria-label="Smith is typing" role="status">
       {[0, 1, 2, 3, 4].map((i) => (
-        <span key={i} className="im-eq w-[3px] rounded-full" style={{ height: "100%", animationDelay: `${i * 0.12}s`, background: BRAND }} />
+        <span
+          key={i}
+          className="im-eq w-[3px] rounded-full"
+          style={{ height: "100%", animationDelay: `${i * 0.12}s`, background: "var(--im-brand)" }}
+        />
       ))}
     </div>
   );
@@ -437,8 +463,8 @@ function IconButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={`flex h-8 w-8 items-center justify-center rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#3B5BDB] ${
-        active ? "bg-[#3B5BDB]/15 text-[#2F4AC0]" : "text-[#4B5278] hover:bg-[#0E1330]/[0.07] hover:text-[#0E1330]"
+      className={`flex h-8 w-8 items-center justify-center rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--im-brand)] ${
+        active ? "bg-[var(--im-brand-soft)] text-[var(--im-link)]" : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
       }`}
     >
       {children}
@@ -448,8 +474,13 @@ function IconButton({
 
 function Switch({ on }: { on: boolean }) {
   return (
-    <span className={`relative inline-block h-[18px] w-8 flex-shrink-0 rounded-full transition-colors ${on ? "bg-[#3B5BDB]" : "bg-[#C9CCE0]"}`} aria-hidden="true">
-      <span className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow transition-all ${on ? "left-[16px]" : "left-[2px]"}`} />
+    <span
+      className={`relative inline-block h-[18px] w-8 flex-shrink-0 rounded-full transition-colors ${on ? "bg-[var(--im-brand)]" : "bg-[var(--im-switch-off)]"}`}
+      aria-hidden="true"
+    >
+      <span
+        className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow transition-all ${on ? "left-[16px]" : "left-[2px]"}`}
+      />
     </span>
   );
 }
@@ -473,10 +504,12 @@ function MenuItem({
       role="menuitem"
       onClick={onClick}
       className={`flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-left text-[13px] font-medium transition-colors ${
-        danger ? "text-[#B42318] hover:bg-[#FFF1F0]" : "text-[#1F2547] hover:bg-[#F1F2FA]"
+        danger
+          ? "text-[#B42318] hover:bg-[#FFF1F0]"
+          : "text-[var(--im-text)] hover:bg-[var(--im-hover)]"
       }`}
     >
-      <span className={danger ? "text-[#B42318]" : "text-[#6B7194]"}>{icon}</span>
+      <span className={danger ? "text-[#B42318]" : "text-[var(--im-muted)]"}>{icon}</span>
       <span className="flex-1">{label}</span>
       {toggle !== undefined && <Switch on={toggle} />}
     </button>
@@ -515,7 +548,7 @@ function AssistantMessage({
             className={`rounded-sm border px-3.5 py-2.5 text-[13.5px] leading-relaxed ${
               msg.error
                 ? "border-[#FFD0D0] bg-[#FFF3F3] text-[#9B1C1C]"
-                : "border-[#E7E9F5] bg-white text-[#1F2547] shadow-sm"
+                : "border-[var(--im-border)] bg-[var(--im-bubble)] text-[var(--im-text)] shadow-sm"
             }`}
           >
             {renderRich(shown)}
@@ -529,7 +562,7 @@ function AssistantMessage({
                 key={i}
                 type="button"
                 onClick={() => onImage(img)}
-                className="im-thumb relative cursor-zoom-in overflow-hidden rounded-sm border border-[#E7E9F5] bg-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#3B5BDB]"
+                className="im-thumb relative cursor-zoom-in overflow-hidden rounded-sm border border-[var(--im-border)] bg-[var(--im-bubble)] shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--im-brand)]"
                 style={{ aspectRatio: msg.images!.length === 1 ? "16/10" : "1/1" }}
               >
                 <img src={img.url} alt={img.alt || `${SITE.name} attachment`} loading="lazy" className="h-full w-full object-cover" />
@@ -539,7 +572,11 @@ function AssistantMessage({
         )}
 
         {done && msg.error && isLast && (
-          <button type="button" onClick={onRetry} className="self-start rounded-sm border border-[#E7E9F5] bg-white px-3 py-1.5 text-xs font-semibold text-[#1F2547] shadow-sm hover:bg-[#F3F4FC]">
+          <button
+            type="button"
+            onClick={onRetry}
+            className="self-start rounded-sm border border-[var(--im-border)] bg-[var(--im-bubble)] px-3 py-1.5 text-xs font-semibold text-[var(--im-text)] shadow-sm hover:bg-[var(--im-hover)]"
+          >
             Try again
           </button>
         )}
@@ -555,7 +592,11 @@ function AssistantMessage({
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1400);
               }}
-              className={`flex h-7 w-7 items-center justify-center rounded-sm ${copied ? "bg-[#3B5BDB]/15 text-[#2F4AC0]" : "text-[#7A80A3] hover:bg-[#0E1330]/[0.06] hover:text-[#0E1330]"}`}
+              className={`flex h-7 w-7 items-center justify-center rounded-sm ${
+                copied
+                  ? "bg-[var(--im-brand-soft)] text-[var(--im-link)]"
+                  : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
+              }`}
             >
               {copied ? (
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7" /></svg>
@@ -563,10 +604,30 @@ function AssistantMessage({
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 012-2h9" /></svg>
               )}
             </button>
-            <button type="button" aria-label="Helpful" title="Helpful" onClick={() => onFeedback(msg.id, "up")} className={`flex h-7 w-7 items-center justify-center rounded-sm ${msg.feedback === "up" ? "bg-[#3B5BDB]/15 text-[#2F4AC0]" : "text-[#7A80A3] hover:bg-[#0E1330]/[0.06] hover:text-[#0E1330]"}`}>
+            <button
+              type="button"
+              aria-label="Helpful"
+              title="Helpful"
+              onClick={() => onFeedback(msg.id, "up")}
+              className={`flex h-7 w-7 items-center justify-center rounded-sm ${
+                msg.feedback === "up"
+                  ? "bg-[var(--im-brand-soft)] text-[var(--im-link)]"
+                  : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
+              }`}
+            >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 11v9H4v-9h3zM7 11l4-8a2 2 0 012 2v4h6a2 2 0 012 2.3l-1.2 7A2 2 0 0117.8 20H7" /></svg>
             </button>
-            <button type="button" aria-label="Not helpful" title="Not helpful" onClick={() => onFeedback(msg.id, "down")} className={`flex h-7 w-7 items-center justify-center rounded-sm ${msg.feedback === "down" ? "bg-[#3B5BDB]/15 text-[#2F4AC0]" : "text-[#7A80A3] hover:bg-[#0E1330]/[0.06] hover:text-[#0E1330]"}`}>
+            <button
+              type="button"
+              aria-label="Not helpful"
+              title="Not helpful"
+              onClick={() => onFeedback(msg.id, "down")}
+              className={`flex h-7 w-7 items-center justify-center rounded-sm ${
+                msg.feedback === "down"
+                  ? "bg-[var(--im-brand-soft)] text-[var(--im-link)]"
+                  : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
+              }`}
+            >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 13V4h3v9h-3zM17 13l-4 8a2 2 0 01-2-2v-4H5a2 2 0 01-2-2.3l1.2-7A2 2 0 016.2 4H17" /></svg>
             </button>
           </div>
@@ -579,7 +640,7 @@ function AssistantMessage({
                 key={s}
                 type="button"
                 onClick={() => onSuggest(s)}
-                className="im-chip rounded-sm border border-[#3B5BDB]/30 bg-white px-3 py-1.5 text-xs font-medium text-[#2F4AC0] shadow-sm hover:border-[#3B5BDB]/60 hover:bg-[#EEF2FF]"
+                className="im-chip rounded-sm border border-[var(--im-brand)]/30 bg-[var(--im-bubble)] px-3 py-1.5 text-xs font-medium text-[var(--im-link)] shadow-sm hover:border-[var(--im-brand)]/60 hover:bg-[var(--im-brand-soft)]"
               >
                 {s}
               </button>
@@ -619,6 +680,9 @@ export default function AIChatWidget() {
   const [contactOpen, setContactOpen] = useState(false);
   const [, setTick] = useState(0);
 
+  // Theme: light is default/priority
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
   // Keep the open/closed status fresh while the contact sheet is visible.
   useEffect(() => {
     if (!contactOpen) return;
@@ -637,7 +701,7 @@ export default function AIChatWidget() {
     if (soundRef.current) playSound(n);
   }, []);
 
-  /* ---- load consent (and chat only if the user allowed saving) ---- */
+  /* ---- load consent + theme ---- */
   useEffect(() => {
     try {
       const raw = localStorage.getItem(KEY_CONSENT);
@@ -650,6 +714,10 @@ export default function AIChatWidget() {
             if (m) setMessages(JSON.parse(m));
           }
         }
+      }
+      const savedTheme = localStorage.getItem(KEY_THEME);
+      if (savedTheme === "dark" || savedTheme === "light") {
+        setTheme(savedTheme);
       }
     } catch {}
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -664,6 +732,13 @@ export default function AIChatWidget() {
       else localStorage.removeItem(KEY_CONSENT);
     } catch {}
   }, [consent, hydrated]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(KEY_THEME, theme);
+    } catch {}
+  }, [theme, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -749,6 +824,11 @@ export default function AIChatWidget() {
   };
 
   const patchConsent = (patch: Partial<Consent>) => setConsent((c) => (c ? { ...c, ...patch } : c));
+
+  const toggleTheme = () => {
+    setTheme((t) => (t === "light" ? "dark" : "light"));
+    sfx("click");
+  };
 
   /* ---- network ---- */
   const request = useCallback(
@@ -924,6 +1004,42 @@ export default function AIChatWidget() {
       <style>{`
         .im-font { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 
+        /* Light theme (default / priority) */
+        .im-theme-light {
+          --im-brand: #3B5BDB;
+          --im-brand-soft: rgba(59, 91, 219, 0.12);
+          --im-link: #2F4AC0;
+          --im-text: #0E1330;
+          --im-muted: #6B7194;
+          --im-border: #E7E9F5;
+          --im-surface: #FFFFFF;
+          --im-bg: #F6F7FC;
+          --im-bubble: #FFFFFF;
+          --im-hover: rgba(14, 19, 48, 0.06);
+          --im-code-bg: #EEF2FF;
+          --im-switch-off: #C9CCE0;
+          --im-input-bg: #F1F2FA;
+          --im-shadow: 0 4px 24px rgba(14, 19, 48, 0.08);
+        }
+
+        /* Dark theme */
+        .im-theme-dark {
+          --im-brand: #5B7CFF;
+          --im-brand-soft: rgba(91, 124, 255, 0.18);
+          --im-link: #8BA3FF;
+          --im-text: #E8EAF6;
+          --im-muted: #9BA3C7;
+          --im-border: #2A2F4A;
+          --im-surface: #1A1D2E;
+          --im-bg: #12141F;
+          --im-bubble: #1F2338;
+          --im-hover: rgba(255, 255, 255, 0.06);
+          --im-code-bg: #2A2F4A;
+          --im-switch-off: #3A3F5C;
+          --im-input-bg: #1F2338;
+          --im-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        }
+
         @keyframes im-eq { 0%,100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
         @keyframes im-fade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes im-pulse { 0% { box-shadow: 0 0 0 0 rgba(59,91,219,.45); } 100% { box-shadow: 0 0 0 10px rgba(59,91,219,0); } }
@@ -935,8 +1051,10 @@ export default function AIChatWidget() {
         .im-panel-size { transition: width .25s ease, height .25s ease; }
 
         .im-scroll::-webkit-scrollbar, .im-hscroll::-webkit-scrollbar { width: 6px; height: 0; }
-        .im-scroll::-webkit-scrollbar-thumb { background: rgba(80,90,160,.2); border-radius: 999px; }
+        .im-scroll::-webkit-scrollbar-thumb { background: rgba(80,90,160,.25); border-radius: 999px; }
         .im-scroll::-webkit-scrollbar-track { background: transparent; }
+
+        .im-theme-dark .im-scroll::-webkit-scrollbar-thumb { background: rgba(140,150,200,.3); }
 
         @media (prefers-reduced-motion: reduce) {
           .im-eq, .im-msg-in, .im-menu-in, .im-fade, .im-mic-on { animation: none !important; }
@@ -952,7 +1070,7 @@ export default function AIChatWidget() {
               tabIndex={0}
               onClick={openPanel}
               onKeyDown={(e) => e.key === "Enter" && openPanel()}
-              className="relative flex max-w-[240px] cursor-pointer items-center gap-2.5 rounded-2xl rounded-br-md border border-[#E7E9F5] bg-white py-2.5 pl-2.5 pr-4 shadow-md"
+              className="relative flex max-w-[240px] cursor-pointer items-center gap-2.5 rounded-sm border border-[#E7E9F5] bg-white py-2.5 pl-2.5 pr-4 shadow-md"
             >
               <button
                 type="button"
@@ -990,27 +1108,29 @@ export default function AIChatWidget() {
         <div
           role="dialog"
           aria-label={`${SITE.name} assistant`}
-          className={`im-font im-panel-size fixed inset-0 z-50 h-[100dvh] w-full overflow-hidden bg-white antialiased
-                     sm:inset-auto sm:bottom-6 sm:right-6 sm:max-h-[90vh] sm:rounded-none sm:border sm:border-[#D9DCEB] sm:shadow-2xl
+          data-theme={theme}
+          className={`im-font im-panel-size im-theme-${theme} fixed inset-0 z-50 h-[100dvh] w-full overflow-hidden antialiased
+                     sm:inset-auto sm:bottom-6 sm:right-6 sm:max-h-[90vh] sm:rounded-none sm:border sm:border-[var(--im-border)] sm:shadow-2xl
                      ${expanded ? "sm:h-[780px] sm:w-[600px]" : "sm:h-[680px] sm:w-[410px]"}`}
+          style={{ background: "var(--im-surface)", boxShadow: "var(--im-shadow)" }}
         >
-          <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#F6F7FC]">
+          <div className="relative flex h-full w-full flex-col overflow-hidden" style={{ background: "var(--im-bg)" }}>
             {/* header */}
-            <div className="relative border-b border-[#E7E9F5] bg-white">
+            <div className="relative border-b border-[var(--im-border)]" style={{ background: "var(--im-surface)" }}>
 
               {compact ? (
                 <div className="relative flex items-center gap-3 px-4 pb-3.5 pt-14 sm:pt-4">
                   <Avatar size={42} online />
                   <div className="leading-tight">
-                    <p className="text-[15px] font-semibold text-[#0E1330]">{SITE.assistant}</p>
-                    <p className="text-xs text-[#4B5278]">{SITE.name} AI assistant, online</p>
+                    <p className="text-[15px] font-semibold" style={{ color: "var(--im-text)" }}>{SITE.assistant}</p>
+                    <p className="text-xs" style={{ color: "var(--im-muted)" }}>{SITE.name} AI assistant, online</p>
                   </div>
                 </div>
               ) : (
                 <div className="relative flex flex-col items-center px-4 pb-5 pt-[88px] text-center sm:pt-7">
                   <Avatar size={72} online />
-                  <p className="mt-3 text-[17px] font-bold text-[#0E1330]">{SITE.assistant}</p>
-                  <p className="text-xs text-[#4B5278]">{SITE.name} AI assistant, online</p>
+                  <p className="mt-3 text-[17px] font-bold" style={{ color: "var(--im-text)" }}>{SITE.assistant}</p>
+                  <p className="text-xs" style={{ color: "var(--im-muted)" }}>{SITE.name} AI assistant, online</p>
                 </div>
               )}
             </div>
@@ -1043,9 +1163,10 @@ export default function AIChatWidget() {
                 <div className="absolute inset-0 z-20" onClick={() => setMenuOpen(false)} aria-hidden="true" />
                 <div
                   role="menu"
-                  className={`im-menu-in absolute right-3 z-30 w-[252px] rounded-sm border border-[#E7E9F5] bg-white p-1.5 shadow-sm ${
+                  className={`im-menu-in absolute right-3 z-30 w-[252px] rounded-sm border border-[var(--im-border)] p-1.5 shadow-sm ${
                     compact ? "top-[100px] sm:top-[56px]" : "top-[92px] sm:top-[54px]"
                   }`}
+                  style={{ background: "var(--im-surface)" }}
                 >
                   <MenuItem
                     icon={consent.sound ? I.speakerOn : I.speakerOff}
@@ -1058,12 +1179,37 @@ export default function AIChatWidget() {
                       if (next) playSound("click");
                     }}
                   />
-                  <MenuItem icon={I.save} label="Save chat on this device" toggle={consent.save} onClick={() => patchConsent({ save: !consent.save })} />
+                  <MenuItem
+                    icon={I.save}
+                    label="Save chat on this device"
+                    toggle={consent.save}
+                    onClick={() => patchConsent({ save: !consent.save })}
+                  />
+                  <MenuItem
+                    icon={theme === "dark" ? I.sun : I.moon}
+                    label={theme === "dark" ? "Light mode" : "Dark mode"}
+                    toggle={theme === "dark"}
+                    onClick={toggleTheme}
+                  />
                   <span className="max-sm:hidden">
-                    <MenuItem icon={I.expand} label={expanded ? "Smaller window" : "Larger window"} onClick={() => { setExpanded((v) => !v); setMenuOpen(false); }} />
+                    <MenuItem
+                      icon={I.expand}
+                      label={expanded ? "Smaller window" : "Larger window"}
+                      onClick={() => {
+                        setExpanded((v) => !v);
+                        setMenuOpen(false);
+                      }}
+                    />
                   </span>
-                  <MenuItem icon={I.phone} label="Call or WhatsApp us" onClick={() => { setMenuOpen(false); setContactOpen(true); }} />
-                  <div className="my-1 h-px bg-[#EDEEF7]" />
+                  <MenuItem
+                    icon={I.phone}
+                    label="Call or WhatsApp us"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setContactOpen(true);
+                    }}
+                  />
+                  <div className="my-1 h-px" style={{ background: "var(--im-border)" }} />
                   {messages.length > 0 && <MenuItem icon={I.download} label="Download transcript" onClick={downloadTranscript} />}
                   {messages.length > 0 && <MenuItem icon={I.trash} label="Clear conversation" onClick={clearChat} />}
                   <MenuItem icon={I.shield} label="Withdraw consent and erase" danger onClick={withdraw} />
@@ -1077,16 +1223,37 @@ export default function AIChatWidget() {
               const canCall = bh.isOpen;
               const canWa = bh.isOpen || ALLOW_WHATSAPP_OFFLINE;
               return (
-                <div role="dialog" aria-label="Contact our team" className="im-fade absolute inset-0 z-40 flex flex-col bg-[#F6F7FC]">
-                  <div className="flex items-center justify-between border-b border-[#E7E9F5] bg-white px-4 pb-3 pt-14 sm:pt-3.5">
+                <div
+                  role="dialog"
+                  aria-label="Contact our team"
+                  className="im-fade absolute inset-0 z-40 flex flex-col"
+                  style={{ background: "var(--im-bg)" }}
+                >
+                  <div
+                    className="flex items-center justify-between border-b border-[var(--im-border)] px-4 pb-3 pt-14 sm:pt-3.5"
+                    style={{ background: "var(--im-surface)" }}
+                  >
                     <div className="leading-tight">
-                      <p className="text-[15px] font-semibold text-[#0E1330]">Talk to a human</p>
-                      <p className="text-xs text-[#4B5278]">Call or message our team</p>
+                      <p className="text-[15px] font-semibold" style={{ color: "var(--im-text)" }}>Talk to a human</p>
+                      <p className="text-xs" style={{ color: "var(--im-muted)" }}>Call or message our team</p>
                     </div>
                     <IconButton label="Close" onClick={() => setContactOpen(false)}>{I.close}</IconButton>
                   </div>
 
-                  <div className={`flex items-center justify-between gap-3 border-b px-4 py-2 text-[12px] ${bh.isOpen ? "border-emerald-100 bg-emerald-50 text-emerald-800" : "border-amber-100 bg-amber-50 text-amber-800"}`}>
+                  <div
+                    className={`flex items-center justify-between gap-3 border-b px-4 py-2 text-[12px] ${
+                      bh.isOpen
+                        ? "border-emerald-200/50 bg-emerald-50 text-emerald-800"
+                        : "border-amber-200/50 bg-amber-50 text-amber-800"
+                    }`}
+                    style={
+                      theme === "dark"
+                        ? bh.isOpen
+                          ? { background: "rgba(16, 185, 129, 0.12)", color: "#6EE7B7", borderColor: "rgba(16, 185, 129, 0.25)" }
+                          : { background: "rgba(245, 158, 11, 0.12)", color: "#FCD34D", borderColor: "rgba(245, 158, 11, 0.25)" }
+                        : undefined
+                    }
+                  >
                     <span className="flex items-center gap-2 font-semibold">
                       <span className={`h-2 w-2 rounded-full ${bh.isOpen ? "bg-emerald-500" : "bg-amber-500"}`} />
                       {bh.isOpen ? "Team online now" : "Team offline right now"}
@@ -1096,12 +1263,16 @@ export default function AIChatWidget() {
 
                   <div className="im-scroll flex-1 space-y-3 overflow-y-auto p-4">
                     {DEPARTMENTS.map((d) => (
-                      <div key={d.id} className="border border-[#E7E9F5] bg-white p-4 shadow-sm">
-                        <p className="text-[14px] font-semibold text-[#0E1330]">{d.label}</p>
-                        <p className="mt-0.5 text-[12px] leading-snug text-[#6B7194]">{d.sublabel}</p>
+                      <div
+                        key={d.id}
+                        className="border border-[var(--im-border)] p-4 shadow-sm"
+                        style={{ background: "var(--im-bubble)" }}
+                      >
+                        <p className="text-[14px] font-semibold" style={{ color: "var(--im-text)" }}>{d.label}</p>
+                        <p className="mt-0.5 text-[12px] leading-snug" style={{ color: "var(--im-muted)" }}>{d.sublabel}</p>
 
-                        <p className="mt-3 flex items-center gap-2 text-[15px] font-semibold tabular-nums tracking-wide text-[#1F2547]">
-                          <span className="text-[#6B7194]">{I.phone}</span>
+                        <p className="mt-3 flex items-center gap-2 text-[15px] font-semibold tabular-nums tracking-wide" style={{ color: "var(--im-text)" }}>
+                          <span style={{ color: "var(--im-muted)" }}>{I.phone}</span>
                           {fmtPhone(d.number)}
                         </p>
 
@@ -1110,12 +1281,25 @@ export default function AIChatWidget() {
                             <a
                               href={`tel:+${d.number}`}
                               onClick={() => sfx("click")}
-                              className="flex h-10 items-center justify-center gap-2 border border-[#0E1330] bg-white text-[13px] font-semibold text-[#0E1330] transition-colors hover:bg-[#0E1330] hover:text-white"
+                              className="flex h-10 items-center justify-center gap-2 border text-[13px] font-semibold transition-colors"
+                              style={{
+                                borderColor: "var(--im-text)",
+                                background: "var(--im-bubble)",
+                                color: "var(--im-text)",
+                              }}
                             >
                               {I.phone} Call
                             </a>
                           ) : (
-                            <span aria-disabled="true" className="flex h-10 cursor-not-allowed select-none items-center justify-center gap-2 border border-[#E1E3F0] bg-[#F1F2FA] text-[13px] font-semibold text-[#9097B8]">
+                            <span
+                              aria-disabled="true"
+                              className="flex h-10 cursor-not-allowed select-none items-center justify-center gap-2 border text-[13px] font-semibold"
+                              style={{
+                                borderColor: "var(--im-border)",
+                                background: "var(--im-input-bg)",
+                                color: "var(--im-muted)",
+                              }}
+                            >
                               {I.phone} Call
                             </span>
                           )}
@@ -1131,7 +1315,11 @@ export default function AIChatWidget() {
                               <WhatsAppIcon size={16} /> WhatsApp
                             </a>
                           ) : (
-                            <span aria-disabled="true" className="flex h-10 cursor-not-allowed select-none items-center justify-center gap-2 bg-[#F1F2FA] text-[13px] font-semibold text-[#9097B8]">
+                            <span
+                              aria-disabled="true"
+                              className="flex h-10 cursor-not-allowed select-none items-center justify-center gap-2 text-[13px] font-semibold"
+                              style={{ background: "var(--im-input-bg)", color: "var(--im-muted)" }}
+                            >
                               <WhatsAppIcon size={16} /> WhatsApp
                             </span>
                           )}
@@ -1139,18 +1327,23 @@ export default function AIChatWidget() {
                       </div>
                     ))}
 
-                    <p className="px-1 text-[11px] leading-relaxed text-[#6B7194]">
+                    <p className="px-1 text-[11px] leading-relaxed" style={{ color: "var(--im-muted)" }}>
                       {bh.isOpen
                         ? "Calls and WhatsApp chats are answered by our team, not the AI assistant."
                         : "We're closed right now. Ask the AI assistant, or contact us again during opening hours."}
                     </p>
                   </div>
 
-                  <div className="border-t border-[#E7E9F5] bg-white p-3 pb-8 sm:pb-3">
+                  <div className="border-t border-[var(--im-border)] p-3 pb-8 sm:pb-3" style={{ background: "var(--im-surface)" }}>
                     <button
                       type="button"
                       onClick={() => setContactOpen(false)}
-                      className="h-10 w-full border border-[#E1E3F0] bg-white text-[13px] font-semibold text-[#4B5278] hover:bg-[#F1F2FA]"
+                      className="h-10 w-full border text-[13px] font-semibold hover:opacity-90"
+                      style={{
+                        borderColor: "var(--im-border)",
+                        background: "var(--im-bubble)",
+                        color: "var(--im-muted)",
+                      }}
                     >
                       Back to chat
                     </button>
@@ -1164,43 +1357,84 @@ export default function AIChatWidget() {
               /* ---------- CONSENT GATE ---------- */
               <div className="im-scroll flex-1 overflow-y-auto px-5 py-5">
                 <div className="im-msg-in">
-                  <h2 className="text-[22px] font-bold leading-tight tracking-tight text-[#0E1330]">Before we start</h2>
-                  <p className="mt-2 text-[13px] leading-relaxed text-[#4B5278]">
+                  <h2 className="text-[22px] font-bold leading-tight tracking-tight" style={{ color: "var(--im-text)" }}>
+                    Before we start
+                  </h2>
+                  <p className="mt-2 text-[13px] leading-relaxed" style={{ color: "var(--im-muted)" }}>
                     I'm {SITE.assistant}, an AI assistant for {SITE.name}. I'm not a person, and my answers can be wrong.
                   </p>
 
-                  <ul className="mt-3 space-y-2 text-[13px] leading-relaxed text-[#4B5278]">
-                    <li className="flex gap-2"><span className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#3B5BDB]" />
-                      What you type is sent to {SITE.name}'s servers and to an AI provider so I can write a reply.</li>
-                    <li className="flex gap-2"><span className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#3B5BDB]" />
-                      Please don't share passwords, card numbers or other sensitive details.</li>
-                    <li className="flex gap-2"><span className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#3B5BDB]" />
-                      You can withdraw consent and erase your chat at any time from the menu.</li>
+                  <ul className="mt-3 space-y-2 text-[13px] leading-relaxed" style={{ color: "var(--im-muted)" }}>
+                    <li className="flex gap-2">
+                      <span className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: "var(--im-brand)" }} />
+                      What you type is sent to {SITE.name}'s servers and to an AI provider so I can write a reply.
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: "var(--im-brand)" }} />
+                      Please don't share passwords, card numbers or other sensitive details.
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: "var(--im-brand)" }} />
+                      You can withdraw consent and erase your chat at any time from the menu.
+                    </li>
                   </ul>
 
                   <div className="mt-5 space-y-2.5">
-                    <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-[#E7E9F5] bg-white p-3 shadow-sm">
-                      <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[#3B5BDB]" />
-                      <span className="text-[13px] leading-snug text-[#1F2547]">
+                    <label
+                      className="flex cursor-pointer items-start gap-3 rounded-sm border border-[var(--im-border)] p-3 shadow-sm"
+                      style={{ background: "var(--im-bubble)" }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={agree}
+                        onChange={(e) => setAgree(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[var(--im-brand)]"
+                      />
+                      <span className="text-[13px] leading-snug" style={{ color: "var(--im-text)" }}>
                         <span className="font-semibold">I agree</span> to my messages being processed to get answers, as described in the{" "}
-                        <a href={SITE.privacyHref} target="_blank" rel="noopener noreferrer" className="font-medium text-[#2F4AC0] underline underline-offset-2">privacy policy</a>.
-                        <span className="ml-1 text-[#6B7194]">(required)</span>
+                        <a
+                          href={SITE.privacyHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium underline underline-offset-2"
+                          style={{ color: "var(--im-link)" }}
+                        >
+                          privacy policy
+                        </a>
+                        .
+                        <span className="ml-1" style={{ color: "var(--im-muted)" }}>(required)</span>
                       </span>
                     </label>
 
-                    <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-[#E7E9F5] bg-white p-3">
-                      <input type="checkbox" checked={optSave} onChange={(e) => setOptSave(e.target.checked)} className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[#3B5BDB]" />
-                      <span className="text-[13px] leading-snug text-[#1F2547]">
+                    <label
+                      className="flex cursor-pointer items-start gap-3 rounded-sm border border-[var(--im-border)] p-3"
+                      style={{ background: "var(--im-bubble)" }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={optSave}
+                        onChange={(e) => setOptSave(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[var(--im-brand)]"
+                      />
+                      <span className="text-[13px] leading-snug" style={{ color: "var(--im-text)" }}>
                         Keep my chat on this device so I can continue later.
-                        <span className="ml-1 text-[#6B7194]">(optional)</span>
+                        <span className="ml-1" style={{ color: "var(--im-muted)" }}>(optional)</span>
                       </span>
                     </label>
 
-                    <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-[#E7E9F5] bg-white p-3">
-                      <input type="checkbox" checked={optSound} onChange={(e) => setOptSound(e.target.checked)} className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[#3B5BDB]" />
-                      <span className="text-[13px] leading-snug text-[#1F2547]">
+                    <label
+                      className="flex cursor-pointer items-start gap-3 rounded-sm border border-[var(--im-border)] p-3"
+                      style={{ background: "var(--im-bubble)" }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={optSound}
+                        onChange={(e) => setOptSound(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[var(--im-brand)]"
+                      />
+                      <span className="text-[13px] leading-snug" style={{ color: "var(--im-text)" }}>
                         Play short sounds for messages.
-                        <span className="ml-1 text-[#6B7194]">(optional)</span>
+                        <span className="ml-1" style={{ color: "var(--im-muted)" }}>(optional)</span>
                       </span>
                     </label>
                   </div>
@@ -1211,14 +1445,19 @@ export default function AIChatWidget() {
                       onClick={accept}
                       disabled={!agree}
                       className="flex-1 rounded-sm px-4 py-3 text-[14px] font-semibold text-white shadow-sm transition-all hover:brightness-110 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-                      style={{ background: BRAND }}
+                      style={{ background: "var(--im-brand)" }}
                     >
                       Accept and start chat
                     </button>
                     <button
                       type="button"
                       onClick={closePanel}
-                      className="rounded-sm border border-[#E1E3F0] bg-white px-4 py-3 text-[14px] font-semibold text-[#4B5278] hover:bg-[#F1F2FA]"
+                      className="rounded-sm border px-4 py-3 text-[14px] font-semibold hover:opacity-90"
+                      style={{
+                        borderColor: "var(--im-border)",
+                        background: "var(--im-bubble)",
+                        color: "var(--im-muted)",
+                      }}
                     >
                       No thanks
                     </button>
@@ -1226,7 +1465,8 @@ export default function AIChatWidget() {
                   <button
                     type="button"
                     onClick={() => setContactOpen(true)}
-                    className="mt-3 flex w-full items-center justify-center gap-2 border-t border-[#E7E9F5] pt-3 text-[13px] font-medium text-[#2F4AC0] hover:underline"
+                    className="mt-3 flex w-full items-center justify-center gap-2 border-t border-[var(--im-border)] pt-3 text-[13px] font-medium hover:underline"
+                    style={{ color: "var(--im-link)" }}
                   >
                     {I.human} Prefer a person? Call or WhatsApp us
                   </button>
@@ -1236,13 +1476,18 @@ export default function AIChatWidget() {
               <>
                 {/* messages */}
                 <div className="relative flex-1 overflow-hidden">
-                  <div ref={scrollRef} onScroll={onScroll} className="im-scroll h-full space-y-4 overflow-y-auto px-4 py-4" aria-live="polite">
+                  <div
+                    ref={scrollRef}
+                    onScroll={onScroll}
+                    className="im-scroll h-full space-y-4 overflow-y-auto px-4 py-4"
+                    aria-live="polite"
+                  >
                     {messages.length === 0 && (
                       <div className="im-msg-in">
-                        <h2 className="text-[24px] font-bold leading-[1.12] tracking-tight text-[#0E1330]">
+                        <h2 className="text-[24px] font-bold leading-[1.12] tracking-tight" style={{ color: "var(--im-text)" }}>
                           Hi, I'm {SITE.assistant}. How can I help you today?
                         </h2>
-                        <p className="mt-2 max-w-[320px] text-[13px] leading-relaxed text-[#6B7194]">
+                        <p className="mt-2 max-w-[320px] text-[13px] leading-relaxed" style={{ color: "var(--im-muted)" }}>
                           Ask about the {SITE.name} app, MIDI setup, audio latency or supported platforms.
                         </p>
 
@@ -1252,12 +1497,18 @@ export default function AIChatWidget() {
                               key={p.text}
                               type="button"
                               onClick={() => submit(p.text)}
-                              className="flex flex-col items-start gap-2.5 rounded-sm border border-[#E7E9F5] bg-white p-3 text-left shadow-sm transition-colors hover:border-[#3B5BDB]/50 hover:bg-[#F8F9FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#3B5BDB]"
+                              className="flex flex-col items-start gap-2.5 rounded-sm border border-[var(--im-border)] p-3 text-left shadow-sm transition-colors hover:border-[var(--im-brand)]/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--im-brand)]"
+                              style={{ background: "var(--im-bubble)" }}
                             >
-                              <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-[#EEF2FF] text-[#2F4AC0]">
+                              <span
+                                className="flex h-8 w-8 items-center justify-center rounded-sm"
+                                style={{ background: "var(--im-brand-soft)", color: "var(--im-link)" }}
+                              >
                                 <PromptIcon name={p.icon} />
                               </span>
-                              <span className="relative text-[13px] font-semibold leading-snug text-[#1F2547]">{p.text}</span>
+                              <span className="relative text-[13px] font-semibold leading-snug" style={{ color: "var(--im-text)" }}>
+                                {p.text}
+                              </span>
                             </button>
                           ))}
                         </div>
@@ -1269,7 +1520,7 @@ export default function AIChatWidget() {
                         <div key={msg.id} className="im-msg-in flex justify-end">
                           <div
                             className="max-w-[82%] break-words rounded-sm px-3.5 py-2.5 text-[13.5px] font-medium leading-relaxed text-white shadow-sm"
-                            style={{ background: BRAND }}
+                            style={{ background: "var(--im-brand)" }}
                           >
                             {msg.content}
                           </div>
@@ -1292,7 +1543,10 @@ export default function AIChatWidget() {
                     {loading && (
                       <div className="im-msg-in flex items-start gap-2.5">
                         <Avatar size={30} />
-                        <div className="rounded-sm border border-[#E7E9F5] bg-white px-4 py-3.5 shadow-sm">
+                        <div
+                          className="rounded-sm border border-[var(--im-border)] px-4 py-3.5 shadow-sm"
+                          style={{ background: "var(--im-bubble)" }}
+                        >
                           <Equalizer />
                         </div>
                       </div>
@@ -1304,7 +1558,8 @@ export default function AIChatWidget() {
                       type="button"
                       onClick={() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })}
                       aria-label="Scroll to latest message"
-                      className="im-msg-in absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-sm border border-[#E7E9F5] bg-white px-3 py-1.5 text-xs font-semibold text-[#2F4AC0] shadow-sm hover:bg-[#EEF2FF]"
+                      className="im-msg-in absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-sm border border-[var(--im-border)] px-3 py-1.5 text-xs font-semibold shadow-sm hover:opacity-90"
+                      style={{ background: "var(--im-bubble)", color: "var(--im-link)" }}
                     >
                       {I.arrowDown} Latest
                     </button>
@@ -1312,12 +1567,13 @@ export default function AIChatWidget() {
                 </div>
 
                 {/* quick actions */}
-                <div className="im-hscroll flex gap-2 overflow-x-auto border-t border-[#E7E9F5] bg-white px-3 py-2">
+                <div
+                  className="im-hscroll flex gap-2 overflow-x-auto border-t border-[var(--im-border)] px-3 py-2"
+                  style={{ background: "var(--im-surface)" }}
+                >
                   {SITE.actions.map((a) => {
                     const cls = `im-chip flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-3 py-1.5 text-xs font-semibold ${
-                      a.primary
-                        ? "border-transparent text-white shadow-sm hover:brightness-110"
-                        : "border-[#E1E3F0] bg-white text-[#1F2547] hover:border-[#3B5BDB]/50 hover:bg-[#EEF2FF]"
+                      a.primary ? "border-transparent text-white shadow-sm hover:brightness-110" : ""
                     }`;
                     const inner = (
                       <>
@@ -1334,12 +1590,26 @@ export default function AIChatWidget() {
                           setContactOpen(true);
                         }}
                         className={cls}
-                        style={{ background: BRAND }}
+                        style={a.primary ? { background: "var(--im-brand)" } : {
+                          borderColor: "var(--im-border)",
+                          background: "var(--im-bubble)",
+                          color: "var(--im-text)",
+                        }}
                       >
                         {inner}
                       </button>
                     ) : (
-                      <a key={a.href} href={a.href} onClick={() => sfx("click")} className={cls}>
+                      <a
+                        key={a.href}
+                        href={a.href}
+                        onClick={() => sfx("click")}
+                        className={cls}
+                        style={{
+                          borderColor: "var(--im-border)",
+                          background: "var(--im-bubble)",
+                          color: "var(--im-text)",
+                        }}
+                      >
                         {inner}
                       </a>
                     );
@@ -1352,7 +1622,8 @@ export default function AIChatWidget() {
                     e.preventDefault();
                     submit(input);
                   }}
-                  className="bg-white px-3 pb-3 pt-1"
+                  className="px-3 pb-3 pt-1"
+                  style={{ background: "var(--im-surface)" }}
                 >
                   <div className="flex items-end gap-2">
                     <div className="relative flex-1">
@@ -1373,7 +1644,15 @@ export default function AIChatWidget() {
                         }}
                         placeholder={listening ? "Listening..." : `Ask ${SITE.assistant} anything...`}
                         aria-label="Your message"
-                        className={`max-h-[120px] min-h-[42px] w-full resize-none rounded-sm border border-transparent bg-[#F1F2FA] py-2.5 pl-4 text-[13.5px] font-medium text-[#0E1330] outline-none transition-all placeholder:text-[#9097B8] focus:border-[#3B5BDB] focus:bg-white focus:ring-4 focus:ring-[#3B5BDB]/12 ${micOk ? "pr-11" : "pr-4"}`}
+                        className={`max-h-[120px] min-h-[42px] w-full resize-none rounded-sm border border-transparent py-2.5 pl-4 text-[13.5px] font-medium outline-none transition-all focus:ring-4 ${
+                          micOk ? "pr-11" : "pr-4"
+                        }`}
+                        style={{
+                          background: "var(--im-input-bg)",
+                          color: "var(--im-text)",
+                          // @ts-ignore
+                          "--tw-ring-color": "var(--im-brand-soft)",
+                        }}
                       />
                       {micOk && (
                         <button
@@ -1382,15 +1661,24 @@ export default function AIChatWidget() {
                           aria-label={listening ? "Stop dictation" : "Dictate with your voice"}
                           title="Dictate (uses your browser's speech service)"
                           className={`absolute bottom-1 right-1 flex h-[34px] w-[34px] items-center justify-center rounded-sm transition-colors ${
-                            listening ? "im-mic-on bg-[#3B5BDB] text-white" : "text-[#7A80A3] hover:bg-[#0E1330]/[0.07] hover:text-[#0E1330]"
+                            listening
+                              ? "im-mic-on text-white"
+                              : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
                           }`}
+                          style={listening ? { background: "var(--im-brand)" } : undefined}
                         >
                           {I.mic}
                         </button>
                       )}
                     </div>
                     {loading ? (
-                      <button type="button" onClick={stop} aria-label="Stop answer" className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-sm bg-[#0E1330] hover:bg-[#262d57]">
+                      <button
+                        type="button"
+                        onClick={stop}
+                        aria-label="Stop answer"
+                        className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-sm hover:opacity-90"
+                        style={{ background: "var(--im-text)" }}
+                      >
                         <span className="h-3 w-3 rounded-[3px] bg-white" />
                       </button>
                     ) : (
@@ -1399,13 +1687,15 @@ export default function AIChatWidget() {
                         disabled={!input.trim()}
                         aria-label="Send message"
                         className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-sm text-white shadow-sm transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none disabled:hover:scale-100"
-                        style={{ background: BRAND }}
+                        style={{ background: "var(--im-brand)" }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
                       </button>
                     )}
                   </div>
-                  <p className="mt-2 pb-6 text-center text-[11px] text-[#9097B8] sm:pb-0">
+                  <p className="mt-2 pb-6 text-center text-[11px] sm:pb-0" style={{ color: "var(--im-muted)" }}>
                     AI assistant. It can make mistakes, so check important steps on {SITE.domain}.
                   </p>
                 </form>
@@ -1417,11 +1707,27 @@ export default function AIChatWidget() {
 
       {/* LIGHTBOX */}
       {lightbox && (
-        <div className="im-fade fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6" onClick={() => setLightbox(null)} role="dialog" aria-label="Image preview">
+        <div
+          className="im-fade fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6"
+          onClick={() => setLightbox(null)}
+          role="dialog"
+          aria-label="Image preview"
+        >
           <div className="relative max-h-full max-w-full" onClick={(e) => e.stopPropagation()}>
-            <img src={lightbox.url} alt={lightbox.alt || `${SITE.name} attachment`} className="max-h-[80vh] max-w-full rounded-sm object-contain shadow-sm" />
-            <button type="button" aria-label="Close preview" onClick={() => setLightbox(null)} className="absolute -right-3 -top-3 flex h-9 w-9 items-center justify-center rounded-sm bg-white text-[#0E1330] shadow-lg">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            <img
+              src={lightbox.url}
+              alt={lightbox.alt || `${SITE.name} attachment`}
+              className="max-h-[80vh] max-w-full rounded-sm object-contain shadow-sm"
+            />
+            <button
+              type="button"
+              aria-label="Close preview"
+              onClick={() => setLightbox(null)}
+              className="absolute -right-3 -top-3 flex h-9 w-9 items-center justify-center rounded-sm bg-white text-[#0E1330] shadow-lg"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
             </button>
             {lightbox.alt && <p className="mt-2 text-center text-xs text-white/90">{lightbox.alt}</p>}
           </div>
