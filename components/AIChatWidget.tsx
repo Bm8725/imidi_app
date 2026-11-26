@@ -693,6 +693,7 @@ export default function AIChatWidget() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const recRef = useRef<any>(null);
+  const listeningIntentRef = useRef(false);
   const soundRef = useRef(false);
   soundRef.current = !!consent?.sound;
 
@@ -783,7 +784,10 @@ export default function AIChatWidget() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lightbox, menuOpen, contactOpen, isOpen]);
 
-  useEffect(() => () => recRef.current?.stop?.(), []);
+  useEffect(() => () => {
+    listeningIntentRef.current = false;
+    try { recRef.current?.stop?.(); } catch {}
+  }, []);
 
   /* ---- panel open/close ---- */
   const openPanel = () => {
@@ -792,7 +796,9 @@ export default function AIChatWidget() {
     sfx("open");
   };
   const closePanel = () => {
-    recRef.current?.stop?.();
+    listeningIntentRef.current = false;
+    try { recRef.current?.stop?.(); } catch {}
+    setListening(false);
     setMenuOpen(false);
     setContactOpen(false);
     setIsOpen(false);
@@ -809,7 +815,9 @@ export default function AIChatWidget() {
 
   const withdraw = () => {
     abortRef.current?.abort();
-    recRef.current?.stop?.();
+    listeningIntentRef.current = false;
+    try { recRef.current?.stop?.(); } catch {}
+    setListening(false);
     setLoading(false);
     setMessages([]);
     setConsent(null);
@@ -901,7 +909,9 @@ export default function AIChatWidget() {
     (text: string) => {
       const value = text.trim();
       if (!value || loading || !consent) return;
-      recRef.current?.stop?.();
+      listeningIntentRef.current = false;
+      try { recRef.current?.stop?.(); } catch {}
+      setListening(false);
       const next: Message[] = [
         ...messages.map((m) => ({ ...m, fresh: false })),
         { id: uid(), role: "user", content: value },
@@ -970,26 +980,71 @@ export default function AIChatWidget() {
 
   const toggleMic = () => {
     if (listening) {
-      recRef.current?.stop?.();
+      listeningIntentRef.current = false;
+      try {
+        recRef.current?.stop?.();
+      } catch {}
+      setListening(false);
       return;
     }
+
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
+
     const rec = new SR();
     rec.lang = "en-GB";
     rec.interimResults = true;
-    rec.continuous = false;
+    rec.continuous = true; // allow longer continuous speech
+
+    let finalText = input; // keep any existing typed text
+
     rec.onresult = (e: any) => {
-      const t = Array.from(e.results).map((r: any) => r[0].transcript).join("");
-      setInput(t);
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const piece = e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          finalText = (finalText + " " + piece).replace(/\s+/g, " ").trim();
+        } else {
+          interim += piece;
+        }
+      }
+      const combined = (finalText + (interim ? " " + interim : "")).replace(/\s+/g, " ").trim();
+      setInput(combined);
       requestAnimationFrame(() => autosize(inputRef.current));
     };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
+
+    rec.onend = () => {
+      // Chrome often ends after a short pause even with continuous=true.
+      // Restart automatically while the user still wants to talk.
+      if (listeningIntentRef.current) {
+        try {
+          rec.start();
+        } catch {
+          listeningIntentRef.current = false;
+          setListening(false);
+        }
+      } else {
+        setListening(false);
+      }
+    };
+
+    rec.onerror = (ev: any) => {
+      // "no-speech" / "aborted" are normal; don't kill the session hard
+      if (ev?.error === "aborted" || ev?.error === "no-speech") return;
+      listeningIntentRef.current = false;
+      setListening(false);
+    };
+
     recRef.current = rec;
+    listeningIntentRef.current = true;
     setListening(true);
     sfx("click");
-    rec.start();
+    try {
+      rec.start();
+    } catch {
+      listeningIntentRef.current = false;
+      setListening(false);
+    }
   };
 
   const lastIdx = messages.length - 1;
@@ -1041,11 +1096,15 @@ export default function AIChatWidget() {
 
         @keyframes im-eq { 0%,100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
         @keyframes im-fade { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes im-pulse { 0% { box-shadow: 0 0 0 0 rgba(59,91,219,.45); } 100% { box-shadow: 0 0 0 10px rgba(59,91,219,0); } }
+        @keyframes im-pulse {
+          0% { box-shadow: 0 0 0 0 var(--im-brand-soft); }
+          70% { box-shadow: 0 0 0 8px transparent; }
+          100% { box-shadow: 0 0 0 0 transparent; }
+        }
 
         .im-eq { transform-origin: bottom; animation: im-eq .9s ease-in-out infinite; }
         .im-msg-in, .im-menu-in, .im-fade { animation: im-fade .15s ease-out; }
-        .im-mic-on { animation: im-pulse 1.1s ease-out infinite; }
+        .im-mic-on { animation: im-pulse 1.4s ease-out infinite; }
         .im-chip { transition: background-color .15s ease, border-color .15s ease; }
         .im-panel-size { transition: width .25s ease, height .25s ease; }
 
@@ -1126,20 +1185,38 @@ export default function AIChatWidget() {
           <div className="relative flex h-full w-full flex-col overflow-hidden" style={{ background: "var(--im-bg)" }}>
             {/* header */}
             <div className="relative border-b border-[var(--im-border)]" style={{ background: "var(--im-surface)" }}>
+              {/* subtle brand accent line */}
+              <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "linear-gradient(90deg, var(--im-brand) 0%, transparent 70%)", opacity: 0.55 }} />
 
               {compact ? (
-                <div className="relative flex items-center gap-3 px-4 pb-3.5 pt-14 sm:pt-4">
-                  <Avatar size={42} online />
-                  <div className="leading-tight">
-                    <p className="text-[15px] font-semibold" style={{ color: "var(--im-text)" }}>{SITE.assistant}</p>
-                    <p className="text-xs" style={{ color: "var(--im-muted)" }}>{SITE.name} AI assistant, online</p>
+                <div className="relative flex items-center gap-3.5 px-4 pb-3.5 pt-14 sm:pt-4">
+                  <Avatar size={44} online />
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <p className="text-[15px] font-semibold tracking-tight" style={{ color: "var(--im-text)" }}>
+                      {SITE.assistant}
+                    </p>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[#22C58B]" />
+                      <p className="text-[11px] font-medium" style={{ color: "var(--im-muted)" }}>
+                        {SITE.name} · Online
+                      </p>
+                    </div>
                   </div>
                 </div>
               ) : (
                 <div className="relative flex flex-col items-center px-4 pb-5 pt-[88px] text-center sm:pt-7">
-                  <Avatar size={72} online />
-                  <p className="mt-3 text-[17px] font-bold" style={{ color: "var(--im-text)" }}>{SITE.assistant}</p>
-                  <p className="text-xs" style={{ color: "var(--im-muted)" }}>{SITE.name} AI assistant, online</p>
+                  <div className="relative">
+                    <Avatar size={76} online />
+                  </div>
+                  <p className="mt-3.5 text-[18px] font-bold tracking-tight" style={{ color: "var(--im-text)" }}>
+                    {SITE.assistant}
+                  </p>
+                  <div className="mt-1 flex items-center justify-center gap-1.5">
+                    <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[#22C58B]" />
+                    <p className="text-[12px] font-medium" style={{ color: "var(--im-muted)" }}>
+                      {SITE.name} AI assistant · Online
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -1634,6 +1711,20 @@ export default function AIChatWidget() {
                   className="px-3 pb-3 pt-1"
                   style={{ background: "var(--im-surface)" }}
                 >
+                  {/* listening banner */}
+                  {listening && (
+                    <div
+                      className="im-fade mb-2 flex items-center gap-2 rounded-sm px-3 py-2 text-[12px] font-medium"
+                      style={{ background: "var(--im-brand-soft)", color: "var(--im-link)" }}
+                    >
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: "var(--im-brand)" }} />
+                        <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: "var(--im-brand)" }} />
+                      </span>
+                      Listening… speak now
+                    </div>
+                  )}
+
                   <div className="flex items-end gap-2">
                     <div className="relative flex-1">
                       <textarea
@@ -1653,11 +1744,11 @@ export default function AIChatWidget() {
                         }}
                         placeholder={listening ? "Listening..." : `Ask ${SITE.assistant} anything...`}
                         aria-label="Your message"
-                        className={`im-input max-h-[120px] min-h-[42px] w-full resize-none rounded-sm border border-transparent py-2.5 pl-4 text-[13.5px] font-medium outline-none transition-all ${
-                          micOk ? "pr-11" : "pr-4"
+                        className={`im-input max-h-[120px] min-h-[44px] w-full resize-none rounded-sm border border-transparent py-2.5 pl-4 text-[13.5px] font-medium outline-none transition-all ${
+                          micOk ? "pr-12" : "pr-4"
                         }`}
                         style={{
-                          background: "var(--im-input-bg)",
+                          background: listening ? "var(--im-brand-soft)" : "var(--im-input-bg)",
                           color: "var(--im-text)",
                         }}
                       />
@@ -1666,15 +1757,21 @@ export default function AIChatWidget() {
                           type="button"
                           onClick={toggleMic}
                           aria-label={listening ? "Stop dictation" : "Dictate with your voice"}
-                          title="Dictate (uses your browser's speech service)"
-                          className={`absolute bottom-1 right-1 flex h-[34px] w-[34px] items-center justify-center rounded-sm transition-colors ${
+                          title={listening ? "Stop listening" : "Dictate with your voice"}
+                          className={`absolute bottom-1.5 right-1.5 flex h-8 w-8 items-center justify-center rounded-sm transition-all ${
                             listening
-                              ? "im-mic-on text-white"
+                              ? "im-mic-on text-white scale-105"
                               : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
                           }`}
                           style={listening ? { background: "var(--im-brand)" } : undefined}
                         >
-                          {I.mic}
+                          {listening ? (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <rect x="6" y="6" width="12" height="12" rx="1.5" />
+                            </svg>
+                          ) : (
+                            I.mic
+                          )}
                         </button>
                       )}
                     </div>
@@ -1683,7 +1780,7 @@ export default function AIChatWidget() {
                         type="button"
                         onClick={stop}
                         aria-label="Stop answer"
-                        className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-sm hover:opacity-90"
+                        className="flex h-[44px] w-[44px] flex-shrink-0 items-center justify-center rounded-sm hover:opacity-90"
                         style={{ background: "var(--im-text)" }}
                       >
                         <span className="h-3 w-3 rounded-[3px] bg-white" />
@@ -1693,7 +1790,7 @@ export default function AIChatWidget() {
                         type="submit"
                         disabled={!input.trim()}
                         aria-label="Send message"
-                        className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-sm text-white shadow-sm transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none disabled:hover:scale-100"
+                        className="flex h-[44px] w-[44px] flex-shrink-0 items-center justify-center rounded-sm text-white shadow-sm transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none disabled:hover:scale-100"
                         style={{ background: "var(--im-brand)" }}
                       >
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
