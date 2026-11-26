@@ -367,8 +367,8 @@ function Avatar({ size = 28, online = false, round = false }: { size?: number; o
   return (
     <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
       <div
-        className={`h-full w-full overflow-hidden shadow-sm ring-2 ${round ? "rounded-full" : "rounded-sm"}`}
-        style={{ ringColor: "var(--im-surface)" }}
+        className={`h-full w-full overflow-hidden shadow-sm ${round ? "rounded-full" : "rounded-sm"}`}
+        style={{ boxShadow: "0 0 0 2px var(--im-surface)" }}
       >
         {SITE.avatarSrc && !broken ? (
           <img
@@ -1050,6 +1050,12 @@ export default function AIChatWidget() {
         .im-chip { transition: background-color .15s ease, border-color .15s ease; }
         .im-panel-size { transition: width .25s ease, height .25s ease; }
 
+        .im-input:focus {
+          background: var(--im-surface) !important;
+          border-color: var(--im-brand) !important;
+          box-shadow: 0 0 0 4px var(--im-brand-soft);
+        }
+
         .im-scroll::-webkit-scrollbar, .im-hscroll::-webkit-scrollbar { width: 6px; height: 0; }
         .im-scroll::-webkit-scrollbar-thumb { background: rgba(80,90,160,.25); border-radius: 999px; }
         .im-scroll::-webkit-scrollbar-track { background: transparent; }
@@ -1644,14 +1650,12 @@ export default function AIChatWidget() {
                         }}
                         placeholder={listening ? "Listening..." : `Ask ${SITE.assistant} anything...`}
                         aria-label="Your message"
-                        className={`max-h-[120px] min-h-[42px] w-full resize-none rounded-sm border border-transparent py-2.5 pl-4 text-[13.5px] font-medium outline-none transition-all focus:ring-4 ${
+                        className={`im-input max-h-[120px] min-h-[42px] w-full resize-none rounded-sm border border-transparent py-2.5 pl-4 text-[13.5px] font-medium outline-none transition-all ${
                           micOk ? "pr-11" : "pr-4"
                         }`}
                         style={{
                           background: "var(--im-input-bg)",
                           color: "var(--im-text)",
-                          // @ts-ignore
-                          "--tw-ring-color": "var(--im-brand-soft)",
                         }}
                       />
                       {micOk && (
