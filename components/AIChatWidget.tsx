@@ -261,8 +261,7 @@ function renderRich(text: string): React.ReactNode {
     blocks.push(
       <Tag
         key={`l-${blocks.length}`}
-        className={`my-1.5 space-y-1 pl-5 ${list.ordered ? "list-decimal" : "list-disc"}`}
-        style={{ marker: "var(--im-brand)" } as any}
+        className={`im-list my-1.5 space-y-1 pl-5 ${list.ordered ? "list-decimal" : "list-disc"}`}
       >
         {list.items.map((it, i) => (
           <li key={i}>{renderInline(it, `li-${blocks.length}-${i}`)}</li>
@@ -1054,6 +1053,10 @@ export default function AIChatWidget() {
           background: var(--im-surface) !important;
           border-color: var(--im-brand) !important;
           box-shadow: 0 0 0 4px var(--im-brand-soft);
+        }
+
+        .im-list ::marker {
+          color: var(--im-brand);
         }
 
         .im-scroll::-webkit-scrollbar, .im-hscroll::-webkit-scrollbar { width: 6px; height: 0; }
