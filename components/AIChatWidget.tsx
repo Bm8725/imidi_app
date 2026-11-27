@@ -35,6 +35,9 @@ const SITE = {
 // colour unless you set this to true.
 const GRADIENT_ON_MOBILE = false;
 
+// Text pill shown next to the launcher on desktop. Set to "" to show only the icon.
+const LAUNCHER_LABEL = "";
+
 /* Human contact: phone + WhatsApp. Hours are evaluated in this time zone. */
 const BUSINESS_HOURS = {
   days: [1, 2, 3, 4, 5], // 1 = Monday ... 7 = Sunday
@@ -312,13 +315,16 @@ function renderRich(text: string): React.ReactNode {
 /* ------------------------------------------------------------------ */
 
 // Solid speech bubble used on the launcher.
-function ChatBubbleIcon({ size = 28 }: { size?: number }) {
+function ChatOutlineIcon({ size = 28 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path
-        d="M6.5 4h11A3.5 3.5 0 0121 7.5v6a3.5 3.5 0 01-3.5 3.5H11.4l-3.7 3.1a.5.5 0 01-.82-.38V17H6.5A3.5 3.5 0 013 13.5v-6A3.5 3.5 0 016.5 4z"
-        fill="white"
+        d="M6 3.5H18A2.5 2.5 0 0 1 20.5 6V12.5A2.5 2.5 0 0 1 18 15H11.3L6.9 19.2A.6.6 0 0 1 5.9 18.8V15H6A2.5 2.5 0 0 1 3.5 12.5V6A2.5 2.5 0 0 1 6 3.5Z"
+        strokeWidth="1.8"
       />
+      <circle cx="8.3" cy="9.25" r="1.2" strokeWidth="1.45" />
+      <circle cx="12" cy="9.25" r="1.2" strokeWidth="1.45" />
+      <circle cx="15.7" cy="9.25" r="1.2" strokeWidth="1.45" />
     </svg>
   );
 }
@@ -327,8 +333,8 @@ function ChatBubbleIcon({ size = 28 }: { size?: number }) {
 function PersonIllustration() {
   return (
     <svg viewBox="0 0 64 64" className="h-full w-full" aria-hidden="true">
-      <rect width="64" height="64" fill="#DCE4FF" />
-      <path d="M8 66c2-13 12-19 24-19s22 6 24 19z" fill="#4F6BFF" />
+      <rect width="64" height="64" fill="#FFE2E4" />
+      <path d="M8 66c2-13 12-19 24-19s22 6 24 19z" fill="#E5333B" />
       <path d="M26 47l6 7 6-7" fill="#fff" opacity=".9" />
       <rect x="28" y="36" width="8" height="11" rx="4" fill="#E6B08F" />
       <ellipse cx="32" cy="28" rx="11" ry="12.5" fill="#F3CBA9" />
@@ -1122,42 +1128,63 @@ export default function AIChatWidget() {
         .im-font { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 
         .im-theme-light {
-          --im-brand: #E22B29;
-          --im-grad: linear-gradient(135deg, #D92020 0%, #E7362D 48%, #F56046 100%);
-          --im-glow: rgba(231, 54, 45, 0.36);
-          --im-brand-soft: rgba(226, 43, 41, 0.12);
-          --im-link: #D92020;
+          --im-brand: #E5333B;
+          --im-grad: linear-gradient(120deg, #B8173A 0%, #E5333B 55%, #FF6B4A 100%);
+          --im-glow: rgba(229, 51, 59, 0.40);
+          --im-brand-soft: rgba(229, 51, 59, 0.11);
+          --im-link: #D12A36;
           --im-text: #14192B;
           --im-muted: #8A93A8;
           --im-border: #E4E8F0;
           --im-surface: #FFFFFF;
           --im-bubble: #F0F3F8;
           --im-hover: rgba(20, 25, 43, 0.05);
-          --im-code-bg: #FDECEC;
+          --im-code-bg: #FDE8EA;
           --im-switch-off: #CBD2E0;
           --im-input-bg: #F1F4F9;
-          --im-shadow: 0 20px 60px rgba(185, 35, 35, 0.16);
+          --im-shadow: 0 20px 60px rgba(30, 60, 140, 0.2);
+          --im-ghost-bg: #FFFFFF;
+          --im-ghost-bg-hover: #F4F6FB;
+          --im-ghost-border: rgba(20, 25, 43, 0.10);
+          --im-ghost-ink: #E5333B;
+          --im-ghost-ring: #FFFFFF;
         }
 
         .im-theme-dark {
-          --im-brand: #F04B3E;
-          --im-grad: linear-gradient(135deg, #B51818 0%, #D92B25 50%, #EC523B 100%);
-          --im-glow: rgba(236, 82, 59, 0.34);
-          --im-brand-soft: rgba(240, 75, 62, 0.18);
-          --im-link: #FF7E73;
+          --im-brand: #FF5A62;
+          --im-grad: linear-gradient(120deg, #8F1230 0%, #C42632 55%, #E0553F 100%);
+          --im-glow: rgba(255, 90, 98, 0.35);
+          --im-brand-soft: rgba(255, 90, 98, 0.18);
+          --im-link: #FF8A90;
           --im-text: #E8ECF8;
           --im-muted: #98A2BD;
-          --im-border: #33262B;
-          --im-surface: #1A1417;
-          --im-bubble: #261D21;
+          --im-border: #2A3050;
+          --im-surface: #171B2B;
+          --im-bubble: #232842;
           --im-hover: rgba(255, 255, 255, 0.07);
-          --im-code-bg: #332226;
-          --im-switch-off: #45353B;
-          --im-input-bg: #261D21;
-          --im-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+          --im-code-bg: #2A3050;
+          --im-switch-off: #3A4060;
+          --im-input-bg: #232842;
+          --im-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+          --im-ghost-bg: #1F2438;
+          --im-ghost-bg-hover: #272D46;
+          --im-ghost-border: rgba(255, 255, 255, 0.14);
+          --im-ghost-ink: #FF6B72;
+          --im-ghost-ring: #171B2B;
         }
 
         .im-grad { background: var(--im-grad); }
+
+        /* Launcher: clean solid surface, crisp edge, soft shadow */
+        .im-ghost {
+          background: var(--im-ghost-bg);
+          color: var(--im-ghost-ink);
+          border: 1px solid var(--im-ghost-border);
+          box-shadow: 0 6px 22px rgba(20, 25, 43, 0.16), 0 1px 3px rgba(20, 25, 43, 0.08);
+          cursor: pointer;
+        }
+        .im-ghost:hover { background: var(--im-ghost-bg-hover); }
+        .im-ghost:active { transform: scale(.97); }
         @media (max-width: 639px) {
           .im-nogradmobile .im-grad { background: var(--im-brand); }
         }
@@ -1206,7 +1233,7 @@ export default function AIChatWidget() {
         .im-font textarea { -webkit-text-size-adjust: 100%; }
 
         .im-scroll::-webkit-scrollbar { width: 6px; }
-        .im-scroll::-webkit-scrollbar-thumb { background: rgba(160,120,120,.28); border-radius: 999px; }
+        .im-scroll::-webkit-scrollbar-thumb { background: rgba(120,130,170,.28); border-radius: 999px; }
         .im-scroll::-webkit-scrollbar-track { background: transparent; }
 
         @media (prefers-reduced-motion: reduce) {
@@ -1214,27 +1241,34 @@ export default function AIChatWidget() {
         }
       `}</style>
 
-
       {/* LAUNCHER */}
       {!isOpen && (
-        <div className={`im-font im-theme-${theme} ${noGrad} fixed bottom-[170px] right-4 z-50 antialiased sm:right-5`}>
+        <div className={`im-font im-theme-${theme} ${noGrad} fixed bottom-[170px] right-4 z-50 flex items-center gap-2.5 antialiased sm:right-6`}>
+          {LAUNCHER_LABEL && (
+            <button
+              type="button"
+              onClick={openPanel}
+              tabIndex={-1}
+              aria-hidden="true"
+              className="im-ghost hidden h-11 items-center rounded-full px-4 text-[13.5px] font-semibold sm:flex"
+            >
+              {LAUNCHER_LABEL}
+            </button>
+          )}
           <button
             type="button"
             onClick={openPanel}
-            aria-label={`Open ${SITE.name} chat`}
-            title="Chat with us"
-            className="im-grad relative flex h-[60px] w-[60px] items-center justify-center rounded-[22px] transition-transform duration-150 hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--im-brand)]"
-            style={{ boxShadow: "0 10px 30px var(--im-glow)" }}
+            aria-label={`Open ${SITE.assistant} chat`}
+            title={`Chat with ${SITE.assistant}`}
+            className="im-ghost relative flex h-[70px] w-[70px] items-center justify-center rounded-full sm:h-[76px] sm:w-[76px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--im-brand)]"
           >
-            <ChatBubbleIcon size={30} />
+            <ChatOutlineIcon size={46} />
             {!hasOpened && (
               <span
-                className="absolute -right-1.5 -top-1.5 flex h-[22px] w-[22px] items-center justify-center rounded-full text-[12px] font-bold text-white"
-                style={{ background: "#F03142", boxShadow: "0 0 0 2px #fff" }}
+                className="absolute right-[3px] top-[3px] h-[14px] w-[14px] rounded-full"
+                style={{ background: "var(--im-brand)", boxShadow: "0 0 0 2px var(--im-ghost-ring)" }}
                 aria-label="1 unread message"
-              >
-                1
-              </span>
+              />
             )}
           </button>
         </div>

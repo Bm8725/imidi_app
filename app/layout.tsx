@@ -93,7 +93,7 @@ export default function RootLayout({
         <MetaAuthListener />
         <Analytics />
        {/* <AirLinkLauncher /> */}  
-        {/* PWA: înregistrează sw.js (doar în production), banner de instalare și de update */}
+      
          <AIChatWidget />
         <PWA />
       </body>
