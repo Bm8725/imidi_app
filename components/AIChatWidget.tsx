@@ -11,26 +11,29 @@ const SITE = {
   name: "iMIDI",
   assistant: "Smith",
   domain: "imidi.co.uk",
-  // Put a real photo/illustration in /public (e.g. /smith.jpg) and set it here.
+  headerTitle: "Chat with us!",
+  headerSubtitle: "AI assistant. Replies in a few seconds.",
+  // Put a real photo in /public (e.g. /smith.jpg) and set it here.
   // Leave "" to use the built-in illustrated avatar.
   avatarSrc: "",
   privacyHref: "/privacy",
-  // Quick buttons shown above the message box.
-  actions: [
-    { label: "Talk to a human", href: "#contact", action: "contact", primary: true },
+  // Shown in the three-dot menu.
+  links: [
     { label: "Download app", href: "/download" },
     { label: "Support center", href: "/support" },
-  ] as { label: string; href: string; primary?: boolean; action?: "contact" }[],
+  ],
+  // Quick-reply buttons under the welcome message.
   prompts: [
-    { text: "Which platforms does iMIDI support?", icon: "devices" },
-    { text: "Help me set up my MIDI device", icon: "plug" },
-    { text: "Fix audio latency or crackling", icon: "wave" },
-    { text: "What can the real-time synth do?", icon: "spark" },
-  ] as { text: string; icon: "devices" | "plug" | "wave" | "spark" }[],
+    "Which platforms does iMIDI support?",
+    "Help me set up my MIDI device",
+    "Fix audio latency or crackling",
+    "What can the real-time synth do?",
+  ],
 };
 
-const BRAND = "#3B5BDB";
-const BRAND_DARK = "#5B7CFF"; // slightly brighter for dark mode
+// The blue-to-cyan gradient is used on desktop. On phones it becomes a solid
+// colour unless you set this to true.
+const GRADIENT_ON_MOBILE = false;
 
 /* Human contact: phone + WhatsApp. Hours are evaluated in this time zone. */
 const BUSINESS_HOURS = {
@@ -60,6 +63,8 @@ const DEPARTMENTS = [
   },
 ];
 
+const EMOJIS = ["😀", "😊", "😉", "😍", "🤔", "😅", "🙏", "👍", "👋", "🔥", "🎹", "🎧", "🎶", "✅", "❓", "💡", "🔌", "💻", "📱", "🛠️"];
+
 const fmtPhone = (n: string) => `+${n.slice(0, 2)} ${n.slice(2, 5)} ${n.slice(5, 8)} ${n.slice(8)}`;
 
 function getBusinessStatus() {
@@ -82,6 +87,7 @@ function getBusinessStatus() {
     hoursText: `Mon–Fri, ${hh(BUSINESS_HOURS.startHour)}–${hh(BUSINESS_HOURS.endHour)} (Romania time)`,
   };
 }
+
 const KEY_MSGS = "imidi-chat-v4";
 const KEY_CONSENT = "imidi-chat-consent-v1";
 const KEY_THEME = "imidi-chat-theme-v1";
@@ -182,6 +188,11 @@ interface Consent {
   sound: boolean;
 }
 
+interface Option {
+  label: string;
+  onClick: () => void;
+}
+
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
 function extractImages(text: string): { cleanText: string; images: ChatImage[] } {
@@ -209,7 +220,7 @@ function SmartLink({ href, children }: { href: string; children: React.ReactNode
       href={safe}
       target={external ? "_blank" : undefined}
       rel={external ? "noopener noreferrer" : undefined}
-      className="break-words font-medium underline decoration-[color:var(--im-link)]/30 underline-offset-2 hover:decoration-[color:var(--im-link)]"
+      className="break-words font-medium underline underline-offset-2"
       style={{ color: "var(--im-link)" }}
     >
       {children}
@@ -224,7 +235,7 @@ function renderInline(text: string, key: string): React.ReactNode[] {
     if (!p) return null;
     if (p.startsWith("**") && p.endsWith("**") && p.length > 4)
       return (
-        <strong key={k} className="font-semibold" style={{ color: "var(--im-text)" }}>
+        <strong key={k} className="font-semibold">
           {p.slice(2, -2)}
         </strong>
       );
@@ -232,7 +243,7 @@ function renderInline(text: string, key: string): React.ReactNode[] {
       return (
         <code
           key={k}
-          className="rounded-sm px-1.5 py-0.5 font-mono text-[12px]"
+          className="rounded-md px-1.5 py-0.5 font-mono text-[12px]"
           style={{ background: "var(--im-code-bg)", color: "var(--im-link)" }}
         >
           {p.slice(1, -1)}
@@ -323,18 +334,14 @@ function useTyped(text: string, enabled: boolean, onTick?: () => void) {
 /*  Small pieces                                                       */
 /* ------------------------------------------------------------------ */
 
-function ChatIcon({ size = 24, color = "white" }: { size?: number; color?: string }) {
+// Solid speech bubble used on the launcher.
+function ChatBubbleIcon({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
-        d="M5.5 3.5h13A2.5 2.5 0 0121 6v8.5a2.5 2.5 0 01-2.5 2.5H11.2l-4.1 3.5a.6.6 0 01-1-.46V17H5.5A2.5 2.5 0 013 14.5V6a2.5 2.5 0 012.5-2.5z"
-        stroke={color}
-        strokeWidth="1.7"
-        strokeLinejoin="round"
+        d="M6.5 4h11A3.5 3.5 0 0121 7.5v6a3.5 3.5 0 01-3.5 3.5H11.4l-3.7 3.1a.5.5 0 01-.82-.38V17H6.5A3.5 3.5 0 013 13.5v-6A3.5 3.5 0 016.5 4z"
+        fill="white"
       />
-      <circle cx="8.2" cy="10.3" r="1.1" fill={color} />
-      <circle cx="12" cy="10.3" r="1.1" fill={color} />
-      <circle cx="15.8" cy="10.3" r="1.1" fill={color} />
     </svg>
   );
 }
@@ -361,47 +368,25 @@ function PersonIllustration() {
   );
 }
 
-function Avatar({ size = 28, online = false, round = false }: { size?: number; online?: boolean; round?: boolean }) {
+function Avatar({ size = 28 }: { size?: number }) {
   const [broken, setBroken] = useState(false);
   return (
-    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-      <div
-        className={`h-full w-full overflow-hidden shadow-sm ${round ? "rounded-full" : "rounded-sm"}`}
-        style={{ boxShadow: "0 0 0 2px var(--im-surface)" }}
-      >
-        {SITE.avatarSrc && !broken ? (
-          <img
-            src={SITE.avatarSrc}
-            alt={SITE.assistant}
-            className="h-full w-full object-cover"
-            onError={() => setBroken(true)}
-          />
-        ) : (
-          <PersonIllustration />
-        )}
-      </div>
-      {online && (
-        <span
-          className="absolute bottom-[2%] right-[2%] rounded-full border-2"
-          style={{
-            width: Math.max(10, size * 0.22),
-            height: Math.max(10, size * 0.22),
-            background: "#22C58B",
-            borderColor: "var(--im-surface)",
-          }}
-          aria-hidden="true"
+    <div
+      className="flex-shrink-0 overflow-hidden rounded-full"
+      style={{ width: size, height: size, boxShadow: "0 0 0 2px rgba(255,255,255,0.9)" }}
+    >
+      {SITE.avatarSrc && !broken ? (
+        <img
+          src={SITE.avatarSrc}
+          alt={SITE.assistant}
+          className="h-full w-full object-cover"
+          onError={() => setBroken(true)}
         />
+      ) : (
+        <PersonIllustration />
       )}
     </div>
   );
-}
-
-function PromptIcon({ name }: { name: "devices" | "plug" | "wave" | "spark" }) {
-  const c = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  if (name === "devices") return <svg {...c}><rect x="3" y="4" width="13" height="9" rx="2" /><path d="M8 17h3M9.5 13v4" /><rect x="17" y="8" width="4" height="9" rx="1.2" /></svg>;
-  if (name === "plug") return <svg {...c}><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 01-12 0V8zM12 17v4" /></svg>;
-  if (name === "wave") return <svg {...c}><path d="M3 12h3l2-6 4 12 3-9 2 3h4" /></svg>;
-  return <svg {...c}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 16l.7 2.1L22 19l-2.3.9L19 22l-.7-2.1L16 19l2.3-.9L19 16z" /></svg>;
 }
 
 function WhatsAppIcon({ size = 16 }: { size?: number }) {
@@ -413,22 +398,28 @@ function WhatsAppIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
 const I = {
-  speakerOn: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4zM15.5 9a4 4 0 010 6M18 6.5a8 8 0 010 11" /></svg>,
-  speakerOff: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4zM16 9.5l5 5M21 9.5l-5 5" /></svg>,
-  dots: <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>,
-  close: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>,
-  mic: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" /></svg>,
-  download: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" /></svg>,
-  trash: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3" /></svg>,
-  shield: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3zM9 12l2.2 2.2L15.5 10" /></svg>,
-  expand: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" /></svg>,
-  save: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 4h11l3 3v13H5V4zM8 4v5h7V4M8 20v-6h8v6" /></svg>,
-  human: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.8-4 3.8-6 7-6s6.2 2 7 6" /></svg>,
-  phone: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z" /></svg>,
-  arrowDown: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M6 13l6 6 6-6" /></svg>,
-  moon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 14.5A8.5 8.5 0 1110.5 3a7 7 0 0010.5 11.5z" /></svg>,
-  sun: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>,
+  speakerOn: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4zM15.5 9a4 4 0 010 6M18 6.5a8 8 0 010 11" /></svg>,
+  speakerOff: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4zM16 9.5l5 5M21 9.5l-5 5" /></svg>,
+  kebab: <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9" /><circle cx="12" cy="12" r="1.9" /><circle cx="12" cy="19" r="1.9" /></svg>,
+  chevron: <svg width="22" height="22" viewBox="0 0 24 24" {...stroke} strokeWidth={2.4}><path d="M5 9l7 7 7-7" /></svg>,
+  close: <svg width="18" height="18" viewBox="0 0 24 24" {...stroke} strokeWidth={2.2}><path d="M6 6l12 12M18 6L6 18" /></svg>,
+  mic: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" /></svg>,
+  stopSq: <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2.5" /></svg>,
+  emoji: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><circle cx="12" cy="12" r="9" /><path d="M8.5 14.2a4 4 0 007 0" /><circle cx="9" cy="10" r=".6" fill="currentColor" /><circle cx="15" cy="10" r=".6" fill="currentColor" /></svg>,
+  human: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.8-4 3.8-6 7-6s6.2 2 7 6" /></svg>,
+  phone: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z" /></svg>,
+  download: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M12 4v11M7 11l5 5 5-5M5 20h14" /></svg>,
+  trash: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3" /></svg>,
+  shield: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3zM9 12l2.2 2.2L15.5 10" /></svg>,
+  expand: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" /></svg>,
+  save: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M5 4h11l3 3v13H5V4zM8 4v5h7V4M8 20v-6h8v6" /></svg>,
+  arrowDown: <svg width="14" height="14" viewBox="0 0 24 24" {...stroke} strokeWidth={2.2}><path d="M12 5v14M6 13l6 6 6-6" /></svg>,
+  moon: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M21 14.5A8.5 8.5 0 1110.5 3a7 7 0 0010.5 11.5z" /></svg>,
+  sun: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>,
+  link: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1" /></svg>,
 };
 
 function Equalizer() {
@@ -442,32 +433,6 @@ function Equalizer() {
         />
       ))}
     </div>
-  );
-}
-
-function IconButton({
-  label,
-  onClick,
-  children,
-  active,
-}: {
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-  active?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      className={`flex h-8 w-8 items-center justify-center rounded-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--im-brand)] ${
-        active ? "bg-[var(--im-brand-soft)] text-[var(--im-link)]" : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -502,15 +467,118 @@ function MenuItem({
       type="button"
       role="menuitem"
       onClick={onClick}
-      className={`flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-left text-[13px] font-medium transition-colors ${
-        danger
-          ? "text-[#B42318] hover:bg-[#FFF1F0]"
-          : "text-[var(--im-text)] hover:bg-[var(--im-hover)]"
+      className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors ${
+        danger ? "text-[#B42318] hover:bg-[#FFF1F0]" : "text-[var(--im-text)] hover:bg-[var(--im-hover)]"
       }`}
     >
-      <span className={danger ? "text-[#B42318]" : "text-[var(--im-muted)]"}>{icon}</span>
+      <span className={`flex h-4 w-4 flex-shrink-0 items-center justify-center [&>svg]:h-4 [&>svg]:w-4 ${danger ? "text-[#B42318]" : "text-[var(--im-muted)]"}`}>{icon}</span>
       <span className="flex-1">{label}</span>
       {toggle !== undefined && <Switch on={toggle} />}
+    </button>
+  );
+}
+
+// Round white-on-gradient header button
+function HeadBtn({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-white/95 transition-colors hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+    >
+      {children}
+    </button>
+  );
+}
+
+// Toolbar button under the message box
+function ToolBtn({
+  label,
+  onClick,
+  children,
+  active,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+  active?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--im-brand)] ${
+        active
+          ? "bg-[var(--im-brand-soft)] text-[var(--im-link)]"
+          : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// Bot message with attached quick-reply buttons (like the reference)
+function BotCard({
+  children,
+  options,
+  error,
+}: {
+  children: React.ReactNode;
+  options?: Option[];
+  error?: boolean;
+}) {
+  return (
+    <div className="w-full overflow-hidden rounded-[18px] border" style={{ borderColor: error ? "#FFD0D0" : "var(--im-border)", background: "var(--im-surface)" }}>
+      <div
+        className="px-4 py-3 text-[14px] leading-relaxed"
+        style={error ? { background: "#FFF3F3", color: "#9B1C1C" } : { background: "var(--im-bubble)", color: "var(--im-text)" }}
+      >
+        {children}
+      </div>
+      {options?.map((o) => (
+        <button
+          key={o.label}
+          type="button"
+          onClick={o.onClick}
+          className="block w-full border-t px-4 py-3 text-center text-[14px] font-medium transition-colors hover:bg-[var(--im-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--im-brand)]"
+          style={{ borderColor: "var(--im-border)", color: "var(--im-link)" }}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MiniAction({
+  label,
+  onClick,
+  active,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className={`flex h-7 w-7 items-center justify-center rounded-md ${
+        active
+          ? "bg-[var(--im-brand-soft)] text-[var(--im-link)]"
+          : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
+      }`}
+    >
+      {children}
     </button>
   );
 }
@@ -537,116 +605,79 @@ function AssistantMessage({
   const { shown, done } = useTyped(msg.content, !!msg.fresh, onTick);
   const [copied, setCopied] = useState(false);
 
+  // Suggestions / images appear once typing is done: keep them in view.
+  useEffect(() => {
+    if (done && isLast) {
+      const t = setTimeout(onTick, 30);
+      return () => clearTimeout(t);
+    }
+  }, [done, isLast, onTick]);
+
+  const options: Option[] | undefined =
+    done && isLast && msg.suggestions?.length
+      ? msg.suggestions.slice(0, 3).map((s) => ({ label: s, onClick: () => onSuggest(s) }))
+      : undefined;
+
   return (
-    <div className="im-msg-in group flex items-start gap-2.5">
-      <div className="mt-0.5"><Avatar size={30} /></div>
+    <div className="im-msg-in group flex max-w-[88%] flex-col items-start gap-1.5">
+      {msg.content && (
+        <BotCard error={msg.error} options={options}>
+          {renderRich(shown)}
+        </BotCard>
+      )}
 
-      <div className="flex min-w-0 max-w-[86%] flex-col gap-1.5">
-        {msg.content && (
-          <div
-            className={`rounded-sm border px-3.5 py-2.5 text-[13.5px] leading-relaxed ${
-              msg.error
-                ? "border-[#FFD0D0] bg-[#FFF3F3] text-[#9B1C1C]"
-                : "border-[var(--im-border)] bg-[var(--im-bubble)] text-[var(--im-text)] shadow-sm"
-            }`}
+      {msg.images && msg.images.length > 0 && done && (
+        <div className={`grid gap-1.5 ${msg.images.length === 1 ? "grid-cols-1" : "grid-cols-2"}`} style={{ maxWidth: msg.images.length === 1 ? 240 : 280 }}>
+          {msg.images.map((img, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onImage(img)}
+              className="relative cursor-zoom-in overflow-hidden rounded-xl border bg-[var(--im-bubble)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--im-brand)]"
+              style={{ borderColor: "var(--im-border)", aspectRatio: msg.images!.length === 1 ? "16/10" : "1/1" }}
+            >
+              <img src={img.url} alt={img.alt || `${SITE.name} attachment`} loading="lazy" className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {done && msg.error && isLast && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-full border px-3.5 py-1.5 text-xs font-semibold hover:bg-[var(--im-hover)]"
+          style={{ borderColor: "var(--im-border)", color: "var(--im-text)" }}
+        >
+          Try again
+        </button>
+      )}
+
+      {done && !msg.error && (
+        <div className="flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-70">
+          <MiniAction
+            label={copied ? "Copied" : "Copy answer"}
+            active={copied}
+            onClick={() => {
+              onCopy(msg.content);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1400);
+            }}
           >
-            {renderRich(shown)}
-          </div>
-        )}
-
-        {msg.images && msg.images.length > 0 && done && (
-          <div className={`grid gap-1.5 ${msg.images.length === 1 ? "grid-cols-1" : "grid-cols-2"}`} style={{ maxWidth: msg.images.length === 1 ? 240 : 280 }}>
-            {msg.images.map((img, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onImage(img)}
-                className="im-thumb relative cursor-zoom-in overflow-hidden rounded-sm border border-[var(--im-border)] bg-[var(--im-bubble)] shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--im-brand)]"
-                style={{ aspectRatio: msg.images!.length === 1 ? "16/10" : "1/1" }}
-              >
-                <img src={img.url} alt={img.alt || `${SITE.name} attachment`} loading="lazy" className="h-full w-full object-cover" />
-              </button>
-            ))}
-          </div>
-        )}
-
-        {done && msg.error && isLast && (
-          <button
-            type="button"
-            onClick={onRetry}
-            className="self-start rounded-sm border border-[var(--im-border)] bg-[var(--im-bubble)] px-3 py-1.5 text-xs font-semibold text-[var(--im-text)] shadow-sm hover:bg-[var(--im-hover)]"
-          >
-            Try again
-          </button>
-        )}
-
-        {done && !msg.error && (
-          <div className="flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-70">
-            <button
-              type="button"
-              aria-label={copied ? "Copied" : "Copy answer"}
-              title={copied ? "Copied" : "Copy answer"}
-              onClick={() => {
-                onCopy(msg.content);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1400);
-              }}
-              className={`flex h-7 w-7 items-center justify-center rounded-sm ${
-                copied
-                  ? "bg-[var(--im-brand-soft)] text-[var(--im-link)]"
-                  : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
-              }`}
-            >
-              {copied ? (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7" /></svg>
-              ) : (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 012-2h9" /></svg>
-              )}
-            </button>
-            <button
-              type="button"
-              aria-label="Helpful"
-              title="Helpful"
-              onClick={() => onFeedback(msg.id, "up")}
-              className={`flex h-7 w-7 items-center justify-center rounded-sm ${
-                msg.feedback === "up"
-                  ? "bg-[var(--im-brand-soft)] text-[var(--im-link)]"
-                  : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
-              }`}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 11v9H4v-9h3zM7 11l4-8a2 2 0 012 2v4h6a2 2 0 012 2.3l-1.2 7A2 2 0 0117.8 20H7" /></svg>
-            </button>
-            <button
-              type="button"
-              aria-label="Not helpful"
-              title="Not helpful"
-              onClick={() => onFeedback(msg.id, "down")}
-              className={`flex h-7 w-7 items-center justify-center rounded-sm ${
-                msg.feedback === "down"
-                  ? "bg-[var(--im-brand-soft)] text-[var(--im-link)]"
-                  : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
-              }`}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 13V4h3v9h-3zM17 13l-4 8a2 2 0 01-2-2v-4H5a2 2 0 01-2-2.3l1.2-7A2 2 0 016.2 4H17" /></svg>
-            </button>
-          </div>
-        )}
-
-        {done && isLast && msg.suggestions && msg.suggestions.length > 0 && (
-          <div className="mt-0.5 flex flex-wrap gap-1.5">
-            {msg.suggestions.slice(0, 3).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => onSuggest(s)}
-                className="im-chip rounded-sm border border-[var(--im-brand)]/30 bg-[var(--im-bubble)] px-3 py-1.5 text-xs font-medium text-[var(--im-link)] shadow-sm hover:border-[var(--im-brand)]/60 hover:bg-[var(--im-brand-soft)]"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+            {copied ? (
+              <svg width="13" height="13" viewBox="0 0 24 24" {...stroke} strokeWidth={2.4}><path d="M5 12l5 5L20 7" /></svg>
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" {...stroke}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 012-2h9" /></svg>
+            )}
+          </MiniAction>
+          <MiniAction label="Helpful" active={msg.feedback === "up"} onClick={() => onFeedback(msg.id, "up")}>
+            <svg width="13" height="13" viewBox="0 0 24 24" {...stroke}><path d="M7 11v9H4v-9h3zM7 11l4-8a2 2 0 012 2v4h6a2 2 0 012 2.3l-1.2 7A2 2 0 0117.8 20H7" /></svg>
+          </MiniAction>
+          <MiniAction label="Not helpful" active={msg.feedback === "down"} onClick={() => onFeedback(msg.id, "down")}>
+            <svg width="13" height="13" viewBox="0 0 24 24" {...stroke}><path d="M17 13V4h3v9h-3zM17 13l-4 8a2 2 0 01-2-2v-4H5a2 2 0 01-2-2.3l1.2-7A2 2 0 016.2 4H17" /></svg>
+          </MiniAction>
+        </div>
+      )}
     </div>
   );
 }
@@ -659,7 +690,7 @@ export default function AIChatWidget() {
   const pathname = usePathname();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [showGreeting, setShowGreeting] = useState(true);
+  const [hasOpened, setHasOpened] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -672,23 +703,16 @@ export default function AIChatWidget() {
   const [optSound, setOptSound] = useState(true);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const [micOk, setMicOk] = useState(false);
   const [listening, setListening] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [, setTick] = useState(0);
-
-  // Theme: light is default/priority
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
-  // Keep the open/closed status fresh while the contact sheet is visible.
-  useEffect(() => {
-    if (!contactOpen) return;
-    const id = setInterval(() => setTick((t) => t + 1), 30_000);
-    return () => clearInterval(id);
-  }, [contactOpen]);
-
+  const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -700,6 +724,13 @@ export default function AIChatWidget() {
   const sfx = useCallback((n: Sfx) => {
     if (soundRef.current) playSound(n);
   }, []);
+
+  // Keep the open/closed status fresh while the contact sheet is visible.
+  useEffect(() => {
+    if (!contactOpen) return;
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, [contactOpen]);
 
   /* ---- load consent + theme ---- */
   useEffect(() => {
@@ -716,9 +747,7 @@ export default function AIChatWidget() {
         }
       }
       const savedTheme = localStorage.getItem(KEY_THEME);
-      if (savedTheme === "dark" || savedTheme === "light") {
-        setTheme(savedTheme);
-      }
+      if (savedTheme === "dark" || savedTheme === "light") setTheme(savedTheme);
     } catch {}
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     setMicOk(!!SR);
@@ -776,30 +805,73 @@ export default function AIChatWidget() {
       if (e.key !== "Escape") return;
       if (lightbox) setLightbox(null);
       else if (contactOpen) setContactOpen(false);
+      else if (emojiOpen) setEmojiOpen(false);
       else if (menuOpen) setMenuOpen(false);
       else if (isOpen) closePanel();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lightbox, menuOpen, contactOpen, isOpen]);
+  }, [lightbox, menuOpen, emojiOpen, contactOpen, isOpen]);
 
-  useEffect(() => () => {
-    listeningIntentRef.current = false;
-    try { recRef.current?.stop?.(); } catch {}
-  }, []);
+  // Phones: follow the visual viewport (on-screen keyboard) and lock page scroll behind the chat.
+  useEffect(() => {
+    if (!isOpen) return;
+    const mobile = window.matchMedia("(max-width: 639px)");
+    const root = panelRef.current;
+    const vv = window.visualViewport;
+    const apply = () => {
+      if (!root) return;
+      if (mobile.matches && vv) {
+        root.style.setProperty("--im-vh", `${vv.height}px`);
+        root.style.setProperty("--im-vt", `${vv.offsetTop}px`);
+        setTimeout(scrollDown, 30);
+      } else {
+        root.style.removeProperty("--im-vh");
+        root.style.removeProperty("--im-vt");
+      }
+    };
+    apply();
+    vv?.addEventListener("resize", apply);
+    vv?.addEventListener("scroll", apply);
+    mobile.addEventListener("change", apply);
+    const prevOverflow = document.body.style.overflow;
+    if (mobile.matches) document.body.style.overflow = "hidden";
+    return () => {
+      vv?.removeEventListener("resize", apply);
+      vv?.removeEventListener("scroll", apply);
+      mobile.removeEventListener("change", apply);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen, scrollDown]);
+
+  useEffect(
+    () => () => {
+      listeningIntentRef.current = false;
+      try {
+        recRef.current?.stop?.();
+      } catch {}
+    },
+    []
+  );
 
   /* ---- panel open/close ---- */
   const openPanel = () => {
     setIsOpen(true);
-    setShowGreeting(false);
+    setHasOpened(true);
     sfx("open");
   };
-  const closePanel = () => {
+  const stopMic = () => {
     listeningIntentRef.current = false;
-    try { recRef.current?.stop?.(); } catch {}
+    try {
+      recRef.current?.stop?.();
+    } catch {}
     setListening(false);
+  };
+  const closePanel = () => {
+    stopMic();
     setMenuOpen(false);
+    setEmojiOpen(false);
     setContactOpen(false);
     setIsOpen(false);
     sfx("close");
@@ -815,9 +887,7 @@ export default function AIChatWidget() {
 
   const withdraw = () => {
     abortRef.current?.abort();
-    listeningIntentRef.current = false;
-    try { recRef.current?.stop?.(); } catch {}
-    setListening(false);
+    stopMic();
     setLoading(false);
     setMessages([]);
     setConsent(null);
@@ -831,6 +901,14 @@ export default function AIChatWidget() {
   };
 
   const patchConsent = (patch: Partial<Consent>) => setConsent((c) => (c ? { ...c, ...patch } : c));
+
+  const toggleSound = () => {
+    if (!consent) return;
+    const next = !consent.sound;
+    soundRef.current = next;
+    patchConsent({ sound: next });
+    if (next) playSound("click");
+  };
 
   const toggleTheme = () => {
     setTheme((t) => (t === "light" ? "dark" : "light"));
@@ -909,9 +987,8 @@ export default function AIChatWidget() {
     (text: string) => {
       const value = text.trim();
       if (!value || loading || !consent) return;
-      listeningIntentRef.current = false;
-      try { recRef.current?.stop?.(); } catch {}
-      setListening(false);
+      stopMic();
+      setEmojiOpen(false);
       const next: Message[] = [
         ...messages.map((m) => ({ ...m, fresh: false })),
         { id: uid(), role: "user", content: value },
@@ -971,20 +1048,34 @@ export default function AIChatWidget() {
     } catch {}
   };
 
-  /* ---- voice dictation (browser speech service) ---- */
+  const openContact = () => {
+    sfx("click");
+    setMenuOpen(false);
+    setEmojiOpen(false);
+    setContactOpen(true);
+  };
+
+  /* ---- input helpers ---- */
   const autosize = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 120) + "px";
+    el.style.height = Math.min(el.scrollHeight, 110) + "px";
   };
 
+  const addEmoji = (e: string) => {
+    sfx("click");
+    setInput((v) => (v + e).slice(0, 1000));
+    setEmojiOpen(false);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      autosize(inputRef.current);
+    });
+  };
+
+  /* ---- voice dictation (browser speech service) ---- */
   const toggleMic = () => {
     if (listening) {
-      listeningIntentRef.current = false;
-      try {
-        recRef.current?.stop?.();
-      } catch {}
-      setListening(false);
+      stopMic();
       return;
     }
 
@@ -994,9 +1085,9 @@ export default function AIChatWidget() {
     const rec = new SR();
     rec.lang = "en-GB";
     rec.interimResults = true;
-    rec.continuous = true; // allow longer continuous speech
+    rec.continuous = true;
 
-    let finalText = input; // keep any existing typed text
+    let finalText = input;
 
     rec.onresult = (e: any) => {
       let interim = "";
@@ -1014,8 +1105,7 @@ export default function AIChatWidget() {
     };
 
     rec.onend = () => {
-      // Chrome often ends after a short pause even with continuous=true.
-      // Restart automatically while the user still wants to talk.
+      // Chrome often ends after a short pause; restart while the user still wants to talk.
       if (listeningIntentRef.current) {
         try {
           rec.start();
@@ -1029,7 +1119,6 @@ export default function AIChatWidget() {
     };
 
     rec.onerror = (ev: any) => {
-      // "no-speech" / "aborted" are normal; don't kill the session hard
       if (ev?.error === "aborted" || ev?.error === "no-speech") return;
       listeningIntentRef.current = false;
       setListening(false);
@@ -1048,125 +1137,135 @@ export default function AIChatWidget() {
   };
 
   const lastIdx = messages.length - 1;
-  const compact = !!consent && messages.length > 0;
-  const btnTop = compact ? "top-[62px] sm:top-[18px]" : "top-12 sm:top-3.5";
+  const noGrad = GRADIENT_ON_MOBILE ? "" : "im-nogradmobile";
+  const topPad = "calc(1.1rem + env(safe-area-inset-top))";
+
+  const welcomeOptions: Option[] = [
+    ...SITE.prompts.map((p) => ({ label: p, onClick: () => submit(p) })),
+    { label: "Talk to a human", onClick: openContact },
+  ];
 
   /* ---------------------------------------------------------------- */
 
   return (
     <>
-      <style>{`
+      <style suppressHydrationWarning>{`
         .im-font { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 
-        /* Light theme (default / priority) */
         .im-theme-light {
-          --im-brand: #3B5BDB;
-          --im-brand-soft: rgba(59, 91, 219, 0.12);
-          --im-link: #2F4AC0;
-          --im-text: #0E1330;
-          --im-muted: #6B7194;
-          --im-border: #E7E9F5;
+          --im-brand: #1F6BFF;
+          --im-grad: linear-gradient(120deg, #2A3BDC 0%, #1673F3 55%, #05B8FF 100%);
+          --im-glow: rgba(22, 115, 243, 0.42);
+          --im-brand-soft: rgba(31, 107, 255, 0.12);
+          --im-link: #0A74F0;
+          --im-text: #14192B;
+          --im-muted: #8A93A8;
+          --im-border: #E4E8F0;
           --im-surface: #FFFFFF;
-          --im-bg: #F6F7FC;
-          --im-bubble: #FFFFFF;
-          --im-hover: rgba(14, 19, 48, 0.06);
-          --im-code-bg: #EEF2FF;
-          --im-switch-off: #C9CCE0;
-          --im-input-bg: #F1F2FA;
-          --im-shadow: 0 4px 24px rgba(14, 19, 48, 0.08);
+          --im-bubble: #F0F3F8;
+          --im-hover: rgba(20, 25, 43, 0.05);
+          --im-code-bg: #E4EEFF;
+          --im-switch-off: #CBD2E0;
+          --im-input-bg: #F1F4F9;
+          --im-shadow: 0 20px 60px rgba(30, 60, 140, 0.2);
         }
 
-        /* Dark theme */
         .im-theme-dark {
-          --im-brand: #5B7CFF;
-          --im-brand-soft: rgba(91, 124, 255, 0.18);
-          --im-link: #8BA3FF;
-          --im-text: #E8EAF6;
-          --im-muted: #9BA3C7;
-          --im-border: #2A2F4A;
-          --im-surface: #1A1D2E;
-          --im-bg: #12141F;
-          --im-bubble: #1F2338;
-          --im-hover: rgba(255, 255, 255, 0.06);
-          --im-code-bg: #2A2F4A;
-          --im-switch-off: #3A3F5C;
-          --im-input-bg: #1F2338;
-          --im-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+          --im-brand: #3D8BFF;
+          --im-grad: linear-gradient(120deg, #1F2BB0 0%, #0F5FD0 55%, #0592C8 100%);
+          --im-glow: rgba(5, 146, 200, 0.4);
+          --im-brand-soft: rgba(61, 139, 255, 0.18);
+          --im-link: #7DB8FF;
+          --im-text: #E8ECF8;
+          --im-muted: #98A2BD;
+          --im-border: #2A3050;
+          --im-surface: #171B2B;
+          --im-bubble: #232842;
+          --im-hover: rgba(255, 255, 255, 0.07);
+          --im-code-bg: #2A3050;
+          --im-switch-off: #3A4060;
+          --im-input-bg: #232842;
+          --im-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+        }
+
+        .im-grad { background: var(--im-grad); }
+        @media (max-width: 639px) {
+          .im-nogradmobile .im-grad { background: var(--im-brand); }
         }
 
         @keyframes im-eq { 0%,100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
         @keyframes im-fade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes im-pulse {
           0% { box-shadow: 0 0 0 0 var(--im-brand-soft); }
-          70% { box-shadow: 0 0 0 8px transparent; }
+          70% { box-shadow: 0 0 0 9px transparent; }
           100% { box-shadow: 0 0 0 0 transparent; }
         }
+        @keyframes im-ping { 75%, 100% { transform: scale(2); opacity: 0; } }
 
         .im-eq { transform-origin: bottom; animation: im-eq .9s ease-in-out infinite; }
         .im-msg-in, .im-menu-in, .im-fade { animation: im-fade .15s ease-out; }
         .im-mic-on { animation: im-pulse 1.4s ease-out infinite; }
-        .im-chip { transition: background-color .15s ease, border-color .15s ease; }
+        .im-ping { animation: im-ping 1.1s cubic-bezier(0,0,.2,1) infinite; }
         .im-panel-size { transition: width .25s ease, height .25s ease; }
 
-        .im-input:focus {
-          background: var(--im-surface) !important;
-          border-color: var(--im-brand) !important;
-          box-shadow: 0 0 0 4px var(--im-brand-soft);
-        }
+        .im-list ::marker { color: var(--im-brand); }
 
-        .im-list ::marker {
-          color: var(--im-brand);
+        /* Phones: panel tracks the visual viewport so the keyboard never hides the input */
+        @media (max-width: 639px) {
+          .im-panel-mobile { top: var(--im-vt, 0px) !important; bottom: auto !important; height: var(--im-vh, 100dvh) !important; }
         }
+        /* Small phones: tighter header */
+        @media (max-width: 639px) and (max-height: 700px) {
+          .im-head-sub { display: none; }
+          .im-head-row { padding-bottom: 1.9rem !important; }
+        }
+        /* Short screens (landscape phones, small laptops): compact header,
+           and the panel becomes a full-height sheet on the right */
+        @media (max-height: 560px) {
+          .im-head-sub { display: none; }
+          .im-head-row { padding-bottom: 1.9rem !important; }
+          .im-power { display: none; }
+        }
+        @media (min-width: 640px) and (max-height: 520px) {
+          .im-panel-mobile { top: 0 !important; right: 0 !important; bottom: 0 !important; left: auto !important;
+            height: 100dvh !important; width: min(420px, 100vw) !important; max-height: none !important; max-width: none !important; }
+          .im-panel-mobile > .im-shell { border-radius: 0 !important; }
+        }
+        @media (max-width: 420px) { .im-power { display: none; } }
+        @media (min-width: 640px) and (max-height: 520px) { .im-send { right: 14px !important; } }
+        .im-font, .im-font * { -webkit-tap-highlight-color: transparent; }
+        .im-font textarea { -webkit-text-size-adjust: 100%; }
 
-        .im-scroll::-webkit-scrollbar, .im-hscroll::-webkit-scrollbar { width: 6px; height: 0; }
-        .im-scroll::-webkit-scrollbar-thumb { background: rgba(80,90,160,.25); border-radius: 999px; }
+        .im-scroll::-webkit-scrollbar { width: 6px; }
+        .im-scroll::-webkit-scrollbar-thumb { background: rgba(120,130,170,.28); border-radius: 999px; }
         .im-scroll::-webkit-scrollbar-track { background: transparent; }
 
-        .im-theme-dark .im-scroll::-webkit-scrollbar-thumb { background: rgba(140,150,200,.3); }
-
         @media (prefers-reduced-motion: reduce) {
-          .im-eq, .im-msg-in, .im-menu-in, .im-fade, .im-mic-on { animation: none !important; }
+          .im-eq, .im-msg-in, .im-menu-in, .im-fade, .im-mic-on, .im-ping { animation: none !important; }
         }
       `}</style>
 
       {/* LAUNCHER */}
       {!isOpen && (
-        <div className="im-font fixed bottom-[170px] right-4 z-50 flex items-center gap-3 antialiased sm:right-5">
-          {showGreeting && (
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={openPanel}
-              onKeyDown={(e) => e.key === "Enter" && openPanel()}
-              className="relative flex max-w-[240px] cursor-pointer items-center gap-2.5 rounded-sm border border-[#E7E9F5] bg-white py-2.5 pl-2.5 pr-4 shadow-md"
-            >
-              <button
-                type="button"
-                aria-label="Dismiss"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowGreeting(false);
-                }}
-                className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#0E1330] text-[10px] text-white hover:bg-[#3B5BDB]"
-              >
-                ✕
-              </button>
-              <Avatar size={36} online round />
-              <div>
-                <p className="text-[13px] font-semibold leading-tight text-[#0E1330]">Need a hand with {SITE.name}?</p>
-                <p className="mt-0.5 text-xs leading-snug text-[#6B7194]">{SITE.assistant}, AI assistant</p>
-              </div>
-            </div>
-          )}
-
+        <div className={`im-font im-theme-${theme} ${noGrad} fixed bottom-[170px] right-4 z-50 antialiased sm:right-5`}>
           <button
             type="button"
             onClick={openPanel}
             aria-label={`Open ${SITE.name} chat`}
             title="Chat with us"
-            className="flex h-[58px] w-[58px] items-center justify-center rounded-full bg-[#3B5BDB] shadow-md transition-colors hover:bg-[#2F4AC0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#3B5BDB]"
+            className="im-grad relative flex h-[60px] w-[60px] items-center justify-center rounded-[22px] transition-transform duration-150 hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--im-brand)]"
+            style={{ boxShadow: "0 10px 30px var(--im-glow)" }}
           >
-            <ChatIcon size={30} />
+            <ChatBubbleIcon size={30} />
+            {!hasOpened && (
+              <span
+                className="absolute -right-1.5 -top-1.5 flex h-[22px] w-[22px] items-center justify-center rounded-full text-[12px] font-bold text-white"
+                style={{ background: "#F03142", boxShadow: "0 0 0 2px #fff" }}
+                aria-label="1 unread message"
+              >
+                1
+              </span>
+            )}
           </button>
         </div>
       )}
@@ -1176,125 +1275,68 @@ export default function AIChatWidget() {
         <div
           role="dialog"
           aria-label={`${SITE.name} assistant`}
-          data-theme={theme}
-          className={`im-font im-panel-size im-theme-${theme} fixed inset-0 z-50 h-[100dvh] w-full overflow-hidden antialiased
-                     sm:inset-auto sm:bottom-6 sm:right-6 sm:max-h-[90vh] sm:rounded-none sm:border sm:border-[var(--im-border)] sm:shadow-2xl
-                     ${expanded ? "sm:h-[780px] sm:w-[600px]" : "sm:h-[680px] sm:w-[410px]"}`}
-          style={{ background: "var(--im-surface)", boxShadow: "var(--im-shadow)" }}
+          ref={panelRef}
+          className={`im-font im-panel-size im-panel-mobile im-theme-${theme} ${noGrad} fixed inset-0 z-50 h-[100dvh] w-full antialiased
+                     sm:inset-auto sm:bottom-6 sm:right-6 sm:max-h-[calc(100dvh-3rem)] sm:max-w-[calc(100vw-3rem)]
+                     ${expanded ? "sm:h-[780px] sm:w-[480px]" : "sm:h-[660px] sm:w-[380px]"}`}
         >
-          <div className="relative flex h-full w-full flex-col overflow-hidden" style={{ background: "var(--im-bg)" }}>
-            {/* header */}
-            <div className="relative border-b border-[var(--im-border)]" style={{ background: "var(--im-surface)" }}>
-              {/* subtle brand accent line */}
-              <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "linear-gradient(90deg, var(--im-brand) 0%, transparent 70%)", opacity: 0.55 }} />
+          <div
+            className="im-shell relative flex h-full w-full flex-col overflow-hidden sm:rounded-[22px]"
+            style={{ background: "var(--im-surface)", boxShadow: "var(--im-shadow)" }}
+          >
+            {/* HEADER */}
+            <div className="im-grad relative flex-shrink-0 text-white">
+              <div className="im-head-row flex items-center gap-3 px-4 pb-4" style={{ paddingTop: topPad }}>
+                <Avatar size={44} />
+                <p className="min-w-0 flex-1 truncate text-[21px] font-semibold tracking-tight">{SITE.headerTitle}</p>
+                {consent && (
+                  <HeadBtn label="More options" onClick={() => { setEmojiOpen(false); setMenuOpen((v) => !v); }}>
+                    {I.kebab}
+                  </HeadBtn>
+                )}
+                <HeadBtn label="Minimize chat" onClick={closePanel}>{I.chevron}</HeadBtn>
+              </div>
 
-              {compact ? (
-                <div className="relative flex items-center gap-3.5 px-4 pb-3.5 pt-14 sm:pt-4">
-                  <Avatar size={44} online />
-                  <div className="min-w-0 flex-1 leading-tight">
-                    <p className="text-[15px] font-semibold tracking-tight" style={{ color: "var(--im-text)" }}>
-                      {SITE.assistant}
-                    </p>
-                    <div className="mt-0.5 flex items-center gap-1.5">
-                      <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[#22C58B]" />
-                      <p className="text-[11px] font-medium" style={{ color: "var(--im-muted)" }}>
-                        {SITE.name} · Online
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="relative flex flex-col items-center px-4 pb-5 pt-[88px] text-center sm:pt-7">
-                  <div className="relative">
-                    <Avatar size={76} online />
-                  </div>
-                  <p className="mt-3.5 text-[18px] font-bold tracking-tight" style={{ color: "var(--im-text)" }}>
-                    {SITE.assistant}
-                  </p>
-                  <div className="mt-1 flex items-center justify-center gap-1.5">
-                    <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[#22C58B]" />
-                    <p className="text-[12px] font-medium" style={{ color: "var(--im-muted)" }}>
-                      {SITE.name} AI assistant · Online
-                    </p>
-                  </div>
-                </div>
-              )}
+              <div className="im-head-sub border-t border-white/20 px-4 pb-8 pt-3 text-[14.5px] text-white/95">
+                {SITE.headerSubtitle}
+              </div>
+
+              {/* wave edge */}
+              <svg
+                className="absolute bottom-[-1px] left-0 h-[26px] w-full"
+                viewBox="0 0 400 26"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <path d="M0 14C70 26 150 2 240 9S350 22 400 6V26H0Z" fill="var(--im-surface)" />
+              </svg>
             </div>
 
-            {/* header buttons (outside the clipped header so the menu can open) */}
-            <div className={`absolute right-3 z-20 flex items-center gap-0.5 ${btnTop}`}>
-              {consent && (
-                <IconButton
-                  label={consent.sound ? "Mute sounds" : "Turn sounds on"}
-                  onClick={() => {
-                    const next = !consent.sound;
-                    soundRef.current = next;
-                    patchConsent({ sound: next });
-                    if (next) playSound("click");
-                  }}
-                >
-                  {consent.sound ? I.speakerOn : I.speakerOff}
-                </IconButton>
-              )}
-              {consent && (
-                <IconButton label="More options" onClick={() => setMenuOpen((v) => !v)} active={menuOpen}>
-                  {I.dots}
-                </IconButton>
-              )}
-              <IconButton label="Close chat" onClick={closePanel}>{I.close}</IconButton>
-            </div>
-
+            {/* kebab menu */}
             {menuOpen && consent && (
               <>
                 <div className="absolute inset-0 z-20" onClick={() => setMenuOpen(false)} aria-hidden="true" />
                 <div
                   role="menu"
-                  className={`im-menu-in absolute right-3 z-30 w-[252px] rounded-sm border border-[var(--im-border)] p-1.5 shadow-sm ${
-                    compact ? "top-[100px] sm:top-[56px]" : "top-[92px] sm:top-[54px]"
-                  }`}
-                  style={{ background: "var(--im-surface)" }}
+                  className="im-menu-in absolute right-3 z-30 max-h-[calc(100%-80px)] w-[min(256px,calc(100%-1.5rem))] overflow-y-auto rounded-xl border p-1.5"
+                  style={{
+                    top: "calc(env(safe-area-inset-top) + 64px)",
+                    background: "var(--im-surface)",
+                    borderColor: "var(--im-border)",
+                    boxShadow: "0 14px 36px rgba(20,30,70,0.2)",
+                  }}
                 >
-                  <MenuItem
-                    icon={consent.sound ? I.speakerOn : I.speakerOff}
-                    label="Sounds"
-                    toggle={consent.sound}
-                    onClick={() => {
-                      const next = !consent.sound;
-                      soundRef.current = next;
-                      patchConsent({ sound: next });
-                      if (next) playSound("click");
-                    }}
-                  />
-                  <MenuItem
-                    icon={I.save}
-                    label="Save chat on this device"
-                    toggle={consent.save}
-                    onClick={() => patchConsent({ save: !consent.save })}
-                  />
-                  <MenuItem
-                    icon={theme === "dark" ? I.sun : I.moon}
-                    label={theme === "dark" ? "Light mode" : "Dark mode"}
-                    toggle={theme === "dark"}
-                    onClick={toggleTheme}
-                  />
+                  <MenuItem icon={consent.sound ? I.speakerOn : I.speakerOff} label="Sounds" toggle={consent.sound} onClick={toggleSound} />
+                  <MenuItem icon={I.save} label="Save chat on this device" toggle={consent.save} onClick={() => patchConsent({ save: !consent.save })} />
+                  <MenuItem icon={theme === "dark" ? I.sun : I.moon} label={theme === "dark" ? "Light mode" : "Dark mode"} toggle={theme === "dark"} onClick={toggleTheme} />
                   <span className="max-sm:hidden">
-                    <MenuItem
-                      icon={I.expand}
-                      label={expanded ? "Smaller window" : "Larger window"}
-                      onClick={() => {
-                        setExpanded((v) => !v);
-                        setMenuOpen(false);
-                      }}
-                    />
+                    <MenuItem icon={I.expand} label={expanded ? "Smaller window" : "Larger window"} onClick={() => { setExpanded((v) => !v); setMenuOpen(false); }} />
                   </span>
-                  <MenuItem
-                    icon={I.phone}
-                    label="Call or WhatsApp us"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setContactOpen(true);
-                    }}
-                  />
+                  <div className="my-1 h-px" style={{ background: "var(--im-border)" }} />
+                  <MenuItem icon={I.phone} label="Call or WhatsApp us" onClick={openContact} />
+                  {SITE.links.map((l) => (
+                    <MenuItem key={l.href} icon={I.link} label={l.label} onClick={() => { window.location.href = l.href; }} />
+                  ))}
                   <div className="my-1 h-px" style={{ background: "var(--im-border)" }} />
                   {messages.length > 0 && <MenuItem icon={I.download} label="Download transcript" onClick={downloadTranscript} />}
                   {messages.length > 0 && <MenuItem icon={I.trash} label="Clear conversation" onClick={clearChat} />}
@@ -1303,7 +1345,7 @@ export default function AIChatWidget() {
               </>
             )}
 
-            {/* contact sheet: phone + WhatsApp */}
+            {/* CONTACT SHEET: phone + WhatsApp */}
             {contactOpen && (() => {
               const bh = getBusinessStatus();
               const canCall = bh.isOpen;
@@ -1313,48 +1355,44 @@ export default function AIChatWidget() {
                   role="dialog"
                   aria-label="Contact our team"
                   className="im-fade absolute inset-0 z-40 flex flex-col"
-                  style={{ background: "var(--im-bg)" }}
+                  style={{ background: "var(--im-surface)" }}
                 >
-                  <div
-                    className="flex items-center justify-between border-b border-[var(--im-border)] px-4 pb-3 pt-14 sm:pt-3.5"
-                    style={{ background: "var(--im-surface)" }}
-                  >
-                    <div className="leading-tight">
-                      <p className="text-[15px] font-semibold" style={{ color: "var(--im-text)" }}>Talk to a human</p>
-                      <p className="text-xs" style={{ color: "var(--im-muted)" }}>Call or message our team</p>
+                  <div className="im-grad relative flex-shrink-0 text-white">
+                    <div className="flex items-center justify-between gap-3 px-4 pb-8" style={{ paddingTop: topPad }}>
+                      <div className="min-w-0">
+                        <p className="text-[21px] font-semibold tracking-tight">Talk to a human</p>
+                        <p className="mt-0.5 text-[13.5px] text-white/90">Call or message our team</p>
+                      </div>
+                      <HeadBtn label="Close" onClick={() => setContactOpen(false)}>{I.close}</HeadBtn>
                     </div>
-                    <IconButton label="Close" onClick={() => setContactOpen(false)}>{I.close}</IconButton>
+                    <svg className="absolute bottom-[-1px] left-0 h-[26px] w-full" viewBox="0 0 400 26" preserveAspectRatio="none" aria-hidden="true">
+                      <path d="M0 14C70 26 150 2 240 9S350 22 400 6V26H0Z" fill="var(--im-surface)" />
+                    </svg>
                   </div>
 
                   <div
-                    className={`flex items-center justify-between gap-3 border-b px-4 py-2 text-[12px] ${
-                      bh.isOpen
-                        ? "border-emerald-200/50 bg-emerald-50 text-emerald-800"
-                        : "border-amber-200/50 bg-amber-50 text-amber-800"
-                    }`}
+                    className="mx-4 mt-1 flex flex-col gap-0.5 rounded-xl px-3.5 py-2.5 text-[12px]"
                     style={
-                      theme === "dark"
-                        ? bh.isOpen
-                          ? { background: "rgba(16, 185, 129, 0.12)", color: "#6EE7B7", borderColor: "rgba(16, 185, 129, 0.25)" }
-                          : { background: "rgba(245, 158, 11, 0.12)", color: "#FCD34D", borderColor: "rgba(245, 158, 11, 0.25)" }
-                        : undefined
+                      bh.isOpen
+                        ? theme === "dark"
+                          ? { background: "rgba(16,185,129,0.14)", color: "#6EE7B7" }
+                          : { background: "#ECFDF5", color: "#065F46" }
+                        : theme === "dark"
+                          ? { background: "rgba(245,158,11,0.14)", color: "#FCD34D" }
+                          : { background: "#FFFBEB", color: "#92400E" }
                     }
                   >
                     <span className="flex items-center gap-2 font-semibold">
                       <span className={`h-2 w-2 rounded-full ${bh.isOpen ? "bg-emerald-500" : "bg-amber-500"}`} />
                       {bh.isOpen ? "Team online now" : "Team offline right now"}
                     </span>
-                    <span className="text-right">{bh.hoursText}</span>
+                    <span className="pl-4 opacity-90">{bh.hoursText}</span>
                   </div>
 
                   <div className="im-scroll flex-1 space-y-3 overflow-y-auto p-4">
                     {DEPARTMENTS.map((d) => (
-                      <div
-                        key={d.id}
-                        className="border border-[var(--im-border)] p-4 shadow-sm"
-                        style={{ background: "var(--im-bubble)" }}
-                      >
-                        <p className="text-[14px] font-semibold" style={{ color: "var(--im-text)" }}>{d.label}</p>
+                      <div key={d.id} className="rounded-2xl border p-4" style={{ background: "var(--im-bubble)", borderColor: "var(--im-border)" }}>
+                        <p className="text-[14.5px] font-semibold" style={{ color: "var(--im-text)" }}>{d.label}</p>
                         <p className="mt-0.5 text-[12px] leading-snug" style={{ color: "var(--im-muted)" }}>{d.sublabel}</p>
 
                         <p className="mt-3 flex items-center gap-2 text-[15px] font-semibold tabular-nums tracking-wide" style={{ color: "var(--im-text)" }}>
@@ -1367,24 +1405,16 @@ export default function AIChatWidget() {
                             <a
                               href={`tel:+${d.number}`}
                               onClick={() => sfx("click")}
-                              className="flex h-10 items-center justify-center gap-2 border text-[13px] font-semibold transition-colors"
-                              style={{
-                                borderColor: "var(--im-text)",
-                                background: "var(--im-bubble)",
-                                color: "var(--im-text)",
-                              }}
+                              className="flex h-10 items-center justify-center gap-2 rounded-xl border text-[13px] font-semibold transition-colors hover:bg-[var(--im-hover)]"
+                              style={{ borderColor: "var(--im-text)", background: "var(--im-surface)", color: "var(--im-text)" }}
                             >
                               {I.phone} Call
                             </a>
                           ) : (
                             <span
                               aria-disabled="true"
-                              className="flex h-10 cursor-not-allowed select-none items-center justify-center gap-2 border text-[13px] font-semibold"
-                              style={{
-                                borderColor: "var(--im-border)",
-                                background: "var(--im-input-bg)",
-                                color: "var(--im-muted)",
-                              }}
+                              className="flex h-10 cursor-not-allowed select-none items-center justify-center gap-2 rounded-xl border text-[13px] font-semibold"
+                              style={{ borderColor: "var(--im-border)", background: "var(--im-surface)", color: "var(--im-muted)", opacity: 0.8 }}
                             >
                               {I.phone} Call
                             </span>
@@ -1396,15 +1426,15 @@ export default function AIChatWidget() {
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={() => sfx("click")}
-                              className="flex h-10 items-center justify-center gap-2 bg-[#128C7E] text-[13px] font-semibold text-white transition-colors hover:bg-[#0F7A6E]"
+                              className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[#128C7E] text-[13px] font-semibold text-white transition-colors hover:bg-[#0F7A6E]"
                             >
                               <WhatsAppIcon size={16} /> WhatsApp
                             </a>
                           ) : (
                             <span
                               aria-disabled="true"
-                              className="flex h-10 cursor-not-allowed select-none items-center justify-center gap-2 text-[13px] font-semibold"
-                              style={{ background: "var(--im-input-bg)", color: "var(--im-muted)" }}
+                              className="flex h-10 cursor-not-allowed select-none items-center justify-center gap-2 rounded-xl border text-[13px] font-semibold"
+                              style={{ borderColor: "var(--im-border)", background: "var(--im-surface)", color: "var(--im-muted)", opacity: 0.8 }}
                             >
                               <WhatsAppIcon size={16} /> WhatsApp
                             </span>
@@ -1420,16 +1450,12 @@ export default function AIChatWidget() {
                     </p>
                   </div>
 
-                  <div className="border-t border-[var(--im-border)] p-3 pb-8 sm:pb-3" style={{ background: "var(--im-surface)" }}>
+                  <div className="border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" style={{ borderColor: "var(--im-border)" }}>
                     <button
                       type="button"
                       onClick={() => setContactOpen(false)}
-                      className="h-10 w-full border text-[13px] font-semibold hover:opacity-90"
-                      style={{
-                        borderColor: "var(--im-border)",
-                        background: "var(--im-bubble)",
-                        color: "var(--im-muted)",
-                      }}
+                      className="h-11 w-full rounded-xl border text-[13.5px] font-semibold hover:bg-[var(--im-hover)]"
+                      style={{ borderColor: "var(--im-border)", color: "var(--im-muted)" }}
                     >
                       Back to chat
                     </button>
@@ -1438,86 +1464,53 @@ export default function AIChatWidget() {
               );
             })()}
 
-            {/* body */}
+            {/* BODY */}
             {!consent ? (
               /* ---------- CONSENT GATE ---------- */
-              <div className="im-scroll flex-1 overflow-y-auto px-5 py-5">
+              <div className="im-scroll flex-1 overflow-y-auto px-5 pb-5 pt-2">
                 <div className="im-msg-in">
-                  <h2 className="text-[22px] font-bold leading-tight tracking-tight" style={{ color: "var(--im-text)" }}>
+                  <h2 className="text-[21px] font-bold leading-tight tracking-tight" style={{ color: "var(--im-text)" }}>
                     Before we start
                   </h2>
-                  <p className="mt-2 text-[13px] leading-relaxed" style={{ color: "var(--im-muted)" }}>
+                  <p className="mt-2 text-[13.5px] leading-relaxed" style={{ color: "var(--im-muted)" }}>
                     I'm {SITE.assistant}, an AI assistant for {SITE.name}. I'm not a person, and my answers can be wrong.
                   </p>
 
                   <ul className="mt-3 space-y-2 text-[13px] leading-relaxed" style={{ color: "var(--im-muted)" }}>
-                    <li className="flex gap-2">
-                      <span className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: "var(--im-brand)" }} />
-                      What you type is sent to {SITE.name}'s servers and to an AI provider so I can write a reply.
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: "var(--im-brand)" }} />
-                      Please don't share passwords, card numbers or other sensitive details.
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: "var(--im-brand)" }} />
-                      You can withdraw consent and erase your chat at any time from the menu.
-                    </li>
+                    {[
+                      `What you type is sent to ${SITE.name}'s servers and to an AI provider so I can write a reply.`,
+                      "Please don't share passwords, card numbers or other sensitive details.",
+                      "You can withdraw consent and erase your chat at any time from the menu.",
+                    ].map((t) => (
+                      <li key={t} className="flex gap-2">
+                        <span className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: "var(--im-brand)" }} />
+                        {t}
+                      </li>
+                    ))}
                   </ul>
 
-                  <div className="mt-5 space-y-2.5">
-                    <label
-                      className="flex cursor-pointer items-start gap-3 rounded-sm border border-[var(--im-border)] p-3 shadow-sm"
-                      style={{ background: "var(--im-bubble)" }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={agree}
-                        onChange={(e) => setAgree(e.target.checked)}
-                        className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[var(--im-brand)]"
-                      />
+                  <div className="mt-4 space-y-2.5">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border p-3" style={{ background: "var(--im-bubble)", borderColor: "var(--im-border)" }}>
+                      <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[var(--im-brand)]" />
                       <span className="text-[13px] leading-snug" style={{ color: "var(--im-text)" }}>
                         <span className="font-semibold">I agree</span> to my messages being processed to get answers, as described in the{" "}
-                        <a
-                          href={SITE.privacyHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium underline underline-offset-2"
-                          style={{ color: "var(--im-link)" }}
-                        >
+                        <a href={SITE.privacyHref} target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2" style={{ color: "var(--im-link)" }}>
                           privacy policy
                         </a>
-                        .
-                        <span className="ml-1" style={{ color: "var(--im-muted)" }}>(required)</span>
+                        .<span className="ml-1" style={{ color: "var(--im-muted)" }}>(required)</span>
                       </span>
                     </label>
 
-                    <label
-                      className="flex cursor-pointer items-start gap-3 rounded-sm border border-[var(--im-border)] p-3"
-                      style={{ background: "var(--im-bubble)" }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={optSave}
-                        onChange={(e) => setOptSave(e.target.checked)}
-                        className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[var(--im-brand)]"
-                      />
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border p-3" style={{ background: "var(--im-bubble)", borderColor: "var(--im-border)" }}>
+                      <input type="checkbox" checked={optSave} onChange={(e) => setOptSave(e.target.checked)} className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[var(--im-brand)]" />
                       <span className="text-[13px] leading-snug" style={{ color: "var(--im-text)" }}>
                         Keep my chat on this device so I can continue later.
                         <span className="ml-1" style={{ color: "var(--im-muted)" }}>(optional)</span>
                       </span>
                     </label>
 
-                    <label
-                      className="flex cursor-pointer items-start gap-3 rounded-sm border border-[var(--im-border)] p-3"
-                      style={{ background: "var(--im-bubble)" }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={optSound}
-                        onChange={(e) => setOptSound(e.target.checked)}
-                        className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[var(--im-brand)]"
-                      />
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border p-3" style={{ background: "var(--im-bubble)", borderColor: "var(--im-border)" }}>
+                      <input type="checkbox" checked={optSound} onChange={(e) => setOptSound(e.target.checked)} className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[var(--im-brand)]" />
                       <span className="text-[13px] leading-snug" style={{ color: "var(--im-text)" }}>
                         Play short sounds for messages.
                         <span className="ml-1" style={{ color: "var(--im-muted)" }}>(optional)</span>
@@ -1525,34 +1518,30 @@ export default function AIChatWidget() {
                     </label>
                   </div>
 
-                  <div className="mt-5 flex gap-2.5 pb-6 sm:pb-0">
+                  <div className="mt-5 flex gap-2.5">
                     <button
                       type="button"
                       onClick={accept}
                       disabled={!agree}
-                      className="flex-1 rounded-sm px-4 py-3 text-[14px] font-semibold text-white shadow-sm transition-all hover:brightness-110 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-                      style={{ background: "var(--im-brand)" }}
+                      className="im-grad flex-1 rounded-xl px-4 py-3 text-[14px] font-semibold text-white transition-all hover:brightness-110 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Accept and start chat
                     </button>
                     <button
                       type="button"
                       onClick={closePanel}
-                      className="rounded-sm border px-4 py-3 text-[14px] font-semibold hover:opacity-90"
-                      style={{
-                        borderColor: "var(--im-border)",
-                        background: "var(--im-bubble)",
-                        color: "var(--im-muted)",
-                      }}
+                      className="rounded-xl border px-4 py-3 text-[14px] font-semibold hover:bg-[var(--im-hover)]"
+                      style={{ borderColor: "var(--im-border)", color: "var(--im-muted)" }}
                     >
                       No thanks
                     </button>
                   </div>
+
                   <button
                     type="button"
-                    onClick={() => setContactOpen(true)}
-                    className="mt-3 flex w-full items-center justify-center gap-2 border-t border-[var(--im-border)] pt-3 text-[13px] font-medium hover:underline"
-                    style={{ color: "var(--im-link)" }}
+                    onClick={openContact}
+                    className="mt-4 flex w-full items-center justify-center gap-2 border-t pt-3.5 text-[13px] font-medium hover:underline"
+                    style={{ borderColor: "var(--im-border)", color: "var(--im-link)" }}
                   >
                     {I.human} Prefer a person? Call or WhatsApp us
                   </button>
@@ -1560,54 +1549,20 @@ export default function AIChatWidget() {
               </div>
             ) : (
               <>
-                {/* messages */}
-                <div className="relative flex-1 overflow-hidden">
-                  <div
-                    ref={scrollRef}
-                    onScroll={onScroll}
-                    className="im-scroll h-full space-y-4 overflow-y-auto px-4 py-4"
-                    aria-live="polite"
-                  >
-                    {messages.length === 0 && (
-                      <div className="im-msg-in">
-                        <h2 className="text-[24px] font-bold leading-[1.12] tracking-tight" style={{ color: "var(--im-text)" }}>
-                          Hi, I'm {SITE.assistant}. How can I help you today?
-                        </h2>
-                        <p className="mt-2 max-w-[320px] text-[13px] leading-relaxed" style={{ color: "var(--im-muted)" }}>
-                          Ask about the {SITE.name} app, MIDI setup, audio latency or supported platforms.
-                        </p>
-
-                        <div className="mt-4 grid grid-cols-2 gap-2.5">
-                          {SITE.prompts.map((p) => (
-                            <button
-                              key={p.text}
-                              type="button"
-                              onClick={() => submit(p.text)}
-                              className="flex flex-col items-start gap-2.5 rounded-sm border border-[var(--im-border)] p-3 text-left shadow-sm transition-colors hover:border-[var(--im-brand)]/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--im-brand)]"
-                              style={{ background: "var(--im-bubble)" }}
-                            >
-                              <span
-                                className="flex h-8 w-8 items-center justify-center rounded-sm"
-                                style={{ background: "var(--im-brand-soft)", color: "var(--im-link)" }}
-                              >
-                                <PromptIcon name={p.icon} />
-                              </span>
-                              <span className="relative text-[13px] font-semibold leading-snug" style={{ color: "var(--im-text)" }}>
-                                {p.text}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                {/* MESSAGES */}
+                <div className="relative min-h-0 flex-1">
+                  <div ref={scrollRef} onScroll={onScroll} className="im-scroll h-full space-y-3 overflow-y-auto px-5 pb-3 pt-3" aria-live="polite">
+                    {/* welcome message with quick replies */}
+                    <div className="im-msg-in max-w-[92%]">
+                      <BotCard options={messages.length === 0 ? welcomeOptions : undefined}>
+                        Hi there! I'm {SITE.assistant} <span aria-hidden="true">👋</span>, an AI assistant for {SITE.name}. How can I help you today?
+                      </BotCard>
+                    </div>
 
                     {messages.map((msg, i) =>
                       msg.role === "user" ? (
                         <div key={msg.id} className="im-msg-in flex justify-end">
-                          <div
-                            className="max-w-[82%] break-words rounded-sm px-3.5 py-2.5 text-[13.5px] font-medium leading-relaxed text-white shadow-sm"
-                            style={{ background: "var(--im-brand)" }}
-                          >
+                          <div className="im-grad max-w-[82%] break-words rounded-[18px] rounded-br-md px-4 py-2.5 text-[14px] leading-relaxed text-white">
                             {msg.content}
                           </div>
                         </div>
@@ -1627,12 +1582,8 @@ export default function AIChatWidget() {
                     )}
 
                     {loading && (
-                      <div className="im-msg-in flex items-start gap-2.5">
-                        <Avatar size={30} />
-                        <div
-                          className="rounded-sm border border-[var(--im-border)] px-4 py-3.5 shadow-sm"
-                          style={{ background: "var(--im-bubble)" }}
-                        >
+                      <div className="im-msg-in">
+                        <div className="inline-block rounded-[18px] px-4 py-3.5" style={{ background: "var(--im-bubble)" }}>
                           <Equalizer />
                         </div>
                       </div>
@@ -1644,168 +1595,132 @@ export default function AIChatWidget() {
                       type="button"
                       onClick={() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })}
                       aria-label="Scroll to latest message"
-                      className="im-msg-in absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-sm border border-[var(--im-border)] px-3 py-1.5 text-xs font-semibold shadow-sm hover:opacity-90"
-                      style={{ background: "var(--im-bubble)", color: "var(--im-link)" }}
+                      className="im-msg-in absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-md hover:opacity-90"
+                      style={{ background: "var(--im-surface)", borderColor: "var(--im-border)", color: "var(--im-link)" }}
                     >
                       {I.arrowDown} Latest
                     </button>
                   )}
                 </div>
 
-                {/* quick actions */}
-                <div
-                  className="im-hscroll flex gap-2 overflow-x-auto border-t border-[var(--im-border)] px-3 py-2"
-                  style={{ background: "var(--im-surface)" }}
-                >
-                  {SITE.actions.map((a) => {
-                    const cls = `im-chip flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-3 py-1.5 text-xs font-semibold ${
-                      a.primary ? "border-transparent text-white shadow-sm hover:brightness-110" : ""
-                    }`;
-                    const inner = (
-                      <>
-                        {a.primary && I.human}
-                        {a.label}
-                      </>
-                    );
-                    return a.action === "contact" ? (
-                      <button
-                        key={a.href}
-                        type="button"
-                        onClick={() => {
-                          sfx("click");
-                          setContactOpen(true);
-                        }}
-                        className={cls}
-                        style={a.primary ? { background: "var(--im-brand)" } : {
-                          borderColor: "var(--im-border)",
-                          background: "var(--im-bubble)",
-                          color: "var(--im-text)",
-                        }}
-                      >
-                        {inner}
-                      </button>
-                    ) : (
-                      <a
-                        key={a.href}
-                        href={a.href}
-                        onClick={() => sfx("click")}
-                        className={cls}
-                        style={{
-                          borderColor: "var(--im-border)",
-                          background: "var(--im-bubble)",
-                          color: "var(--im-text)",
-                        }}
-                      >
-                        {inner}
-                      </a>
-                    );
-                  })}
-                </div>
-
-                {/* input */}
+                {/* COMPOSER */}
                 <form
+                  id="im-form"
                   onSubmit={(e) => {
                     e.preventDefault();
                     submit(input);
                   }}
-                  className="px-3 pb-3 pt-1"
+                  className="relative flex-shrink-0"
                   style={{ background: "var(--im-surface)" }}
                 >
-                  {/* listening banner */}
                   {listening && (
                     <div
-                      className="im-fade mb-2 flex items-center gap-2 rounded-sm px-3 py-2 text-[12px] font-medium"
+                      className="im-fade mx-5 mb-2 flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-medium"
                       style={{ background: "var(--im-brand-soft)", color: "var(--im-link)" }}
                     >
                       <span className="relative flex h-2 w-2">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: "var(--im-brand)" }} />
+                        <span className="im-ping absolute inline-flex h-full w-full rounded-full opacity-60" style={{ background: "var(--im-brand)" }} />
                         <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: "var(--im-brand)" }} />
                       </span>
                       Listening… speak now
                     </div>
                   )}
 
-                  <div className="flex items-end gap-2">
-                    <div className="relative flex-1">
-                      <textarea
-                        ref={inputRef}
-                        rows={1}
-                        value={input}
-                        maxLength={1000}
-                        onChange={(e) => {
-                          setInput(e.target.value);
-                          autosize(e.target);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            submit(input);
-                          }
-                        }}
-                        placeholder={listening ? "Listening..." : `Ask ${SITE.assistant} anything...`}
-                        aria-label="Your message"
-                        className={`im-input max-h-[120px] min-h-[44px] w-full resize-none rounded-sm border border-transparent py-2.5 pl-4 text-[13.5px] font-medium outline-none transition-all ${
-                          micOk ? "pr-12" : "pr-4"
-                        }`}
-                        style={{
-                          background: listening ? "var(--im-brand-soft)" : "var(--im-input-bg)",
-                          color: "var(--im-text)",
-                        }}
-                      />
-                      {micOk && (
-                        <button
-                          type="button"
-                          onClick={toggleMic}
-                          aria-label={listening ? "Stop dictation" : "Dictate with your voice"}
-                          title={listening ? "Stop listening" : "Dictate with your voice"}
-                          className={`absolute bottom-1.5 right-1.5 flex h-8 w-8 items-center justify-center rounded-sm transition-all ${
-                            listening
-                              ? "im-mic-on text-white scale-105"
-                              : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
-                          }`}
-                          style={listening ? { background: "var(--im-brand)" } : undefined}
-                        >
-                          {listening ? (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                              <rect x="6" y="6" width="12" height="12" rx="1.5" />
-                            </svg>
-                          ) : (
-                            I.mic
-                          )}
-                        </button>
-                      )}
-                    </div>
-                    {loading ? (
-                      <button
-                        type="button"
-                        onClick={stop}
-                        aria-label="Stop answer"
-                        className="flex h-[44px] w-[44px] flex-shrink-0 items-center justify-center rounded-sm hover:opacity-90"
-                        style={{ background: "var(--im-text)" }}
+                  <div className="mx-5 h-px" style={{ background: "var(--im-border)" }} />
+
+                  <textarea
+                    ref={inputRef}
+                    rows={1}
+                    value={input}
+                    maxLength={1000}
+                    onChange={(e) => {
+                      setInput(e.target.value);
+                      autosize(e.target);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        submit(input);
+                      }
+                    }}
+                    placeholder={listening ? "Listening..." : "Type your message..."}
+                    aria-label="Your message"
+                    className="block max-h-[110px] min-h-[28px] w-full resize-none bg-transparent px-5 pb-2 pr-[76px] pt-4 text-[16px] outline-none placeholder:text-[var(--im-muted)] sm:pr-[60px] sm:text-[15px]"
+                    style={{ color: "var(--im-text)" }}
+                  />
+
+                  {/* emoji picker */}
+                  {emojiOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setEmojiOpen(false)} aria-hidden="true" />
+                      <div
+                        className="im-menu-in absolute bottom-[calc(58px+env(safe-area-inset-bottom))] left-3 z-20 grid w-[min(232px,calc(100%-1.5rem))] grid-cols-5 gap-1 rounded-xl border p-2"
+                        style={{ background: "var(--im-surface)", borderColor: "var(--im-border)", boxShadow: "0 14px 36px rgba(20,30,70,0.2)" }}
                       >
-                        <span className="h-3 w-3 rounded-[3px] bg-white" />
-                      </button>
-                    ) : (
-                      <button
-                        type="submit"
-                        disabled={!input.trim()}
-                        aria-label="Send message"
-                        className="flex h-[44px] w-[44px] flex-shrink-0 items-center justify-center rounded-sm text-white shadow-sm transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none disabled:hover:scale-100"
-                        style={{ background: "var(--im-brand)" }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
+                        {EMOJIS.map((e) => (
+                          <button
+                            key={e}
+                            type="button"
+                            onClick={() => addEmoji(e)}
+                            className="flex h-9 items-center justify-center rounded-lg text-[20px] hover:bg-[var(--im-hover)]"
+                            aria-label={`Insert ${e}`}
+                          >
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* toolbar */}
+                  <div className="flex min-w-0 items-center gap-0.5 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pr-[76px] sm:pr-[52px]">
+                    <ToolBtn label="Talk to a human" onClick={openContact}>{I.human}</ToolBtn>
+                    <span className="mx-1 h-5 w-px" style={{ background: "var(--im-border)" }} />
+                    {micOk && (
+                      <ToolBtn label={listening ? "Stop dictation" : "Dictate with your voice"} onClick={toggleMic} active={listening}>
+                        <span className={listening ? "im-mic-on flex h-9 w-9 items-center justify-center rounded-full" : ""}>{I.mic}</span>
+                      </ToolBtn>
                     )}
+                    <ToolBtn label="Emoji" onClick={() => { setMenuOpen(false); setEmojiOpen((v) => !v); }} active={emojiOpen}>{I.emoji}</ToolBtn>
+                    <ToolBtn label={consent.sound ? "Mute sounds" : "Turn sounds on"} onClick={toggleSound}>
+                      {consent.sound ? I.speakerOn : I.speakerOff}
+                    </ToolBtn>
+                    <span className="im-power ml-auto min-w-0 truncate pl-2 text-right text-[10px] font-medium uppercase tracking-wide" style={{ color: "var(--im-muted)" }}>
+                      Powered by {SITE.name} AI
+                    </span>
                   </div>
-                  <p className="mt-2 pb-6 text-center text-[11px] sm:pb-0" style={{ color: "var(--im-muted)" }}>
-                    AI assistant. It can make mistakes, so check important steps on {SITE.domain}.
-                  </p>
                 </form>
               </>
             )}
           </div>
+
+          {/* SEND BUTTON: overlaps the panel edge on desktop, like the reference */}
+          {consent && !contactOpen && (
+            loading ? (
+              <button
+                type="button"
+                onClick={stop}
+                aria-label="Stop answer"
+                className="im-grad absolute bottom-[calc(1.1rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-[52px] w-[52px] items-center justify-center rounded-full text-white transition-transform hover:scale-105 active:scale-95 sm:-right-5 sm:bottom-6 im-send"
+                style={{ boxShadow: "0 8px 22px var(--im-glow)" }}
+              >
+                {I.stopSq}
+              </button>
+            ) : (
+              <button
+                type="submit"
+                form="im-form"
+                disabled={!input.trim()}
+                aria-label="Send message"
+                className="im-grad absolute bottom-[calc(1.1rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-[52px] w-[52px] items-center justify-center rounded-full text-white transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 sm:-right-5 sm:bottom-6 im-send"
+                style={{ boxShadow: "0 8px 22px var(--im-glow)" }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+                  <path d="M3.4 20.4l17.45-7.48a1 1 0 000-1.84L3.4 3.6a.993.993 0 00-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z" />
+                </svg>
+              </button>
+            )
+          )}
         </div>
       )}
 
@@ -1818,16 +1733,12 @@ export default function AIChatWidget() {
           aria-label="Image preview"
         >
           <div className="relative max-h-full max-w-full" onClick={(e) => e.stopPropagation()}>
-            <img
-              src={lightbox.url}
-              alt={lightbox.alt || `${SITE.name} attachment`}
-              className="max-h-[80vh] max-w-full rounded-sm object-contain shadow-sm"
-            />
+            <img src={lightbox.url} alt={lightbox.alt || `${SITE.name} attachment`} className="max-h-[80vh] max-w-full rounded-2xl object-contain" />
             <button
               type="button"
               aria-label="Close preview"
               onClick={() => setLightbox(null)}
-              className="absolute -right-3 -top-3 flex h-9 w-9 items-center justify-center rounded-sm bg-white text-[#0E1330] shadow-lg"
+              className="absolute -right-3 -top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#14192B] shadow-lg"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                 <path d="M6 6l12 12M18 6L6 18" />
