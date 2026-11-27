@@ -9,10 +9,10 @@ import { usePathname } from "next/navigation";
 
 const SITE = {
   name: "iMIDI",
-  assistant: "Smith",
+  assistant: "Smith AI",
   domain: "imidi.co.uk",
-  headerTitle: "Chat with us!",
-  headerSubtitle: "AI assistant. Replies in a few seconds.",
+  headerTitle: "Smith AI",
+  headerSubtitle: "iMIDI assistant. Replies in seconds.",
   // Put a real photo in /public (e.g. /smith.jpg) and set it here.
   // Leave "" to use the built-in illustrated avatar.
   avatarSrc: "",
@@ -307,29 +307,6 @@ function renderRich(text: string): React.ReactNode {
   return blocks;
 }
 
-function useTyped(text: string, enabled: boolean, onTick?: () => void) {
-  const [n, setN] = useState(enabled ? 0 : text.length);
-  const tick = useRef(onTick);
-  tick.current = onTick;
-
-  useEffect(() => {
-    if (!enabled || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setN(text.length);
-      return;
-    }
-    let i = 0;
-    const id = setInterval(() => {
-      i = Math.min(text.length, i + 3);
-      setN(i);
-      tick.current?.();
-      if (i >= text.length) clearInterval(id);
-    }, 16);
-    return () => clearInterval(id);
-  }, [text, enabled]);
-
-  return { shown: text.slice(0, n), done: n >= text.length };
-}
-
 /* ------------------------------------------------------------------ */
 /*  Small pieces                                                       */
 /* ------------------------------------------------------------------ */
@@ -422,14 +399,14 @@ const I = {
   link: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1" /></svg>,
 };
 
-function Equalizer() {
+function TypingDots() {
   return (
-    <div className="flex h-4 items-end gap-[3px]" aria-label="Smith is typing" role="status">
-      {[0, 1, 2, 3, 4].map((i) => (
+    <div className="flex h-4 items-center gap-1" role="status" aria-label={`${SITE.assistant} is typing`}>
+      {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="im-eq w-[3px] rounded-full"
-          style={{ height: "100%", animationDelay: `${i * 0.12}s`, background: "var(--im-brand)" }}
+          className="im-dotb h-[7px] w-[7px] rounded-full"
+          style={{ animationDelay: `${i * 0.15}s`, background: "var(--im-muted)" }}
         />
       ))}
     </div>
@@ -585,7 +562,6 @@ function MiniAction({
 
 function AssistantMessage({
   msg,
-  onTick,
   onCopy,
   onFeedback,
   onRetry,
@@ -594,7 +570,6 @@ function AssistantMessage({
   isLast,
 }: {
   msg: Message;
-  onTick: () => void;
   onCopy: (text: string) => void;
   onFeedback: (id: string, v: "up" | "down") => void;
   onRetry: () => void;
@@ -602,16 +577,10 @@ function AssistantMessage({
   onImage: (img: ChatImage) => void;
   isLast: boolean;
 }) {
-  const { shown, done } = useTyped(msg.content, !!msg.fresh, onTick);
+  const shown = msg.content;
+  const done = true;
   const [copied, setCopied] = useState(false);
 
-  // Suggestions / images appear once typing is done: keep them in view.
-  useEffect(() => {
-    if (done && isLast) {
-      const t = setTimeout(onTick, 30);
-      return () => clearTimeout(t);
-    }
-  }, [done, isLast, onTick]);
 
   const options: Option[] | undefined =
     done && isLast && msg.suggestions?.length
@@ -797,7 +766,7 @@ export default function AIChatWidget() {
   }, [messages, loading, isOpen, scrollDown]);
 
   useEffect(() => {
-    if (isOpen && consent) setTimeout(() => inputRef.current?.focus(), 120);
+    if (isOpen && consent) inputRef.current?.focus();
   }, [isOpen, consent]);
 
   useEffect(() => {
@@ -825,7 +794,7 @@ export default function AIChatWidget() {
       if (mobile.matches && vv) {
         root.style.setProperty("--im-vh", `${vv.height}px`);
         root.style.setProperty("--im-vt", `${vv.offsetTop}px`);
-        setTimeout(scrollDown, 30);
+        scrollDown();
       } else {
         root.style.removeProperty("--im-vh");
         root.style.removeProperty("--im-vt");
@@ -1153,39 +1122,39 @@ export default function AIChatWidget() {
         .im-font { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 
         .im-theme-light {
-          --im-brand: #1F6BFF;
-          --im-grad: linear-gradient(120deg, #2A3BDC 0%, #1673F3 55%, #05B8FF 100%);
-          --im-glow: rgba(22, 115, 243, 0.42);
-          --im-brand-soft: rgba(31, 107, 255, 0.12);
-          --im-link: #0A74F0;
+          --im-brand: #E22B29;
+          --im-grad: linear-gradient(135deg, #D92020 0%, #E7362D 48%, #F56046 100%);
+          --im-glow: rgba(231, 54, 45, 0.36);
+          --im-brand-soft: rgba(226, 43, 41, 0.12);
+          --im-link: #D92020;
           --im-text: #14192B;
           --im-muted: #8A93A8;
           --im-border: #E4E8F0;
           --im-surface: #FFFFFF;
           --im-bubble: #F0F3F8;
           --im-hover: rgba(20, 25, 43, 0.05);
-          --im-code-bg: #E4EEFF;
+          --im-code-bg: #FDECEC;
           --im-switch-off: #CBD2E0;
           --im-input-bg: #F1F4F9;
-          --im-shadow: 0 20px 60px rgba(30, 60, 140, 0.2);
+          --im-shadow: 0 20px 60px rgba(185, 35, 35, 0.16);
         }
 
         .im-theme-dark {
-          --im-brand: #3D8BFF;
-          --im-grad: linear-gradient(120deg, #1F2BB0 0%, #0F5FD0 55%, #0592C8 100%);
-          --im-glow: rgba(5, 146, 200, 0.4);
-          --im-brand-soft: rgba(61, 139, 255, 0.18);
-          --im-link: #7DB8FF;
+          --im-brand: #F04B3E;
+          --im-grad: linear-gradient(135deg, #B51818 0%, #D92B25 50%, #EC523B 100%);
+          --im-glow: rgba(236, 82, 59, 0.34);
+          --im-brand-soft: rgba(240, 75, 62, 0.18);
+          --im-link: #FF7E73;
           --im-text: #E8ECF8;
           --im-muted: #98A2BD;
-          --im-border: #2A3050;
-          --im-surface: #171B2B;
-          --im-bubble: #232842;
+          --im-border: #33262B;
+          --im-surface: #1A1417;
+          --im-bubble: #261D21;
           --im-hover: rgba(255, 255, 255, 0.07);
-          --im-code-bg: #2A3050;
-          --im-switch-off: #3A4060;
-          --im-input-bg: #232842;
-          --im-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+          --im-code-bg: #332226;
+          --im-switch-off: #45353B;
+          --im-input-bg: #261D21;
+          --im-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
         }
 
         .im-grad { background: var(--im-grad); }
@@ -1193,7 +1162,7 @@ export default function AIChatWidget() {
           .im-nogradmobile .im-grad { background: var(--im-brand); }
         }
 
-        @keyframes im-eq { 0%,100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
+        @keyframes im-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-4px); opacity: 1; } }
         @keyframes im-fade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes im-pulse {
           0% { box-shadow: 0 0 0 0 var(--im-brand-soft); }
@@ -1202,11 +1171,11 @@ export default function AIChatWidget() {
         }
         @keyframes im-ping { 75%, 100% { transform: scale(2); opacity: 0; } }
 
-        .im-eq { transform-origin: bottom; animation: im-eq .9s ease-in-out infinite; }
-        .im-msg-in, .im-menu-in, .im-fade { animation: im-fade .15s ease-out; }
+        .im-dotb { animation: im-bounce 1.1s ease-in-out infinite; }
+        /* no entrance animations or transitions: everything appears instantly */
+        .im-font *, .im-font *::before, .im-font *::after { transition: none !important; }
         .im-mic-on { animation: im-pulse 1.4s ease-out infinite; }
         .im-ping { animation: im-ping 1.1s cubic-bezier(0,0,.2,1) infinite; }
-        .im-panel-size { transition: width .25s ease, height .25s ease; }
 
         .im-list ::marker { color: var(--im-brand); }
 
@@ -1237,13 +1206,14 @@ export default function AIChatWidget() {
         .im-font textarea { -webkit-text-size-adjust: 100%; }
 
         .im-scroll::-webkit-scrollbar { width: 6px; }
-        .im-scroll::-webkit-scrollbar-thumb { background: rgba(120,130,170,.28); border-radius: 999px; }
+        .im-scroll::-webkit-scrollbar-thumb { background: rgba(160,120,120,.28); border-radius: 999px; }
         .im-scroll::-webkit-scrollbar-track { background: transparent; }
 
         @media (prefers-reduced-motion: reduce) {
-          .im-eq, .im-msg-in, .im-menu-in, .im-fade, .im-mic-on, .im-ping { animation: none !important; }
+          .im-dotb, .im-mic-on, .im-ping { animation: none !important; }
         }
       `}</style>
+
 
       {/* LAUNCHER */}
       {!isOpen && (
@@ -1473,7 +1443,7 @@ export default function AIChatWidget() {
                     Before we start
                   </h2>
                   <p className="mt-2 text-[13.5px] leading-relaxed" style={{ color: "var(--im-muted)" }}>
-                    I'm {SITE.assistant}, an AI assistant for {SITE.name}. I'm not a person, and my answers can be wrong.
+                    I'm {SITE.assistant}, {SITE.name}'s virtual assistant. I'm not a person, and my answers can be wrong.
                   </p>
 
                   <ul className="mt-3 space-y-2 text-[13px] leading-relaxed" style={{ color: "var(--im-muted)" }}>
@@ -1555,7 +1525,7 @@ export default function AIChatWidget() {
                     {/* welcome message with quick replies */}
                     <div className="im-msg-in max-w-[92%]">
                       <BotCard options={messages.length === 0 ? welcomeOptions : undefined}>
-                        Hi there! I'm {SITE.assistant} <span aria-hidden="true">👋</span>, an AI assistant for {SITE.name}. How can I help you today?
+                        Hi there! I'm {SITE.assistant} <span aria-hidden="true">👋</span>, {SITE.name}'s virtual assistant. How can I help you today?
                       </BotCard>
                     </div>
 
@@ -1571,7 +1541,6 @@ export default function AIChatWidget() {
                           key={msg.id}
                           msg={msg}
                           isLast={i === lastIdx}
-                          onTick={scrollDown}
                           onCopy={copy}
                           onFeedback={setFeedback}
                           onRetry={retry}
@@ -1584,7 +1553,7 @@ export default function AIChatWidget() {
                     {loading && (
                       <div className="im-msg-in">
                         <div className="inline-block rounded-[18px] px-4 py-3.5" style={{ background: "var(--im-bubble)" }}>
-                          <Equalizer />
+                          <TypingDots />
                         </div>
                       </div>
                     )}
@@ -1686,7 +1655,7 @@ export default function AIChatWidget() {
                       {consent.sound ? I.speakerOn : I.speakerOff}
                     </ToolBtn>
                     <span className="im-power ml-auto min-w-0 truncate pl-2 text-right text-[10px] font-medium uppercase tracking-wide" style={{ color: "var(--im-muted)" }}>
-                      Powered by {SITE.name} AI
+                      Powered by {SITE.name}
                     </span>
                   </div>
                 </form>
