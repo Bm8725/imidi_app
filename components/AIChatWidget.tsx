@@ -33,7 +33,7 @@ const SITE = {
 
 // The blue-to-cyan gradient is used on desktop. On phones it becomes a solid
 // colour unless you set this to true.
-const GRADIENT_ON_MOBILE = false;
+const GRADIENT_ON_MOBILE = true;
 
 // Text pill shown next to the launcher on desktop. Set to "" to show only the icon.
 const LAUNCHER_LABEL = "";
@@ -61,7 +61,7 @@ const DEPARTMENTS = [
     id: "cloud",
     label: "Cloud Support",
     sublabel: "Technical support, TS4X app support, firmware updates",
-    number: "40729411747",
+    number: "40721183181",
     message: "Hi! I need help with my cloud account and platform.",
   },
 ];
@@ -322,9 +322,9 @@ function ChatOutlineIcon({ size = 28 }: { size?: number }) {
         d="M6 3.5H18A2.5 2.5 0 0 1 20.5 6V12.5A2.5 2.5 0 0 1 18 15H11.3L6.9 19.2A.6.6 0 0 1 5.9 18.8V15H6A2.5 2.5 0 0 1 3.5 12.5V6A2.5 2.5 0 0 1 6 3.5Z"
         strokeWidth="1.8"
       />
-      <circle cx="8.3" cy="9.25" r="1.2" strokeWidth="1.45" />
-      <circle cx="12" cy="9.25" r="1.2" strokeWidth="1.45" />
-      <circle cx="15.7" cy="9.25" r="1.2" strokeWidth="1.45" />
+      <circle className="im-cdot" style={{ animationDelay: "0s" }} cx="8.3" cy="9.25" r="1.2" strokeWidth="1.45" />
+      <circle className="im-cdot" style={{ animationDelay: "0.08s" }} cx="12" cy="9.25" r="1.2" strokeWidth="1.45" />
+      <circle className="im-cdot" style={{ animationDelay: "0.16s" }} cx="15.7" cy="9.25" r="1.2" strokeWidth="1.45" />
     </svg>
   );
 }
@@ -469,7 +469,7 @@ function HeadBtn({ label, onClick, children }: { label: string; onClick: () => v
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-white/95 transition-colors hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+      className="im-tap flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-white/95 transition-colors hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
     >
       {children}
     </button>
@@ -494,7 +494,7 @@ function ToolBtn({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--im-brand)] ${
+      className={`im-tap flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--im-brand)] ${
         active
           ? "bg-[var(--im-brand-soft)] text-[var(--im-link)]"
           : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
@@ -523,13 +523,13 @@ function BotCard({
       >
         {children}
       </div>
-      {options?.map((o) => (
+      {options?.map((o, i) => (
         <button
           key={o.label}
           type="button"
           onClick={o.onClick}
-          className="block w-full border-t px-4 py-3 text-center text-[14px] font-medium transition-colors hover:bg-[var(--im-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--im-brand)]"
-          style={{ borderColor: "var(--im-border)", color: "var(--im-link)" }}
+          className="im-opt block w-full border-t px-4 py-3 text-center text-[14px] font-medium transition-colors hover:bg-[var(--im-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--im-brand)]"
+          style={{ borderColor: "var(--im-border)", color: "var(--im-link)", animationDelay: `${Math.min(i, 5) * 45}ms` }}
         >
           {o.label}
         </button>
@@ -555,7 +555,7 @@ function MiniAction({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={`flex h-7 w-7 items-center justify-center rounded-md ${
+      className={`im-tap flex h-7 w-7 items-center justify-center rounded-md ${
         active
           ? "bg-[var(--im-brand-soft)] text-[var(--im-link)]"
           : "text-[var(--im-muted)] hover:bg-[var(--im-hover)] hover:text-[var(--im-text)]"
@@ -759,7 +759,7 @@ export default function AIChatWidget() {
   /* ---- scrolling / focus / keys ---- */
   const scrollDown = useCallback(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight });
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, []);
 
   const onScroll = () => {
@@ -1182,9 +1182,10 @@ export default function AIChatWidget() {
           border: 1px solid var(--im-ghost-border);
           box-shadow: 0 6px 22px rgba(20, 25, 43, 0.16), 0 1px 3px rgba(20, 25, 43, 0.08);
           cursor: pointer;
+          transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease, background-color .15s ease;
         }
-        .im-ghost:hover { background: var(--im-ghost-bg-hover); }
-        .im-ghost:active { transform: scale(.97); }
+        .im-ghost:hover { background: var(--im-ghost-bg-hover); transform: scale(1.07); box-shadow: 0 10px 28px rgba(20, 25, 43, 0.2), 0 1px 3px rgba(20, 25, 43, 0.08); }
+        .im-ghost:active { transform: scale(.95); }
         @media (max-width: 639px) {
           .im-nogradmobile .im-grad { background: var(--im-brand); }
         }
@@ -1198,9 +1199,28 @@ export default function AIChatWidget() {
         }
         @keyframes im-ping { 75%, 100% { transform: scale(2); opacity: 0; } }
 
+        @keyframes im-open { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
+        @keyframes im-open-m { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+        @keyframes im-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        @keyframes im-pop { from { opacity: 0; transform: translateY(-6px) scale(.96); } to { opacity: 1; transform: none; } }
+        @keyframes im-pop-in { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: scale(1); } }
+        @keyframes im-attn { 0% { transform: scale(1); opacity: .55; } 70%, 100% { transform: scale(1.55); opacity: 0; } }
+        @keyframes im-hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-1.6px); } }
+
         .im-dotb { animation: im-bounce 1.1s ease-in-out infinite; }
-        /* no entrance animations or transitions: everything appears instantly */
-        .im-font *, .im-font *::before, .im-font *::after { transition: none !important; }
+        .im-panel-anim { animation: im-open .24s cubic-bezier(.16,1,.3,1) both; transform-origin: bottom right; }
+        .im-msg-in { animation: im-rise .22s ease-out both; }
+        .im-menu-in { animation: im-pop .16s ease-out both; transform-origin: top right; }
+        .im-fade { animation: im-fade .16s ease-out both; }
+        .im-opt { animation: im-rise .24s ease-out both; }
+        .im-launch-in { animation: im-pop-in .42s cubic-bezier(.34,1.56,.64,1) both; }
+        .im-attn { animation: im-attn 2.6s ease-out infinite; }
+        .im-panel-size { transition: width .25s ease, height .25s ease; }
+        .im-cdot { transform-box: fill-box; transform-origin: center; }
+        .im-ghost:hover .im-cdot { animation: im-hop .5s ease-in-out; }
+        .im-send svg { transition: transform .18s ease; }
+        .im-send:hover svg { transform: translateX(2px) rotate(-6deg); }
+        @media (max-width: 639px) { .im-panel-anim { animation-name: im-open-m; } }
         .im-mic-on { animation: im-pulse 1.4s ease-out infinite; }
         .im-ping { animation: im-ping 1.1s cubic-bezier(0,0,.2,1) infinite; }
 
@@ -1231,19 +1251,24 @@ export default function AIChatWidget() {
         @media (min-width: 640px) and (max-height: 520px) { .im-send { right: 14px !important; } }
         .im-font, .im-font * { -webkit-tap-highlight-color: transparent; }
         .im-font textarea { -webkit-text-size-adjust: 100%; }
+        /* Touch screens: comfortable 44px targets */
+        @media (pointer: coarse) { .im-tap { min-width: 44px; min-height: 44px; } }
 
         .im-scroll::-webkit-scrollbar { width: 6px; }
         .im-scroll::-webkit-scrollbar-thumb { background: rgba(120,130,170,.28); border-radius: 999px; }
         .im-scroll::-webkit-scrollbar-track { background: transparent; }
 
         @media (prefers-reduced-motion: reduce) {
-          .im-dotb, .im-mic-on, .im-ping { animation: none !important; }
+          .im-dotb, .im-mic-on, .im-ping, .im-panel-anim, .im-msg-in, .im-menu-in, .im-fade, .im-opt,
+          .im-launch-in, .im-attn, .im-cdot, .im-ghost:hover .im-cdot { animation: none !important; }
+          .im-ghost, .im-panel-size, .im-send svg { transition: none !important; }
+          .im-ghost:hover { transform: none; }
         }
       `}</style>
 
       {/* LAUNCHER */}
       {!isOpen && (
-        <div className={`im-font im-theme-${theme} ${noGrad} fixed bottom-[170px] right-4 z-50 flex items-center gap-2.5 antialiased sm:right-6`}>
+        <div className={`im-font im-theme-${theme} ${noGrad} im-launch-in fixed bottom-[170px] right-4 z-50 flex items-center gap-2.5 antialiased sm:right-6`}>
           {LAUNCHER_LABEL && (
             <button
               type="button"
@@ -1262,6 +1287,9 @@ export default function AIChatWidget() {
             title={`Chat with ${SITE.assistant}`}
             className="im-ghost relative flex h-[70px] w-[70px] items-center justify-center rounded-full sm:h-[76px] sm:w-[76px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--im-brand)]"
           >
+            {!hasOpened && (
+              <span className="im-attn pointer-events-none absolute inset-0 rounded-full" style={{ border: "2px solid var(--im-brand)" }} aria-hidden="true" />
+            )}
             <ChatOutlineIcon size={46} />
             {!hasOpened && (
               <span
@@ -1280,9 +1308,9 @@ export default function AIChatWidget() {
           role="dialog"
           aria-label={`${SITE.name} assistant`}
           ref={panelRef}
-          className={`im-font im-panel-size im-panel-mobile im-theme-${theme} ${noGrad} fixed inset-0 z-50 h-[100dvh] w-full antialiased
+          className={`im-font im-panel-size im-panel-anim im-panel-mobile im-theme-${theme} ${noGrad} fixed inset-0 z-50 h-[100dvh] w-full antialiased
                      sm:inset-auto sm:bottom-6 sm:right-6 sm:max-h-[calc(100dvh-3rem)] sm:max-w-[calc(100vw-3rem)]
-                     ${expanded ? "sm:h-[780px] sm:w-[480px]" : "sm:h-[660px] sm:w-[380px]"}`}
+                     ${expanded ? "sm:h-[720px] sm:w-[420px] lg:h-[780px] lg:w-[480px]" : "sm:h-[720px] sm:w-[420px] lg:h-[670px] lg:w-[390px]"}`}
         >
           <div
             className="im-shell relative flex h-full w-full flex-col overflow-hidden sm:rounded-[22px]"
@@ -1333,7 +1361,7 @@ export default function AIChatWidget() {
                   <MenuItem icon={consent.sound ? I.speakerOn : I.speakerOff} label="Sounds" toggle={consent.sound} onClick={toggleSound} />
                   <MenuItem icon={I.save} label="Save chat on this device" toggle={consent.save} onClick={() => patchConsent({ save: !consent.save })} />
                   <MenuItem icon={theme === "dark" ? I.sun : I.moon} label={theme === "dark" ? "Light mode" : "Dark mode"} toggle={theme === "dark"} onClick={toggleTheme} />
-                  <span className="max-sm:hidden">
+                  <span className="max-lg:hidden">
                     <MenuItem icon={I.expand} label={expanded ? "Smaller window" : "Larger window"} onClick={() => { setExpanded((v) => !v); setMenuOpen(false); }} />
                   </span>
                   <div className="my-1 h-px" style={{ background: "var(--im-border)" }} />
