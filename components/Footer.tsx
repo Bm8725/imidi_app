@@ -26,7 +26,7 @@ const COLUMNS: { title: string; links: FooterLink[] }[] = [
     links: [
       { href: "/hub-services", label: "HUB development" },
       { href: "/stiri", label: "Forum", badge: "new" },
-      { href: "/support", label: "Contact" },
+      { href: "/login", label: "login" },
     ],
   },
 ];

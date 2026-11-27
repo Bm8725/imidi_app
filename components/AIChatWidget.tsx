@@ -61,7 +61,7 @@ const DEPARTMENTS = [
     id: "cloud",
     label: "Cloud Support",
     sublabel: "Technical support, TS4X app support, firmware updates",
-    number: "40729411747",
+    number: "40721183181",
     message: "Hi! I need help with my cloud account and platform.",
   },
 ];
