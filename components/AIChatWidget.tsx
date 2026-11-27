@@ -61,7 +61,7 @@ const DEPARTMENTS = [
     id: "cloud",
     label: "Cloud Support",
     sublabel: "Technical support, TS4X app support, firmware updates",
-    number: "40721183181",
+    number: "40729411747",
     message: "Hi! I need help with my cloud account and platform.",
   },
 ];
@@ -128,7 +128,7 @@ function tone(freq: number, at: number, dur: number, type: OscillatorType = "sin
   osc.stop(t0 + dur + 0.02);
 }
 
-type Sfx = "open" | "close" | "send" | "receive" | "error" | "click" | "accept";
+type Sfx = "open" | "close" | "send" | "receive" | "error" | "click" | "accept" | "notify";
 
 function playSound(name: Sfx) {
   switch (name) {
@@ -153,6 +153,10 @@ function playSound(name: Sfx) {
       tone(523.25, 0, 0.12, "triangle");
       tone(659.25, 0.08, 0.12, "triangle");
       tone(783.99, 0.16, 0.26, "triangle");
+      break;
+    case "notify":
+      tone(987.77, 0, 0.1, "sine", 0.07);
+      tone(1318.5, 0.11, 0.2, "sine", 0.07);
       break;
     case "error":
       tone(220, 0, 0.18, "sawtooth", 0.03);
@@ -194,6 +198,60 @@ interface Consent {
 interface Option {
   label: string;
   onClick: () => void;
+}
+
+const MAX_IMAGES = 3;
+const MAX_FILE_MB = 15;
+const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
+
+// Resize + compress so a phone photo or a retina screenshot stays small (max 1600px, JPEG).
+async function fileToDataUrl(file: File): Promise<string> {
+  const objUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error("load"));
+      i.src = objUrl;
+    });
+    const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL("image/jpeg", 0.85);
+  } finally {
+    URL.revokeObjectURL(objUrl);
+  }
+}
+
+// What /api/chat receives. Only the newest user message carries images.
+function buildApiMessages(history: Message[]) {
+  let lastUser = -1;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].role === "user") {
+      lastUser = i;
+      break;
+    }
+  }
+  return history.map((m, i) => {
+    const imgs = i === lastUser ? (m.images || []).filter((im) => im.url.startsWith("data:")) : [];
+    if (imgs.length === 0) return { role: m.role, content: m.content };
+    return {
+      role: m.role,
+      content: m.content || "Please look at the attached screenshot.",
+      images: imgs.map((im) => {
+        const [head, data] = im.url.split(",");
+        return { mediaType: head.match(/data:(.*?);/)?.[1] || "image/jpeg", data };
+      }),
+    };
+  });
 }
 
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -399,6 +457,7 @@ const I = {
   shield: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3zM9 12l2.2 2.2L15.5 10" /></svg>,
   expand: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" /></svg>,
   save: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M5 4h11l3 3v13H5V4zM8 4v5h7V4M8 20v-6h8v6" /></svg>,
+  attach: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M21 11.5l-8.6 8.6a5 5 0 01-7.1-7.1l8.6-8.6a3.3 3.3 0 014.7 4.7l-8.6 8.6a1.7 1.7 0 01-2.4-2.4l7.9-7.9" /></svg>,
   arrowDown: <svg width="14" height="14" viewBox="0 0 24 24" {...stroke} strokeWidth={2.2}><path d="M12 5v14M6 13l6 6 6-6" /></svg>,
   moon: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M21 14.5A8.5 8.5 0 1110.5 3a7 7 0 0010.5 11.5z" /></svg>,
   sun: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>,
@@ -684,10 +743,18 @@ export default function AIChatWidget() {
   const [micOk, setMicOk] = useState(false);
   const [listening, setListening] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
+  const [attachments, setAttachments] = useState<ChatImage[]>([]);
+  const [attachNote, setAttachNote] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const [unread, setUnread] = useState(0);
   const [, setTick] = useState(0);
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   const panelRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const isOpenRef = useRef(false);
+  isOpenRef.current = isOpen;
+  const baseTitleRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -698,6 +765,30 @@ export default function AIChatWidget() {
 
   const sfx = useCallback((n: Sfx) => {
     if (soundRef.current) playSound(n);
+  }, []);
+
+  // Browser tab: "(1) Smith AI" while there is an unread reply, original title otherwise.
+  useEffect(() => {
+    if (unread > 0) {
+      if (baseTitleRef.current === null) baseTitleRef.current = document.title;
+      document.title = `(${unread}) ${SITE.assistant}`;
+    } else if (baseTitleRef.current !== null) {
+      document.title = baseTitleRef.current;
+      baseTitleRef.current = null;
+    }
+  }, [unread]);
+
+  useEffect(() => {
+    const seen = () => {
+      if (!document.hidden && isOpenRef.current) setUnread(0);
+    };
+    document.addEventListener("visibilitychange", seen);
+    window.addEventListener("focus", seen);
+    return () => {
+      document.removeEventListener("visibilitychange", seen);
+      window.removeEventListener("focus", seen);
+      if (baseTitleRef.current !== null) document.title = baseTitleRef.current;
+    };
   }, []);
 
   // Keep the open/closed status fresh while the contact sheet is visible.
@@ -748,7 +839,11 @@ export default function AIChatWidget() {
     if (!hydrated) return;
     try {
       if (consent?.save) {
-        const clean = messages.slice(-MAX_STORED).map((m) => ({ ...m, fresh: false }));
+        const clean = messages.slice(-MAX_STORED).map((m) => ({
+          ...m,
+          fresh: false,
+          images: m.images?.filter((im) => !im.url.startsWith("data:")),
+        }));
         localStorage.setItem(KEY_MSGS, JSON.stringify(clean));
       } else {
         localStorage.removeItem(KEY_MSGS);
@@ -834,6 +929,7 @@ export default function AIChatWidget() {
   const openPanel = () => {
     setIsOpen(true);
     setHasOpened(true);
+    setUnread(0);
     sfx("open");
   };
   const stopMic = () => {
@@ -903,7 +999,7 @@ export default function AIChatWidget() {
           headers: { "Content-Type": "application/json" },
           signal: controller.signal,
           body: JSON.stringify({
-            messages: history.map(({ role, content }) => ({ role, content })),
+            messages: buildApiMessages(history),
             page: pathname,
             site: SITE.domain,
           }),
@@ -942,7 +1038,9 @@ export default function AIChatWidget() {
             error: failed,
           },
         ]);
-        if (soundRef.current) playSound(failed ? "error" : "receive");
+        const away = typeof document !== "undefined" && (document.hidden || !isOpenRef.current);
+        if (!failed && away) setUnread((n) => n + 1);
+        if (soundRef.current) playSound(failed ? "error" : away ? "notify" : "receive");
       } catch (err) {
         if ((err as Error)?.name === "AbortError") return;
         setMessages((prev) => [
@@ -961,20 +1059,23 @@ export default function AIChatWidget() {
   const submit = useCallback(
     (text: string) => {
       const value = text.trim();
-      if (!value || loading || !consent) return;
+      const imgs = attachments;
+      if ((!value && imgs.length === 0) || loading || !consent) return;
       stopMic();
       setEmojiOpen(false);
       const next: Message[] = [
         ...messages.map((m) => ({ ...m, fresh: false })),
-        { id: uid(), role: "user", content: value },
+        { id: uid(), role: "user", content: value, images: imgs.length ? imgs : undefined },
       ];
       setMessages(next);
       setInput("");
+      setAttachments([]);
+      setAttachNote("");
       if (inputRef.current) inputRef.current.style.height = "auto";
       sfx("send");
       request(next);
     },
-    [messages, loading, consent, request, sfx]
+    [messages, loading, consent, request, sfx, attachments]
   );
 
   const retry = () => {
@@ -999,7 +1100,7 @@ export default function AIChatWidget() {
 
   const downloadTranscript = () => {
     const body = messages
-      .map((m) => `${m.role === "user" ? "You" : SITE.assistant}: ${m.content}`)
+      .map((m) => `${m.role === "user" ? "You" : SITE.assistant}: ${m.content}${m.role === "user" && m.images?.length ? " [image attached]" : ""}`)
       .join("\n\n");
     const blob = new Blob([`${SITE.name} chat transcript\n${new Date().toLocaleString()}\n\n${body}\n`], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -1021,6 +1122,38 @@ export default function AIChatWidget() {
     try {
       navigator.clipboard?.writeText(text);
     } catch {}
+  };
+
+  const showNote = (m: string) => {
+    setAttachNote(m);
+    setTimeout(() => setAttachNote(""), 4500);
+  };
+
+  const addFiles = async (files: FileList | File[] | null) => {
+    if (!files || !consent) return;
+    const all = Array.from(files);
+    const list = all.filter((f) => f.type.startsWith("image/"));
+    if (list.length === 0) {
+      showNote("Only images can be attached.");
+      return;
+    }
+    if (attachments.length >= MAX_IMAGES) {
+      showNote(`You can attach up to ${MAX_IMAGES} images.`);
+      return;
+    }
+    for (const f of list) {
+      if (f.size > MAX_FILE_BYTES) {
+        showNote(`That image is too large (max ${MAX_FILE_MB} MB).`);
+        continue;
+      }
+      try {
+        const url = await fileToDataUrl(f);
+        setAttachments((p) => (p.length >= MAX_IMAGES ? p : [...p, { url, alt: f.name }]));
+      } catch {
+        showNote("I couldn't read that image. Try a PNG or JPG.");
+      }
+    }
+    sfx("click");
   };
 
   const openContact = () => {
@@ -1287,15 +1420,15 @@ export default function AIChatWidget() {
             title={`Chat with ${SITE.assistant}`}
             className="im-ghost relative flex h-[70px] w-[70px] items-center justify-center rounded-full sm:h-[76px] sm:w-[76px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--im-brand)]"
           >
-            {!hasOpened && (
+            {(!hasOpened || unread > 0) && (
               <span className="im-attn pointer-events-none absolute inset-0 rounded-full" style={{ border: "2px solid var(--im-brand)" }} aria-hidden="true" />
             )}
             <ChatOutlineIcon size={46} />
-            {!hasOpened && (
+            {(!hasOpened || unread > 0) && (
               <span
                 className="absolute right-[3px] top-[3px] h-[14px] w-[14px] rounded-full"
                 style={{ background: "var(--im-brand)", boxShadow: "0 0 0 2px var(--im-ghost-ring)" }}
-                aria-label="1 unread message"
+                aria-label={`${Math.max(unread, 1)} unread message`}
               />
             )}
           </button>
@@ -1308,6 +1441,21 @@ export default function AIChatWidget() {
           role="dialog"
           aria-label={`${SITE.name} assistant`}
           ref={panelRef}
+          onDragOver={(e) => {
+            if (consent && e.dataTransfer?.types?.includes("Files")) {
+              e.preventDefault();
+              setDragging(true);
+            }
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+          }}
+          onDrop={(e) => {
+            if (!consent) return;
+            e.preventDefault();
+            setDragging(false);
+            addFiles(e.dataTransfer.files);
+          }}
           className={`im-font im-panel-size im-panel-anim im-panel-mobile im-theme-${theme} ${noGrad} fixed inset-0 z-50 h-[100dvh] w-full antialiased
                      sm:inset-auto sm:bottom-6 sm:right-6 sm:max-h-[calc(100dvh-3rem)] sm:max-w-[calc(100vw-3rem)]
                      ${expanded ? "sm:h-[720px] sm:w-[420px] lg:h-[780px] lg:w-[480px]" : "sm:h-[720px] sm:w-[420px] lg:h-[670px] lg:w-[390px]"}`}
@@ -1316,6 +1464,14 @@ export default function AIChatWidget() {
             className="im-shell relative flex h-full w-full flex-col overflow-hidden sm:rounded-[22px]"
             style={{ background: "var(--im-surface)", boxShadow: "var(--im-shadow)" }}
           >
+            {dragging && (
+              <div
+                className="im-fade pointer-events-none absolute inset-2 z-50 flex items-center justify-center rounded-2xl border-2 border-dashed text-[15px] font-semibold"
+                style={{ background: "var(--im-surface)", borderColor: "var(--im-brand)", color: "var(--im-link)", opacity: 0.96 }}
+              >
+                Drop an image to attach it
+              </div>
+            )}
             {/* HEADER */}
             <div className="im-grad relative flex-shrink-0 text-white">
               <div className="im-head-row flex items-center gap-3 px-4 pb-4" style={{ paddingTop: topPad }}>
@@ -1512,6 +1668,7 @@ export default function AIChatWidget() {
                     {[
                       `What you type is sent to ${SITE.name}'s servers and to an AI provider so I can write a reply.`,
                       "Please don't share passwords, card numbers or other sensitive details.",
+                      "If you attach a screenshot or photo, it is sent too. Hide any private details first.",
                       "You can withdraw consent and erase your chat at any time from the menu.",
                     ].map((t) => (
                       <li key={t} className="flex gap-2">
@@ -1593,10 +1750,28 @@ export default function AIChatWidget() {
 
                     {messages.map((msg, i) =>
                       msg.role === "user" ? (
-                        <div key={msg.id} className="im-msg-in flex justify-end">
-                          <div className="im-grad max-w-[82%] break-words rounded-[18px] rounded-br-md px-4 py-2.5 text-[14px] leading-relaxed text-white">
-                            {msg.content}
-                          </div>
+                        <div key={msg.id} className="im-msg-in flex flex-col items-end gap-1.5">
+                          {msg.images && msg.images.length > 0 && (
+                            <div className="flex max-w-[82%] flex-wrap justify-end gap-1.5">
+                              {msg.images.map((img, k) => (
+                                <button
+                                  key={k}
+                                  type="button"
+                                  onClick={() => setLightbox(img)}
+                                  className="h-[92px] w-[92px] cursor-zoom-in overflow-hidden rounded-xl border focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--im-brand)]"
+                                  style={{ borderColor: "var(--im-border)" }}
+                                  aria-label="Open image"
+                                >
+                                  <img src={img.url} alt={img.alt || "Attached image"} className="h-full w-full object-cover" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {msg.content && (
+                            <div className="im-grad max-w-[82%] break-words rounded-[18px] rounded-br-md px-4 py-2.5 text-[14px] leading-relaxed text-white">
+                              {msg.content}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <AssistantMessage
@@ -1659,6 +1834,42 @@ export default function AIChatWidget() {
 
                   <div className="mx-5 h-px" style={{ background: "var(--im-border)" }} />
 
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      addFiles(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+
+                  {attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 px-5 pt-3">
+                      {attachments.map((a, k) => (
+                        <div key={k} className="im-fade relative h-14 w-14">
+                          <img src={a.url} alt={a.alt || "Attached image"} className="h-full w-full rounded-lg border object-cover" style={{ borderColor: "var(--im-border)" }} />
+                          <button
+                            type="button"
+                            aria-label="Remove image"
+                            onClick={() => setAttachments((p) => p.filter((_, j) => j !== k))}
+                            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold leading-none text-white"
+                            style={{ background: "var(--im-text)" }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {attachNote && (
+                    <p className="im-fade px-5 pt-2 text-[12px] font-medium" style={{ color: "var(--im-link)" }} role="status">
+                      {attachNote}
+                    </p>
+                  )}
+
                   <textarea
                     ref={inputRef}
                     rows={1}
@@ -1667,6 +1878,13 @@ export default function AIChatWidget() {
                     onChange={(e) => {
                       setInput(e.target.value);
                       autosize(e.target);
+                    }}
+                    onPaste={(e) => {
+                      const files = Array.from(e.clipboardData?.files || []).filter((f) => f.type.startsWith("image/"));
+                      if (files.length) {
+                        e.preventDefault();
+                        addFiles(files);
+                      }
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
@@ -1707,6 +1925,9 @@ export default function AIChatWidget() {
                   <div className="flex min-w-0 items-center gap-0.5 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pr-[76px] sm:pr-[52px]">
                     <ToolBtn label="Talk to a human" onClick={openContact}>{I.human}</ToolBtn>
                     <span className="mx-1 h-5 w-px" style={{ background: "var(--im-border)" }} />
+                    <ToolBtn label="Attach a screenshot or photo" onClick={() => fileRef.current?.click()} active={attachments.length > 0}>
+                      {I.attach}
+                    </ToolBtn>
                     {micOk && (
                       <ToolBtn label={listening ? "Stop dictation" : "Dictate with your voice"} onClick={toggleMic} active={listening}>
                         <span className={listening ? "im-mic-on flex h-9 w-9 items-center justify-center rounded-full" : ""}>{I.mic}</span>
@@ -1741,7 +1962,7 @@ export default function AIChatWidget() {
               <button
                 type="submit"
                 form="im-form"
-                disabled={!input.trim()}
+                disabled={!input.trim() && attachments.length === 0}
                 aria-label="Send message"
                 className="im-grad absolute bottom-[calc(1.1rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-[52px] w-[52px] items-center justify-center rounded-full text-white transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 sm:-right-5 sm:bottom-6 im-send"
                 style={{ boxShadow: "0 8px 22px var(--im-glow)" }}
