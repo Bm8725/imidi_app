@@ -636,7 +636,7 @@ export default function ProductsClient() {
         <Footer />
       </div>
       
-      <WhatsAppWidget />
+      {/*<WhatsAppWidget /> */}
     </div>
   );
 }

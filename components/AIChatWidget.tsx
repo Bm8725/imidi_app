@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 /* ------------------------------------------------------------------ */
@@ -19,16 +19,11 @@ const SITE = {
   privacyHref: "/privacy",
   // Shown in the three-dot menu.
   links: [
-    { label: "Download app", href: "/download" },
-    { label: "Support center", href: "/support" },
-  ],
+    { key: "dl", href: "/download" },
+    { key: "support", href: "/support" },
+  ] as { key: "dl" | "support"; href: string }[],
   // Quick-reply buttons under the welcome message.
-  prompts: [
-    "Which platforms does iMIDI support?",
-    "Help me set up my MIDI device",
-    "Fix audio latency or crackling",
-    "What can the real-time synth do?",
-  ],
+  prompts: ["p1", "p2", "p3", "p4"] as const,
 };
 
 // The blue-to-cyan gradient is used on desktop. On phones it becomes a solid
@@ -52,17 +47,26 @@ const ALLOW_WHATSAPP_OFFLINE = false;
 const DEPARTMENTS = [
   {
     id: "general",
-    label: "General Support",
-    sublabel: "MIDI systems, i-volution, mounting system, firmware updates",
     number: "40765354998", // digits only, no '+'
-    message: "Hi! I have a question about iMIDI / TS4X.",
+    label: { en: "General Support", ro: "Suport general" },
+    sublabel: {
+      en: "MIDI systems, i-volution, mounting system, firmware updates",
+      ro: "Sisteme MIDI, i-volution, sistem de montare, actualizări firmware",
+    },
+    message: { en: "Hi! I have a question about iMIDI / TS4X.", ro: "Salut! Am o întrebare despre iMIDI / TS4X." },
   },
   {
     id: "cloud",
-    label: "Cloud Support",
-    sublabel: "Technical support, TS4X app support, firmware updates",
     number: "40721183181",
-    message: "Hi! I need help with my cloud account and platform.",
+    label: { en: "Cloud Support", ro: "Suport Cloud" },
+    sublabel: {
+      en: "Technical support, TS4X app support, firmware updates",
+      ro: "Suport tehnic, suport aplicația TS4X, actualizări firmware",
+    },
+    message: {
+      en: "Hi! I need help with my cloud account and platform.",
+      ro: "Salut! Am nevoie de ajutor cu contul și platforma cloud.",
+    },
   },
 ];
 
@@ -87,10 +91,12 @@ function getBusinessStatus() {
   const hh = (n: number) => `${String(n).padStart(2, "0")}:00`;
   return {
     isOpen,
-    hoursText: `Mon–Fri, ${hh(BUSINESS_HOURS.startHour)}–${hh(BUSINESS_HOURS.endHour)} (Romania time)`,
+    from: hh(BUSINESS_HOURS.startHour),
+    to: hh(BUSINESS_HOURS.endHour),
   };
 }
 
+const KEY_LANG = "imidi-chat-lang-v1";
 const KEY_MSGS = "imidi-chat-v4";
 const KEY_CONSENT = "imidi-chat-consent-v1";
 const KEY_THEME = "imidi-chat-theme-v1";
@@ -193,12 +199,242 @@ interface Consent {
   ts: number;
   save: boolean; // keep chat on this device
   sound: boolean;
+  notify?: boolean; // browser notifications
 }
 
 interface Option {
   label: string;
   onClick: () => void;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Languages: EN / RO                                                 */
+/* ------------------------------------------------------------------ */
+
+type Lang = "en" | "ro";
+
+const EN = {
+  sub: "iMIDI assistant. Replies in seconds.",
+  dl: "Download app",
+  support: "Support center",
+  p1: "Which platforms does iMIDI support?",
+  p2: "Help me set up my MIDI device",
+  p3: "Fix audio latency or crackling",
+  p4: "What can the real-time synth do?",
+  human: "Talk to a human",
+  welcome: "Hi there! I'm {name} 👋, {site}'s virtual assistant. How can I help you today?",
+  more: "More options",
+  minimize: "Minimize chat",
+  language: "Language",
+  sounds: "Sounds",
+  saveChat: "Save chat on this device",
+  notifyMenu: "Browser notifications",
+  dark: "Dark mode",
+  light: "Light mode",
+  larger: "Larger window",
+  smaller: "Smaller window",
+  callWa: "Call or WhatsApp us",
+  transcript: "Download transcript",
+  clear: "Clear conversation",
+  withdraw: "Withdraw consent and erase",
+  close: "Close",
+  contactSub: "Call or message our team",
+  teamOn: "Team online now",
+  teamOff: "Team offline right now",
+  hours: "Mon–Fri, {from}–{to} (Romania time)",
+  call: "Call",
+  callNote: "Calls and WhatsApp chats are answered by our team, not the AI assistant.",
+  closedNote: "We're closed right now. Ask the AI assistant, or contact us again during opening hours.",
+  backChat: "Back to chat",
+  consentTitle: "Before we start",
+  consentIntro: "I'm {name}, {site}'s virtual assistant. I'm not a person, and my answers can be wrong.",
+  cb1: "What you type is sent to {site}'s servers and to an AI provider so I can write a reply.",
+  cb2: "Please don't share passwords, card numbers or other sensitive details.",
+  cb3: "If you attach a screenshot or photo, it is sent too. Hide any private details first.",
+  cb4: "You can withdraw consent and erase your chat at any time from the menu.",
+  agree1: "I agree",
+  agree2: " to my messages being processed to get answers, as described in the",
+  privacy: "privacy policy",
+  required: "(required)",
+  optional: "(optional)",
+  keepChat: "Keep my chat on this device so I can continue later.",
+  playSounds: "Play short sounds for messages.",
+  notifyOpt: "Show a browser notification when {name} replies while I'm on another tab.",
+  accept: "Accept and start chat",
+  noThanks: "No thanks",
+  preferPerson: "Prefer a person? Call or WhatsApp us",
+  tryAgain: "Try again",
+  latest: "Latest",
+  scrollLatest: "Scroll to latest message",
+  copy: "Copy answer",
+  copied: "Copied",
+  helpful: "Helpful",
+  notHelpful: "Not helpful",
+  typing: "{name} is typing",
+  openImg: "Open image",
+  removeImg: "Remove image",
+  attached: "Attached image",
+  attach: "Attach a screenshot or photo",
+  dictate: "Dictate with your voice",
+  stopDictate: "Stop dictation",
+  emoji: "Emoji",
+  insert: "Insert {e}",
+  mute: "Mute sounds",
+  unmute: "Turn sounds on",
+  placeholder: "Type your message...",
+  listening: "Listening...",
+  listeningBanner: "Listening… speak now",
+  powered: "Powered by {site}",
+  stop: "Stop answer",
+  send: "Send message",
+  drop: "Drop an image to attach it",
+  errWaking: "The assistant is waking up. Please try again in a few seconds.",
+  errEmpty: "I could not process that. Please rephrase your question.",
+  errConn: "Connection problem. Check your network and try again.",
+  noteOnlyImg: "Only images can be attached.",
+  noteMax: "You can attach up to {n} images.",
+  noteBig: "That image is too large (max {n} MB).",
+  noteRead: "I couldn't read that image. Try a PNG or JPG.",
+  noteNotif: "Notifications are blocked in your browser settings.",
+  you: "You",
+  imageAttached: "[image attached]",
+  transcriptTitle: "{site} chat transcript",
+  openChat: "Open {name} chat",
+  chatWith: "Chat with {name}",
+  unreadMsg: "{n} unread message",
+  preview: "Image preview",
+  closePreview: "Close preview",
+};
+
+const RO: Record<keyof typeof EN, string> = {
+  sub: "Asistentul iMIDI. Răspunde în câteva secunde.",
+  dl: "Descarcă aplicația",
+  support: "Centru de suport",
+  p1: "Ce platforme suportă iMIDI?",
+  p2: "Ajută-mă să configurez dispozitivul MIDI",
+  p3: "Rezolvă latența sau pârâitul audio",
+  p4: "Ce poate face sintetizatorul în timp real?",
+  human: "Vorbește cu un om",
+  welcome: "Salut! Sunt {name} 👋, asistentul virtual {site}. Cu ce te pot ajuta astăzi?",
+  more: "Mai multe opțiuni",
+  minimize: "Minimizează chatul",
+  language: "Limbă",
+  sounds: "Sunete",
+  saveChat: "Salvează chatul pe acest dispozitiv",
+  notifyMenu: "Notificări în browser",
+  dark: "Mod întunecat",
+  light: "Mod luminos",
+  larger: "Fereastră mai mare",
+  smaller: "Fereastră mai mică",
+  callWa: "Sună-ne sau scrie-ne pe WhatsApp",
+  transcript: "Descarcă conversația",
+  clear: "Șterge conversația",
+  withdraw: "Retrage acordul și șterge tot",
+  close: "Închide",
+  contactSub: "Sună sau scrie echipei noastre",
+  teamOn: "Echipa este online acum",
+  teamOff: "Echipa este offline acum",
+  hours: "Lun–Vin, {from}–{to} (ora României)",
+  call: "Sună",
+  callNote: "La apeluri și pe WhatsApp răspunde echipa noastră, nu asistentul AI.",
+  closedNote: "Acum suntem închiși. Întreabă asistentul AI sau contactează-ne din nou în program.",
+  backChat: "Înapoi la chat",
+  consentTitle: "Înainte să începem",
+  consentIntro: "Sunt {name}, asistentul virtual {site}. Nu sunt o persoană, iar răspunsurile mele pot fi greșite.",
+  cb1: "Ce scrii este trimis serverelor {site} și unui furnizor de AI, ca să pot scrie un răspuns.",
+  cb2: "Te rog să nu trimiți parole, numere de card sau alte date sensibile.",
+  cb3: "Dacă atașezi o captură de ecran sau o poză, se trimite și ea. Ascunde mai întâi datele private.",
+  cb4: "Îți poți retrage acordul și poți șterge conversația oricând din meniu.",
+  agree1: "Sunt de acord",
+  agree2: " ca mesajele mele să fie procesate pentru a primi răspunsuri, conform",
+  privacy: "politicii de confidențialitate",
+  required: "(obligatoriu)",
+  optional: "(opțional)",
+  keepChat: "Păstrează conversația pe acest dispozitiv, ca să o pot continua mai târziu.",
+  playSounds: "Redă sunete scurte pentru mesaje.",
+  notifyOpt: "Afișează o notificare în browser când {name} răspunde cât sunt pe altă filă.",
+  accept: "Acceptă și începe chatul",
+  noThanks: "Nu, mulțumesc",
+  preferPerson: "Preferi o persoană? Sună-ne sau scrie-ne pe WhatsApp",
+  tryAgain: "Încearcă din nou",
+  latest: "Ultimul mesaj",
+  scrollLatest: "Mergi la ultimul mesaj",
+  copy: "Copiază răspunsul",
+  copied: "Copiat",
+  helpful: "Util",
+  notHelpful: "Nu m-a ajutat",
+  typing: "{name} scrie",
+  openImg: "Deschide imaginea",
+  removeImg: "Elimină imaginea",
+  attached: "Imagine atașată",
+  attach: "Atașează o captură de ecran sau o poză",
+  dictate: "Dictează cu vocea",
+  stopDictate: "Oprește dictarea",
+  emoji: "Emoji",
+  insert: "Inserează {e}",
+  mute: "Oprește sunetele",
+  unmute: "Pornește sunetele",
+  placeholder: "Scrie mesajul tău...",
+  listening: "Ascult...",
+  listeningBanner: "Ascult… vorbește acum",
+  powered: "Oferit de {site}",
+  stop: "Oprește răspunsul",
+  send: "Trimite mesajul",
+  drop: "Trage o imagine aici ca să o atașezi",
+  errWaking: "Asistentul se trezește. Încearcă din nou în câteva secunde.",
+  errEmpty: "Nu am putut procesa asta. Reformulează întrebarea, te rog.",
+  errConn: "Problemă de conexiune. Verifică rețeaua și încearcă din nou.",
+  noteOnlyImg: "Se pot atașa doar imagini.",
+  noteMax: "Poți atașa cel mult {n} imagini.",
+  noteBig: "Imaginea e prea mare (maximum {n} MB).",
+  noteRead: "Nu am putut citi imaginea. Încearcă un PNG sau JPG.",
+  noteNotif: "Notificările sunt blocate din setările browserului.",
+  you: "Tu",
+  imageAttached: "[imagine atașată]",
+  transcriptTitle: "Conversația {site}",
+  openChat: "Deschide chatul {name}",
+  chatWith: "Vorbește cu {name}",
+  unreadMsg: "{n} mesaj necitit",
+  preview: "Previzualizare imagine",
+  closePreview: "Închide previzualizarea",
+};
+
+type Key = keyof typeof EN;
+const STR: Record<Lang, Record<Key, string>> = { en: EN, ro: RO };
+
+function makeT(lang: Lang) {
+  return (k: Key, v?: Record<string, string | number>) => {
+    let out: string = STR[lang][k] ?? EN[k];
+    if (v) for (const [a, b] of Object.entries(v)) out = out.split(`{${a}}`).join(String(b));
+    return out;
+  };
+}
+
+const LangCtx = createContext<{ lang: Lang; t: ReturnType<typeof makeT> }>({ lang: "en", t: makeT("en") });
+const useT = () => useContext(LangCtx).t;
+
+function LangToggle({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
+  const t = useT();
+  return (
+    <div role="group" aria-label={t("language")} className="flex h-7 flex-shrink-0 items-center rounded-full bg-white/20 p-0.5 text-[11px] font-bold">
+      {(["en", "ro"] as Lang[]).map((l) => (
+        <button
+          key={l}
+          type="button"
+          aria-pressed={lang === l}
+          onClick={() => setLang(l)}
+          className={`rounded-full px-2 py-[4px] leading-none ${lang === l ? "bg-white text-[var(--im-brand)]" : "text-white/90 hover:text-white"}`}
+        >
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Notification text without markdown
+const plainText = (md: string) =>
+  md.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/[*`]/g, "").replace(/\s+/g, " ").trim();
 
 const MAX_IMAGES = 3;
 const MAX_FILE_MB = 15;
@@ -458,6 +694,7 @@ const I = {
   expand: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" /></svg>,
   save: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M5 4h11l3 3v13H5V4zM8 4v5h7V4M8 20v-6h8v6" /></svg>,
   attach: <svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M21 11.5l-8.6 8.6a5 5 0 01-7.1-7.1l8.6-8.6a3.3 3.3 0 014.7 4.7l-8.6 8.6a1.7 1.7 0 01-2.4-2.4l7.9-7.9" /></svg>,
+  bell: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M6 9a6 6 0 1112 0c0 5 2 6.5 2 6.5H4S6 14 6 9zM10 19a2 2 0 004 0" /></svg>,
   arrowDown: <svg width="14" height="14" viewBox="0 0 24 24" {...stroke} strokeWidth={2.2}><path d="M12 5v14M6 13l6 6 6-6" /></svg>,
   moon: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><path d="M21 14.5A8.5 8.5 0 1110.5 3a7 7 0 0010.5 11.5z" /></svg>,
   sun: <svg width="16" height="16" viewBox="0 0 24 24" {...stroke}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></svg>,
@@ -466,7 +703,7 @@ const I = {
 
 function TypingDots() {
   return (
-    <div className="flex h-4 items-center gap-1" role="status" aria-label={`${SITE.assistant} is typing`}>
+    <div className="flex h-4 items-center gap-1" role="status" aria-label={useT()("typing", { name: SITE.assistant })}>
       {[0, 1, 2].map((i) => (
         <span
           key={i}
@@ -644,6 +881,7 @@ function AssistantMessage({
 }) {
   const shown = msg.content;
   const done = true;
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
 
@@ -682,15 +920,13 @@ function AssistantMessage({
           onClick={onRetry}
           className="rounded-full border px-3.5 py-1.5 text-xs font-semibold hover:bg-[var(--im-hover)]"
           style={{ borderColor: "var(--im-border)", color: "var(--im-text)" }}
-        >
-          Try again
-        </button>
+        >{t("tryAgain")}</button>
       )}
 
       {done && !msg.error && (
         <div className="flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-70">
           <MiniAction
-            label={copied ? "Copied" : "Copy answer"}
+            label={copied ? t("copied") : t("copy")}
             active={copied}
             onClick={() => {
               onCopy(msg.content);
@@ -704,10 +940,10 @@ function AssistantMessage({
               <svg width="13" height="13" viewBox="0 0 24 24" {...stroke}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 012-2h9" /></svg>
             )}
           </MiniAction>
-          <MiniAction label="Helpful" active={msg.feedback === "up"} onClick={() => onFeedback(msg.id, "up")}>
+          <MiniAction label={t("helpful")} active={msg.feedback === "up"} onClick={() => onFeedback(msg.id, "up")}>
             <svg width="13" height="13" viewBox="0 0 24 24" {...stroke}><path d="M7 11v9H4v-9h3zM7 11l4-8a2 2 0 012 2v4h6a2 2 0 012 2.3l-1.2 7A2 2 0 0117.8 20H7" /></svg>
           </MiniAction>
-          <MiniAction label="Not helpful" active={msg.feedback === "down"} onClick={() => onFeedback(msg.id, "down")}>
+          <MiniAction label={t("notHelpful")} active={msg.feedback === "down"} onClick={() => onFeedback(msg.id, "down")}>
             <svg width="13" height="13" viewBox="0 0 24 24" {...stroke}><path d="M17 13V4h3v9h-3zM17 13l-4 8a2 2 0 01-2-2v-4H5a2 2 0 01-2-2.3l1.2-7A2 2 0 016.2 4H17" /></svg>
           </MiniAction>
         </div>
@@ -747,6 +983,15 @@ export default function AIChatWidget() {
   const [attachNote, setAttachNote] = useState("");
   const [dragging, setDragging] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [lang, setLang] = useState<Lang>("en");
+  const t = useMemo(() => makeT(lang), [lang]);
+  const ctx = useMemo(() => ({ lang, t }), [lang, t]);
+  const langRef = useRef<Lang>("en");
+  langRef.current = lang;
+  const tRef = useRef(t);
+  tRef.current = t;
+  const [optNotify, setOptNotify] = useState(false);
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission | "unsupported">("unsupported");
   const [, setTick] = useState(0);
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
@@ -762,6 +1007,8 @@ export default function AIChatWidget() {
   const listeningIntentRef = useRef(false);
   const soundRef = useRef(false);
   soundRef.current = !!consent?.sound;
+  const notifyRef = useRef(false);
+  notifyRef.current = !!consent?.notify;
 
   const sfx = useCallback((n: Sfx) => {
     if (soundRef.current) playSound(n);
@@ -812,11 +1059,15 @@ export default function AIChatWidget() {
           }
         }
       }
+      const savedLang = localStorage.getItem(KEY_LANG);
+      if (savedLang === "en" || savedLang === "ro") setLang(savedLang);
+      else if (navigator.language?.toLowerCase().startsWith("ro")) setLang("ro");
       const savedTheme = localStorage.getItem(KEY_THEME);
       if (savedTheme === "dark" || savedTheme === "light") setTheme(savedTheme);
     } catch {}
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     setMicOk(!!SR);
+    setNotifPerm(typeof Notification === "undefined" ? "unsupported" : Notification.permission);
     setHydrated(true);
   }, []);
 
@@ -954,6 +1205,7 @@ export default function AIChatWidget() {
     setConsent(c);
     soundRef.current = optSound;
     if (optSound) playSound("accept"); // user gesture: audio is allowed now
+    if (optNotify && notifPerm !== "unsupported") askNotify().then((ok) => { if (ok) patchConsent({ notify: true }); });
   };
 
   const withdraw = () => {
@@ -972,6 +1224,40 @@ export default function AIChatWidget() {
   };
 
   const patchConsent = (patch: Partial<Consent>) => setConsent((c) => (c ? { ...c, ...patch } : c));
+
+  const changeLang = (l: Lang) => {
+    setLang(l);
+    try {
+      localStorage.setItem(KEY_LANG, l);
+    } catch {}
+    sfx("click");
+  };
+
+  // Must run from a click: browsers only show the permission prompt after a user gesture.
+  const askNotify = async (): Promise<boolean> => {
+    if (typeof Notification === "undefined") return false;
+    try {
+      const r = Notification.permission === "default" ? await Notification.requestPermission() : Notification.permission;
+      setNotifPerm(r);
+      return r === "granted";
+    } catch {
+      return false;
+    }
+  };
+
+  const toggleNotify = async () => {
+    if (!consent) return;
+    if (consent.notify) {
+      patchConsent({ notify: false });
+      return;
+    }
+    const ok = notifPerm === "denied" ? false : await askNotify();
+    if (ok) patchConsent({ notify: true });
+    else {
+      setMenuOpen(false);
+      showNote(t("noteNotif"));
+    }
+  };
 
   const toggleSound = () => {
     if (!consent) return;
@@ -1002,6 +1288,7 @@ export default function AIChatWidget() {
             messages: buildApiMessages(history),
             page: pathname,
             site: SITE.domain,
+            lang: langRef.current,
           }),
         });
 
@@ -1010,10 +1297,10 @@ export default function AIChatWidget() {
         let failed = false;
 
         if (!res.ok || data?.error) {
-          aiText = "The assistant is waking up. Please try again in a few seconds.";
+          aiText = tRef.current("errWaking");
           failed = true;
         } else if (!aiText) {
-          aiText = "I could not process that. Please rephrase your question.";
+          aiText = tRef.current("errEmpty");
           failed = true;
         }
 
@@ -1040,12 +1327,27 @@ export default function AIChatWidget() {
         ]);
         const away = typeof document !== "undefined" && (document.hidden || !isOpenRef.current);
         if (!failed && away) setUnread((n) => n + 1);
+        if (!failed && typeof document !== "undefined" && document.hidden && notifyRef.current && typeof Notification !== "undefined" && Notification.permission === "granted") {
+          try {
+            const n = new Notification(SITE.assistant, {
+              body: plainText(cleanText).slice(0, 120),
+              icon: SITE.avatarSrc || undefined,
+              tag: "imidi-chat",
+            });
+            n.onclick = () => {
+              window.focus();
+              setIsOpen(true);
+              setUnread(0);
+              n.close();
+            };
+          } catch {}
+        }
         if (soundRef.current) playSound(failed ? "error" : away ? "notify" : "receive");
       } catch (err) {
         if ((err as Error)?.name === "AbortError") return;
         setMessages((prev) => [
           ...prev,
-          { id: uid(), role: "assistant", content: "Connection problem. Check your network and try again.", error: true },
+          { id: uid(), role: "assistant", content: tRef.current("errConn"), error: true },
         ]);
         if (soundRef.current) playSound("error");
       } finally {
@@ -1100,9 +1402,9 @@ export default function AIChatWidget() {
 
   const downloadTranscript = () => {
     const body = messages
-      .map((m) => `${m.role === "user" ? "You" : SITE.assistant}: ${m.content}${m.role === "user" && m.images?.length ? " [image attached]" : ""}`)
+      .map((m) => `${m.role === "user" ? t("you") : SITE.assistant}: ${m.content}${m.role === "user" && m.images?.length ? " " + t("imageAttached") : ""}`)
       .join("\n\n");
-    const blob = new Blob([`${SITE.name} chat transcript\n${new Date().toLocaleString()}\n\n${body}\n`], { type: "text/plain" });
+    const blob = new Blob([`${t("transcriptTitle", { site: SITE.name })}\n${new Date().toLocaleString()}\n\n${body}\n`], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -1134,23 +1436,23 @@ export default function AIChatWidget() {
     const all = Array.from(files);
     const list = all.filter((f) => f.type.startsWith("image/"));
     if (list.length === 0) {
-      showNote("Only images can be attached.");
+      showNote(t("noteOnlyImg"));
       return;
     }
     if (attachments.length >= MAX_IMAGES) {
-      showNote(`You can attach up to ${MAX_IMAGES} images.`);
+      showNote(t("noteMax", { n: MAX_IMAGES }));
       return;
     }
     for (const f of list) {
       if (f.size > MAX_FILE_BYTES) {
-        showNote(`That image is too large (max ${MAX_FILE_MB} MB).`);
+        showNote(t("noteBig", { n: MAX_FILE_MB }));
         continue;
       }
       try {
         const url = await fileToDataUrl(f);
         setAttachments((p) => (p.length >= MAX_IMAGES ? p : [...p, { url, alt: f.name }]));
       } catch {
-        showNote("I couldn't read that image. Try a PNG or JPG.");
+        showNote(t("noteRead"));
       }
     }
     sfx("click");
@@ -1191,7 +1493,7 @@ export default function AIChatWidget() {
     if (!SR) return;
 
     const rec = new SR();
-    rec.lang = "en-GB";
+    rec.lang = langRef.current === "ro" ? "ro-RO" : "en-GB";
     rec.interimResults = true;
     rec.continuous = true;
 
@@ -1249,14 +1551,14 @@ export default function AIChatWidget() {
   const topPad = "calc(1.1rem + env(safe-area-inset-top))";
 
   const welcomeOptions: Option[] = [
-    ...SITE.prompts.map((p) => ({ label: p, onClick: () => submit(p) })),
-    { label: "Talk to a human", onClick: openContact },
+    ...SITE.prompts.map((k) => ({ label: t(k), onClick: () => submit(t(k)) })),
+    { label: t("human"), onClick: openContact },
   ];
 
   /* ---------------------------------------------------------------- */
 
   return (
-    <>
+    <LangCtx.Provider value={ctx}>
       <style suppressHydrationWarning>{`
         .im-font { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 
@@ -1416,8 +1718,8 @@ export default function AIChatWidget() {
           <button
             type="button"
             onClick={openPanel}
-            aria-label={`Open ${SITE.assistant} chat`}
-            title={`Chat with ${SITE.assistant}`}
+            aria-label={t("openChat", { name: SITE.assistant })}
+            title={t("chatWith", { name: SITE.assistant })}
             className="im-ghost relative flex h-[70px] w-[70px] items-center justify-center rounded-full sm:h-[76px] sm:w-[76px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--im-brand)]"
           >
             {(!hasOpened || unread > 0) && (
@@ -1428,7 +1730,7 @@ export default function AIChatWidget() {
               <span
                 className="absolute right-[3px] top-[3px] h-[14px] w-[14px] rounded-full"
                 style={{ background: "var(--im-brand)", boxShadow: "0 0 0 2px var(--im-ghost-ring)" }}
-                aria-label={`${Math.max(unread, 1)} unread message`}
+                aria-label={t("unreadMsg", { n: Math.max(unread, 1) })}
               />
             )}
           </button>
@@ -1468,25 +1770,24 @@ export default function AIChatWidget() {
               <div
                 className="im-fade pointer-events-none absolute inset-2 z-50 flex items-center justify-center rounded-2xl border-2 border-dashed text-[15px] font-semibold"
                 style={{ background: "var(--im-surface)", borderColor: "var(--im-brand)", color: "var(--im-link)", opacity: 0.96 }}
-              >
-                Drop an image to attach it
-              </div>
+              >{t("drop")}</div>
             )}
             {/* HEADER */}
             <div className="im-grad relative flex-shrink-0 text-white">
-              <div className="im-head-row flex items-center gap-3 px-4 pb-4" style={{ paddingTop: topPad }}>
+              <div className="im-head-row flex items-center gap-2.5 px-4 pb-4" style={{ paddingTop: topPad }}>
                 <Avatar size={44} />
-                <p className="min-w-0 flex-1 truncate text-[21px] font-semibold tracking-tight">{SITE.headerTitle}</p>
+                <p className="min-w-0 flex-1 truncate text-[19px] font-semibold tracking-tight sm:text-[21px]">{SITE.headerTitle}</p>
+                <LangToggle lang={lang} setLang={changeLang} />
                 {consent && (
-                  <HeadBtn label="More options" onClick={() => { setEmojiOpen(false); setMenuOpen((v) => !v); }}>
+                  <HeadBtn label={t("more")} onClick={() => { setEmojiOpen(false); setMenuOpen((v) => !v); }}>
                     {I.kebab}
                   </HeadBtn>
                 )}
-                <HeadBtn label="Minimize chat" onClick={closePanel}>{I.chevron}</HeadBtn>
+                <HeadBtn label={t("minimize")} onClick={closePanel}>{I.chevron}</HeadBtn>
               </div>
 
               <div className="im-head-sub border-t border-white/20 px-4 pb-8 pt-3 text-[14.5px] text-white/95">
-                {SITE.headerSubtitle}
+                {t("sub")}
               </div>
 
               {/* wave edge */}
@@ -1514,21 +1815,24 @@ export default function AIChatWidget() {
                     boxShadow: "0 14px 36px rgba(20,30,70,0.2)",
                   }}
                 >
-                  <MenuItem icon={consent.sound ? I.speakerOn : I.speakerOff} label="Sounds" toggle={consent.sound} onClick={toggleSound} />
-                  <MenuItem icon={I.save} label="Save chat on this device" toggle={consent.save} onClick={() => patchConsent({ save: !consent.save })} />
-                  <MenuItem icon={theme === "dark" ? I.sun : I.moon} label={theme === "dark" ? "Light mode" : "Dark mode"} toggle={theme === "dark"} onClick={toggleTheme} />
+                  <MenuItem icon={consent.sound ? I.speakerOn : I.speakerOff} label={t("sounds")} toggle={consent.sound} onClick={toggleSound} />
+                  <MenuItem icon={I.save} label={t("saveChat")} toggle={consent.save} onClick={() => patchConsent({ save: !consent.save })} />
+                  {notifPerm !== "unsupported" && (
+                    <MenuItem icon={I.bell} label={t("notifyMenu")} toggle={!!consent.notify && notifPerm === "granted"} onClick={toggleNotify} />
+                  )}
+                  <MenuItem icon={theme === "dark" ? I.sun : I.moon} label={theme === "dark" ? t("light") : t("dark")} toggle={theme === "dark"} onClick={toggleTheme} />
                   <span className="max-lg:hidden">
-                    <MenuItem icon={I.expand} label={expanded ? "Smaller window" : "Larger window"} onClick={() => { setExpanded((v) => !v); setMenuOpen(false); }} />
+                    <MenuItem icon={I.expand} label={expanded ? t("smaller") : t("larger")} onClick={() => { setExpanded((v) => !v); setMenuOpen(false); }} />
                   </span>
                   <div className="my-1 h-px" style={{ background: "var(--im-border)" }} />
-                  <MenuItem icon={I.phone} label="Call or WhatsApp us" onClick={openContact} />
+                  <MenuItem icon={I.phone} label={t("callWa")} onClick={openContact} />
                   {SITE.links.map((l) => (
-                    <MenuItem key={l.href} icon={I.link} label={l.label} onClick={() => { window.location.href = l.href; }} />
+                    <MenuItem key={l.href} icon={I.link} label={t(l.key)} onClick={() => { window.location.href = l.href; }} />
                   ))}
                   <div className="my-1 h-px" style={{ background: "var(--im-border)" }} />
-                  {messages.length > 0 && <MenuItem icon={I.download} label="Download transcript" onClick={downloadTranscript} />}
-                  {messages.length > 0 && <MenuItem icon={I.trash} label="Clear conversation" onClick={clearChat} />}
-                  <MenuItem icon={I.shield} label="Withdraw consent and erase" danger onClick={withdraw} />
+                  {messages.length > 0 && <MenuItem icon={I.download} label={t("transcript")} onClick={downloadTranscript} />}
+                  {messages.length > 0 && <MenuItem icon={I.trash} label={t("clear")} onClick={clearChat} />}
+                  <MenuItem icon={I.shield} label={t("withdraw")} danger onClick={withdraw} />
                 </div>
               </>
             )}
@@ -1548,10 +1852,10 @@ export default function AIChatWidget() {
                   <div className="im-grad relative flex-shrink-0 text-white">
                     <div className="flex items-center justify-between gap-3 px-4 pb-8" style={{ paddingTop: topPad }}>
                       <div className="min-w-0">
-                        <p className="text-[21px] font-semibold tracking-tight">Talk to a human</p>
-                        <p className="mt-0.5 text-[13.5px] text-white/90">Call or message our team</p>
+                        <p className="text-[21px] font-semibold tracking-tight">{t("human")}</p>
+                        <p className="mt-0.5 text-[13.5px] text-white/90">{t("contactSub")}</p>
                       </div>
-                      <HeadBtn label="Close" onClick={() => setContactOpen(false)}>{I.close}</HeadBtn>
+                      <HeadBtn label={t("close")} onClick={() => setContactOpen(false)}>{I.close}</HeadBtn>
                     </div>
                     <svg className="absolute bottom-[-1px] left-0 h-[26px] w-full" viewBox="0 0 400 26" preserveAspectRatio="none" aria-hidden="true">
                       <path d="M0 14C70 26 150 2 240 9S350 22 400 6V26H0Z" fill="var(--im-surface)" />
@@ -1572,16 +1876,16 @@ export default function AIChatWidget() {
                   >
                     <span className="flex items-center gap-2 font-semibold">
                       <span className={`h-2 w-2 rounded-full ${bh.isOpen ? "bg-emerald-500" : "bg-amber-500"}`} />
-                      {bh.isOpen ? "Team online now" : "Team offline right now"}
+                      {bh.isOpen ? t("teamOn") : t("teamOff")}
                     </span>
-                    <span className="pl-4 opacity-90">{bh.hoursText}</span>
+                    <span className="pl-4 opacity-90">{t("hours", { from: bh.from, to: bh.to })}</span>
                   </div>
 
                   <div className="im-scroll flex-1 space-y-3 overflow-y-auto p-4">
                     {DEPARTMENTS.map((d) => (
                       <div key={d.id} className="rounded-2xl border p-4" style={{ background: "var(--im-bubble)", borderColor: "var(--im-border)" }}>
-                        <p className="text-[14.5px] font-semibold" style={{ color: "var(--im-text)" }}>{d.label}</p>
-                        <p className="mt-0.5 text-[12px] leading-snug" style={{ color: "var(--im-muted)" }}>{d.sublabel}</p>
+                        <p className="text-[14.5px] font-semibold" style={{ color: "var(--im-text)" }}>{d.label[lang]}</p>
+                        <p className="mt-0.5 text-[12px] leading-snug" style={{ color: "var(--im-muted)" }}>{d.sublabel[lang]}</p>
 
                         <p className="mt-3 flex items-center gap-2 text-[15px] font-semibold tabular-nums tracking-wide" style={{ color: "var(--im-text)" }}>
                           <span style={{ color: "var(--im-muted)" }}>{I.phone}</span>
@@ -1596,7 +1900,7 @@ export default function AIChatWidget() {
                               className="flex h-10 items-center justify-center gap-2 rounded-xl border text-[13px] font-semibold transition-colors hover:bg-[var(--im-hover)]"
                               style={{ borderColor: "var(--im-text)", background: "var(--im-surface)", color: "var(--im-text)" }}
                             >
-                              {I.phone} Call
+                              {I.phone} {t("call")}
                             </a>
                           ) : (
                             <span
@@ -1604,13 +1908,13 @@ export default function AIChatWidget() {
                               className="flex h-10 cursor-not-allowed select-none items-center justify-center gap-2 rounded-xl border text-[13px] font-semibold"
                               style={{ borderColor: "var(--im-border)", background: "var(--im-surface)", color: "var(--im-muted)", opacity: 0.8 }}
                             >
-                              {I.phone} Call
+                              {I.phone} {t("call")}
                             </span>
                           )}
 
                           {canWa ? (
                             <a
-                              href={`https://wa.me/${d.number}?text=${encodeURIComponent(d.message)}`}
+                              href={`https://wa.me/${d.number}?text=${encodeURIComponent(d.message[lang])}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={() => sfx("click")}
@@ -1633,8 +1937,8 @@ export default function AIChatWidget() {
 
                     <p className="px-1 text-[11px] leading-relaxed" style={{ color: "var(--im-muted)" }}>
                       {bh.isOpen
-                        ? "Calls and WhatsApp chats are answered by our team, not the AI assistant."
-                        : "We're closed right now. Ask the AI assistant, or contact us again during opening hours."}
+                        ? t("callNote")
+                        : t("closedNote")}
                     </p>
                   </div>
 
@@ -1644,9 +1948,7 @@ export default function AIChatWidget() {
                       onClick={() => setContactOpen(false)}
                       className="h-11 w-full rounded-xl border text-[13.5px] font-semibold hover:bg-[var(--im-hover)]"
                       style={{ borderColor: "var(--im-border)", color: "var(--im-muted)" }}
-                    >
-                      Back to chat
-                    </button>
+                    >{t("backChat")}</button>
                   </div>
                 </div>
               );
@@ -1657,23 +1959,16 @@ export default function AIChatWidget() {
               /* ---------- CONSENT GATE ---------- */
               <div className="im-scroll flex-1 overflow-y-auto px-5 pb-5 pt-2">
                 <div className="im-msg-in">
-                  <h2 className="text-[21px] font-bold leading-tight tracking-tight" style={{ color: "var(--im-text)" }}>
-                    Before we start
-                  </h2>
+                  <h2 className="text-[21px] font-bold leading-tight tracking-tight" style={{ color: "var(--im-text)" }}>{t("consentTitle")}</h2>
                   <p className="mt-2 text-[13.5px] leading-relaxed" style={{ color: "var(--im-muted)" }}>
-                    I'm {SITE.assistant}, {SITE.name}'s virtual assistant. I'm not a person, and my answers can be wrong.
+                    {t("consentIntro", { name: SITE.assistant, site: SITE.name })}
                   </p>
 
                   <ul className="mt-3 space-y-2 text-[13px] leading-relaxed" style={{ color: "var(--im-muted)" }}>
-                    {[
-                      `What you type is sent to ${SITE.name}'s servers and to an AI provider so I can write a reply.`,
-                      "Please don't share passwords, card numbers or other sensitive details.",
-                      "If you attach a screenshot or photo, it is sent too. Hide any private details first.",
-                      "You can withdraw consent and erase your chat at any time from the menu.",
-                    ].map((t) => (
-                      <li key={t} className="flex gap-2">
+                    {[t("cb1", { site: SITE.name }), t("cb2"), t("cb3"), t("cb4")].map((tx) => (
+                      <li key={tx} className="flex gap-2">
                         <span className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: "var(--im-brand)" }} />
-                        {t}
+                        {tx}
                       </li>
                     ))}
                   </ul>
@@ -1682,29 +1977,37 @@ export default function AIChatWidget() {
                     <label className="flex cursor-pointer items-start gap-3 rounded-2xl border p-3" style={{ background: "var(--im-bubble)", borderColor: "var(--im-border)" }}>
                       <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[var(--im-brand)]" />
                       <span className="text-[13px] leading-snug" style={{ color: "var(--im-text)" }}>
-                        <span className="font-semibold">I agree</span> to my messages being processed to get answers, as described in the{" "}
-                        <a href={SITE.privacyHref} target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2" style={{ color: "var(--im-link)" }}>
-                          privacy policy
-                        </a>
-                        .<span className="ml-1" style={{ color: "var(--im-muted)" }}>(required)</span>
+                        <span className="font-semibold">{t("agree1")}</span>{t("agree2")}{" "}
+                        <a href={SITE.privacyHref} target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2" style={{ color: "var(--im-link)" }}>{t("privacy")}</a>
+                        .<span className="ml-1" style={{ color: "var(--im-muted)" }}>{t("required")}</span>
                       </span>
                     </label>
 
                     <label className="flex cursor-pointer items-start gap-3 rounded-2xl border p-3" style={{ background: "var(--im-bubble)", borderColor: "var(--im-border)" }}>
                       <input type="checkbox" checked={optSave} onChange={(e) => setOptSave(e.target.checked)} className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[var(--im-brand)]" />
                       <span className="text-[13px] leading-snug" style={{ color: "var(--im-text)" }}>
-                        Keep my chat on this device so I can continue later.
-                        <span className="ml-1" style={{ color: "var(--im-muted)" }}>(optional)</span>
+                        {t("keepChat")}
+                        <span className="ml-1" style={{ color: "var(--im-muted)" }}>{t("optional")}</span>
                       </span>
                     </label>
 
                     <label className="flex cursor-pointer items-start gap-3 rounded-2xl border p-3" style={{ background: "var(--im-bubble)", borderColor: "var(--im-border)" }}>
                       <input type="checkbox" checked={optSound} onChange={(e) => setOptSound(e.target.checked)} className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[var(--im-brand)]" />
                       <span className="text-[13px] leading-snug" style={{ color: "var(--im-text)" }}>
-                        Play short sounds for messages.
-                        <span className="ml-1" style={{ color: "var(--im-muted)" }}>(optional)</span>
+                        {t("playSounds")}
+                        <span className="ml-1" style={{ color: "var(--im-muted)" }}>{t("optional")}</span>
                       </span>
                     </label>
+
+                    {notifPerm !== "unsupported" && (
+                      <label className="flex cursor-pointer items-start gap-3 rounded-2xl border p-3" style={{ background: "var(--im-bubble)", borderColor: "var(--im-border)" }}>
+                        <input type="checkbox" checked={optNotify} onChange={(e) => setOptNotify(e.target.checked)} className="mt-0.5 h-4 w-4 flex-shrink-0 accent-[var(--im-brand)]" />
+                        <span className="text-[13px] leading-snug" style={{ color: "var(--im-text)" }}>
+                          {t("notifyOpt", { name: SITE.assistant })}
+                          <span className="ml-1" style={{ color: "var(--im-muted)" }}>{t("optional")}</span>
+                        </span>
+                      </label>
+                    )}
                   </div>
 
                   <div className="mt-5 flex gap-2.5">
@@ -1713,17 +2016,13 @@ export default function AIChatWidget() {
                       onClick={accept}
                       disabled={!agree}
                       className="im-grad flex-1 rounded-xl px-4 py-3 text-[14px] font-semibold text-white transition-all hover:brightness-110 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Accept and start chat
-                    </button>
+                    >{t("accept")}</button>
                     <button
                       type="button"
                       onClick={closePanel}
                       className="rounded-xl border px-4 py-3 text-[14px] font-semibold hover:bg-[var(--im-hover)]"
                       style={{ borderColor: "var(--im-border)", color: "var(--im-muted)" }}
-                    >
-                      No thanks
-                    </button>
+                    >{t("noThanks")}</button>
                   </div>
 
                   <button
@@ -1732,7 +2031,7 @@ export default function AIChatWidget() {
                     className="mt-4 flex w-full items-center justify-center gap-2 border-t pt-3.5 text-[13px] font-medium hover:underline"
                     style={{ borderColor: "var(--im-border)", color: "var(--im-link)" }}
                   >
-                    {I.human} Prefer a person? Call or WhatsApp us
+                    {I.human} {t("preferPerson")}
                   </button>
                 </div>
               </div>
@@ -1744,7 +2043,7 @@ export default function AIChatWidget() {
                     {/* welcome message with quick replies */}
                     <div className="im-msg-in max-w-[92%]">
                       <BotCard options={messages.length === 0 ? welcomeOptions : undefined}>
-                        Hi there! I'm {SITE.assistant} <span aria-hidden="true">👋</span>, {SITE.name}'s virtual assistant. How can I help you today?
+                        {t("welcome", { name: SITE.assistant, site: SITE.name })}
                       </BotCard>
                     </div>
 
@@ -1758,11 +2057,11 @@ export default function AIChatWidget() {
                                   key={k}
                                   type="button"
                                   onClick={() => setLightbox(img)}
-                                  className="h-[92px] w-[92px] cursor-zoom-in overflow-hidden rounded-xl border focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--im-brand)]"
+                                  className="cursor-zoom-in overflow-hidden rounded-xl border focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--im-brand)]"
                                   style={{ borderColor: "var(--im-border)" }}
-                                  aria-label="Open image"
+                                  aria-label={t("openImg")}
                                 >
-                                  <img src={img.url} alt={img.alt || "Attached image"} className="h-full w-full object-cover" />
+                                  <img src={img.url} alt={img.alt || t("attached")} className="block max-h-[150px] max-w-[220px] object-contain" />
                                 </button>
                               ))}
                             </div>
@@ -1800,11 +2099,11 @@ export default function AIChatWidget() {
                     <button
                       type="button"
                       onClick={() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })}
-                      aria-label="Scroll to latest message"
+                      aria-label={t("scrollLatest")}
                       className="im-msg-in absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-md hover:opacity-90"
                       style={{ background: "var(--im-surface)", borderColor: "var(--im-border)", color: "var(--im-link)" }}
                     >
-                      {I.arrowDown} Latest
+                      {I.arrowDown} {t("latest")}
                     </button>
                   )}
                 </div>
@@ -1827,9 +2126,7 @@ export default function AIChatWidget() {
                       <span className="relative flex h-2 w-2">
                         <span className="im-ping absolute inline-flex h-full w-full rounded-full opacity-60" style={{ background: "var(--im-brand)" }} />
                         <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: "var(--im-brand)" }} />
-                      </span>
-                      Listening… speak now
-                    </div>
+                      </span>{t("listeningBanner")}</div>
                   )}
 
                   <div className="mx-5 h-px" style={{ background: "var(--im-border)" }} />
@@ -1850,10 +2147,10 @@ export default function AIChatWidget() {
                     <div className="flex flex-wrap gap-2 px-5 pt-3">
                       {attachments.map((a, k) => (
                         <div key={k} className="im-fade relative h-14 w-14">
-                          <img src={a.url} alt={a.alt || "Attached image"} className="h-full w-full rounded-lg border object-cover" style={{ borderColor: "var(--im-border)" }} />
+                          <img src={a.url} alt={a.alt || t("attached")} className="h-full w-full rounded-lg border object-cover" style={{ borderColor: "var(--im-border)" }} />
                           <button
                             type="button"
-                            aria-label="Remove image"
+                            aria-label={t("removeImg")}
                             onClick={() => setAttachments((p) => p.filter((_, j) => j !== k))}
                             className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold leading-none text-white"
                             style={{ background: "var(--im-text)" }}
@@ -1892,7 +2189,7 @@ export default function AIChatWidget() {
                         submit(input);
                       }
                     }}
-                    placeholder={listening ? "Listening..." : "Type your message..."}
+                    placeholder={listening ? t("listening") : t("placeholder")}
                     aria-label="Your message"
                     className="block max-h-[110px] min-h-[28px] w-full resize-none bg-transparent px-5 pb-2 pr-[76px] pt-4 text-[16px] outline-none placeholder:text-[var(--im-muted)] sm:pr-[60px] sm:text-[15px]"
                     style={{ color: "var(--im-text)" }}
@@ -1912,7 +2209,7 @@ export default function AIChatWidget() {
                             type="button"
                             onClick={() => addEmoji(e)}
                             className="flex h-9 items-center justify-center rounded-lg text-[20px] hover:bg-[var(--im-hover)]"
-                            aria-label={`Insert ${e}`}
+                            aria-label={t("insert", { e })}
                           >
                             {e}
                           </button>
@@ -1923,22 +2220,22 @@ export default function AIChatWidget() {
 
                   {/* toolbar */}
                   <div className="flex min-w-0 items-center gap-0.5 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pr-[76px] sm:pr-[52px]">
-                    <ToolBtn label="Talk to a human" onClick={openContact}>{I.human}</ToolBtn>
+                    <ToolBtn label={t("human")} onClick={openContact}>{I.human}</ToolBtn>
                     <span className="mx-1 h-5 w-px" style={{ background: "var(--im-border)" }} />
-                    <ToolBtn label="Attach a screenshot or photo" onClick={() => fileRef.current?.click()} active={attachments.length > 0}>
+                    <ToolBtn label={t("attach")} onClick={() => fileRef.current?.click()} active={attachments.length > 0}>
                       {I.attach}
                     </ToolBtn>
                     {micOk && (
-                      <ToolBtn label={listening ? "Stop dictation" : "Dictate with your voice"} onClick={toggleMic} active={listening}>
+                      <ToolBtn label={listening ? t("stopDictate") : t("dictate")} onClick={toggleMic} active={listening}>
                         <span className={listening ? "im-mic-on flex h-9 w-9 items-center justify-center rounded-full" : ""}>{I.mic}</span>
                       </ToolBtn>
                     )}
                     <ToolBtn label="Emoji" onClick={() => { setMenuOpen(false); setEmojiOpen((v) => !v); }} active={emojiOpen}>{I.emoji}</ToolBtn>
-                    <ToolBtn label={consent.sound ? "Mute sounds" : "Turn sounds on"} onClick={toggleSound}>
+                    <ToolBtn label={consent.sound ? t("mute") : t("unmute")} onClick={toggleSound}>
                       {consent.sound ? I.speakerOn : I.speakerOff}
                     </ToolBtn>
                     <span className="im-power ml-auto min-w-0 truncate pl-2 text-right text-[10px] font-medium uppercase tracking-wide" style={{ color: "var(--im-muted)" }}>
-                      Powered by {SITE.name}
+                      {t("powered", { site: SITE.name })}
                     </span>
                   </div>
                 </form>
@@ -1952,7 +2249,7 @@ export default function AIChatWidget() {
               <button
                 type="button"
                 onClick={stop}
-                aria-label="Stop answer"
+                aria-label={t("stop")}
                 className="im-grad absolute bottom-[calc(1.1rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-[52px] w-[52px] items-center justify-center rounded-full text-white transition-transform hover:scale-105 active:scale-95 sm:-right-5 sm:bottom-6 im-send"
                 style={{ boxShadow: "0 8px 22px var(--im-glow)" }}
               >
@@ -1963,7 +2260,7 @@ export default function AIChatWidget() {
                 type="submit"
                 form="im-form"
                 disabled={!input.trim() && attachments.length === 0}
-                aria-label="Send message"
+                aria-label={t("send")}
                 className="im-grad absolute bottom-[calc(1.1rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-[52px] w-[52px] items-center justify-center rounded-full text-white transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 sm:-right-5 sm:bottom-6 im-send"
                 style={{ boxShadow: "0 8px 22px var(--im-glow)" }}
               >
@@ -1982,13 +2279,13 @@ export default function AIChatWidget() {
           className="im-fade fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-6"
           onClick={() => setLightbox(null)}
           role="dialog"
-          aria-label="Image preview"
+          aria-label={t("preview")}
         >
           <div className="relative max-h-full max-w-full" onClick={(e) => e.stopPropagation()}>
             <img src={lightbox.url} alt={lightbox.alt || `${SITE.name} attachment`} className="max-h-[80vh] max-w-full rounded-2xl object-contain" />
             <button
               type="button"
-              aria-label="Close preview"
+              aria-label={t("closePreview")}
               onClick={() => setLightbox(null)}
               className="absolute -right-3 -top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#14192B] shadow-lg"
             >
@@ -2000,6 +2297,6 @@ export default function AIChatWidget() {
           </div>
         </div>
       )}
-    </>
+    </LangCtx.Provider>
   );
 }
